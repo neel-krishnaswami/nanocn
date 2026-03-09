@@ -34,28 +34,23 @@ let mk ctx pos ty eff shape : typed_expr =
     method eff = eff
   end)
 
-(** Signature of an arithmetic primitive. Returns (arg_type, ret_type, effect). *)
-let arith_signature (p : Prim.arith) =
+(** Signature of a primitive. Returns (arg_type, ret_type, effect). *)
+let prim_signature (p : Prim.t) =
   let int_ty = mk_ty Typ.Int in
   let pair_int = mk_ty (Typ.Record [int_ty; int_ty]) in
+  let unit_ty = mk_ty (Typ.Record []) in
   match p with
   | Add -> (pair_int, int_ty, Effect.Pure)
   | Sub -> (pair_int, int_ty, Effect.Pure)
   | Mul -> (pair_int, int_ty, Effect.Pure)
   | Div -> (pair_int, int_ty, Effect.Effectful)
+  | New a -> (a, mk_ty (Typ.Ptr a), Effect.Effectful)
+  | Del a -> (mk_ty (Typ.Ptr a), unit_ty, Effect.Effectful)
+  | Get a -> (mk_ty (Typ.Ptr a), a, Effect.Effectful)
+  | Set a -> (mk_ty (Typ.Record [mk_ty (Typ.Ptr a); a]), unit_ty, Effect.Effectful)
 
-(** Signature of a state primitive given the type parameter.
-    Returns (arg_type, ret_type, effect). *)
-let state_signature (p : Prim.state) (a : Typ.ty) =
-  let unit_ty = mk_ty (Typ.Record []) in
-  match p with
-  | New -> (a, mk_ty (Typ.Ptr a), Effect.Effectful)
-  | Del -> (mk_ty (Typ.Ptr a), unit_ty, Effect.Effectful)
-  | Get -> (mk_ty (Typ.Ptr a), a, Effect.Effectful)
-  | Set -> (mk_ty (Typ.Record [mk_ty (Typ.Ptr a); a]), unit_ty, Effect.Effectful)
-
-(** Synthesize: Γ ⊢ e ⇒ A[ϵ] *)
-let rec synth ctx (Expr.In (shape, info) as _e) =
+(** Synthesize: Σ; Γ ⊢ e ⇒ A[ϵ] *)
+let rec synth sig_ ctx (Expr.In (shape, info) as _e) =
   let pos = info#loc in
   match shape with
   | Expr.Var x ->
@@ -67,40 +62,42 @@ let rec synth ctx (Expr.In (shape, info) as _e) =
     Ok (mk ctx pos (mk_ty Typ.Int) Effect.Pure (Expr.IntLit n))
 
   | Expr.App (p, arg) ->
-    let (arg_ty, ret_ty, eff) = arith_signature p in
-    let* arg' = check ctx arg arg_ty Effect.Pure in
+    let (arg_ty, ret_ty, eff) = prim_signature p in
+    let* arg' = check sig_ ctx arg arg_ty Effect.Pure in
     Ok (mk ctx pos ret_ty eff (Expr.App (p, arg')))
 
-  | Expr.StateOp (p, ty_param, arg) ->
-    let (arg_ty, ret_ty, eff) = state_signature p ty_param in
-    let* arg' = check ctx arg arg_ty Effect.Pure in
-    Ok (mk ctx pos ret_ty eff (Expr.StateOp (p, ty_param, arg')))
+  | Expr.Call (name, arg) ->
+    (match Sig.lookup name sig_ with
+     | Some entry ->
+       let* arg' = check sig_ ctx arg entry.Sig.arg Effect.Pure in
+       Ok (mk ctx pos entry.ret entry.eff (Expr.Call (name, arg')))
+     | None -> err_at_f pos "unknown function %a" Var.print name)
 
   | Expr.Annot (e, ty, eff) ->
-    let* e' = check ctx e ty eff in
+    let* e' = check sig_ ctx e ty eff in
     Ok (mk ctx pos ty eff (Expr.Annot (e', ty, eff)))
 
   | Expr.Tuple _ | Expr.Let _ | Expr.LetTuple _ | Expr.Inject _
   | Expr.Case _ | Expr.Iter _ ->
     err_at pos "cannot synthesize type; add a type annotation"
 
-(** Check: Γ ⊢ e ⇐ A[ϵ] *)
-and check ctx (Expr.In (shape, info) as e) ty eff =
+(** Check: Σ; Γ ⊢ e ⇐ A[ϵ] *)
+and check sig_ ctx (Expr.In (shape, info) as e) ty eff =
   let pos = info#loc in
   match shape with
   | Expr.Let (x, e1, e2) ->
-    let* e1' = synth ctx e1 in
+    let* e1' = synth sig_ ctx e1 in
     let a = (Expr.extract e1')#typ in
     let eff' = (Expr.extract e1')#eff in
     if not (Effect.sub eff' eff) then
       err_at pos "effect of let binding exceeds allowed effect"
     else
       let ctx' = Context.extend x a ctx in
-      let* e2' = check ctx' e2 ty eff in
+      let* e2' = check sig_ ctx' e2 ty eff in
       Ok (mk ctx pos ty eff (Expr.Let (x, e1', e2')))
 
   | Expr.LetTuple (xs, e1, e2) ->
-    let* e1' = synth ctx e1 in
+    let* e1' = synth sig_ ctx e1 in
     let a = (Expr.extract e1')#typ in
     let eff1 = (Expr.extract e1')#eff in
     if not (Effect.sub eff1 eff) then
@@ -114,7 +111,7 @@ and check ctx (Expr.In (shape, info) as e) ty eff =
          else
            let bindings = List.combine xs ts in
            let ctx' = Context.extend_list bindings ctx in
-           let* e2' = check ctx' e2 ty eff in
+           let* e2' = check sig_ ctx' e2 ty eff in
            Ok (mk ctx pos ty eff (Expr.LetTuple (xs, e1', e2')))
        | _ -> err_at pos "let-tuple: scrutinee must have record type")
 
@@ -125,7 +122,7 @@ and check ctx (Expr.In (shape, info) as e) ty eff =
          err_at_f pos "tuple: expected %d components, got %d"
            (List.length ts) (List.length es)
        else
-         let* es' = check_list ctx es ts eff in
+         let* es' = check_list sig_ ctx es ts eff in
          Ok (mk ctx pos ty eff (Expr.Tuple es'))
      | _ -> err_at pos "tuple: expected record type")
 
@@ -134,13 +131,13 @@ and check ctx (Expr.In (shape, info) as e) ty eff =
      | Typ.Sum cases ->
        (match find_label l cases with
         | Some a ->
-          let* e_inner' = check ctx e_inner a eff in
+          let* e_inner' = check sig_ ctx e_inner a eff in
           Ok (mk ctx pos ty eff (Expr.Inject (l, e_inner')))
         | None -> err_at_f pos "label %a not found in sum type" Label.print l)
      | _ -> err_at pos "injection: expected sum type")
 
   | Expr.Case (scrut, branches) ->
-    let* scrut' = synth ctx scrut in
+    let* scrut' = synth sig_ ctx scrut in
     let scrut_ty = (Expr.extract scrut')#typ in
     let eff1 = (Expr.extract scrut')#eff in
     if not (Effect.sub eff1 eff) then
@@ -151,12 +148,12 @@ and check ctx (Expr.In (shape, info) as e) ty eff =
          if List.compare_lengths branches cases <> 0 then
            err_at pos "case: number of branches does not match number of labels"
          else
-           let* branches' = check_branches ctx branches cases ty eff pos in
+           let* branches' = check_branches sig_ ctx branches cases ty eff pos in
            Ok (mk ctx pos ty eff (Expr.Case (scrut', branches')))
        | _ -> err_at pos "case: scrutinee must have sum type")
 
   | Expr.Iter (x, e1, body) ->
-    let* e1' = synth ctx e1 in
+    let* e1' = synth sig_ ctx e1 in
     let a = (Expr.extract e1')#typ in
     if not (Effect.sub Effect.Effectful eff) then
       err_at pos "iter requires effectful context"
@@ -165,11 +162,11 @@ and check ctx (Expr.In (shape, info) as e) ty eff =
       let done_label = match Label.of_string "Done" with Ok l -> l | Error _ -> failwith "impossible" in
       let iter_ty = mk_ty (Typ.Sum [(next_label, a); (done_label, ty)]) in
       let ctx' = Context.extend x a ctx in
-      let* body' = check ctx' body iter_ty Effect.Effectful in
+      let* body' = check sig_ ctx' body iter_ty Effect.Effectful in
       Ok (mk ctx pos ty eff (Expr.Iter (x, e1', body')))
 
   | Expr.Annot (inner, ann_ty, ann_eff) ->
-    let* inner' = check ctx inner ann_ty ann_eff in
+    let* inner' = check sig_ ctx inner ann_ty ann_eff in
     if not (typ_equal ann_ty ty) then
       err_at_f pos "annotation type %a does not match expected type %a"
         Typ.print ann_ty Typ.print ty
@@ -180,7 +177,7 @@ and check ctx (Expr.In (shape, info) as e) ty eff =
 
   | _ ->
     (* Fall through to synthesis for checking *)
-    let* e' = synth ctx e in
+    let* e' = synth sig_ ctx e in
     let syn_ty = (Expr.extract e')#typ in
     let syn_eff = (Expr.extract e')#eff in
     if not (typ_equal syn_ty ty) then
@@ -189,24 +186,46 @@ and check ctx (Expr.In (shape, info) as e) ty eff =
       err_at pos "effect mismatch"
     else Ok e'
 
-and check_list ctx es ts eff =
+and check_list sig_ ctx es ts eff =
   match es, ts with
   | [], [] -> Ok []
   | e :: es', t :: ts' ->
-    let* e' = check ctx e t eff in
-    let* rest = check_list ctx es' ts' eff in
+    let* e' = check sig_ ctx e t eff in
+    let* rest = check_list sig_ ctx es' ts' eff in
     Ok (e' :: rest)
   | _ -> Error "tuple length mismatch"
 
-and check_branches ctx branches cases ty eff pos =
+and check_branches sig_ ctx branches cases ty eff pos =
   match branches with
   | [] -> Ok []
   | (l, x, body) :: rest ->
     (match find_label l cases with
      | Some a ->
        let ctx' = Context.extend x a ctx in
-       let* body' = check ctx' body ty eff in
-       let* rest' = check_branches ctx rest cases ty eff pos in
+       let* body' = check sig_ ctx' body ty eff in
+       let* rest' = check_branches sig_ ctx rest cases ty eff pos in
        Ok ((l, x, body') :: rest')
      | None ->
        err_at_f pos "branch label %a not in sum type" Label.print l)
+
+let check_decl sig_ (d : Expr.expr Prog.decl) : (typed_expr Prog.decl, string) result =
+  let entry = { Sig.arg = d.arg_ty; ret = d.ret_ty; eff = d.eff } in
+  let sig' = Sig.extend d.name entry sig_ in
+  let ctx = Context.extend d.param d.arg_ty Context.empty in
+  let* body' = check sig' ctx d.body d.ret_ty d.eff in
+  Ok { d with body = body' }
+
+let check_prog (p : Expr.expr Prog.t) : (typed_expr Prog.t, string) result =
+  let unit_ty = mk_ty (Typ.Record []) in
+  let rec check_decls sig_ = function
+    | [] -> Ok (sig_, [])
+    | (d : Expr.expr Prog.decl) :: rest ->
+      let* d' = check_decl sig_ d in
+      let entry = { Sig.arg = d.arg_ty; ret = d.ret_ty; eff = d.eff } in
+      let sig' = Sig.extend d.name entry sig_ in
+      let* (final_sig, rest') = check_decls sig' rest in
+      Ok (final_sig, d' :: rest')
+  in
+  let* (final_sig, decls') = check_decls Sig.empty p.decls in
+  let* main' = check final_sig Context.empty p.main unit_ty Effect.Effectful in
+  Ok { Prog.decls = decls'; main = main'; loc = p.loc }

@@ -10,8 +10,8 @@ type 'a exprF =
   | Inject of Label.t * 'a
   | Case of 'a * (Label.t * Var.t * 'a) list
   | Iter of Var.t * 'a * 'a
-  | App of Prim.arith * 'a
-  | StateOp of Prim.state * Typ.ty * 'a
+  | App of Prim.t * 'a
+  | Call of Var.t * 'a
   | Annot of 'a * Typ.ty * Effect.t
 
 val map : ('a -> 'b) -> 'a exprF -> 'b exprF

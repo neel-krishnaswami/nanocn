@@ -11,6 +11,10 @@ Instructions to Claude for writing OCaml code:
    3. If the detailed design reveals a key flaw, consider whether the high-level plan needs
       to be revised. 
 
+   4. Documentation in the doc/ directory MUST remain in sync with the implementation. Whenever
+      a change to the code is made, the Ott file for the syntax and typing rules must be updated 
+      as well. 
+
 1. Programs should be composed of small modules, each implementing a single concern or 
    data structure.
 

@@ -1,22 +1,16 @@
 (** Primitive operations.
 
     Arithmetic primitives are monomorphic.
-    State primitives are polymorphic and require an explicit type annotation. *)
+    State primitives carry an explicit type parameter. *)
 
-type arith = Add | Mul | Sub | Div
+type t =
+  | Add | Mul | Sub | Div
+  | New of Typ.ty | Del of Typ.ty | Get of Typ.ty | Set of Typ.ty
 
-val compare_arith : arith -> arith -> int
-val print_arith : Format.formatter -> arith -> unit
-val arith_to_string : arith -> string
-
-type state = New | Del | Get | Set
-
-val compare_state : state -> state -> int
-val print_state : Format.formatter -> state -> unit
-val state_to_string : state -> string
+val compare : t -> t -> int
+val print : Format.formatter -> t -> unit
 
 module Test : sig
-  val gen_arith : arith QCheck.Gen.t
-  val gen_state : state QCheck.Gen.t
+  val gen : t QCheck.Gen.t
   val test : QCheck.Test.t list
 end

@@ -17,3 +17,6 @@ let parse_with entry s ~file =
 
 let parse_expr s ~file = parse_with Parser.program s ~file
 let parse_typ s ~file = parse_with Parser.typ_eof s ~file
+let parse_prog s ~file = parse_with Parser.prog_eof s ~file
+let parse_decl s ~file = parse_with Parser.repl_decl s ~file
+let parse_let s ~file = parse_with Parser.repl_let s ~file

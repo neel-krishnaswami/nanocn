@@ -1,30 +1,38 @@
-type arith = Add | Mul | Sub | Div
+type t =
+  | Add | Mul | Sub | Div
+  | New of Typ.ty | Del of Typ.ty | Get of Typ.ty | Set of Typ.ty
 
-let arith_to_int = function
+let tag = function
   | Add -> 0 | Mul -> 1 | Sub -> 2 | Div -> 3
+  | New _ -> 4 | Del _ -> 5 | Get _ -> 6 | Set _ -> 7
 
-let compare_arith a1 a2 = Int.compare (arith_to_int a1) (arith_to_int a2)
+let typ_of = function
+  | New ty | Del ty | Get ty | Set ty -> Some ty
+  | Add | Mul | Sub | Div -> None
 
-let arith_to_string = function
-  | Add -> "Add" | Mul -> "Mul" | Sub -> "Sub" | Div -> "Div"
+let compare a b =
+  let c = Int.compare (tag a) (tag b) in
+  if c <> 0 then c
+  else match typ_of a, typ_of b with
+  | Some t1, Some t2 -> Typ.compare t1 t2
+  | _ -> 0
 
-let print_arith fmt a = Format.fprintf fmt "%s" (arith_to_string a)
-
-type state = New | Del | Get | Set
-
-let state_to_int = function
-  | New -> 0 | Del -> 1 | Get -> 2 | Set -> 3
-
-let compare_state s1 s2 = Int.compare (state_to_int s1) (state_to_int s2)
-
-let state_to_string = function
-  | New -> "New" | Del -> "Del" | Get -> "Get" | Set -> "Set"
-
-let print_state fmt s = Format.fprintf fmt "%s" (state_to_string s)
+let print fmt = function
+  | Add -> Format.fprintf fmt "Add"
+  | Mul -> Format.fprintf fmt "Mul"
+  | Sub -> Format.fprintf fmt "Sub"
+  | Div -> Format.fprintf fmt "Div"
+  | New ty -> Format.fprintf fmt "New[%a]" Typ.print ty
+  | Del ty -> Format.fprintf fmt "Del[%a]" Typ.print ty
+  | Get ty -> Format.fprintf fmt "Get[%a]" Typ.print ty
+  | Set ty -> Format.fprintf fmt "Set[%a]" Typ.print ty
 
 module Test = struct
-  let gen_arith = QCheck.Gen.oneofl [ Add; Mul; Sub; Div ]
-  let gen_state = QCheck.Gen.oneofl [ New; Del; Get; Set ]
+  let gen =
+    let open QCheck.Gen in
+    let dummy = object method loc = SourcePos.dummy end in
+    let int_ty = Typ.In (Typ.Int, dummy) in
+    oneofl [ Add; Mul; Sub; Div; New int_ty; Del int_ty; Get int_ty; Set int_ty ]
 
   let test = []
 end

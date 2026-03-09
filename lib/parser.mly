@@ -27,16 +27,20 @@
 %token <int> INT_LIT
 %token <string> IDENT
 %token <string> LABEL
-%token LET CASE ITER
+%token LET CASE ITER FUN MAIN
 %token INT_KW PTR
 %token PURE IMPURE
-%token ADD MUL SUB DIV SET GET NEW DEL
+%token SET GET NEW DEL
+%token PLUS MINUS STAR SLASH
 %token LBRACKET RBRACKET LPAREN RPAREN LBRACE RBRACE
 %token COMMA SEMICOLON EQUAL COLON ARROW BAR
 %token EOF
 
 %start <Expr.expr> program
 %start <Typ.ty> typ_eof
+%start <Expr.expr Prog.t> prog_eof
+%start <Expr.expr Prog.decl> repl_decl
+%start <Var.t * Expr.expr> repl_let
 
 %%
 
@@ -45,6 +49,21 @@ program:
 
 typ_eof:
   | t = typ; EOF { t }
+
+prog_eof:
+  | ds = list(decl); MAIN; EQUAL; e = expr; EOF
+    { { Prog.decls = ds; main = e; loc = mk_loc $startpos $endpos } }
+
+repl_decl:
+  | d = decl; EOF { d }
+
+repl_let:
+  | LET; x = IDENT; EQUAL; e = expr; EOF { (Var.of_string x, e) }
+
+decl:
+  | FUN; f = IDENT; LPAREN; x = IDENT; COLON; a = typ; RPAREN; ARROW; b = typ; LBRACKET; eff = effect; RBRACKET; LBRACE; body = expr; RBRACE
+    { { Prog.name = Var.of_string f; param = Var.of_string x;
+        arg_ty = a; ret_ty = b; eff; body; loc = mk_loc $startpos $endpos } }
 
 typ:
   | PTR; t = atomic_typ
@@ -84,34 +103,48 @@ seq_expr:
     { mk_expr $startpos $endpos (Expr.Case (e, bs)) }
   | ITER; LPAREN; x = IDENT; EQUAL; e1 = expr; RPAREN; LBRACE; e2 = expr; RBRACE
     { mk_expr $startpos $endpos (Expr.Iter (Var.of_string x, e1, e2)) }
-  | e = app_expr
+  | e = add_expr
     { e }
 
 branch:
   | l = LABEL; x = IDENT; ARROW; e = expr
     { (label l, Var.of_string x, e) }
 
+add_expr:
+  | e1 = add_expr; PLUS; e2 = mul_expr
+    { let tup = mk_expr $startpos $endpos (Expr.Tuple [e1; e2]) in
+      mk_expr $startpos $endpos (Expr.App (Prim.Add, tup)) }
+  | e1 = add_expr; MINUS; e2 = mul_expr
+    { let tup = mk_expr $startpos $endpos (Expr.Tuple [e1; e2]) in
+      mk_expr $startpos $endpos (Expr.App (Prim.Sub, tup)) }
+  | e = mul_expr
+    { e }
+
+mul_expr:
+  | e1 = mul_expr; STAR; e2 = app_expr
+    { let tup = mk_expr $startpos $endpos (Expr.Tuple [e1; e2]) in
+      mk_expr $startpos $endpos (Expr.App (Prim.Mul, tup)) }
+  | e1 = mul_expr; SLASH; e2 = app_expr
+    { let tup = mk_expr $startpos $endpos (Expr.Tuple [e1; e2]) in
+      mk_expr $startpos $endpos (Expr.App (Prim.Div, tup)) }
+  | e = app_expr
+    { e }
+
 app_expr:
   | l = LABEL; e = app_expr
     { mk_expr $startpos $endpos (Expr.Inject (label l, e)) }
-  | p = arith_prim; LPAREN; e = expr; RPAREN
-    { mk_expr $startpos $endpos (Expr.App (p, e)) }
   | p = state_prim; LBRACKET; t = typ; RBRACKET; LPAREN; e = expr; RPAREN
-    { mk_expr $startpos $endpos (Expr.StateOp (p, t, e)) }
+    { mk_expr $startpos $endpos (Expr.App (p t, e)) }
+  | f = IDENT; LPAREN; e = expr; RPAREN
+    { mk_expr $startpos $endpos (Expr.Call (Var.of_string f, e)) }
   | e = simple_expr
     { e }
 
-arith_prim:
-  | ADD { Prim.Add }
-  | MUL { Prim.Mul }
-  | SUB { Prim.Sub }
-  | DIV { Prim.Div }
-
 state_prim:
-  | SET { Prim.Set }
-  | GET { Prim.Get }
-  | NEW { Prim.New }
-  | DEL { Prim.Del }
+  | SET { fun ty -> Prim.Set ty }
+  | GET { fun ty -> Prim.Get ty }
+  | NEW { fun ty -> Prim.New ty }
+  | DEL { fun ty -> Prim.Del ty }
 
 simple_expr:
   | x = IDENT

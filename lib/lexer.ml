@@ -30,6 +30,8 @@ let keyword_or_ident s =
   | "let" -> Parser.LET
   | "case" -> Parser.CASE
   | "iter" -> Parser.ITER
+  | "fun" -> Parser.FUN
+  | "main" -> Parser.MAIN
   | "int" -> Parser.INT_KW
   | "ptr" -> Parser.PTR
   | "pure" -> Parser.PURE
@@ -38,10 +40,6 @@ let keyword_or_ident s =
 
 let keyword_or_label s =
   match s with
-  | "Add" -> Parser.ADD
-  | "Mul" -> Parser.MUL
-  | "Sub" -> Parser.SUB
-  | "Div" -> Parser.DIV
   | "Set" -> Parser.SET
   | "Get" -> Parser.GET
   | "New" -> Parser.NEW
@@ -68,5 +66,9 @@ let rec token buf =
   | ':' -> Parser.COLON
   | "->" -> Parser.ARROW
   | '|' -> Parser.BAR
+  | '+' -> Parser.PLUS
+  | '-' -> Parser.MINUS
+  | '*' -> Parser.STAR
+  | '/' -> Parser.SLASH
   | eof -> Parser.EOF
   | _ -> failwith (Format.asprintf "unexpected character at %a" SourcePos.print (pos_of_lexbuf buf))

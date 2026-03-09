@@ -1,4 +1,4 @@
 (executable
  (name main)
  (public_name nanocn)
- (libraries nanocn))
+ (libraries nanocn linenoise))

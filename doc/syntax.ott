@@ -3,6 +3,7 @@
 metavar var, x, y, z ::=
 metavar label, L, Next, Done ::=
 metavar lit ::=
+metavar f ::= 
 indexvar index, i, j, n ::=
 
 grammar
@@ -12,27 +13,34 @@ A, B, C :: 'T_' ::=                                        {{ com types }}
   | ptr A                              :: :: Ptr            {{ com pointer }}
   | [ A1 , .. , An ]                   :: :: Record         {{ com record }}
   | { L1 : A1 '|' .. '|' Ln : An }    :: :: Sum            {{ com labelled sum }}
-  | ( A )                              :: S :: Paren
 
 eff {{ tex \epsilon }} :: 'Eff_' ::=                        {{ com effects }}
-  | pure                               :: :: Pure
-  | impure                             :: :: Impure
+  | pure                               :: :: Pure            {{ tex \mathbf{0} }}
+  | impure                             :: :: Impure          {{ tex \mathbf{1} }}
+
+
+F :: 'P_' ::=                                              {{ com function signatures }}
+  | A -> B [ eff ]                      :: :: FunSig   {{ tex [[A]] \to_{[[eff]]} [[B]] }}
+
 
 G {{ tex \Gamma }} :: 'Ctx_' ::=                            {{ com contexts }}
-  | empty  {{ tex \cdot }}             :: :: Empty
+  | empty                              :: :: Empty          {{ tex \cdot }}
   | G , x : A                          :: :: Ext
 
-f :: 'Arith_' ::=                                           {{ com arithmetic primitives }}
-  | Add   :: :: Add
-  | Sub   :: :: Sub
-  | Mul   :: :: Mul
-  | Div   :: :: Div
 
-g :: 'State_' ::=                                           {{ com state primitives }}
-  | New   :: :: New
-  | Del   :: :: Del
-  | Get   :: :: Get
-  | Set   :: :: Set
+S {{ tex \Sigma }} :: 'Sig_' ::=                            {{ com signatures }}
+  | noprims                            :: :: Empty    {{ tex \cdot }} 
+  | S , f : F                          :: :: Ext
+
+prim :: 'Prim_' ::=                                            {{ com primitives }}
+  | Add                                :: :: Add            {{ com addition }}
+  | Sub                                :: :: Sub            {{ com subtraction }}
+  | Mul                                :: :: Mul            {{ com multiplication }}
+  | Div                                :: :: Div            {{ com division }}
+  | New [ A ]                          :: :: New            {{ com allocate }}
+  | Del [ A ]                          :: :: Del            {{ com deallocate }}
+  | Get [ A ]                          :: :: Get            {{ com dereference }}
+  | Set [ A ]                          :: :: Set            {{ com update }}
 
 e :: 'E_' ::=                                               {{ com expressions }}
   | x                                  :: :: Var
@@ -43,15 +51,19 @@ e :: 'E_' ::=                                               {{ com expressions }
   | L e                                :: :: Inject
   | case e { L1 x1 -> e1 '|' .. '|' Ln xn -> en }   :: :: Case
   | iter ( x = e1 ) { e2 }            :: :: Iter
-  | f ( e )                            :: :: App
-  | g [ A ] ( e )                      :: :: StateOp
+  | prim ( e )                            :: :: App
   | e : A [ eff ]                      :: :: Annot
-  | ( e )                              :: S :: Paren
+  | f ( e )                            :: :: Call
+
+prog :: 'Prog_' ::=                                        {{ com programs }}
+  | fun f ( x : A ) -> B [ eff ] { e } prog   :: :: Decl   {{ tex \mathsf{fun}\;[[f]] ( [[x]] \mathord{:} [[A]] ) \to_{[[eff]]} [[B]] \; \{ [[e]] \} \quad [[prog]] }}
+  | main = e                                   :: :: Main   {{ tex \mathsf{main} = [[e]] }}
 
 formula :: 'formula_' ::=
   | judgement                           :: :: judgement
   | x : A in G                         :: :: var_in      {{ tex [[x]] \mathord{:} [[A]] \in [[G]] }}
   | L : A in B                         :: :: label_in    {{ tex [[L]] \mathord{:} [[A]] \in [[B]] }}
+  | f : F in S                         :: :: proc_in     {{ tex [[f]] \mathord{:} [[F]] \in [[S]] }}
   | formula1 .. formulan                :: :: dots
 
 defns Jtype :: '' ::=
@@ -68,8 +80,8 @@ defns Jtype :: '' ::=
     --------------- :: impure_impure
     impure <= impure
 
-  defn f : A -> B [ eff ] :: :: arith_type :: 'AT_'
-  {{ tex [[f]] \mathord{:} [[A]] \to [[B]] \; \lbrack [[eff]] \rbrack }} by
+  defn prim : A -> B [ eff ] :: :: prim_type :: 'PT_'
+  {{ tex [[prim]] \mathord{:} [[A]] \to_{[[eff]]} [[B]] }} by
 
     ----------------------------------- :: add
     Add : [ int , int ] -> int [ pure ]
@@ -83,70 +95,80 @@ defns Jtype :: '' ::=
     ------------------------------------- :: div
     Div : [ int , int ] -> int [ impure ]
 
-  defn g [ A ] : B -> C [ eff ] :: :: state_type :: 'ST_'
-  {{ tex [[g]] \lbrack [[A]] \rbrack \mathord{:} [[B]] \to [[C]] \; \lbrack [[eff]] \rbrack }} by
-
-    ---------------------------------- :: new
+    ---------------------------------------- :: new
     New [ A ] : A -> ptr A [ impure ]
 
-    ------------------------------------ :: del
+    ------------------------------------------ :: del
     Del [ A ] : ptr A -> [ ] [ impure ]
 
-    -------------------------------- :: get
+    -------------------------------------- :: get
     Get [ A ] : ptr A -> A [ impure ]
 
-    -------------------------------------------- :: set
+    -------------------------------------------------- :: set
     Set [ A ] : [ ptr A , A ] -> [ ] [ impure ]
 
-  defn G |- e ==> A [ eff ] :: :: synth :: 'Syn_'
-  {{ tex [[G]] \vdash [[e]] \Rightarrow [[A]] \; \lbrack [[eff]] \rbrack }} by
+  defn S ; G |- e ==> A [ eff ] :: :: synth :: 'Syn_'
+  {{ tex [[S]] ; [[G]] \vdash_{[[eff]]} [[e]] \Rightarrow [[A]] }} by
 
     ----------------------- :: int
-    G |- lit ==> int [ pure ]
+    S ; G |- lit ==> int [ pure ]
 
     x : A in G
     ----------------------- :: var
-    G |- x ==> A [ pure ]
+    S ; G |- x ==> A [ pure ]
 
-    G |- e <== A [ eff ]
+    S ; G |- e <== A [ eff ]
     ---------------------------------- :: annot
-    G |- e : A [ eff ] ==> A [ eff ]
+    S ; G |- e : A [ eff ] ==> A [ eff ]
 
-    f : A -> B [ eff ]    G |- e <== A [ pure ]
-    ---------------------------------------------- :: app
-    G |- f ( e ) ==> B [ eff ]
+    prim : A -> B [ eff ]    S ; G |- e <== A [ pure ]
+    --------------------------------------------------- :: app
+    S ; G |- prim ( e ) ==> B [ eff ]
 
-    g [ A ] : B -> C [ eff ]    G |- e <== B [ pure ]
-    ---------------------------------------------------- :: state
-    G |- g [ A ] ( e ) ==> C [ eff ]
+    f : F in S    S ; G |- e <== A [ pure ]
+    ---------------------------------------- :: call
+    S ; G |- f ( e ) ==> B [ eff ]
 
-  defn G |- e <== A [ eff ] :: :: check :: 'Chk_'
-  {{ tex [[G]] \vdash [[e]] \Leftarrow [[A]] \; \lbrack [[eff]] \rbrack }} by
+  defn S ; G |- e <== A [ eff ] :: :: check :: 'Chk_'
+  {{ tex [[S]] ; [[G]] \vdash_{[[eff]]} [[e]] \Leftarrow [[A]] }} by
 
-    G |- e1 ==> A [ eff' ]    eff' <= eff    G , x : A |- e2 <== B [ eff ]
+    S ; G |- e1 ==> A [ eff' ]    eff' <= eff    S ; G , x : A |- e2 <== B [ eff ]
     -------------------------------------------------------------------------- :: let
-    G |- let x = e1 ; e2 <== B [ eff ]
+    S ; G |- let x = e1 ; e2 <== B [ eff ]
 
-    G |- e1 <== A1 [ eff ] .. G |- en <== An [ eff ]
+    S ; G |- e1 <== A1 [ eff ] .. S ; G |- en <== An [ eff ]
     --------------------------------------------------- :: tuple
-    G |- [ e1 , .. , en ] <== [ A1 , .. , An ] [ eff ]
+    S ; G |- [ e1 , .. , en ] <== [ A1 , .. , An ] [ eff ]
 
-    G |- e1 ==> [ A1 , .. , An ] [ eff' ]    eff' <= eff    G' |- e2 <== C [ eff ]
+    S ; G |- e1 ==> [ A1 , .. , An ] [ eff' ]    eff' <= eff    S ; G' |- e2 <== C [ eff ]
     ---------------------------------------------------------------------------------- :: lettuple
-    G |- let [ x1 , .. , xn ] = e1 ; e2 <== C [ eff ]
+    S ; G |- let [ x1 , .. , xn ] = e1 ; e2 <== C [ eff ]
 
-    L : A in B    G |- e <== A [ eff ]
+    L : A in B    S ; G |- e <== A [ eff ]
     ------------------------------------- :: inject
-    G |- L e <== B [ eff ]
+    S ; G |- L e <== B [ eff ]
 
-    G |- e ==> { L1 : A1 | .. | Ln : An } [ eff' ]    eff' <= eff    G , x1 : A1 |- e1 <== C [ eff ] .. G , xn : An |- en <== C [ eff ]
+    S ; G |- e ==> { L1 : A1 | .. | Ln : An } [ eff' ]    eff' <= eff    S ; G , x1 : A1 |- e1 <== C [ eff ] .. S ; G , xn : An |- en <== C [ eff ]
     ------------------------------------------------------------------------------------------------------------------------------------------ :: case
-    G |- case e { L1 x1 -> e1 | .. | Ln xn -> en } <== C [ eff ]
+    S ; G |- case e { L1 x1 -> e1 | .. | Ln xn -> en } <== C [ eff ]
 
-    G |- e1 ==> A [ eff' ]    G , x : A |- e2 <== { Next : A | Done : B } [ impure ]    impure <= eff
+    S ; G |- e1 ==> A [ eff' ]    S ; G , x : A |- e2 <== { Next : A | Done : B } [ impure ]    impure <= eff
     ---------------------------------------------------------------------------------------------------- :: iter
-    G |- iter ( x = e1 ) { e2 } <== B [ eff ]
+    S ; G |- iter ( x = e1 ) { e2 } <== B [ eff ]
 
-    G |- e ==> A [ eff' ]    eff' <= eff
+    S ; G |- e ==> A [ eff' ]    eff' <= eff
     --------------------------------------- :: sub
-    G |- e <== A [ eff ]
+    S ; G |- e <== A [ eff ]
+    
+
+  defn S |- prog :: :: prog :: 'Prog_'
+  {{ tex [[S]] \vdash [[prog]] }} by
+
+    S ; G |- e <== [ ] [ impure ]
+    --------------------------- :: main
+    S |- main = e
+
+    S , f : A -> B [ eff ] ; G , x : A |- e <== B [ eff ]    S , f : A -> B [ eff ] |- prog
+    --------------------------------------------------------------------------------------- :: fundef
+    S |- fun f ( x : A ) -> B [ eff ] { e } prog
+

@@ -7,8 +7,8 @@ type 'a exprF =
   | Inject of Label.t * 'a
   | Case of 'a * (Label.t * Var.t * 'a) list
   | Iter of Var.t * 'a * 'a
-  | App of Prim.arith * 'a
-  | StateOp of Prim.state * Typ.ty * 'a
+  | App of Prim.t * 'a
+  | Call of Var.t * 'a
   | Annot of 'a * Typ.ty * Effect.t
 
 let map f = function
@@ -22,7 +22,7 @@ let map f = function
     Case (f e, List.map (fun (l, x, e) -> (l, x, f e)) branches)
   | Iter (x, e1, e2) -> Iter (x, f e1, f e2)
   | App (p, e) -> App (p, f e)
-  | StateOp (p, ty, e) -> StateOp (p, ty, f e)
+  | Call (name, e) -> Call (name, f e)
   | Annot (e, ty, eff) -> Annot (f e, ty, eff)
 
 let print_exprF pp fmt = function
@@ -51,9 +51,9 @@ let print_exprF pp fmt = function
     Format.fprintf fmt "@[<v>@[<hov 2>iter (%a = %a) {@ %a@]@ }@]"
       Var.print x pp e1 pp e2
   | App (p, e) ->
-    Format.fprintf fmt "@[<hov 2>%a(%a)@]" Prim.print_arith p pp e
-  | StateOp (p, ty, e) ->
-    Format.fprintf fmt "@[<hov 2>%a[%a](%a)@]" Prim.print_state p Typ.print ty pp e
+    Format.fprintf fmt "@[<hov 2>%a(%a)@]" Prim.print p pp e
+  | Call (name, e) ->
+    Format.fprintf fmt "@[<hov 2>%a(%a)@]" Var.print name pp e
   | Annot (e, ty, eff) ->
     Format.fprintf fmt "@[<hov 2>%a :@ %a [%a]@]" pp e Typ.print ty Effect.print eff
 
@@ -64,8 +64,17 @@ let shape (In (s, _)) = s
 
 type expr = < loc : SourcePos.t > t
 
+let arith_op_string = function
+  | Prim.Add -> "+" | Prim.Sub -> "-"
+  | Prim.Mul -> "*" | Prim.Div -> "/"
+  | _ -> assert false
+
 let rec print fmt (In (s, _)) =
-  print_exprF print fmt s
+  match s with
+  | App ((Prim.Add | Prim.Sub | Prim.Mul | Prim.Div) as p,
+         In (Tuple [e1; e2], _)) ->
+    Format.fprintf fmt "@[<hov 2>%a %s@ %a@]" print e1 (arith_op_string p) print e2
+  | _ -> print_exprF print fmt s
 
 module Test = struct
   let gen =
@@ -89,7 +98,7 @@ module Test = struct
            let* e2 = sub in
            pure (mk (Let (x, e1, e2))));
           map (fun es -> mk (Tuple es)) (list_size (0 -- 3) sub);
-          (let* p = Prim.Test.gen_arith in
+          (let* p = Prim.Test.gen in
            let* e = sub in
            pure (mk (App (p, e))));
           (let* l = Label.Test.gen in
