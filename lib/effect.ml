@@ -1,31 +1,31 @@
-type t = Pure | Effectful
+type t = Pure | Impure
 
 let sub e1 e2 =
   match e1, e2 with
   | Pure, _ -> true
-  | Effectful, Effectful -> true
-  | Effectful, Pure -> false
+  | Impure, Impure -> true
+  | Impure, Pure -> false
 
 let join e1 e2 =
   match e1, e2 with
   | Pure, Pure -> Pure
-  | _ -> Effectful
+  | _ -> Impure
 
 let compare e1 e2 =
   match e1, e2 with
   | Pure, Pure -> 0
-  | Pure, Effectful -> -1
-  | Effectful, Pure -> 1
-  | Effectful, Effectful -> 0
+  | Pure, Impure -> -1
+  | Impure, Pure -> 1
+  | Impure, Impure -> 0
 
 let print fmt = function
   | Pure -> Format.fprintf fmt "pure"
-  | Effectful -> Format.fprintf fmt "effectful"
+  | Impure -> Format.fprintf fmt "impure"
 
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    oneofl [ Pure; Effectful ]
+    oneofl [ Pure; Impure ]
 
   let test =
     [ QCheck.Test.make ~name:"sub is reflexive"
@@ -35,11 +35,11 @@ module Test = struct
       QCheck.Test.make ~name:"pure sub effectful"
         ~count:1
         QCheck.unit
-        (fun () -> sub Pure Effectful);
+        (fun () -> sub Pure Impure);
       QCheck.Test.make ~name:"not effectful sub pure"
         ~count:1
         QCheck.unit
-        (fun () -> not (sub Effectful Pure));
+        (fun () -> not (sub Impure Pure));
       let arb = QCheck.make gen in
       QCheck.Test.make ~name:"join is commutative"
         ~count:10

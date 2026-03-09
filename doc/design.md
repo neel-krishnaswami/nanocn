@@ -48,21 +48,24 @@ Within the check toplevel, the user should be able to:
 Here is a sample interaction
 
 >>> fun square(n : int) -> int [pure] { n * n }   // adds a pure function to the signature
-square : int -> int [pure]  
+square : int -> int [pure]
 
 >>> square(4)
-_ : int 
+_ : int [pure]
 
 >>> let x = 3 + 3
-x : int 
+x : int [pure]
 
 >>> square(x)
-_ : int 
+_ : int [pure]
 
->>> fun cube(n : int) -> int [pure] { n * square(n) } 
-cube : int -> int 
+>>> fun cube(n : int) -> int [pure] { n * square(n) }
+cube : int -> int [pure]
 
 >>> fun bad(n : int) -> int [pure] { n + x }
-ERROR: x is not in scope 
+ERROR: x is not in scope
+
+>>> 1 / 2
+_ : int [impure]
 
 

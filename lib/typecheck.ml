@@ -43,11 +43,11 @@ let prim_signature (p : Prim.t) =
   | Add -> (pair_int, int_ty, Effect.Pure)
   | Sub -> (pair_int, int_ty, Effect.Pure)
   | Mul -> (pair_int, int_ty, Effect.Pure)
-  | Div -> (pair_int, int_ty, Effect.Effectful)
-  | New a -> (a, mk_ty (Typ.Ptr a), Effect.Effectful)
-  | Del a -> (mk_ty (Typ.Ptr a), unit_ty, Effect.Effectful)
-  | Get a -> (mk_ty (Typ.Ptr a), a, Effect.Effectful)
-  | Set a -> (mk_ty (Typ.Record [mk_ty (Typ.Ptr a); a]), unit_ty, Effect.Effectful)
+  | Div -> (pair_int, int_ty, Effect.Impure)
+  | New a -> (a, mk_ty (Typ.Ptr a), Effect.Impure)
+  | Del a -> (mk_ty (Typ.Ptr a), unit_ty, Effect.Impure)
+  | Get a -> (mk_ty (Typ.Ptr a), a, Effect.Impure)
+  | Set a -> (mk_ty (Typ.Record [mk_ty (Typ.Ptr a); a]), unit_ty, Effect.Impure)
 
 (** Synthesize: Σ; Γ ⊢ e ⇒ A[ϵ] *)
 let rec synth sig_ ctx (Expr.In (shape, info) as _e) =
@@ -155,14 +155,14 @@ and check sig_ ctx (Expr.In (shape, info) as e) ty eff =
   | Expr.Iter (x, e1, body) ->
     let* e1' = synth sig_ ctx e1 in
     let a = (Expr.extract e1')#typ in
-    if not (Effect.sub Effect.Effectful eff) then
+    if not (Effect.sub Effect.Impure eff) then
       err_at pos "iter requires effectful context"
     else
       let next_label = match Label.of_string "Next" with Ok l -> l | Error _ -> failwith "impossible" in
       let done_label = match Label.of_string "Done" with Ok l -> l | Error _ -> failwith "impossible" in
       let iter_ty = mk_ty (Typ.Sum [(next_label, a); (done_label, ty)]) in
       let ctx' = Context.extend x a ctx in
-      let* body' = check sig_ ctx' body iter_ty Effect.Effectful in
+      let* body' = check sig_ ctx' body iter_ty Effect.Impure in
       Ok (mk ctx pos ty eff (Expr.Iter (x, e1', body')))
 
   | Expr.Annot (inner, ann_ty, ann_eff) ->
@@ -227,5 +227,5 @@ let check_prog (p : Expr.expr Prog.t) : (typed_expr Prog.t, string) result =
       Ok (final_sig, d' :: rest')
   in
   let* (final_sig, decls') = check_decls Sig.empty p.decls in
-  let* main' = check final_sig Context.empty p.main unit_ty Effect.Effectful in
+  let* main' = check final_sig Context.empty p.main unit_ty Effect.Impure in
   Ok { Prog.decls = decls'; main = main'; loc = p.loc }

@@ -1,6 +1,6 @@
 (** Effects: pure (0) or effectful (1). *)
 
-type t = Pure | Effectful
+type t = Pure | Impure
 
 val sub : t -> t -> bool
 (** [sub e1 e2] is true when [e1 ≤ e2] in the subeffecting order. *)

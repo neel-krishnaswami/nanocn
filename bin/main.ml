@@ -76,7 +76,8 @@ let toplevel () =
       | Ok te ->
         let ty = (Expr.extract te)#typ in
         let ctx' = Context.extend x ty ctx in
-        Format.printf "%a : %a@." Var.print x Typ.print ty;
+        let eff = (Expr.extract te)#eff in
+        Format.printf "%a : %a [%a]@." Var.print x Typ.print ty Effect.print eff;
         loop sig_ ctx'
   and handle_expr sig_ ctx line =
     match Parse.parse_expr line ~file:"<toplevel>" with
@@ -90,7 +91,8 @@ let toplevel () =
         loop sig_ ctx
       | Ok te ->
         let ty = (Expr.extract te)#typ in
-        Format.printf "_ : %a@." Typ.print ty;
+        let eff = (Expr.extract te)#eff in
+        Format.printf "_ : %a [%a]@." Typ.print ty Effect.print eff;
         loop sig_ ctx
   in
   loop Sig.empty Context.empty

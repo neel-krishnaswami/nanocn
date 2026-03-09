@@ -162,7 +162,7 @@ let () =
         match Parse.parse_expr "x : int [impure]" ~file:"test" with
         | Ok e ->
           (match Expr.shape e with
-           | Expr.Annot (_, _, Effect.Effectful) -> ()
+           | Expr.Annot (_, _, Effect.Impure) -> ()
            | _ -> Alcotest.fail "expected Annot with impure")
         | Error msg -> Alcotest.fail msg);
     ]);
@@ -242,7 +242,7 @@ let () =
         | Ok e ->
           match Typecheck.synth Sig.empty Context.empty e with
           | Ok te ->
-            if Effect.compare (eff_of te) Effect.Effectful <> 0 then
+            if Effect.compare (eff_of te) Effect.Impure <> 0 then
               Alcotest.fail "Div should be effectful"
           | Error msg -> Alcotest.fail msg);
 
@@ -267,7 +267,7 @@ let () =
                 | Typ.Int -> ()
                 | _ -> Alcotest.fail "expected ptr int")
              | _ -> Alcotest.fail "expected ptr type");
-            if Effect.compare (eff_of te) Effect.Effectful <> 0 then
+            if Effect.compare (eff_of te) Effect.Impure <> 0 then
               Alcotest.fail "New should be effectful"
           | Error msg -> Alcotest.fail msg);
 
@@ -277,7 +277,7 @@ let () =
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
           let int_ty = Typ.In (Typ.Int, object method loc = SourcePos.dummy end) in
-          match Typecheck.check Sig.empty Context.empty e int_ty Effect.Effectful with
+          match Typecheck.check Sig.empty Context.empty e int_ty Effect.Impure with
           | Ok _ -> ()
           | Error msg -> Alcotest.fail msg);
 
@@ -287,7 +287,7 @@ let () =
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
           let unit_ty = Typ.In (Typ.Record [], object method loc = SourcePos.dummy end) in
-          match Typecheck.check Sig.empty Context.empty e unit_ty Effect.Effectful with
+          match Typecheck.check Sig.empty Context.empty e unit_ty Effect.Impure with
           | Ok _ -> ()
           | Error msg -> Alcotest.fail msg);
 

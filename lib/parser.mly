@@ -86,7 +86,7 @@ label_typ:
 
 effect:
   | PURE   { Effect.Pure }
-  | IMPURE { Effect.Effectful }
+  | IMPURE { Effect.Impure }
 
 expr:
   | e = seq_expr; COLON; t = typ; LBRACKET; eff = effect; RBRACKET
