@@ -1,0 +1,10 @@
+(library
+ (name nanocn)
+ (public_name nanocn)
+ (libraries sedlex menhirLib qcheck-core)
+ (preprocess (pps sedlex.ppx))
+ (wrapped false))
+
+(menhir
+ (modules parser)
+ (flags --explain))

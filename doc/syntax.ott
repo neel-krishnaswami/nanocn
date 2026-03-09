@@ -1,0 +1,152 @@
+% nanocn: a small language with bidirectional typechecking
+
+metavar var, x, y, z ::=
+metavar label, L, Next, Done ::=
+metavar lit ::=
+indexvar index, i, j, n ::=
+
+grammar
+
+A, B, C :: 'T_' ::=                                        {{ com types }}
+  | int                                :: :: Int            {{ com integers }}
+  | ptr A                              :: :: Ptr            {{ com pointer }}
+  | [ A1 , .. , An ]                   :: :: Record         {{ com record }}
+  | { L1 : A1 '|' .. '|' Ln : An }    :: :: Sum            {{ com labelled sum }}
+  | ( A )                              :: S :: Paren
+
+eff {{ tex \epsilon }} :: 'Eff_' ::=                        {{ com effects }}
+  | pure                               :: :: Pure
+  | impure                             :: :: Impure
+
+G {{ tex \Gamma }} :: 'Ctx_' ::=                            {{ com contexts }}
+  | empty  {{ tex \cdot }}             :: :: Empty
+  | G , x : A                          :: :: Ext
+
+f :: 'Arith_' ::=                                           {{ com arithmetic primitives }}
+  | Add   :: :: Add
+  | Sub   :: :: Sub
+  | Mul   :: :: Mul
+  | Div   :: :: Div
+
+g :: 'State_' ::=                                           {{ com state primitives }}
+  | New   :: :: New
+  | Del   :: :: Del
+  | Get   :: :: Get
+  | Set   :: :: Set
+
+e :: 'E_' ::=                                               {{ com expressions }}
+  | x                                  :: :: Var
+  | lit                                :: :: IntLit         {{ com integer literal }}
+  | let x = e1 ; e2                    :: :: Let
+  | [ e1 , .. , en ]                   :: :: Tuple
+  | let [ x1 , .. , xn ] = e1 ; e2    :: :: LetTuple
+  | L e                                :: :: Inject
+  | case e { L1 x1 -> e1 '|' .. '|' Ln xn -> en }   :: :: Case
+  | iter ( x = e1 ) { e2 }            :: :: Iter
+  | f ( e )                            :: :: App
+  | g [ A ] ( e )                      :: :: StateOp
+  | e : A [ eff ]                      :: :: Annot
+  | ( e )                              :: S :: Paren
+
+formula :: 'formula_' ::=
+  | judgement                           :: :: judgement
+  | x : A in G                         :: :: var_in      {{ tex [[x]] \mathord{:} [[A]] \in [[G]] }}
+  | L : A in B                         :: :: label_in    {{ tex [[L]] \mathord{:} [[A]] \in [[B]] }}
+  | formula1 .. formulan                :: :: dots
+
+defns Jtype :: '' ::=
+
+  defn eff <= eff' :: :: subeff :: 'Sub_'
+  {{ tex [[eff]] \leq [[eff']] }} by
+
+    ---------- :: pure_pure
+    pure <= pure
+
+    ------------- :: pure_impure
+    pure <= impure
+
+    --------------- :: impure_impure
+    impure <= impure
+
+  defn f : A -> B [ eff ] :: :: arith_type :: 'AT_'
+  {{ tex [[f]] \mathord{:} [[A]] \to [[B]] \; \lbrack [[eff]] \rbrack }} by
+
+    ----------------------------------- :: add
+    Add : [ int , int ] -> int [ pure ]
+
+    ----------------------------------- :: sub
+    Sub : [ int , int ] -> int [ pure ]
+
+    ----------------------------------- :: mul
+    Mul : [ int , int ] -> int [ pure ]
+
+    ------------------------------------- :: div
+    Div : [ int , int ] -> int [ impure ]
+
+  defn g [ A ] : B -> C [ eff ] :: :: state_type :: 'ST_'
+  {{ tex [[g]] \lbrack [[A]] \rbrack \mathord{:} [[B]] \to [[C]] \; \lbrack [[eff]] \rbrack }} by
+
+    ---------------------------------- :: new
+    New [ A ] : A -> ptr A [ impure ]
+
+    ------------------------------------ :: del
+    Del [ A ] : ptr A -> [ ] [ impure ]
+
+    -------------------------------- :: get
+    Get [ A ] : ptr A -> A [ impure ]
+
+    -------------------------------------------- :: set
+    Set [ A ] : [ ptr A , A ] -> [ ] [ impure ]
+
+  defn G |- e ==> A [ eff ] :: :: synth :: 'Syn_'
+  {{ tex [[G]] \vdash [[e]] \Rightarrow [[A]] \; \lbrack [[eff]] \rbrack }} by
+
+    ----------------------- :: int
+    G |- lit ==> int [ pure ]
+
+    x : A in G
+    ----------------------- :: var
+    G |- x ==> A [ pure ]
+
+    G |- e <== A [ eff ]
+    ---------------------------------- :: annot
+    G |- e : A [ eff ] ==> A [ eff ]
+
+    f : A -> B [ eff ]    G |- e <== A [ pure ]
+    ---------------------------------------------- :: app
+    G |- f ( e ) ==> B [ eff ]
+
+    g [ A ] : B -> C [ eff ]    G |- e <== B [ pure ]
+    ---------------------------------------------------- :: state
+    G |- g [ A ] ( e ) ==> C [ eff ]
+
+  defn G |- e <== A [ eff ] :: :: check :: 'Chk_'
+  {{ tex [[G]] \vdash [[e]] \Leftarrow [[A]] \; \lbrack [[eff]] \rbrack }} by
+
+    G |- e1 ==> A [ eff' ]    eff' <= eff    G , x : A |- e2 <== B [ eff ]
+    -------------------------------------------------------------------------- :: let
+    G |- let x = e1 ; e2 <== B [ eff ]
+
+    G |- e1 <== A1 [ eff ] .. G |- en <== An [ eff ]
+    --------------------------------------------------- :: tuple
+    G |- [ e1 , .. , en ] <== [ A1 , .. , An ] [ eff ]
+
+    G |- e1 ==> [ A1 , .. , An ] [ eff' ]    eff' <= eff    G' |- e2 <== C [ eff ]
+    ---------------------------------------------------------------------------------- :: lettuple
+    G |- let [ x1 , .. , xn ] = e1 ; e2 <== C [ eff ]
+
+    L : A in B    G |- e <== A [ eff ]
+    ------------------------------------- :: inject
+    G |- L e <== B [ eff ]
+
+    G |- e ==> { L1 : A1 | .. | Ln : An } [ eff' ]    eff' <= eff    G , x1 : A1 |- e1 <== C [ eff ] .. G , xn : An |- en <== C [ eff ]
+    ------------------------------------------------------------------------------------------------------------------------------------------ :: case
+    G |- case e { L1 x1 -> e1 | .. | Ln xn -> en } <== C [ eff ]
+
+    G |- e1 ==> A [ eff' ]    G , x : A |- e2 <== { Next : A | Done : B } [ impure ]    impure <= eff
+    ---------------------------------------------------------------------------------------------------- :: iter
+    G |- iter ( x = e1 ) { e2 } <== B [ eff ]
+
+    G |- e ==> A [ eff' ]    eff' <= eff
+    --------------------------------------- :: sub
+    G |- e <== A [ eff ]

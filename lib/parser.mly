@@ -1,0 +1,124 @@
+%{
+  let mk_loc startpos endpos =
+    let open Lexing in
+    SourcePos.create
+      ~file:startpos.pos_fname
+      ~start_line:startpos.pos_lnum
+      ~start_col:(startpos.pos_cnum - startpos.pos_bol)
+      ~end_line:endpos.pos_lnum
+      ~end_col:(endpos.pos_cnum - endpos.pos_bol)
+
+  let loc_obj startpos endpos =
+    let loc = mk_loc startpos endpos in
+    object method loc = loc end
+
+  let mk_typ startpos endpos s =
+    Typ.In (s, loc_obj startpos endpos)
+
+  let mk_expr startpos endpos s =
+    Expr.In (s, loc_obj startpos endpos)
+
+  let label s =
+    match Label.of_string s with
+    | Ok l -> l
+    | Error _ -> failwith ("invalid label: " ^ s)
+%}
+
+%token <int> INT_LIT
+%token <string> IDENT
+%token <string> LABEL
+%token LET CASE ITER
+%token INT_KW PTR
+%token PURE IMPURE
+%token ADD MUL SUB DIV SET GET NEW DEL
+%token LBRACKET RBRACKET LPAREN RPAREN LBRACE RBRACE
+%token COMMA SEMICOLON EQUAL COLON ARROW BAR
+%token EOF
+
+%start <Expr.expr> program
+%start <Typ.ty> typ_eof
+
+%%
+
+program:
+  | e = expr; EOF { e }
+
+typ_eof:
+  | t = typ; EOF { t }
+
+typ:
+  | PTR; t = atomic_typ
+    { mk_typ $startpos $endpos (Typ.Ptr t) }
+  | t = atomic_typ
+    { t }
+
+atomic_typ:
+  | LPAREN; t = typ; RPAREN
+    { t }
+  | INT_KW
+    { mk_typ $startpos $endpos Typ.Int }
+  | LBRACKET; ts = separated_list(COMMA, typ); RBRACKET
+    { mk_typ $startpos $endpos (Typ.Record ts) }
+  | LBRACE; cs = separated_nonempty_list(BAR, label_typ); RBRACE
+    { mk_typ $startpos $endpos (Typ.Sum cs) }
+
+label_typ:
+  | l = LABEL; COLON; t = typ { (label l, t) }
+
+effect:
+  | PURE   { Effect.Pure }
+  | IMPURE { Effect.Effectful }
+
+expr:
+  | e = seq_expr; COLON; t = typ; LBRACKET; eff = effect; RBRACKET
+    { mk_expr $startpos $endpos (Expr.Annot (e, t, eff)) }
+  | e = seq_expr
+    { e }
+
+seq_expr:
+  | LET; x = IDENT; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
+    { mk_expr $startpos $endpos (Expr.Let (Var.of_string x, e1, e2)) }
+  | LET; LBRACKET; xs = separated_list(COMMA, IDENT); RBRACKET; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
+    { mk_expr $startpos $endpos (Expr.LetTuple (List.map Var.of_string xs, e1, e2)) }
+  | CASE; e = app_expr; LBRACE; bs = separated_nonempty_list(BAR, branch); RBRACE
+    { mk_expr $startpos $endpos (Expr.Case (e, bs)) }
+  | ITER; LPAREN; x = IDENT; EQUAL; e1 = expr; RPAREN; LBRACE; e2 = expr; RBRACE
+    { mk_expr $startpos $endpos (Expr.Iter (Var.of_string x, e1, e2)) }
+  | e = app_expr
+    { e }
+
+branch:
+  | l = LABEL; x = IDENT; ARROW; e = expr
+    { (label l, Var.of_string x, e) }
+
+app_expr:
+  | l = LABEL; e = app_expr
+    { mk_expr $startpos $endpos (Expr.Inject (label l, e)) }
+  | p = arith_prim; LPAREN; e = expr; RPAREN
+    { mk_expr $startpos $endpos (Expr.App (p, e)) }
+  | p = state_prim; LBRACKET; t = typ; RBRACKET; LPAREN; e = expr; RPAREN
+    { mk_expr $startpos $endpos (Expr.StateOp (p, t, e)) }
+  | e = simple_expr
+    { e }
+
+arith_prim:
+  | ADD { Prim.Add }
+  | MUL { Prim.Mul }
+  | SUB { Prim.Sub }
+  | DIV { Prim.Div }
+
+state_prim:
+  | SET { Prim.Set }
+  | GET { Prim.Get }
+  | NEW { Prim.New }
+  | DEL { Prim.Del }
+
+simple_expr:
+  | x = IDENT
+    { mk_expr $startpos $endpos (Expr.Var (Var.of_string x)) }
+  | n = INT_LIT
+    { mk_expr $startpos $endpos (Expr.IntLit n) }
+  | LBRACKET; es = separated_list(COMMA, expr); RBRACKET
+    { mk_expr $startpos $endpos (Expr.Tuple es) }
+  | LPAREN; e = expr; RPAREN
+    { e }
