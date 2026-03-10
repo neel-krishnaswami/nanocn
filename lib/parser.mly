@@ -28,10 +28,12 @@
 %token <string> IDENT
 %token <string> LABEL
 %token LET CASE ITER FUN MAIN
-%token INT_KW PTR
+%token INT_KW BOOL_KW PTR
 %token PURE IMPURE
 %token SET GET NEW DEL
+%token TRUE FALSE IF THEN ELSE NOT_KW
 %token PLUS MINUS STAR SLASH
+%token AMPAMP BARBAR
 %token LBRACKET RBRACKET LPAREN RPAREN LBRACE RBRACE
 %token COMMA SEMICOLON EQUAL COLON ARROW BAR
 %token EOF
@@ -72,12 +74,16 @@ typ:
     { t }
 
 atomic_typ:
+  | LPAREN; RPAREN
+    { mk_typ $startpos $endpos (Typ.Record []) }
   | LPAREN; t = typ; RPAREN
     { t }
+  | LPAREN; t = typ; STAR; ts = separated_nonempty_list(STAR, typ); RPAREN
+    { mk_typ $startpos $endpos (Typ.Record (t :: ts)) }
   | INT_KW
     { mk_typ $startpos $endpos Typ.Int }
-  | LBRACKET; ts = separated_list(COMMA, typ); RBRACKET
-    { mk_typ $startpos $endpos (Typ.Record ts) }
+  | BOOL_KW
+    { mk_typ $startpos $endpos Typ.Bool }
   | LBRACE; cs = separated_nonempty_list(BAR, label_typ); RBRACE
     { mk_typ $startpos $endpos (Typ.Sum cs) }
 
@@ -97,18 +103,34 @@ expr:
 seq_expr:
   | LET; x = IDENT; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
     { mk_expr $startpos $endpos (Expr.Let (Var.of_string x, e1, e2)) }
-  | LET; LBRACKET; xs = separated_list(COMMA, IDENT); RBRACKET; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
+  | LET; LPAREN; xs = separated_list(COMMA, IDENT); RPAREN; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
     { mk_expr $startpos $endpos (Expr.LetTuple (List.map Var.of_string xs, e1, e2)) }
   | CASE; e = app_expr; LBRACE; bs = separated_nonempty_list(BAR, branch); RBRACE
     { mk_expr $startpos $endpos (Expr.Case (e, bs)) }
   | ITER; LPAREN; x = IDENT; EQUAL; e1 = expr; RPAREN; LBRACE; e2 = expr; RBRACE
     { mk_expr $startpos $endpos (Expr.Iter (Var.of_string x, e1, e2)) }
-  | e = add_expr
+  | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = seq_expr
+    { mk_expr $startpos $endpos (Expr.If (e1, e2, e3)) }
+  | e = or_expr
     { e }
 
 branch:
   | l = LABEL; x = IDENT; ARROW; e = expr
     { (label l, Var.of_string x, e) }
+
+or_expr:
+  | e1 = or_expr; BARBAR; e2 = and_expr
+    { let tup = mk_expr $startpos $endpos (Expr.Tuple [e1; e2]) in
+      mk_expr $startpos $endpos (Expr.App (Prim.Or, tup)) }
+  | e = and_expr
+    { e }
+
+and_expr:
+  | e1 = and_expr; AMPAMP; e2 = add_expr
+    { let tup = mk_expr $startpos $endpos (Expr.Tuple [e1; e2]) in
+      mk_expr $startpos $endpos (Expr.App (Prim.And, tup)) }
+  | e = add_expr
+    { e }
 
 add_expr:
   | e1 = add_expr; PLUS; e2 = mul_expr
@@ -133,9 +155,11 @@ mul_expr:
 app_expr:
   | l = LABEL; e = app_expr
     { mk_expr $startpos $endpos (Expr.Inject (label l, e)) }
-  | p = state_prim; LBRACKET; t = typ; RBRACKET; LPAREN; e = expr; RPAREN
+  | p = state_prim; LBRACKET; t = typ; RBRACKET; e = simple_expr
     { mk_expr $startpos $endpos (Expr.App (p t, e)) }
-  | f = IDENT; LPAREN; e = expr; RPAREN
+  | NOT_KW; e = simple_expr
+    { mk_expr $startpos $endpos (Expr.App (Prim.Not, e)) }
+  | f = IDENT; e = simple_expr
     { mk_expr $startpos $endpos (Expr.Call (Var.of_string f, e)) }
   | e = simple_expr
     { e }
@@ -151,7 +175,13 @@ simple_expr:
     { mk_expr $startpos $endpos (Expr.Var (Var.of_string x)) }
   | n = INT_LIT
     { mk_expr $startpos $endpos (Expr.IntLit n) }
-  | LBRACKET; es = separated_list(COMMA, expr); RBRACKET
-    { mk_expr $startpos $endpos (Expr.Tuple es) }
+  | TRUE
+    { mk_expr $startpos $endpos (Expr.BoolLit true) }
+  | FALSE
+    { mk_expr $startpos $endpos (Expr.BoolLit false) }
+  | LPAREN; RPAREN
+    { mk_expr $startpos $endpos (Expr.Tuple []) }
   | LPAREN; e = expr; RPAREN
     { e }
+  | LPAREN; e = expr; COMMA; es = separated_nonempty_list(COMMA, expr); RPAREN
+    { mk_expr $startpos $endpos (Expr.Tuple (e :: es)) }

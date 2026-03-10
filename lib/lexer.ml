@@ -36,6 +36,13 @@ let keyword_or_ident s =
   | "ptr" -> Parser.PTR
   | "pure" -> Parser.PURE
   | "impure" -> Parser.IMPURE
+  | "bool" -> Parser.BOOL_KW
+  | "true" -> Parser.TRUE
+  | "false" -> Parser.FALSE
+  | "if" -> Parser.IF
+  | "then" -> Parser.THEN
+  | "else" -> Parser.ELSE
+  | "not" -> Parser.NOT_KW
   | _ -> Parser.IDENT s
 
 let keyword_or_label s =
@@ -65,6 +72,8 @@ let rec token buf =
   | '=' -> Parser.EQUAL
   | ':' -> Parser.COLON
   | "->" -> Parser.ARROW
+  | "||" -> Parser.BARBAR
+  | "&&" -> Parser.AMPAMP
   | '|' -> Parser.BAR
   | '+' -> Parser.PLUS
   | '-' -> Parser.MINUS

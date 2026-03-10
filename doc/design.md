@@ -50,16 +50,16 @@ Here is a sample interaction
 >>> fun square(n : int) -> int [pure] { n * n }   // adds a pure function to the signature
 square : int -> int [pure]
 
->>> square(4)
+>>> square 4
 _ : int [pure]
 
 >>> let x = 3 + 3
 x : int [pure]
 
->>> square(x)
+>>> square x
 _ : int [pure]
 
->>> fun cube(n : int) -> int [pure] { n * square(n) }
+>>> fun cube(n : int) -> int [pure] { n * square n }
 cube : int -> int [pure]
 
 >>> fun bad(n : int) -> int [pure] { n + x }
@@ -67,5 +67,21 @@ ERROR: x is not in scope
 
 >>> 1 / 2
 _ : int [impure]
+
+>>> true && false
+_ : bool [pure]
+
+>>> not true
+_ : bool [pure]
+
+>>> if true then 1 else 2 : int [pure]
+_ : int [pure]
+
+>>> fun loop(n : int) -> int [pure] { loop n }
+ERROR: pure functions cannot call themselves recursively
+
+Note: only impure functions may call themselves recursively.
+Pure functions do not have access to their own binding during
+typechecking, which prevents unbounded recursion in the pure fragment.
 
 

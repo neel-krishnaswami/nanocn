@@ -2,16 +2,18 @@ type 'a tF =
   | Record of 'a list
   | Sum of (Label.t * 'a) list
   | Int
+  | Bool
   | Ptr of 'a
 
 let map f = function
   | Record ts -> Record (List.map f ts)
   | Sum cases -> Sum (List.map (fun (l, t) -> (l, f t)) cases)
   | Int -> Int
+  | Bool -> Bool
   | Ptr t -> Ptr (f t)
 
 let compare_tF cmp t1 t2 =
-  let tag = function Record _ -> 0 | Sum _ -> 1 | Int -> 2 | Ptr _ -> 3 in
+  let tag = function Record _ -> 0 | Sum _ -> 1 | Int -> 2 | Bool -> 3 | Ptr _ -> 4 in
   match t1, t2 with
   | Record ts1, Record ts2 -> List.compare cmp ts1 ts2
   | Sum cs1, Sum cs2 ->
@@ -19,19 +21,21 @@ let compare_tF cmp t1 t2 =
       let c = Label.compare l1 l2 in
       if c <> 0 then c else cmp a1 a2) cs1 cs2
   | Int, Int -> 0
+  | Bool, Bool -> 0
   | Ptr a1, Ptr a2 -> cmp a1 a2
   | _ -> Int.compare (tag t1) (tag t2)
 
 let print_tF pp fmt = function
   | Record ts ->
-    Format.fprintf fmt "@[<hov 2>[%a]@]"
-      (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") pp) ts
+    Format.fprintf fmt "@[<hov 2>(%a)@]"
+      (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt " *@ ") pp) ts
   | Sum cases ->
     Format.fprintf fmt "@[<hov 2>{%a}@]"
       (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt "@ | ")
          (fun fmt (l, t) -> Format.fprintf fmt "%a:@ %a" Label.print l pp t))
       cases
   | Int -> Format.fprintf fmt "int"
+  | Bool -> Format.fprintf fmt "bool"
   | Ptr t -> Format.fprintf fmt "@[<hov 2>ptr@ %a@]" pp t
 
 type 'b t = In of 'b t tF * 'b
@@ -56,6 +60,7 @@ module Test = struct
       (let* ts = list_size (0 -- 4) gen_a in pure (Record ts));
       (let* cs = list_size (1 -- 4) (pair Label.Test.gen gen_a) in pure (Sum cs));
       pure Int;
+      pure Bool;
       map (fun a -> Ptr a) gen_a;
     ]
 
@@ -69,6 +74,7 @@ module Test = struct
       if n <= 0 then
         oneof [
           pure (mk Int);
+          pure (mk Bool);
           pure (mk (Record []));
         ]
       else
@@ -77,6 +83,7 @@ module Test = struct
           map (fun ts -> mk (Record ts)) (list_size (0 -- 3) sub);
           map (fun cs -> mk (Sum cs)) (list_size (1 -- 3) (pair Label.Test.gen sub));
           pure (mk Int);
+          pure (mk Bool);
           map (fun a -> mk (Ptr a)) sub;
         ])
 

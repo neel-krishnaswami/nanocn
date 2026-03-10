@@ -1,6 +1,7 @@
 type 'a exprF =
   | Var of Var.t
   | IntLit of int
+  | BoolLit of bool
   | Let of Var.t * 'a * 'a
   | Tuple of 'a list
   | LetTuple of Var.t list * 'a * 'a
@@ -9,11 +10,13 @@ type 'a exprF =
   | Iter of Var.t * 'a * 'a
   | App of Prim.t * 'a
   | Call of Var.t * 'a
+  | If of 'a * 'a * 'a
   | Annot of 'a * Typ.ty * Effect.t
 
 let map f = function
   | Var x -> Var x
   | IntLit n -> IntLit n
+  | BoolLit b -> BoolLit b
   | Let (x, e1, e2) -> Let (x, f e1, f e2)
   | Tuple es -> Tuple (List.map f es)
   | LetTuple (xs, e1, e2) -> LetTuple (xs, f e1, f e2)
@@ -23,19 +26,21 @@ let map f = function
   | Iter (x, e1, e2) -> Iter (x, f e1, f e2)
   | App (p, e) -> App (p, f e)
   | Call (name, e) -> Call (name, f e)
+  | If (e1, e2, e3) -> If (f e1, f e2, f e3)
   | Annot (e, ty, eff) -> Annot (f e, ty, eff)
 
 let print_exprF pp fmt = function
   | Var x -> Var.print fmt x
   | IntLit n -> Format.fprintf fmt "%d" n
+  | BoolLit b -> Format.fprintf fmt "%s" (if b then "true" else "false")
   | Let (x, e1, e2) ->
     Format.fprintf fmt "@[<v>@[<hov 2>let %a =@ %a;@]@ %a@]"
       Var.print x pp e1 pp e2
   | Tuple es ->
-    Format.fprintf fmt "@[<hov 2>[%a]@]"
+    Format.fprintf fmt "@[<hov 2>(%a)@]"
       (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") pp) es
   | LetTuple (xs, e1, e2) ->
-    Format.fprintf fmt "@[<v>@[<hov 2>let [%a] =@ %a;@]@ %a@]"
+    Format.fprintf fmt "@[<v>@[<hov 2>let (%a) =@ %a;@]@ %a@]"
       (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") Var.print) xs
       pp e1 pp e2
   | Inject (l, e) ->
@@ -51,9 +56,11 @@ let print_exprF pp fmt = function
     Format.fprintf fmt "@[<v>@[<hov 2>iter (%a = %a) {@ %a@]@ }@]"
       Var.print x pp e1 pp e2
   | App (p, e) ->
-    Format.fprintf fmt "@[<hov 2>%a(%a)@]" Prim.print p pp e
+    Format.fprintf fmt "@[<hov 2>%a@ %a@]" Prim.print p pp e
   | Call (name, e) ->
-    Format.fprintf fmt "@[<hov 2>%a(%a)@]" Var.print name pp e
+    Format.fprintf fmt "@[<hov 2>%a@ %a@]" Var.print name pp e
+  | If (e1, e2, e3) ->
+    Format.fprintf fmt "@[<v>@[<hov 2>if %a@ then %a@]@ @[<hov 2>else %a@]@]" pp e1 pp e2 pp e3
   | Annot (e, ty, eff) ->
     Format.fprintf fmt "@[<hov 2>%a :@ %a [%a]@]" pp e Typ.print ty Effect.print eff
 
@@ -64,16 +71,19 @@ let shape (In (s, _)) = s
 
 type expr = < loc : SourcePos.t > t
 
-let arith_op_string = function
+let infix_op_string = function
   | Prim.Add -> "+" | Prim.Sub -> "-"
   | Prim.Mul -> "*" | Prim.Div -> "/"
+  | Prim.And -> "&&" | Prim.Or -> "||"
   | _ -> assert false
 
 let rec print fmt (In (s, _)) =
   match s with
-  | App ((Prim.Add | Prim.Sub | Prim.Mul | Prim.Div) as p,
+  | App ((Prim.Add | Prim.Sub | Prim.Mul | Prim.Div | Prim.And | Prim.Or) as p,
          In (Tuple [e1; e2], _)) ->
-    Format.fprintf fmt "@[<hov 2>%a %s@ %a@]" print e1 (arith_op_string p) print e2
+    Format.fprintf fmt "@[<hov 2>%a %s@ %a@]" print e1 (infix_op_string p) print e2
+  | App (Prim.Not, e) ->
+    Format.fprintf fmt "@[<hov 2>not@ %a@]" print e
   | _ -> print_exprF print fmt s
 
 module Test = struct
@@ -87,6 +97,7 @@ module Test = struct
         oneof [
           map (fun v -> mk (Var v)) Var.Test.gen;
           map (fun n -> mk (IntLit n)) (0 -- 100);
+          map (fun b -> mk (BoolLit b)) bool;
         ]
       else
         let sub = self (n / 3) in

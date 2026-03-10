@@ -5,6 +5,7 @@ type 'a tF =
   | Record of 'a list
   | Sum of (Label.t * 'a) list
   | Int
+  | Bool
   | Ptr of 'a
 
 val map : ('a -> 'b) -> 'a tF -> 'b tF

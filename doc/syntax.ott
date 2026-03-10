@@ -3,6 +3,7 @@
 metavar var, x, y, z ::=
 metavar label, L, Next, Done ::=
 metavar lit ::=
+metavar blit ::=
 metavar f ::= 
 indexvar index, i, j, n ::=
 
@@ -10,8 +11,9 @@ grammar
 
 A, B, C :: 'T_' ::=                                        {{ com types }}
   | int                                :: :: Int            {{ com integers }}
+  | bool                               :: :: Bool           {{ com booleans }}
   | ptr A                              :: :: Ptr            {{ com pointer }}
-  | [ A1 , .. , An ]                   :: :: Record         {{ com record }}
+  | ( A1 , .. , An )                   :: :: Record         {{ com record }}
   | { L1 : A1 '|' .. '|' Ln : An }    :: :: Sum            {{ com labelled sum }}
 
 eff {{ tex \epsilon }} :: 'Eff_' ::=                        {{ com effects }}
@@ -37,6 +39,9 @@ prim :: 'Prim_' ::=                                            {{ com primitives
   | Sub                                :: :: Sub            {{ com subtraction }}
   | Mul                                :: :: Mul            {{ com multiplication }}
   | Div                                :: :: Div            {{ com division }}
+  | And                                :: :: And            {{ com conjunction }}
+  | Or                                 :: :: Or             {{ com disjunction }}
+  | Not                                :: :: Not            {{ com negation }}
   | New [ A ]                          :: :: New            {{ com allocate }}
   | Del [ A ]                          :: :: Del            {{ com deallocate }}
   | Get [ A ]                          :: :: Get            {{ com dereference }}
@@ -45,15 +50,17 @@ prim :: 'Prim_' ::=                                            {{ com primitives
 e :: 'E_' ::=                                               {{ com expressions }}
   | x                                  :: :: Var
   | lit                                :: :: IntLit         {{ com integer literal }}
+  | blit                               :: :: BoolLit        {{ com boolean literal }}
   | let x = e1 ; e2                    :: :: Let
-  | [ e1 , .. , en ]                   :: :: Tuple
-  | let [ x1 , .. , xn ] = e1 ; e2    :: :: LetTuple
+  | ( e1 , .. , en )                   :: :: Tuple
+  | let ( x1 , .. , xn ) = e1 ; e2    :: :: LetTuple
   | L e                                :: :: Inject
   | case e { L1 x1 -> e1 '|' .. '|' Ln xn -> en }   :: :: Case
   | iter ( x = e1 ) { e2 }            :: :: Iter
-  | prim ( e )                            :: :: App
+  | prim e                               :: :: App
+  | if e1 then e2 else e3              :: :: If             {{ com conditional }}
   | e : A [ eff ]                      :: :: Annot
-  | f ( e )                            :: :: Call
+  | f e                                :: :: Call
 
 prog :: 'Prog_' ::=                                        {{ com programs }}
   | fun f ( x : A ) -> B [ eff ] { e } prog   :: :: Decl   {{ tex \mathsf{fun}\;[[f]] ( [[x]] \mathord{:} [[A]] ) \to_{[[eff]]} [[B]] \; \{ [[e]] \} \quad [[prog]] }}
@@ -84,34 +91,46 @@ defns Jtype :: '' ::=
   {{ tex [[prim]] \mathord{:} [[A]] \to_{[[eff]]} [[B]] }} by
 
     ----------------------------------- :: add
-    Add : [ int , int ] -> int [ pure ]
+    Add : ( int , int ) -> int [ pure ]
 
     ----------------------------------- :: sub
-    Sub : [ int , int ] -> int [ pure ]
+    Sub : ( int , int ) -> int [ pure ]
 
     ----------------------------------- :: mul
-    Mul : [ int , int ] -> int [ pure ]
+    Mul : ( int , int ) -> int [ pure ]
 
     ------------------------------------- :: div
-    Div : [ int , int ] -> int [ impure ]
+    Div : ( int , int ) -> int [ impure ]
+
+    --------------------------------------- :: and
+    And : ( bool , bool ) -> bool [ pure ]
+
+    --------------------------------------- :: or
+    Or : ( bool , bool ) -> bool [ pure ]
+
+    ----------------------------- :: not
+    Not : bool -> bool [ pure ]
 
     ---------------------------------------- :: new
     New [ A ] : A -> ptr A [ impure ]
 
     ------------------------------------------ :: del
-    Del [ A ] : ptr A -> [ ] [ impure ]
+    Del [ A ] : ptr A -> ( ) [ impure ]
 
     -------------------------------------- :: get
     Get [ A ] : ptr A -> A [ impure ]
 
     -------------------------------------------------- :: set
-    Set [ A ] : [ ptr A , A ] -> [ ] [ impure ]
+    Set [ A ] : ( ptr A , A ) -> ( ) [ impure ]
 
   defn S ; G |- e ==> A [ eff ] :: :: synth :: 'Syn_'
   {{ tex [[S]] ; [[G]] \vdash_{[[eff]]} [[e]] \Rightarrow [[A]] }} by
 
     ----------------------- :: int
     S ; G |- lit ==> int [ pure ]
+
+    -------------------------- :: bool
+    S ; G |- blit ==> bool [ pure ]
 
     x : A in G
     ----------------------- :: var
@@ -123,11 +142,11 @@ defns Jtype :: '' ::=
 
     prim : A -> B [ eff ]    S ; G |- e <== A [ pure ]
     --------------------------------------------------- :: app
-    S ; G |- prim ( e ) ==> B [ eff ]
+    S ; G |- prim e ==> B [ eff ]
 
     f : F in S    S ; G |- e <== A [ pure ]
     ---------------------------------------- :: call
-    S ; G |- f ( e ) ==> B [ eff ]
+    S ; G |- f e ==> B [ eff ]
 
   defn S ; G |- e <== A [ eff ] :: :: check :: 'Chk_'
   {{ tex [[S]] ; [[G]] \vdash_{[[eff]]} [[e]] \Leftarrow [[A]] }} by
@@ -138,11 +157,11 @@ defns Jtype :: '' ::=
 
     S ; G |- e1 <== A1 [ eff ] .. S ; G |- en <== An [ eff ]
     --------------------------------------------------- :: tuple
-    S ; G |- [ e1 , .. , en ] <== [ A1 , .. , An ] [ eff ]
+    S ; G |- ( e1 , .. , en ) <== ( A1 , .. , An ) [ eff ]
 
-    S ; G |- e1 ==> [ A1 , .. , An ] [ eff' ]    eff' <= eff    S ; G' |- e2 <== C [ eff ]
+    S ; G |- e1 ==> ( A1 , .. , An ) [ eff' ]    eff' <= eff    S ; G' |- e2 <== C [ eff ]
     ---------------------------------------------------------------------------------- :: lettuple
-    S ; G |- let [ x1 , .. , xn ] = e1 ; e2 <== C [ eff ]
+    S ; G |- let ( x1 , .. , xn ) = e1 ; e2 <== C [ eff ]
 
     L : A in B    S ; G |- e <== A [ eff ]
     ------------------------------------- :: inject
@@ -156,6 +175,10 @@ defns Jtype :: '' ::=
     ---------------------------------------------------------------------------------------------------- :: iter
     S ; G |- iter ( x = e1 ) { e2 } <== B [ eff ]
 
+    S ; G |- e1 <== bool [ eff ]    S ; G |- e2 <== A [ eff ]    S ; G |- e3 <== A [ eff ]
+    ------------------------------------------------------------------------------------- :: if
+    S ; G |- if e1 then e2 else e3 <== A [ eff ]
+
     S ; G |- e ==> A [ eff' ]    eff' <= eff
     --------------------------------------- :: sub
     S ; G |- e <== A [ eff ]
@@ -164,11 +187,15 @@ defns Jtype :: '' ::=
   defn S |- prog :: :: prog :: 'Prog_'
   {{ tex [[S]] \vdash [[prog]] }} by
 
-    S ; G |- e <== [ ] [ impure ]
+    S ; G |- e <== ( ) [ impure ]
     --------------------------- :: main
     S |- main = e
 
-    S , f : A -> B [ eff ] ; G , x : A |- e <== B [ eff ]    S , f : A -> B [ eff ] |- prog
-    --------------------------------------------------------------------------------------- :: fundef
-    S |- fun f ( x : A ) -> B [ eff ] { e } prog
+    S ; G , x : A |- e <== B [ pure ]    S , f : A -> B [ pure ] |- prog
+    --------------------------------------------------------------------------- :: purefun
+    S |- fun f ( x : A ) -> B [ pure ] { e } prog
+
+    S , f : A -> B [ impure ] ; G , x : A |- e <== B [ impure ]    S , f : A -> B [ impure ] |- prog
+    ------------------------------------------------------------------------------------------------- :: impurefun
+    S |- fun f ( x : A ) -> B [ impure ] { e } prog
 

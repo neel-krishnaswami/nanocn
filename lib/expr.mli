@@ -4,6 +4,7 @@
 type 'a exprF =
   | Var of Var.t
   | IntLit of int
+  | BoolLit of bool
   | Let of Var.t * 'a * 'a
   | Tuple of 'a list
   | LetTuple of Var.t list * 'a * 'a
@@ -12,6 +13,7 @@ type 'a exprF =
   | Iter of Var.t * 'a * 'a
   | App of Prim.t * 'a
   | Call of Var.t * 'a
+  | If of 'a * 'a * 'a
   | Annot of 'a * Typ.ty * Effect.t
 
 val map : ('a -> 'b) -> 'a exprF -> 'b exprF

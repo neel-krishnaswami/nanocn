@@ -37,13 +37,18 @@ let mk ctx pos ty eff shape : typed_expr =
 (** Signature of a primitive. Returns (arg_type, ret_type, effect). *)
 let prim_signature (p : Prim.t) =
   let int_ty = mk_ty Typ.Int in
+  let bool_ty = mk_ty Typ.Bool in
   let pair_int = mk_ty (Typ.Record [int_ty; int_ty]) in
+  let pair_bool = mk_ty (Typ.Record [bool_ty; bool_ty]) in
   let unit_ty = mk_ty (Typ.Record []) in
   match p with
   | Add -> (pair_int, int_ty, Effect.Pure)
   | Sub -> (pair_int, int_ty, Effect.Pure)
   | Mul -> (pair_int, int_ty, Effect.Pure)
   | Div -> (pair_int, int_ty, Effect.Impure)
+  | And -> (pair_bool, bool_ty, Effect.Pure)
+  | Or -> (pair_bool, bool_ty, Effect.Pure)
+  | Not -> (bool_ty, bool_ty, Effect.Pure)
   | New a -> (a, mk_ty (Typ.Ptr a), Effect.Impure)
   | Del a -> (mk_ty (Typ.Ptr a), unit_ty, Effect.Impure)
   | Get a -> (mk_ty (Typ.Ptr a), a, Effect.Impure)
@@ -60,6 +65,9 @@ let rec synth sig_ ctx (Expr.In (shape, info) as _e) =
 
   | Expr.IntLit n ->
     Ok (mk ctx pos (mk_ty Typ.Int) Effect.Pure (Expr.IntLit n))
+
+  | Expr.BoolLit b ->
+    Ok (mk ctx pos (mk_ty Typ.Bool) Effect.Pure (Expr.BoolLit b))
 
   | Expr.App (p, arg) ->
     let (arg_ty, ret_ty, eff) = prim_signature p in
@@ -78,7 +86,7 @@ let rec synth sig_ ctx (Expr.In (shape, info) as _e) =
     Ok (mk ctx pos ty eff (Expr.Annot (e', ty, eff)))
 
   | Expr.Tuple _ | Expr.Let _ | Expr.LetTuple _ | Expr.Inject _
-  | Expr.Case _ | Expr.Iter _ ->
+  | Expr.Case _ | Expr.Iter _ | Expr.If _ ->
     err_at pos "cannot synthesize type; add a type annotation"
 
 (** Check: Σ; Γ ⊢ e ⇐ A[ϵ] *)
@@ -165,6 +173,13 @@ and check sig_ ctx (Expr.In (shape, info) as e) ty eff =
       let* body' = check sig_ ctx' body iter_ty Effect.Impure in
       Ok (mk ctx pos ty eff (Expr.Iter (x, e1', body')))
 
+  | Expr.If (cond, e_then, e_else) ->
+    let bool_ty = mk_ty Typ.Bool in
+    let* cond' = check sig_ ctx cond bool_ty eff in
+    let* then' = check sig_ ctx e_then ty eff in
+    let* else' = check sig_ ctx e_else ty eff in
+    Ok (mk ctx pos ty eff (Expr.If (cond', then', else')))
+
   | Expr.Annot (inner, ann_ty, ann_eff) ->
     let* inner' = check sig_ ctx inner ann_ty ann_eff in
     if not (typ_equal ann_ty ty) then
@@ -210,9 +225,12 @@ and check_branches sig_ ctx branches cases ty eff pos =
 
 let check_decl sig_ (d : Expr.expr Prog.decl) : (typed_expr Prog.decl, string) result =
   let entry = { Sig.arg = d.arg_ty; ret = d.ret_ty; eff = d.eff } in
-  let sig' = Sig.extend d.name entry sig_ in
+  let sig_for_body = match d.eff with
+    | Effect.Impure -> Sig.extend d.name entry sig_
+    | Effect.Pure -> sig_
+  in
   let ctx = Context.extend d.param d.arg_ty Context.empty in
-  let* body' = check sig' ctx d.body d.ret_ty d.eff in
+  let* body' = check sig_for_body ctx d.body d.ret_ty d.eff in
   Ok { d with body = body' }
 
 let check_prog (p : Expr.expr Prog.t) : (typed_expr Prog.t, string) result =
