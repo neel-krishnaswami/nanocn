@@ -10,6 +10,9 @@ let qcheck_tests =
     Context.Test.test;
     Sig.Test.test;
     Prog.Test.test;
+    Dsort.Test.test;
+    Tvar.Test.test;
+    Sort.Test.test;
   ]
 
 (** Helper to extract type from a typed_expr *)
