@@ -34,3 +34,12 @@ setup.log
 
 # Local OPAM switch
 _opam/
+
+# Emacs temporary files
+\#*\#
+.\#*
+*~
+
+# LaTeX build artifacts
+*.aux
+*.log
