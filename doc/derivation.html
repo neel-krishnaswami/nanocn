@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Elaboration Derivation: case x of {T() → (x, F()) | z → (z, T())}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {
+    delimiters: [
+      {left: '$$', right: '$$', display: true},
+      {left: '$', right: '$', display: false}
+    ],
+    macros: {
+      '\\Sig': '\\Sigma',
+      '\\Gam': '\\Gamma',
+      '\\spec': '\\mathsf{spec}',
+      '\\cmark': '\\Leftarrow',
+      '\\smark': '\\Rightarrow',
+      '\\emark': '\\leadsto',
+      '\\bmark': '\\rightarrow',
+      '\\pred': '\\mathsf{pred}',
+      '\\holes': '[\\cdot]',
+      '\\E': '\\mathcal{E}',
+      '\\comp': '\\mathsf{comp}',
+      '\\SpecChkCase': '\\textsc{SpecChk\\_case}',
+      '\\SpecSynVar': '\\textsc{SpecSyn\\_var}',
+      '\\SpecChkSub': '\\textsc{SpecChk\\_sub}',
+      '\\SpecChkTuple': '\\textsc{SpecChk\\_tuple}',
+      '\\SpecChkInject': '\\textsc{SpecChk\\_inject}',
+      '\\CovCon': '\\textsc{Cov\\_con}',
+      '\\CovTup': '\\textsc{Cov\\_tup}',
+      '\\CovVar': '\\textsc{Cov\\_var}',
+      '\\CovDone': '\\textsc{Cov\\_done}',
+      '\\SCmatch': '\\textsc{SC\\_match}',
+      '\\SCvar': '\\textsc{SC\\_var}',
+      '\\SCskip': '\\textsc{SC\\_skip}',
+      '\\ETtuple': '\\textsc{ET\\_tuple}',
+      '\\ETvar': '\\textsc{ET\\_var}',
+      '\\SVcons': '\\textsc{SV\\_cons}',
+      '\\SVempty': '\\textsc{SV\\_empty}',
+      '\\HChere': '\\textsc{HC\\_here}',
+      '\\FillHole': '\\textsc{Fill\\_hole}',
+      '\\FillLet': '\\textsc{Fill\\_let}'
+    }
+  });"></script>
+<style>
+  body {
+    font-family: 'Georgia', serif;
+    max-width: 1100px;
+    margin: 2em auto;
+    padding: 0 1.5em;
+    line-height: 1.6;
+    color: #222;
+    background: #fdfdfd;
+  }
+  h1 { font-size: 1.5em; border-bottom: 2px solid #333; padding-bottom: 0.3em; }
+  h2 { font-size: 1.2em; color: #444; margin-top: 2em; border-bottom: 1px solid #ccc; padding-bottom: 0.2em; }
+  h3 { font-size: 1.05em; color: #555; margin-top: 1.5em; }
+
+  .setup { background: #f0f4f8; padding: 1em 1.2em; border-radius: 6px; margin: 1em 0; }
+
+  .rule {
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    padding: 1em 1.2em;
+    margin: 1em 0;
+    background: #fafafa;
+    overflow-x: auto;
+  }
+  .rule-name {
+    font-weight: bold;
+    color: #336;
+    margin-bottom: 0.5em;
+  }
+  .premises { margin-bottom: 0.3em; }
+  .premise { margin: 0.3em 0; padding-left: 1em; }
+  .rule-line { border-top: 2px solid #333; margin: 0.5em 0; }
+  .conclusion { margin-top: 0.3em; }
+  .annotation {
+    color: #666;
+    font-style: italic;
+    font-size: 0.92em;
+    margin-top: 0.5em;
+  }
+  .ref { color: #369; font-weight: bold; }
+  .result-box {
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+    border-radius: 6px;
+    padding: 1em 1.2em;
+    margin: 1.5em 0;
+  }
+  .fill-step {
+    margin: 0.2em 0 0.2em 1.5em;
+  }
+</style>
+</head>
+<body>
+
+<h1>Elaboration Derivation</h1>
+
+<div class="setup">
+<strong>Setup.</strong> Assume:
+<ul style="margin:0.3em 0">
+<li>$\text{sort } D() = \{T : () \mid F : ()\} \in \Sig$</li>
+<li>$\spec\; x : D \in \Gam$</li>
+</ul>
+<strong>Goal.</strong> Derive:
+$$\Sig;\Gam \vdash \mathbf{case}\; x \;\mathbf{of}\; \{T() \bmark (x, F()) \mid z \bmark (z, T())\} \cmark (D, D) \emark \texttt{?}$$
+</div>
+
+<!-- ============================================================ -->
+<h2>1. Top Level: $\SpecChkCase$</h2>
+
+<div class="rule">
+<div class="rule-name">SpecChk_case</div>
+<div class="premises">
+  <div class="premise"><span class="ref">(D1)</span> $\;\Sig;\Gam \vdash x \smark D \emark x$</div>
+  <div class="premise">$M = T() : D \bmark [\cdot][\cdot]\, (x, F()) \;\mid\; z : D \bmark [\cdot][\cdot]\, (z, T())$</div>
+  <div class="premise"><span class="ref">(D2)</span> $\;\Sig;\Gam \vdash y, \cdot;\; M \cmark (D,D) \emark \mathit{ce}$</div>
+</div>
+<div class="rule-line"></div>
+<div class="conclusion">
+$$\Sig;\Gam \vdash \mathbf{case}\; x \;\mathbf{of}\; \{T() \bmark (x,F()) \mid z \bmark (z,T())\} \cmark (D,D) \emark \mathbf{let}\; y = x;\; \mathit{ce}$$
+</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>2. Scrutinee Synthesis</h2>
+
+<div class="rule" id="D1">
+<div class="rule-name">(D1) SpecSyn_var</div>
+<div class="premises">
+  <div class="premise">$\spec\; x : D \in \Gam$</div>
+</div>
+<div class="rule-line"></div>
+<div class="conclusion">$\Sig;\Gam \vdash x \smark D \emark x$</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>3. Coverage: $\CovCon$</h2>
+
+<p>The matrix $M$ has a constructor in the leading column ($T()$), so $\CovCon$ applies.</p>
+
+<div class="rule" id="D2">
+<div class="rule-name">(D2) Cov_con</div>
+<div class="premises">
+  <div class="premise">$M\;\mathsf{has\_con}$ &ensp; (by $\HChere$, since $T()$ is a constructor pattern)</div>
+  <div class="premise">$\text{sort } D() = \{T : () \mid F : ()\} \in \Sig$</div>
+  <div class="premise">$T : () \;\mathbf{in}\; D \;\mathbf{in}\; \Sig \quad F : () \;\mathbf{in}\; D \;\mathbf{in}\; \Sig$</div>
+  <div class="premise"><span class="ref">(D3)</span> $\;M / T : () \emark M_T$</div>
+  <div class="premise"><span class="ref">(D4)</span> $\;M / F : () \emark M_F$</div>
+  <div class="premise"><span class="ref">(D5)</span> $\;\Sig;\Gam \vdash x_T, \cdot;\; M_T \cmark (D,D) \emark \mathit{ce}_T$</div>
+  <div class="premise"><span class="ref">(D7)</span> $\;\Sig;\Gam \vdash x_F, \cdot;\; M_F \cmark (D,D) \emark \mathit{ce}_F$</div>
+</div>
+<div class="rule-line"></div>
+<div class="conclusion">
+$$\Sig;\Gam \vdash y, \cdot;\; M \cmark (D,D) \emark \mathbf{case}\; y\; \mathbf{of}\;\{T\; x_T \bmark \mathit{ce}_T \mid F\; x_F \bmark \mathit{ce}_F\}$$
+</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>4. Constructor Specialization</h2>
+
+<h3>4a. $M / T : ()$</h3>
+
+<div class="rule" id="D3">
+<div class="rule-name">(D3) spec_con $M / T : ()$</div>
+
+<div class="annotation">Branch 1: $T() : D \bmark [\cdot][\cdot]\, (x,F())$</div>
+<div class="premise" style="margin-left:1em">
+  $\SCmatch$: $T$ matches $T$. Strip constructor, keep $\E$.<br>
+  Result: $() : () \bmark [\cdot][\cdot]\, (x,F())$
+</div>
+
+<div class="annotation">Branch 2: $z : D \bmark [\cdot][\cdot]\, (z,T())$</div>
+<div class="premise" style="margin-left:1em">
+  $\SCvar$: $z$ is a variable. Introduce fresh $w$.
+  Extend $\Gam'$ with $\spec\; z : D$. Extend $\E$ with $\mathbf{let}\; z = T\,w$.<br>
+  Result: $w : () \bmark [\spec\; z : D][\mathbf{let}\; z = T\,w;\; \cdot]\, (z,T())$
+</div>
+
+<div class="rule-line"></div>
+<div class="conclusion">
+$$M_T \;=\; () : () \bmark [\cdot][\cdot]\, (x,F()) \;\;\mid\;\; w : () \bmark [\spec\; z\!:\!D][\mathbf{let}\; z = T\,w;\; \cdot]\, (z,T())$$
+</div>
+</div>
+
+<h3>4b. $M / F : ()$</h3>
+
+<div class="rule" id="D4">
+<div class="rule-name">(D4) spec_con $M / F : ()$</div>
+
+<div class="annotation">Branch 1: $T() : D \bmark [\cdot][\cdot]\, (x,F())$</div>
+<div class="premise" style="margin-left:1em">
+  $\SCskip$: $T \neq F$. Branch dropped.
+</div>
+
+<div class="annotation">Branch 2: $z : D \bmark [\cdot][\cdot]\, (z,T())$</div>
+<div class="premise" style="margin-left:1em">
+  $\SCvar$: $z$ is a variable. Introduce fresh $w'$.
+  Extend $\Gam'$ with $\spec\; z : D$. Extend $\E$ with $\mathbf{let}\; z = F\,w'$.<br>
+  Result: $w' : () \bmark [\spec\; z : D][\mathbf{let}\; z = F\,w';\; \cdot]\, (z,T())$
+</div>
+
+<div class="rule-line"></div>
+<div class="conclusion">
+$$M_F \;=\; w' : () \bmark [\spec\; z\!:\!D][\mathbf{let}\; z = F\,w';\; \cdot]\, (z,T())$$
+</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>5. T-Branch: $\CovTup$ then $\CovDone$</h2>
+
+<p>$M_T$ has a tuple $()$ in the leading column, so $\CovTup$ applies.</p>
+
+<h3>5a. expand_tup $M_T$</h3>
+
+<div class="rule">
+<div class="rule-name">expand_tup $M_T / \text{tup}$</div>
+
+<div class="annotation">Branch 1: $() : () \bmark [\cdot][\cdot]\, (x,F())$</div>
+<div class="premise" style="margin-left:1em">
+  $\ETtuple$ with $k=0$: expand 0-tuple, no new columns.<br>
+  Result: $\cdot \bmark [\cdot][\cdot]\, (x,F())$
+</div>
+
+<div class="annotation">Branch 2: $w : () \bmark [\spec\; z\!:\!D][\mathbf{let}\; z = T\,w;\;\cdot]\, (z,T())$</div>
+<div class="premise" style="margin-left:1em">
+  $\ETvar$ with $k=0$: $w$ is a variable of type $()$. Expand, adding $\spec\; w : ()$ to $\Gam'$
+  and $\mathbf{let}\; w = ()$ to $\E$.<br>
+  Result: $\cdot \bmark [\spec\; z\!:\!D,\; \spec\; w\!:\!()][\mathbf{let}\; w = ();\; \mathbf{let}\; z = T\,w;\; \cdot]\, (z,T())$
+</div>
+
+<div class="rule-line"></div>
+<div class="conclusion">
+$$M'_T \;=\; \cdot \bmark [\cdot][\cdot]\, (x,F()) \;\;\mid\;\; \cdot \bmark [\spec\; z\!:\!D,\; \spec\; w\!:\!()][\mathbf{let}\; w = ();\; \mathbf{let}\; z = T\,w;\; \cdot]\, (z,T())$$
+</div>
+</div>
+
+<h3>5b. $\CovTup$ output</h3>
+
+<div class="rule" id="D5">
+<div class="rule-name">(D5) Cov_tup</div>
+<div class="premises">
+  <div class="premise">$M_T\;\mathsf{has\_tup}$ &ensp; (by $\textsc{HT\_here}$)</div>
+  <div class="premise">$M_T / \text{tup} \emark M'_T$ &ensp; (above)</div>
+  <div class="premise"><span class="ref">(D6)</span> $\;\Sig;\Gam \vdash \cdot;\; M'_T \cmark (D,D) \emark (x, F\,())$</div>
+</div>
+<div class="rule-line"></div>
+<div class="conclusion">
+$$\Sig;\Gam \vdash x_T, \cdot;\; M_T \cmark (D,D) \emark \underbrace{\mathbf{let}\;() = x_T;\; (x,\,F\,())}_{\mathit{ce}_T}$$
+</div>
+</div>
+
+<h3>5c. $\CovDone$ for T-branch</h3>
+
+<div class="rule" id="D6">
+<div class="rule-name">(D6) Cov_done</div>
+<div class="premises">
+  <div class="premise">$\Gam' = \cdot$, $\;\E = [\cdot]$ &ensp; (first branch of $M'_T$)</div>
+  <div class="premise">
+    $\Sig;\Gam \vdash (x,\,F\,()) \cmark (D,D) \emark (x,\, F\,())$<br>
+    <span style="margin-left:1.5em" class="annotation">
+      by $\SpecChkTuple$:
+      $\;\Sig;\Gam \vdash x \cmark D \emark x$ ($\SpecChkSub + \SpecSynVar$)
+      and $\;\Sig;\Gam \vdash F\,() \cmark D \emark F\,()$ ($\SpecChkInject + \SpecChkTuple_{k=0}$)
+    </span>
+  </div>
+  <div class="premise">$\mathit{ce} = [\cdot][(x,\,F\,())] = (x,\, F\,())$ &ensp; (by $\FillHole$)</div>
+</div>
+<div class="rule-line"></div>
+<div class="conclusion">
+$\Sig;\Gam \vdash \cdot;\; M'_T \cmark (D,D) \emark (x,\, F\,())$
+</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>6. F-Branch: $\CovVar$ then $\CovDone$</h2>
+
+<p>$M_F$ has only a variable ($w'$) in the leading column, so $\CovVar$ applies.</p>
+
+<h3>6a. strip_var with scrutinee $x_F$</h3>
+
+<div class="rule">
+<div class="rule-name">strip_var $M_F / \text{var}\; x_F$</div>
+
+<div class="annotation">Branch: $w' : () \bmark [\spec\; z\!:\!D][\mathbf{let}\; z = F\,w';\; \cdot]\, (z,T())$</div>
+<div class="premise" style="margin-left:1em">
+  $\SVcons$: $w'$ is a variable with scrutinee $x_F$.
+  Extend $\Gam'$ with $\spec\; w' : ()$. Extend $\E$ with $\mathbf{let}\; w' = x_F$.<br>
+  Result: $\cdot \bmark [\spec\; z\!:\!D,\; \spec\; w'\!:\!()][\mathbf{let}\; w' = x_F;\; \mathbf{let}\; z = F\,w';\; \cdot]\, (z,T())$
+</div>
+
+<div class="rule-line"></div>
+<div class="conclusion">
+$$M'_F \;=\; \cdot \bmark [\spec\; z\!:\!D,\; \spec\; w'\!:\!()][\mathbf{let}\; w' = x_F;\; \mathbf{let}\; z = F\,w';\; \cdot]\, (z,T())$$
+</div>
+</div>
+
+<h3>6b. $\CovVar$ output</h3>
+
+<div class="rule" id="D7">
+<div class="rule-name">(D7) Cov_var</div>
+<div class="premises">
+  <div class="premise">$M_F / \text{var}\; x_F \emark M'_F$ &ensp; (above)</div>
+  <div class="premise"><span class="ref">(D8)</span> $\;\Sig;\Gam \vdash \cdot;\; M'_F \cmark (D,D) \emark \mathit{ce}_F$</div>
+</div>
+<div class="rule-line"></div>
+<div class="conclusion">
+$\Sig;\Gam \vdash x_F, \cdot;\; M_F \cmark (D,D) \emark \mathit{ce}_F$
+</div>
+</div>
+
+<h3>6c. $\CovDone$ for F-branch</h3>
+
+<div class="rule" id="D8">
+<div class="rule-name">(D8) Cov_done</div>
+<div class="premises">
+  <div class="premise">$\Gam' = \spec\; z\!:\!D,\; \spec\; w'\!:\!()$</div>
+  <div class="premise">$\E = \mathbf{let}\; w' = x_F;\; \mathbf{let}\; z = F\,w';\; [\cdot]$</div>
+  <div class="premise">
+    $\Sig;\Gam, \Gam' \vdash (z,\,T\,()) \cmark (D,D) \emark (z,\, T\,())$<br>
+    <span style="margin-left:1.5em" class="annotation">
+      by $\SpecChkTuple$:
+      $\;\Sig;\Gam,\Gam' \vdash z \cmark D \emark z$ ($\SpecChkSub + \SpecSynVar$, since $\spec\; z\!:\!D \in \Gam'$)
+      and $\;\Sig;\Gam,\Gam' \vdash T\,() \cmark D \emark T\,()$
+    </span>
+  </div>
+  <div class="premise"><span class="ref">(D9)</span> $\;\mathit{ce}_F = \E[(z,\, T\,())]$</div>
+</div>
+<div class="rule-line"></div>
+<div class="conclusion">
+$\Sig;\Gam \vdash \cdot;\; M'_F \cmark (D,D) \emark \mathit{ce}_F$
+</div>
+</div>
+
+<h3>6d. Filling the evaluation context</h3>
+
+<div class="rule" id="D9">
+<div class="rule-name">(D9) Fill</div>
+<div style="margin-left:1em">
+$$\E = \mathbf{let}\; w' = x_F;\; \mathbf{let}\; z = F\,w';\; [\cdot]$$
+
+<div class="fill-step">
+  $\FillLet$: $\;\E[(z,T\,())] = \mathbf{let}\; w' = x_F;\; (\mathbf{let}\; z = F\,w';\; [\cdot])[(z,T\,())]$
+</div>
+<div class="fill-step">
+  $\FillLet$: $\;= \mathbf{let}\; w' = x_F;\; \mathbf{let}\; z = F\,w';\; [\cdot][(z,T\,())]$
+</div>
+<div class="fill-step">
+  $\FillHole$: $\;= \mathbf{let}\; w' = x_F;\; \mathbf{let}\; z = F\,w';\; (z,T\,())$
+</div>
+</div>
+<div class="rule-line"></div>
+<div class="conclusion">
+$$\mathit{ce}_F \;=\; \mathbf{let}\; w' = x_F;\;\mathbf{let}\; z = F\,w';\; (z,\, T\,())$$
+</div>
+<div class="annotation">
+  Scoping is correct: $w'$ is bound before $z = F\,w'$ references it.
+</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>7. Final Result</h2>
+
+<div class="result-box">
+<p>Assembling from $\SpecChkCase$ (Section 1), $\CovCon$ (Section 3), the T-branch (Section 5), and the F-branch (Section 6):</p>
+
+$$\Sig;\Gam \vdash \mathbf{case}\; x \;\mathbf{of}\; \{T() \bmark (x, F()) \mid z \bmark (z, T())\} \cmark (D,D)$$
+$$\emark\; \mathbf{let}\; y = x;\; \mathbf{case}\; y\; \mathbf{of}\; \left\{\begin{array}{l} T\; x_T \bmark \mathbf{let}\; () = x_T;\; (x,\; F\,()) \\ F\; x_F \bmark \mathbf{let}\; w' = x_F;\; \mathbf{let}\; z = F\,w';\; (z,\; T\,()) \end{array}\right\}$$
+
+<p style="margin-top:1em">After simplifying administrative redexes ($\mathbf{let}\;y = x$, $\;\mathbf{let}\;() = x_T$, $\;\mathbf{let}\;w' = x_F$):</p>
+
+$$\mathbf{case}\; x\; \mathbf{of}\; \left\{\begin{array}{l} T\; \_ \bmark (x,\; F\,()) \\ F\; u \bmark (F\,u,\; T\,()) \end{array}\right\}$$
+
+<p style="margin-top:0.5em; color: #555; font-style: italic;">In the T-branch, $x$ refers to the outer variable.
+In the F-branch, the pattern variable $z$ was bound to $F\,w' = F\,u$, so $(z, T\,()) = (F\,u,\; T\,())$.</p>
+</div>
+
+</body>
+</html>
