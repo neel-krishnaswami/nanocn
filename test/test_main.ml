@@ -308,7 +308,7 @@ let () =
           | Error msg -> Alcotest.fail msg
           | Ok te ->
             (* The root Annot node should have the empty context *)
-            (match Context.lookup (Var.of_string "x") (ctx_of te) with
+            (match Context.lookup (Var.of_string "x" SourcePos.dummy) (ctx_of te) with
              | Some _ -> Alcotest.fail "root context should not contain x"
              | None -> ());
             (* Inside the Annot is a Let; its body should have x in context *)
@@ -316,7 +316,7 @@ let () =
             | Expr.Annot (let_node, _, _) ->
               (match Expr.shape let_node with
                | Expr.Let (_, _, e2) ->
-                 (match Context.lookup (Var.of_string "x") (ctx_of e2) with
+                 (match Context.lookup (Var.of_string "x" SourcePos.dummy) (ctx_of e2) with
                   | Some ty ->
                     (match Typ.shape ty with
                      | Typ.Int -> ()

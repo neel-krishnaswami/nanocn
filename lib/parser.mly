@@ -22,6 +22,9 @@
     match Label.of_string s with
     | Ok l -> l
     | Error _ -> failwith ("invalid label: " ^ s)
+
+  let mk_var startpos endpos s =
+    Var.of_string s (mk_loc startpos endpos)
 %}
 
 %token <int> INT_LIT
@@ -46,6 +49,10 @@
 
 %%
 
+(* A variable occurrence with its source position. *)
+%inline ident_var:
+  | x = IDENT { mk_var $startpos $endpos x }
+
 program:
   | e = expr; EOF { e }
 
@@ -60,11 +67,11 @@ repl_decl:
   | d = decl; EOF { d }
 
 repl_let:
-  | LET; x = IDENT; EQUAL; e = expr; EOF { (Var.of_string x, e) }
+  | LET; x = ident_var; EQUAL; e = expr; EOF { (x, e) }
 
 decl:
-  | FUN; f = IDENT; LPAREN; x = IDENT; COLON; a = typ; RPAREN; ARROW; b = typ; LBRACKET; eff = effect; RBRACKET; LBRACE; body = expr; RBRACE
-    { { Prog.name = Var.of_string f; param = Var.of_string x;
+  | FUN; f = ident_var; LPAREN; x = ident_var; COLON; a = typ; RPAREN; ARROW; b = typ; LBRACKET; eff = effect; RBRACKET; LBRACE; body = expr; RBRACE
+    { { Prog.name = f; param = x;
         arg_ty = a; ret_ty = b; eff; body; loc = mk_loc $startpos $endpos } }
 
 typ:
@@ -101,22 +108,22 @@ expr:
     { e }
 
 seq_expr:
-  | LET; x = IDENT; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
-    { mk_expr $startpos $endpos (Expr.Let (Var.of_string x, e1, e2)) }
-  | LET; LPAREN; xs = separated_list(COMMA, IDENT); RPAREN; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
-    { mk_expr $startpos $endpos (Expr.LetTuple (List.map Var.of_string xs, e1, e2)) }
+  | LET; x = ident_var; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
+    { mk_expr $startpos $endpos (Expr.Let (x, e1, e2)) }
+  | LET; LPAREN; xs = separated_list(COMMA, ident_var); RPAREN; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
+    { mk_expr $startpos $endpos (Expr.LetTuple (xs, e1, e2)) }
   | CASE; e = app_expr; LBRACE; bs = separated_nonempty_list(BAR, branch); RBRACE
     { mk_expr $startpos $endpos (Expr.Case (e, bs)) }
-  | ITER; LPAREN; x = IDENT; EQUAL; e1 = expr; RPAREN; LBRACE; e2 = expr; RBRACE
-    { mk_expr $startpos $endpos (Expr.Iter (Var.of_string x, e1, e2)) }
+  | ITER; LPAREN; x = ident_var; EQUAL; e1 = expr; RPAREN; LBRACE; e2 = expr; RBRACE
+    { mk_expr $startpos $endpos (Expr.Iter (x, e1, e2)) }
   | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = seq_expr
     { mk_expr $startpos $endpos (Expr.If (e1, e2, e3)) }
   | e = or_expr
     { e }
 
 branch:
-  | l = LABEL; x = IDENT; ARROW; e = expr
-    { (label l, Var.of_string x, e) }
+  | l = LABEL; x = ident_var; ARROW; e = expr
+    { (label l, x, e) }
 
 or_expr:
   | e1 = or_expr; BARBAR; e2 = and_expr
@@ -159,8 +166,8 @@ app_expr:
     { mk_expr $startpos $endpos (Expr.App (p t, e)) }
   | NOT_KW; e = simple_expr
     { mk_expr $startpos $endpos (Expr.App (Prim.Not, e)) }
-  | f = IDENT; e = simple_expr
-    { mk_expr $startpos $endpos (Expr.Call (Var.of_string f, e)) }
+  | f = ident_var; e = simple_expr
+    { mk_expr $startpos $endpos (Expr.Call (f, e)) }
   | e = simple_expr
     { e }
 
@@ -171,8 +178,8 @@ state_prim:
   | DEL { fun ty -> Prim.Del ty }
 
 simple_expr:
-  | x = IDENT
-    { mk_expr $startpos $endpos (Expr.Var (Var.of_string x)) }
+  | x = ident_var
+    { mk_expr $startpos $endpos (Expr.Var x) }
   | n = INT_LIT
     { mk_expr $startpos $endpos (Expr.IntLit n) }
   | TRUE

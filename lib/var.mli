@@ -1,11 +1,34 @@
-(** Variables (identifiers starting with lowercase). *)
+(** Variables (identifiers starting with lowercase).
+
+    Variables carry their source position. For binding occurrences, this
+    is where the variable is bound. For use occurrences, this is where
+    the variable appears in source. Generated variables carry the position
+    of the subpattern they originate from.
+
+    Comparison is by name only, ignoring source positions. *)
 
 type t
 
-val of_string : string -> t
+val of_string : string -> SourcePos.t -> t
+(** [of_string s pos] creates a user variable with name [s] at position [pos]. *)
+
 val to_string : t -> string
 val compare : t -> t -> int
 val print : Format.formatter -> t -> unit
+
+val is_generated : t -> bool
+(** [is_generated v] is [true] if [v] was created by [fresh]. *)
+
+val binding_site : t -> SourcePos.t
+(** [binding_site v] returns the source position associated with [v]. *)
+
+type supply
+(** A purely functional supply of fresh generated variables. *)
+
+val empty_supply : supply
+val fresh : SourcePos.t -> supply -> t * supply
+(** [fresh pos s] returns a fresh generated variable and the updated supply.
+    The variable's binding site is [pos]. *)
 
 module Test : sig
   val gen : t QCheck.Gen.t
