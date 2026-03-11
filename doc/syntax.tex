@@ -129,7 +129,7 @@
 \ottprodline{|}{\ottsym{(}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{)}}{}{}{}{\ottcom{tuple}}\ottprodnewline
 \ottprodline{|}{\ottmv{D}  \ottsym{(}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{)}}{}{}{}{\ottcom{datasort application}}\ottprodnewline
 \ottprodline{|}{\ottkw{pred} \, \tau'}{}{}{}{\ottcom{predicate sort}}\ottprodnewline
-\ottprodline{|}{\ottnt{A}}{}{}{}{\ottcom{computational type}}}
+\ottprodline{|}{ \underline{ \ottnt{A} } }{}{}{}{\ottcom{computational type}}}
 
 \newcommand{\ottchi}{
 \ottrulehead{\chi}{::=}{\ottcom{sort schemes}}\ottprodnewline
@@ -184,7 +184,7 @@
 \ottprodline{|}{\ottmv{f}}{}{}{}{\ottcom{spec constant}}\ottprodnewline
 \ottprodline{|}{\ottkw{if} \, \ottnt{se_{{\mathrm{1}}}} \, \ottkw{then} \, \ottnt{se_{{\mathrm{2}}}} \, \ottkw{else} \, \ottnt{se_{{\mathrm{3}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{se}  \ottsym{:}  \tau}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{e}}{}{}{}{\ottcom{computational expression}}}
+\ottprodline{|}{ \underline{ \ottnt{e} } }{}{}{}{\ottcom{computational expression}}}
 
 \newcommand{\ottmbranches}{
 \ottrulehead{M}{::=}{\ottcom{match branches}}\ottprodnewline
@@ -914,7 +914,7 @@
 \newcommand{\ottdruleSpecChkXXcomp}[1]{\ottdrule[#1]{%
 \ottpremise{ \Sigma  ;  \Gamma  \vdash_{  \mathbf{0}  }  \ottnt{e}  \Leftarrow  \ottnt{A} }%
 }{
- \Sigma  ;  \Gamma  \vdash  \ottnt{e}  \Leftarrow  \ottnt{A} }{%
+ \Sigma  ;  \Gamma  \vdash   \underline{ \ottnt{e} }   \Leftarrow   \underline{ \ottnt{A} }  }{%
 {\ottdrulename{SpecChk\_comp}}{}%
 }}
 

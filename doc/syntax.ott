@@ -90,7 +90,7 @@ tau {{ tex \tau }} :: 'Sort_' ::=                          {{ com assertion sort
   | ( tau1 , .. , taun )               :: :: Record         {{ com tuple }}
   | D ( tau1 , .. , taun )             :: :: App            {{ com datasort application }}
   | pred tau'                          :: :: Pred           {{ com predicate sort }}
-  | A                                  :: :: Comp           {{ com computational type }}
+  | comp A                             :: :: Comp           {{ com computational type }}  {{ tex \underline{[[A]]} }}
 
 chi {{ tex \chi }} :: 'Scheme_' ::=                        {{ com sort schemes }}
   | tau                                :: :: Base
@@ -140,7 +140,7 @@ se :: 'SE_' ::=                                            {{ com surface assert
   | f                                  :: :: Const          {{ com spec constant }}
   | if se1 then se2 else se3           :: :: If
   | se : tau                           :: :: Annot
-  | e                                  :: :: Comp           {{ com computational expression }}
+  | comp e                             :: :: Comp           {{ com computational expression }}  {{ tex \underline{[[e]]} }}
 
 mbranches {{ tex M }} :: 'MB_' ::=                                {{ com match branches }}
   | nobranches                         :: :: Empty          {{ tex \cdot }}
@@ -452,7 +452,7 @@ defns Jassert :: '' ::=
 
     S ; G |- e <== A [ pure ]
     ---------------------------------- :: comp
-    S ; G |- e <== A
+    S ; G |- comp e <== comp A
 
     S ; G |- se ==> tau
     ----------------------- :: sub
