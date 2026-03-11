@@ -7,9 +7,11 @@ Instructions to Claude for writing OCaml code:
 
    2. Write a detailed design document, with design choices for each module. Again, before
       proceeding to implementaiton, analyze the design for obvious flaws before proceeding. 
+      If there is a fundamental design problem, DO NOT try to smooth it over. Instead, consult
+      the user about how to proceed, giving them the key options. 
 
    3. If the detailed design reveals a key flaw, consider whether the high-level plan needs
-      to be revised. 
+      to be revised. Consult the user about how to proceed, and give them some options. 
 
    4. Documentation in the doc/ directory MUST remain in sync with the implementation. Whenever
       a change to the code is made, the Ott file for the syntax and typing rules must be updated 
@@ -62,7 +64,7 @@ Instructions to Claude for writing OCaml code:
 
    - Do not perform IO operations, except in the top-level main function. 
 
-3. Write programs by pattern matching over data structures. Avoid using partial accessors. 
+3. Write programs by pattern matching over data structures. Avoid using partial accessors or incomplete patterns matches. 
   
 4. Higher-order functions should be used sparingly, in idiomatic ways.
 

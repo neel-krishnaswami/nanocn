@@ -130,6 +130,14 @@
 \ottprodline{|}{\ottmv{D}  \ottsym{(}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{)}}{}{}{}{\ottcom{datasort application}}\ottprodnewline
 \ottprodline{|}{\ottkw{pred} \, \tau'}{}{}{}{\ottcom{predicate sort}}}
 
+\newcommand{\ottstau}{
+\ottrulehead{\sigma}{::=}{\ottcom{spec types}}\ottprodnewline
+\ottfirstprodline{|}{\ottkw{int}}{}{}{}{\ottcom{integers}}\ottprodnewline
+\ottprodline{|}{\ottkw{bool}}{}{}{}{\ottcom{booleans}}\ottprodnewline
+\ottprodline{|}{\ottkw{loc}}{}{}{}{\ottcom{locations}}\ottprodnewline
+\ottprodline{|}{\ottsym{(}  \sigma_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \sigma_{\ottmv{n}}  \ottsym{)}}{}{}{}{\ottcom{tuple}}\ottprodnewline
+\ottprodline{|}{\ottmv{D}  \ottsym{(}  \sigma_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \sigma_{\ottmv{n}}  \ottsym{)}}{}{}{}{\ottcom{datasort application}}}
+
 \newcommand{\ottchi}{
 \ottrulehead{\chi}{::=}{\ottcom{sort schemes}}\ottprodnewline
 \ottfirstprodline{|}{\tau}{}{}{}{}\ottprodnewline
@@ -275,6 +283,7 @@
 \ottprodline{|}{\ottnt{e}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{prog}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\tau}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\sigma}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\chi}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{pat}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\beta}{}{}{}{}\ottprodnewline
@@ -296,6 +305,7 @@
 \otte\ottinterrule
 \ottprog\ottinterrule
 \otttau\ottinterrule
+\ottstau\ottinterrule
 \ottchi\ottinterrule
 \ottpat\ottinterrule
 \ottbinds\ottinterrule
@@ -650,7 +660,7 @@
 
 
 \newcommand{\ottdruleCoreSynXXeq}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma  ;  \Gamma  \vdash  \ottnt{ce_{{\mathrm{1}}}}  \Rightarrow  \tau  \quad  \Sigma  ;  \Gamma  \vdash  \ottnt{ce_{{\mathrm{2}}}}  \Leftarrow  \tau }%
+\ottpremise{ \Sigma  ;  \Gamma  \vdash  \ottnt{ce_{{\mathrm{1}}}}  \Rightarrow  \sigma  \quad  \Sigma  ;  \Gamma  \vdash  \ottnt{ce_{{\mathrm{2}}}}  \Leftarrow  \sigma }%
 }{
  \Sigma  ;  \Gamma  \vdash   \ottnt{ce_{{\mathrm{1}}}}  \doteq  \ottnt{ce_{{\mathrm{2}}}}   \Rightarrow  \ottkw{bool} }{%
 {\ottdrulename{CoreSyn\_eq}}{}%
@@ -813,7 +823,7 @@
 
 
 \newcommand{\ottdruleSpecSynXXeq}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma  ;  \Gamma  \vdash  \ottnt{se_{{\mathrm{1}}}}  \Rightarrow  \tau  \leadsto  \ottnt{ce_{{\mathrm{1}}}}  \quad  \Sigma  ;  \Gamma  \vdash  \ottnt{se_{{\mathrm{2}}}}  \Leftarrow  \tau  \leadsto  \ottnt{ce_{{\mathrm{2}}}} }%
+\ottpremise{ \Sigma  ;  \Gamma  \vdash  \ottnt{se_{{\mathrm{1}}}}  \Rightarrow  \sigma  \leadsto  \ottnt{ce_{{\mathrm{1}}}}  \quad  \Sigma  ;  \Gamma  \vdash  \ottnt{se_{{\mathrm{2}}}}  \Leftarrow  \sigma  \leadsto  \ottnt{ce_{{\mathrm{2}}}} }%
 }{
  \Sigma  ;  \Gamma  \vdash   \ottnt{se_{{\mathrm{1}}}}  \doteq  \ottnt{se_{{\mathrm{2}}}}   \Rightarrow  \ottkw{bool}  \leadsto   \ottnt{ce_{{\mathrm{1}}}}  \doteq  \ottnt{ce_{{\mathrm{2}}}}  }{%
 {\ottdrulename{SpecSyn\_eq}}{}%

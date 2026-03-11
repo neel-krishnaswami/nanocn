@@ -91,6 +91,13 @@ tau {{ tex \tau }} :: 'Sort_' ::=                          {{ com assertion sort
   | D ( tau1 , .. , taun )             :: :: App            {{ com datasort application }}
   | pred tau'                          :: :: Pred           {{ com predicate sort }}
 
+stau {{ tex \sigma }} :: 'SSort_' ::=                      {{ com spec types }}
+  | int                                :: :: Int            {{ com integers }}
+  | bool                               :: :: Bool           {{ com booleans }}
+  | loc                                :: :: Loc            {{ com locations }}
+  | ( stau1 , .. , staun )             :: :: Record         {{ com tuple }}
+  | D ( stau1 , .. , staun )           :: :: App            {{ com datasort application }}
+
 chi {{ tex \chi }} :: 'Scheme_' ::=                        {{ com sort schemes }}
   | tau                                :: :: Base
   | tau -> tau'                        :: :: Arrow          {{ tex [[tau]] \to [[tau']] }}
@@ -169,6 +176,9 @@ formula :: 'formula_' ::=
   | mbranches = mk tau { pat1 --> se1 || .. || patn --> sen }  :: :: mk_branches  {{ tex [[mbranches]] = \overline{ pat \mathord{:} [[tau]], \cdot \to [\cdot][\cdot] \, se } }}
   | ce = fill E ce'                    :: :: fill_ctx      {{ tex [[ce]] = [[E]] [ [[ce']] ] }}
   | formula1 .. formulan                :: :: dots
+
+subrules
+  stau <:: tau
 
 defns Jtype :: '' ::=
 
@@ -327,7 +337,7 @@ defns Jcore :: '' ::=
     ----------------------- :: var
     S ; G |- x ==> tau
 
-    S ; G |- ce1 ==> tau    S ; G |- ce2 <== tau
+    S ; G |- ce1 ==> stau    S ; G |- ce2 <== stau
     ------------------------------------------------- :: eq
     S ; G |- ce1 == ce2 ==> bool
 
@@ -403,7 +413,7 @@ defns Jassert :: '' ::=
     ----------------------- :: var
     S ; G |- x ==> tau ~~> x
 
-    S ; G |- se1 ==> tau ~~> ce1    S ; G |- se2 <== tau ~~> ce2
+    S ; G |- se1 ==> stau ~~> ce1    S ; G |- se2 <== stau ~~> ce2
     ------------------------------------------------- :: eq
     S ; G |- se1 == se2 ==> bool ~~> ce1 == ce2
 

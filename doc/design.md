@@ -84,4 +84,41 @@ Note: only impure functions may call themselves recursively.
 Pure functions do not have access to their own binding during
 typechecking, which prevents unbounded recursion in the pure fragment.
 
+## Specification functions
+
+Specification functions are toplevel declarations in the assertion
+language. They come in two forms:
+
+### Clausal spec functions
+
+A clausal spec function defines a function by pattern matching on its
+argument:
+
+>>> spec length : list(int) -> int = { Nil () -> 0 | Cons (x, xs) -> 1 + length xs }
+spec length : list(int) -> int
+
+>>> spec add : (int, int) -> int = { (x, y) -> x + y }
+spec add : (int, int) -> int
+
+The type annotation gives the argument type and return type, and the
+body is a list of clauses, each consisting of a pattern and a body
+expression. The patterns are checked against the argument type, and
+the body expressions are checked against the return type.
+
+### Simple spec definitions
+
+A simple spec definition binds a name to a spec expression at a
+given type:
+
+>>> spec zero : int = 0
+spec zero : int
+
+>>> spec origin : (int, int) = (0, 0)
+spec origin : (int, int)
+
+This form has no arrow in the type — the expression is checked
+directly against the declared type.
+
+Spec functions are allowed to be recursive. Eventually we will need to
+termination-check definitions, but for now this is omitted.
 
