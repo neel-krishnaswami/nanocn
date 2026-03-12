@@ -24,6 +24,7 @@ type 'a decl =
       loc : SourcePos.t;
     }
   | SortDecl of DsortDecl.t
+  | TypeDecl of DtypeDecl.t
 
 type 'a t = {
   decls : 'a decl list;

@@ -1,0 +1,21 @@
+fun factorial(n : int) -> int [impure] {
+  let acc = New[int] 1;
+  let cur = New[int] n;
+  iter (i = Get[int] cur) {
+    if Eq[int] (i, 0) then
+      (let r = Get[int] acc;
+       let u = Del[int] acc;
+       let v = Del[int] cur;
+       Done r : step(int, int) [impure])
+    else
+      (let a = Get[int] acc;
+       let u = Set[int] (acc, a * i);
+       let v = Set[int] (cur, i - 1);
+       let j = Get[int] cur;
+       Next j : step(int, int) [impure])
+  }
+}
+
+main =
+  (let r = factorial 5;
+   ()) : () [impure]

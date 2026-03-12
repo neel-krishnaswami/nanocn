@@ -1,0 +1,11 @@
+fun double(x : int) -> int [pure] {
+  x + x
+}
+
+fun quadruple(x : int) -> int [pure] {
+  double (double x)
+}
+
+main =
+  (let r = quadruple 5;
+   ()) : () [impure]

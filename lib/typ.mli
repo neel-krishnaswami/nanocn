@@ -3,7 +3,8 @@
 (** The shape functor for types. ['a] is the recursive occurrence. *)
 type 'a tF =
   | Record of 'a list
-  | Sum of (Label.t * 'a) list
+  | App of Dsort.t * 'a list
+  | TVar of Tvar.t
   | Int
   | Bool
   | Ptr of 'a
@@ -23,6 +24,9 @@ type ty = < loc : SourcePos.t > t
 
 val compare : ty -> ty -> int
 val print : Format.formatter -> ty -> unit
+
+val is_eqtype : ty -> bool
+(** [is_eqtype t] returns [true] if [t] is [int], [bool], or [ptr _]. *)
 
 module Test : sig
   val gen_tF : 'a QCheck.Gen.t -> 'a tF QCheck.Gen.t

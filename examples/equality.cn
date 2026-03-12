@@ -1,0 +1,4 @@
+main =
+  (let a = Eq[int] (1, 2);
+   let b = Eq[bool] (true, true);
+   if a then () else ()) : () [impure]

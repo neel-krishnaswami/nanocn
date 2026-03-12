@@ -53,7 +53,7 @@
 %token PURE IMPURE
 %token SET GET NEW DEL
 %token TRUE FALSE IF THEN ELSE NOT_KW
-%token SPEC SORT TAKE RETURN PRED LOC OF OWN EQEQ
+%token SPEC SORT TYPE TAKE RETURN PRED LOC OF OWN EQEQ EQ
 %token PLUS MINUS STAR SLASH
 %token AMPAMP BARBAR
 %token LBRACKET RBRACKET LPAREN RPAREN LBRACE RBRACE
@@ -115,6 +115,21 @@ decl:
         ctors = cs;
         loc = mk_loc $startpos $endpos;
       }) }
+  | TYPE; d = IDENT; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
+    { let decl = DtypeDecl.({
+        name = dsort d;
+        params = List.map Tvar.of_string params;
+        ctors = cs;
+        loc = mk_loc $startpos $endpos;
+      }) in
+      Prog.TypeDecl (DtypeDecl.resolve_tvars decl) }
+  | TYPE; d = IDENT; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
+    { Prog.TypeDecl DtypeDecl.({
+        name = dsort d;
+        params = [];
+        ctors = cs;
+        loc = mk_loc $startpos $endpos;
+      }) }
 
 spec_branch:
   | p = pat; ARROW; e = spec_expr
@@ -122,6 +137,9 @@ spec_branch:
 
 ctor_decl:
   | l = LABEL; COLON; s = sort { (label l, s) }
+
+type_ctor_decl:
+  | l = LABEL; COLON; t = typ { (label l, t) }
 
 (* ===== Computational types ===== *)
 
@@ -142,11 +160,10 @@ atomic_typ:
     { mk_typ $startpos $endpos Typ.Int }
   | BOOL_KW
     { mk_typ $startpos $endpos Typ.Bool }
-  | LBRACE; cs = separated_nonempty_list(BAR, label_typ); RBRACE
-    { mk_typ $startpos $endpos (Typ.Sum cs) }
-
-label_typ:
-  | l = LABEL; COLON; t = typ { (label l, t) }
+  | d = IDENT; LPAREN; ts = separated_nonempty_list(COMMA, typ); RPAREN
+    { mk_typ $startpos $endpos (Typ.App (dsort d, ts)) }
+  | d = IDENT
+    { mk_typ $startpos $endpos (Typ.App (dsort d, [])) }
 
 effect:
   | PURE   { Effect.Pure }
@@ -359,6 +376,7 @@ app_expr:
     { e }
 
 state_prim:
+  | EQ  { fun ty -> Prim.Eq ty }
   | SET { fun ty -> Prim.Set ty }
   | GET { fun ty -> Prim.Get ty }
   | NEW { fun ty -> Prim.New ty }

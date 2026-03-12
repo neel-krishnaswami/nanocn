@@ -45,6 +45,8 @@ let toplevel () =
           handle_decl sig_ ctx line
         else if starts_with_prefix line "sort " then
           handle_spec_decl sig_ ctx line
+        else if starts_with_prefix line "type " then
+          handle_spec_decl sig_ ctx line
         else if starts_with_prefix line "spec " then
           handle_spec_decl sig_ ctx line
         else if starts_with_prefix line "let " then
@@ -91,6 +93,14 @@ let toplevel () =
              Format.printf "sort %a(%a)@." Dsort.print dd.name
                (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ")
                   Tvar.print) dd.DsortDecl.params;
+           loop sig' ctx
+         | Prog.TypeDecl dd ->
+           if dd.DtypeDecl.params = [] then
+             Format.printf "type %a@." Dsort.print dd.name
+           else
+             Format.printf "type %a(%a)@." Dsort.print dd.name
+               (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ")
+                  Tvar.print) dd.DtypeDecl.params;
            loop sig' ctx
          | Prog.SpecFunDecl dd ->
            Format.printf "spec %a : %a -> %a@."

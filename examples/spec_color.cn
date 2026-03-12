@@ -1,0 +1,9 @@
+sort color = { Red : () | Blue : () | Green : () }
+
+spec isWarm : color -> bool = {
+    Red () -> true
+  | Blue () -> false
+  | Green () -> false
+}
+
+main = () : () [impure]

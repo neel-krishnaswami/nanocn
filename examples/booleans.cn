@@ -1,0 +1,5 @@
+main =
+  (let a = true && false;
+   let b = true || false;
+   let c = not a;
+   if c then () else ()) : () [impure]

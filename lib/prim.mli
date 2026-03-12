@@ -6,6 +6,7 @@
 type t =
   | Add | Mul | Sub | Div
   | And | Or | Not
+  | Eq of Typ.ty
   | New of Typ.ty | Del of Typ.ty | Get of Typ.ty | Set of Typ.ty
 
 val compare : t -> t -> int

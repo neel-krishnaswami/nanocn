@@ -3,10 +3,12 @@ type entry =
   | SpecFun of { arg : Sort.sort; ret : Sort.sort }
   | SpecVal of { sort : Sort.sort }
   | SortDecl of DsortDecl.t
+  | TypeDecl of DtypeDecl.t
 
 type named_entry =
   | Named of Var.t * entry
   | Sort of DsortDecl.t
+  | Type of DtypeDecl.t
 
 type t = named_entry list
 
@@ -54,6 +56,28 @@ let rec lookup_ctor label = function
 
 let extend_sort sig_ (d : DsortDecl.t) = Sort d :: sig_
 
+let rec lookup_type dsort = function
+  | [] -> None
+  | Type d :: _ when Dsort.compare dsort d.DtypeDecl.name = 0 ->
+    Some d
+  | Named (_, TypeDecl d) :: _ when Dsort.compare dsort d.DtypeDecl.name = 0 ->
+    Some d
+  | _ :: rest -> lookup_type dsort rest
+
+let rec lookup_type_ctor label = function
+  | [] -> None
+  | Type d :: rest ->
+    (match DtypeDecl.lookup_ctor label d with
+     | Some _ -> Some (d.DtypeDecl.name, d)
+     | None -> lookup_type_ctor label rest)
+  | Named (_, TypeDecl d) :: rest ->
+    (match DtypeDecl.lookup_ctor label d with
+     | Some _ -> Some (d.DtypeDecl.name, d)
+     | None -> lookup_type_ctor label rest)
+  | _ :: rest -> lookup_type_ctor label rest
+
+let extend_type sig_ (d : DtypeDecl.t) = Type d :: sig_
+
 let print fmt sig_ =
   let pp_entry fmt = function
     | Named (name, FunSig { arg; ret; eff }) ->
@@ -67,8 +91,12 @@ let print fmt sig_ =
         Var.print name Sort.print sort
     | Named (_, SortDecl d) ->
       DsortDecl.print fmt d
+    | Named (_, TypeDecl d) ->
+      DtypeDecl.print fmt d
     | Sort d ->
       DsortDecl.print fmt d
+    | Type d ->
+      DtypeDecl.print fmt d
   in
   match sig_ with
   | [] -> Format.fprintf fmt {|·|}

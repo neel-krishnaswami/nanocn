@@ -1,25 +1,27 @@
 type 'a tF =
   | Record of 'a list
-  | Sum of (Label.t * 'a) list
+  | App of Dsort.t * 'a list
+  | TVar of Tvar.t
   | Int
   | Bool
   | Ptr of 'a
 
 let map f = function
   | Record ts -> Record (List.map f ts)
-  | Sum cases -> Sum (List.map (fun (l, t) -> (l, f t)) cases)
+  | App (d, ts) -> App (d, List.map f ts)
+  | TVar a -> TVar a
   | Int -> Int
   | Bool -> Bool
   | Ptr t -> Ptr (f t)
 
 let compare_tF cmp t1 t2 =
-  let tag = function Record _ -> 0 | Sum _ -> 1 | Int -> 2 | Bool -> 3 | Ptr _ -> 4 in
+  let tag = function Record _ -> 0 | App _ -> 1 | TVar _ -> 2 | Int -> 3 | Bool -> 4 | Ptr _ -> 5 in
   match t1, t2 with
   | Record ts1, Record ts2 -> List.compare cmp ts1 ts2
-  | Sum cs1, Sum cs2 ->
-    List.compare (fun (l1, a1) (l2, a2) ->
-      let c = Label.compare l1 l2 in
-      if c <> 0 then c else cmp a1 a2) cs1 cs2
+  | App (d1, ts1), App (d2, ts2) ->
+    let c = Dsort.compare d1 d2 in
+    if c <> 0 then c else List.compare cmp ts1 ts2
+  | TVar a1, TVar a2 -> Tvar.compare a1 a2
   | Int, Int -> 0
   | Bool, Bool -> 0
   | Ptr a1, Ptr a2 -> cmp a1 a2
@@ -29,11 +31,11 @@ let print_tF pp fmt = function
   | Record ts ->
     Format.fprintf fmt "@[<hov 2>(%a)@]"
       (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt " *@ ") pp) ts
-  | Sum cases ->
-    Format.fprintf fmt "@[<hov 2>{%a}@]"
-      (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt "@ | ")
-         (fun fmt (l, t) -> Format.fprintf fmt "%a:@ %a" Label.print l pp t))
-      cases
+  | App (d, []) -> Dsort.print fmt d
+  | App (d, ts) ->
+    Format.fprintf fmt "@[<hov 2>%a(%a)@]" Dsort.print d
+      (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") pp) ts
+  | TVar a -> Tvar.print fmt a
   | Int -> Format.fprintf fmt "int"
   | Bool -> Format.fprintf fmt "bool"
   | Ptr t -> Format.fprintf fmt "@[<hov 2>ptr@ %a@]" pp t
@@ -53,15 +55,23 @@ let rec compare t1 t2 =
 let rec print fmt (In (s, _)) =
   print_tF print fmt s
 
+let is_eqtype (In (s, _)) =
+  match s with
+  | Int | Bool | Ptr _ -> true
+  | Record _ | App _ | TVar _ -> false
+
 module Test = struct
   let gen_tF gen_a =
     let open QCheck.Gen in
     oneof [
       (let* ts = list_size (0 -- 4) gen_a in pure (Record ts));
-      (let* cs = list_size (1 -- 4) (pair Label.Test.gen gen_a) in pure (Sum cs));
       pure Int;
       pure Bool;
       map (fun a -> Ptr a) gen_a;
+      (let* d = Dsort.Test.gen in
+       let* ts = list_size (0 -- 2) gen_a in
+       pure (App (d, ts)));
+      map (fun a -> TVar a) Tvar.Test.gen;
     ]
 
   let gen =
@@ -81,10 +91,13 @@ module Test = struct
         let sub = self (n / 2) in
         oneof [
           map (fun ts -> mk (Record ts)) (list_size (0 -- 3) sub);
-          map (fun cs -> mk (Sum cs)) (list_size (1 -- 3) (pair Label.Test.gen sub));
           pure (mk Int);
           pure (mk Bool);
           map (fun a -> mk (Ptr a)) sub;
+          (let* d = Dsort.Test.gen in
+           let* ts = list_size (0 -- 2) sub in
+           pure (mk (App (d, ts))));
+          map (fun a -> mk (TVar a)) Tvar.Test.gen;
         ])
 
   let test =

@@ -14,8 +14,10 @@ Instructions to Claude for writing OCaml code:
       to be revised. Consult the user about how to proceed, and give them some options. 
 
    4. Documentation in the doc/ directory MUST remain in sync with the implementation. Whenever
-      a change to the code is made, the Ott file for the syntax and typing rules must be updated 
-      as well. 
+      a change to the code is made, the Ott file for the syntax and typing rules must be updated
+      as well. The Ott file (`doc/syntax.ott`) is the source of truth for the language — any
+      change to syntax or typing rules must be made there FIRST, before modifying the
+      implementation.
 
 1. Programs should be composed of small modules, each implementing a single concern or
    data structure. However, mutual recursion between functions is a good reason to

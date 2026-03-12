@@ -22,6 +22,7 @@ type 'a decl =
       loc : SourcePos.t;
     }
   | SortDecl of DsortDecl.t
+  | TypeDecl of DtypeDecl.t
 
 type 'a t = {
   decls : 'a decl list;
@@ -34,6 +35,7 @@ let map_decl f = function
   | SpecFunDecl d -> SpecFunDecl d
   | SpecDefDecl d -> SpecDefDecl d
   | SortDecl d -> SortDecl d
+  | TypeDecl d -> TypeDecl d
 
 let map f p = {
   decls = List.map (map_decl f) p.decls;
@@ -63,6 +65,8 @@ let print pp fmt p =
         Sort.print d.sort
     | SortDecl d ->
       Format.fprintf fmt "%a@.@." DsortDecl.print d
+    | TypeDecl d ->
+      Format.fprintf fmt "%a@.@." DtypeDecl.print d
   ) p.decls;
   Format.fprintf fmt "@[<hov 2>main =@ %a@]" pp p.main
 

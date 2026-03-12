@@ -9,16 +9,6 @@ let ( let* ) = Result.bind
 
 let typ_equal (a : Typ.ty) (b : Typ.ty) = Typ.compare a b = 0
 
-(** Look up a label in a sum type's case list. *)
-let find_label l cases =
-  let rec go = function
-    | [] -> None
-    | (l', a) :: rest ->
-      if Label.compare l l' = 0 then Some a
-      else go rest
-  in
-  go cases
-
 let dummy_info = object method loc = SourcePos.dummy end
 
 let mk_ty s = Typ.In (s, dummy_info)
@@ -49,6 +39,7 @@ let prim_signature (p : Prim.t) =
   | And -> (pair_bool, bool_ty, Effect.Pure)
   | Or -> (pair_bool, bool_ty, Effect.Pure)
   | Not -> (bool_ty, bool_ty, Effect.Pure)
+  | Eq a -> (mk_ty (Typ.Record [a; a]), bool_ty, Effect.Pure)
   | New a -> (a, mk_ty (Typ.Ptr a), Effect.Impure)
   | Del a -> (mk_ty (Typ.Ptr a), unit_ty, Effect.Impure)
   | Get a -> (mk_ty (Typ.Ptr a), a, Effect.Impure)
@@ -70,6 +61,13 @@ let rec synth sig_ ctx (Expr.In (shape, info) as _e) =
     Ok (mk ctx pos (mk_ty Typ.Bool) Effect.Pure (Expr.BoolLit b))
 
   | Expr.App (p, arg) ->
+    let* () = match p with
+      | Prim.Eq a ->
+        if Typ.is_eqtype a then Ok ()
+        else err_at_f pos "Eq requires an equality type (int, bool, or ptr), got %a"
+               Typ.print a
+      | _ -> Ok ()
+    in
     let (arg_ty, ret_ty, eff) = prim_signature p in
     let* arg' = check sig_ ctx arg arg_ty Effect.Pure in
     Ok (mk ctx pos ret_ty eff (Expr.App (p, arg')))
@@ -136,13 +134,13 @@ and check sig_ ctx (Expr.In (shape, info) as e) ty eff =
 
   | Expr.Inject (l, e_inner) ->
     (match Typ.shape ty with
-     | Typ.Sum cases ->
-       (match find_label l cases with
-        | Some a ->
+     | Typ.App (_, args) ->
+       (match TypCtorLookup.lookup sig_ l args with
+        | Ok a ->
           let* e_inner' = check sig_ ctx e_inner a eff in
           Ok (mk ctx pos ty eff (Expr.Inject (l, e_inner')))
-        | None -> err_at_f pos "label %a not found in sum type" Label.print l)
-     | _ -> err_at pos "injection: expected sum type")
+        | Error msg -> err_at pos msg)
+     | _ -> err_at pos "injection: expected datatype application")
 
   | Expr.Case (scrut, branches) ->
     let* scrut' = synth sig_ ctx scrut in
@@ -152,13 +150,17 @@ and check sig_ ctx (Expr.In (shape, info) as e) ty eff =
       err_at pos "effect of case scrutinee exceeds allowed effect"
     else
       (match Typ.shape scrut_ty with
-       | Typ.Sum cases ->
-         if List.compare_lengths branches cases <> 0 then
-           err_at pos "case: number of branches does not match number of labels"
-         else
-           let* branches' = check_branches sig_ ctx branches cases ty eff pos in
-           Ok (mk ctx pos ty eff (Expr.Case (scrut', branches')))
-       | _ -> err_at pos "case: scrutinee must have sum type")
+       | Typ.App (d, args) ->
+         (match Sig.lookup_type d sig_ with
+          | None -> err_at_f pos "unknown datatype %a" Dsort.print d
+          | Some decl ->
+            let all_labels = DtypeDecl.ctor_labels decl in
+            if List.compare_lengths branches all_labels <> 0 then
+              err_at pos "case: number of branches does not match number of constructors"
+            else
+              let* branches' = check_branches sig_ ctx branches args ty eff pos in
+              Ok (mk ctx pos ty eff (Expr.Case (scrut', branches'))))
+       | _ -> err_at pos "case: scrutinee must have datatype application type")
 
   | Expr.Iter (x, e1, body) ->
     let* e1' = synth sig_ ctx e1 in
@@ -166,9 +168,8 @@ and check sig_ ctx (Expr.In (shape, info) as e) ty eff =
     if not (Effect.sub Effect.Impure eff) then
       err_at pos "iter requires effectful context"
     else
-      let next_label = match Label.of_string "Next" with Ok l -> l | Error _ -> failwith "impossible" in
-      let done_label = match Label.of_string "Done" with Ok l -> l | Error _ -> failwith "impossible" in
-      let iter_ty = mk_ty (Typ.Sum [(next_label, a); (done_label, ty)]) in
+      let step_dsort = match Dsort.of_string "step" with Ok d -> d | Error _ -> failwith "impossible" in
+      let iter_ty = mk_ty (Typ.App (step_dsort, [a; ty])) in
       let ctx' = Context.extend_comp x a ctx in
       let* body' = check sig_ ctx' body iter_ty Effect.Impure in
       Ok (mk ctx pos ty eff (Expr.Iter (x, e1', body')))
@@ -210,21 +211,38 @@ and check_list sig_ ctx es ts eff =
     Ok (e' :: rest)
   | _ -> Error "tuple length mismatch"
 
-and check_branches sig_ ctx branches cases ty eff pos =
+and check_branches sig_ ctx branches args ty eff pos =
   match branches with
   | [] -> Ok []
   | (l, x, body) :: rest ->
-    (match find_label l cases with
-     | Some a ->
+    (match TypCtorLookup.lookup sig_ l args with
+     | Ok a ->
        let ctx' = Context.extend_comp x a ctx in
        let* body' = check sig_ ctx' body ty eff in
-       let* rest' = check_branches sig_ ctx rest cases ty eff pos in
+       let* rest' = check_branches sig_ ctx rest args ty eff pos in
        Ok ((l, x, body') :: rest')
-     | None ->
-       err_at_f pos "branch label %a not in sum type" Label.print l)
+     | Error msg ->
+       err_at_f pos "branch label %a: %s" Label.print l msg)
 
 (** Built-in spec functions for arithmetic desugaring *)
 let mk_sort_dummy s = Sort.In (s, object method loc = SourcePos.dummy end)
+
+(** Built-in step datatype: step(a, b) = { Next : a | Done : b } *)
+let step_decl =
+  let next_label = match Label.of_string "Next" with Ok l -> l | Error _ -> failwith "impossible" in
+  let done_label = match Label.of_string "Done" with Ok l -> l | Error _ -> failwith "impossible" in
+  let a = Tvar.of_string "a" in
+  let b = Tvar.of_string "b" in
+  let step_dsort = match Dsort.of_string "step" with Ok d -> d | Error _ -> failwith "impossible" in
+  DtypeDecl.{
+    name = step_dsort;
+    params = [a; b];
+    ctors = [
+      (next_label, mk_ty (Typ.TVar a));
+      (done_label, mk_ty (Typ.TVar b));
+    ];
+    loc = SourcePos.dummy;
+  }
 
 let initial_sig =
   let int_sort = mk_sort_dummy Sort.Int in
@@ -239,7 +257,16 @@ let initial_sig =
     mk_arith "__mul";
     mk_arith "__div";
   ] in
-  List.fold_left (fun s (v, e) -> Sig.extend v e s) Sig.empty entries
+  let sig_ = List.fold_left (fun s (v, e) -> Sig.extend v e s) Sig.empty entries in
+  Sig.extend_type sig_ step_decl
+
+(** Collect all TVars in a sort. *)
+let rec sort_tvars acc (Sort.In (sf, _)) =
+  match sf with
+  | Sort.TVar a -> a :: acc
+  | Sort.Int | Sort.Bool | Sort.Loc -> acc
+  | Sort.Record ts | Sort.App (_, ts) -> List.fold_left sort_tvars acc ts
+  | Sort.Pred t -> sort_tvars acc t
 
 (** Validate a datasort declaration *)
 let validate_sort_decl (d : DsortDecl.t) =
@@ -255,7 +282,53 @@ let validate_sort_decl (d : DsortDecl.t) =
                    Label.print l)
         else check_dups rest
     in
-    check_dups labels
+    let* () = check_dups labels in
+    let all_tvars = List.concat_map (fun (_, s) -> sort_tvars [] s) d.ctors in
+    let rec check_bound = function
+      | [] -> Ok ()
+      | a :: rest ->
+        if List.exists (fun p -> Tvar.compare a p = 0) d.params then
+          check_bound rest
+        else
+          Error (Format.asprintf "unbound type variable %a in sort declaration %a"
+                   Tvar.print a Dsort.print d.name)
+    in
+    check_bound all_tvars
+
+(** Collect all TVars in a Typ.ty. *)
+let rec typ_tvars acc (Typ.In (tf, _)) =
+  match tf with
+  | Typ.TVar a -> a :: acc
+  | Typ.Int | Typ.Bool -> acc
+  | Typ.Record ts | Typ.App (_, ts) -> List.fold_left typ_tvars acc ts
+  | Typ.Ptr t -> typ_tvars acc t
+
+(** Validate a datatype declaration *)
+let validate_type_decl (d : DtypeDecl.t) =
+  if List.length d.ctors = 0 then
+    Error "type declaration must have at least one constructor"
+  else
+    let labels = DtypeDecl.ctor_labels d in
+    let rec check_dups = function
+      | [] -> Ok ()
+      | l :: rest ->
+        if List.exists (fun l' -> Label.compare l l' = 0) rest then
+          Error (Format.asprintf "duplicate constructor %a in type declaration"
+                   Label.print l)
+        else check_dups rest
+    in
+    let* () = check_dups labels in
+    let all_tvars = List.concat_map (fun (_, ty) -> typ_tvars [] ty) d.ctors in
+    let rec check_bound = function
+      | [] -> Ok ()
+      | a :: rest ->
+        if List.exists (fun p -> Tvar.compare a p = 0) d.params then
+          check_bound rest
+        else
+          Error (Format.asprintf "unbound type variable %a in type declaration %a"
+                   Tvar.print a Dsort.print d.name)
+    in
+    check_bound all_tvars
 
 let check_decl sig_ (d : Expr.expr Prog.decl) =
   match d with
@@ -302,12 +375,17 @@ let check_decl sig_ (d : Expr.expr Prog.decl) =
   | Prog.SortDecl d ->
     let* () = validate_sort_decl d in
     Ok (Prog.SortDecl d)
+  | Prog.TypeDecl d ->
+    let* () = validate_type_decl d in
+    Ok (Prog.TypeDecl d)
 
 let check_spec_decl sig_ (d : Expr.expr Prog.decl) =
   let* _d' = check_decl sig_ d in
   match d with
   | Prog.SortDecl dd ->
     Ok (Sig.extend_sort sig_ dd)
+  | Prog.TypeDecl dd ->
+    Ok (Sig.extend_type sig_ dd)
   | Prog.SpecFunDecl dd ->
     Ok (Sig.extend dd.name (Sig.SpecFun { arg = dd.arg_sort; ret = dd.ret_sort }) sig_)
   | Prog.SpecDefDecl dd ->
@@ -331,6 +409,8 @@ let check_prog (p : Expr.expr Prog.t) : (typed_expr Prog.t, string) result =
           Sig.extend fd.name (Sig.SpecVal { sort = fd.sort }) sig_
         | Prog.SortDecl dd ->
           Sig.extend_sort sig_ dd
+        | Prog.TypeDecl dd ->
+          Sig.extend_type sig_ dd
       in
       let* (final_sig, rest') = check_decls sig' rest in
       Ok (final_sig, d' :: rest')

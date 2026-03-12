@@ -6,7 +6,7 @@ metavar lit ::=
 metavar blit ::=
 metavar f ::=
 metavar dsort, D ::=
-metavar tvar, a ::=
+metavar tvar, a, b ::=
 indexvar index, i, j, k, n ::=
 
 grammar
@@ -22,7 +22,8 @@ A, B, C :: 'T_' ::=                                        {{ com types }}
   | bool                               :: :: Bool           {{ com booleans }}
   | ptr A                              :: :: Ptr            {{ com pointer }}
   | ( A1 , .. , An )                   :: :: Record         {{ com record }}
-  | { L1 : A1 '|' .. '|' Ln : An }    :: :: Sum            {{ com labelled sum }}
+  | D ( A1 , .. , An )                 :: :: App            {{ com datatype application }}
+  | a                                  :: :: TVar           {{ com type variable }}
 
 eff {{ tex \epsilon }} :: 'Eff_' ::=                        {{ com effects }}
   | pure                               :: :: Pure            {{ tex \mathbf{0} }}
@@ -46,6 +47,12 @@ S {{ tex \Sigma }} :: 'Sig_' ::=                            {{ com signatures }}
   | S , spec f : tau -> tau'           :: :: SpecFun  {{ tex [[S]], \mathsf{spec}\; [[f]] : [[tau]] \to [[tau']] }}
   | S , spec f : tau                   :: :: SpecVal  {{ tex [[S]], \mathsf{spec}\; [[f]] : [[tau]] }}
   | S , sort D ( a1 , .. , ai ) = { L1 : tau1 '|' .. '|' Ln : taun }  :: :: Sort
+  | S , type D ( a1 , .. , ai ) = { L1 : A1 '|' .. '|' Ln : An }  :: :: Type
+
+Phi {{ tex \Phi }} :: 'TVCtx_' ::=                             {{ com type variable contexts }}
+  | notvs                              :: :: Empty          {{ tex \cdot }}
+  | Phi , a                            :: :: Ext
+  | a1 , .. , ai                       :: :: List
 
 prim :: 'Prim_' ::=                                            {{ com primitives }}
   | Add                                :: :: Add            {{ com addition }}
@@ -55,6 +62,7 @@ prim :: 'Prim_' ::=                                            {{ com primitives
   | And                                :: :: And            {{ com conjunction }}
   | Or                                 :: :: Or             {{ com disjunction }}
   | Not                                :: :: Not            {{ com negation }}
+  | Eq [ A ]                           :: :: Eq             {{ com equality test }}
   | New [ A ]                          :: :: New            {{ com allocate }}
   | Del [ A ]                          :: :: Del            {{ com deallocate }}
   | Get [ A ]                          :: :: Get            {{ com dereference }}
@@ -79,6 +87,8 @@ prog :: 'Prog_' ::=                                        {{ com programs }}
   | fun f ( x : A ) -> B [ eff ] { e } prog   :: :: Decl   {{ tex \mathsf{fun}\;[[f]] ( [[x]] \mathord{:} [[A]] ) \to_{[[eff]]} [[B]] \; \{ [[e]] \} \quad [[prog]] }}
   | spec f : tau -> tau' = { pat1 -> se1 '|' .. '|' patn -> sen } prog   :: :: SpecFun
   | spec f : tau = se prog                     :: :: SpecDef  {{ tex \mathsf{spec}\;[[f]] : [[tau]] = [[se]] \quad [[prog]] }}
+  | sort D ( a1 , .. , ai ) = { L1 : tau1 '|' .. '|' Ln : taun } prog   :: :: SortDecl
+  | type D ( a1 , .. , ai ) = { L1 : A1 '|' .. '|' Ln : An } prog     :: :: TypeDecl
   | main = e                                   :: :: Main   {{ tex \mathsf{main} = [[e]] }}
 
 % ===== Assertion Language =====
@@ -90,6 +100,7 @@ tau {{ tex \tau }} :: 'Sort_' ::=                          {{ com assertion sort
   | ( tau1 , .. , taun )               :: :: Record         {{ com tuple }}
   | D ( tau1 , .. , taun )             :: :: App            {{ com datasort application }}
   | pred tau'                          :: :: Pred           {{ com predicate sort }}
+  | a                                  :: :: TVar           {{ com type variable }}
 
 stau {{ tex \sigma }} :: 'SSort_' ::=                      {{ com spec types }}
   | int                                :: :: Int            {{ com integers }}
@@ -164,14 +175,21 @@ mbranches {{ tex M }} :: 'MB_' ::=                                {{ com match b
 formula :: 'formula_' ::=
   | judgement                           :: :: judgement
   | x : A in G                         :: :: var_in      {{ tex [[x]] \mathord{:} [[A]] \in [[G]] }}
-  | L : A in B                         :: :: label_in    {{ tex [[L]] \mathord{:} [[A]] \in [[B]] }}
   | f : F in S                         :: :: proc_in     {{ tex [[f]] \mathord{:} [[F]] \in [[S]] }}
+  | A eqtype                           :: :: eqtype      {{ tex [[A]] \;\mathsf{eqtype} }}
   | spec x : tau in G                  :: :: spec_var_in {{ tex \mathsf{spec}\; [[x]] \mathord{:} [[tau]] \in [[G]] }}
   | spec f : chi in S                  :: :: spec_fun_in {{ tex \mathsf{spec}\; [[f]] \mathord{:} [[chi]] \in [[S]] }}
   | sort D ( a1 , .. , ai ) in S        :: :: sort_decl
   | L : tau rawctor D in S         :: :: raw_ctor   {{ tex [[L]] \mathord{:} [[tau]] \in \mathrm{ctors}([[D]]) \in [[S]] }}
   | tau = subst tau1 / a1 , .. , taui / ai in tau'   :: :: subst_eq
   | sort D ( a1 , .. , ak ) = { L1 : tau1 | .. | Ln : taun } in S   :: :: sort_lookup
+  | type D ( a1 , .. , ai ) in S        :: :: type_decl
+  | L : A rawtypector D in S     :: :: rawtypector   {{ tex [[L]] \mathord{:} [[A]] \in \mathsf{tyctors}([[D]]) \in [[S]] }}
+  | A = subst A1 / a1 , .. , Ai / ai in A'   :: :: type_subst_eq
+  | type D ( a1 , .. , ak ) = { L1 : A1 | .. | Ln : An } in S   :: :: type_lookup
+  | L : A in_type D ( A1 , .. , Ai ) in S   :: :: type_ctor_in
+  | type D ( x , y ) = { Next : a , Done : b } in S   :: :: step_lookup   {{ tex \mathsf{type}\; [[D]]( [[a]], [[b]]) = \{ \mathsf{Next}\mathord{:}[[a]] \mid \mathsf{Done}\mathord{:}[[b]] \} \in [[S]] }}
+  | a in Phi                            :: :: tvar_in     {{ tex [[a]] \in [[Phi]] }}
   | L != L'                            :: :: label_neq   {{ tex [[L]] \neq [[L']] }}
   | mbranches = mk tau { pat1 --> se1 || .. || patn --> sen }  :: :: mk_branches  {{ tex [[mbranches]] = \overline{ pat \mathord{:} [[tau]], \cdot \to [\cdot][\cdot] \, se } }}
   | ce = fill E ce'                    :: :: fill_ctx      {{ tex [[ce]] = [[E]] [ [[ce']] ] }}
@@ -181,6 +199,71 @@ subrules
   stau <:: tau
 
 defns Jtype :: '' ::=
+
+  defn Phi |- A wf :: :: type_wf :: 'TWf_'
+  {{ tex [[Phi]] \vdash [[A]] \;\mathsf{wf} }} by
+
+    ------------- :: int
+    Phi |- int wf
+
+    -------------- :: bool
+    Phi |- bool wf
+
+    Phi |- A wf
+    ---------------- :: ptr
+    Phi |- ptr A wf
+
+    Phi |- A1 wf .. Phi |- An wf
+    -------------------------------- :: record
+    Phi |- ( A1 , .. , An ) wf
+
+    Phi |- A1 wf .. Phi |- An wf
+    -------------------------------- :: app
+    Phi |- D ( A1 , .. , An ) wf
+
+    a in Phi
+    ------------- :: tvar
+    Phi |- a wf
+
+  defn Phi |- tau wf :: :: sort_wf :: 'SWf_'
+  {{ tex [[Phi]] \vdash [[tau]] \;\mathsf{wf} }} by
+
+    --------------- :: int
+    Phi |- int wf
+
+    ---------------- :: bool
+    Phi |- bool wf
+
+    --------------- :: loc
+    Phi |- loc wf
+
+    Phi |- tau1 wf .. Phi |- taun wf
+    ------------------------------------ :: record
+    Phi |- ( tau1 , .. , taun ) wf
+
+    Phi |- tau1 wf .. Phi |- taun wf
+    ------------------------------------ :: app
+    Phi |- D ( tau1 , .. , taun ) wf
+
+    Phi |- tau wf
+    ------------------- :: pred
+    Phi |- pred tau wf
+
+    a in Phi
+    ------------- :: tvar
+    Phi |- a wf
+
+  defn A eqtype :: :: eqtype :: 'EqTy_'
+  {{ tex [[A]] \;\mathsf{eqtype} }} by
+
+    ---------- :: int
+    int eqtype
+
+    ----------- :: bool
+    bool eqtype
+
+    ------------- :: ptr
+    ptr A eqtype
 
   defn eff <= eff' :: :: subeff :: 'Sub_'
   {{ tex [[eff]] \leq [[eff']] }} by
@@ -217,6 +300,10 @@ defns Jtype :: '' ::=
 
     ----------------------------- :: not
     Not : bool -> bool [ pure ]
+
+    A eqtype
+    ------------------------------------------- :: eq
+    Eq [ A ] : ( A , A ) -> bool [ pure ]
 
     ---------------------------------------- :: new
     New [ A ] : A -> ptr A [ impure ]
@@ -270,16 +357,23 @@ defns Jtype :: '' ::=
     ---------------------------------------------------------------------------------- :: lettuple
     S ; G |- let ( x1 , .. , xn ) = e1 ; e2 <== C [ eff ]
 
-    L : A in B    S ; G |- e <== A [ eff ]
-    ------------------------------------- :: inject
-    S ; G |- L e <== B [ eff ]
+    L : A in_type D ( A1 , .. , Ai ) in S    S ; G |- e <== A [ eff ]
+    ----------------------------------------------------------------- :: inject
+    S ; G |- L e <== D ( A1 , .. , Ai ) [ eff ]
 
-    S ; G |- e ==> { L1 : A1 | .. | Ln : An } [ eff' ]    eff' <= eff    S ; G , x1 : A1 |- e1 <== C [ eff ] .. S ; G , xn : An |- en <== C [ eff ]
-    ------------------------------------------------------------------------------------------------------------------------------------------ :: case
+    S ; G |- e ==> D ( A1 , .. , Ai ) [ eff' ]
+    eff' <= eff
+    type D ( a1 , .. , ai ) = { L1 : B1 | .. | Ln : Bn } in S
+    L1 : C1 in_type D ( A1 , .. , Ai ) in S .. Ln : Cn in_type D ( A1 , .. , Ai ) in S
+    S ; G , x1 : C1 |- e1 <== C [ eff ] .. S ; G , xn : Cn |- en <== C [ eff ]
+    ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- :: case
     S ; G |- case e { L1 x1 -> e1 | .. | Ln xn -> en } <== C [ eff ]
 
-    S ; G |- e1 ==> A [ eff' ]    S ; G , x : A |- e2 <== { Next : A | Done : B } [ impure ]    impure <= eff
-    ---------------------------------------------------------------------------------------------------- :: iter
+    S ; G |- e1 ==> A [ eff' ]
+    type D ( x , y ) = { Next : a , Done : b } in S
+    S ; G , x : A |- e2 <== D ( A , B ) [ impure ]
+    impure <= eff
+    --------------------------------------------------------------------------------------------------------------------------------------- :: iter
     S ; G |- iter ( x = e1 ) { e2 } <== B [ eff ]
 
     S ; G |- e1 <== bool [ eff ]    S ; G |- e2 <== A [ eff ]    S ; G |- e3 <== A [ eff ]
@@ -314,6 +408,16 @@ defns Jtype :: '' ::=
     ------------------------------------------------- :: specdef
     S |- spec f : tau = se prog
 
+    a1 , .. , ai |- tau1 wf .. a1 , .. , ai |- taun wf
+    S , sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } |- prog
+    ---------------------------------------------------------------------------- :: sortdecl
+    S |- sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } prog
+
+    a1 , .. , ai |- A1 wf .. a1 , .. , ai |- An wf
+    S , type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } |- prog
+    ---------------------------------------------------------------------------- :: typedecl
+    S |- type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } prog
+
 
 defns Jcore :: '' ::=
 
@@ -322,6 +426,12 @@ defns Jcore :: '' ::=
     sort D ( a1 , .. , ai ) in S    L : tau' rawctor D in S    tau = subst tau1 / a1 , .. , taui / ai in tau'
     ---------------------------------------------------------------------------------------------------------- :: lookup
     L : tau in D ( tau1 , .. , taui ) in S
+
+  defn L : A in_type D ( A1 , .. , Ai ) in S :: :: type_ctor_lookup :: 'TCtor_' by
+
+    type D ( a1 , .. , ai ) in S    L : A' rawtypector D in S    A = subst A1 / a1 , .. , Ai / ai in A'
+    ------------------------------------------------------------------------------------------------------ :: lookup
+    L : A in_type D ( A1 , .. , Ai ) in S
 
   defn S ; G |- ( L x ) : tau' -> ce <== tau :: :: core_branch :: 'CoreBr_'
   {{ tex [[S]] ; [[G]] \vdash ( [[L]] \; [[x]] ) \mathbin{:} [[tau']] \to [[ce]] \Leftarrow [[tau]] }} by

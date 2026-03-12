@@ -1,10 +1,11 @@
-(** Signature context for function, spec function, spec value, and datasort declarations. *)
+(** Signature context for function, spec function, spec value, datasort, and datatype declarations. *)
 
 type entry =
   | FunSig of { arg : Typ.ty; ret : Typ.ty; eff : Effect.t }
   | SpecFun of { arg : Sort.sort; ret : Sort.sort }
   | SpecVal of { sort : Sort.sort }
   | SortDecl of DsortDecl.t
+  | TypeDecl of DtypeDecl.t
 
 type t
 
@@ -28,6 +29,15 @@ val lookup_ctor : Label.t -> t -> (Dsort.t * DsortDecl.t) option
 
 val extend_sort : t -> DsortDecl.t -> t
 (** [extend_sort sig d] adds a datasort declaration directly. *)
+
+val lookup_type : Dsort.t -> t -> DtypeDecl.t option
+(** [lookup_type d sig] returns the datatype declaration for [d]. *)
+
+val lookup_type_ctor : Label.t -> t -> (Dsort.t * DtypeDecl.t) option
+(** [lookup_type_ctor l sig] searches all datatype declarations for constructor [l]. *)
+
+val extend_type : t -> DtypeDecl.t -> t
+(** [extend_type sig d] adds a datatype declaration directly. *)
 
 val print : Format.formatter -> t -> unit
 

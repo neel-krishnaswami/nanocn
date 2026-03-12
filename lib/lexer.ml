@@ -50,10 +50,12 @@ let keyword_or_ident s =
   | "pred" -> Parser.PRED
   | "loc" -> Parser.LOC
   | "of" -> Parser.OF
+  | "type" -> Parser.TYPE
   | _ -> Parser.IDENT s
 
 let keyword_or_label s =
   match s with
+  | "Eq" -> Parser.EQ
   | "Set" -> Parser.SET
   | "Get" -> Parser.GET
   | "New" -> Parser.NEW

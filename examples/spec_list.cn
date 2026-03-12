@@ -1,0 +1,13 @@
+sort list(a) = { Nil : () | Cons : (a, list(a)) }
+
+spec length : list(int) -> int = {
+    Nil () -> 0
+  | Cons (x, xs) -> 1 + length xs
+}
+
+spec sum : list(int) -> int = {
+    Nil () -> 0
+  | Cons (x, xs) -> x + sum xs
+}
+
+main = () : () [impure]

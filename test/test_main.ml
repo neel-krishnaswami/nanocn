@@ -8,13 +8,15 @@ let qcheck_tests =
     Typ.Test.test;
     Expr.Test.test;
     Context.Test.test;
-    Sig.Test.test;  (* lookup_fun *)
+    Sig.Test.test;
     Prog.Test.test;
     Dsort.Test.test;
     Tvar.Test.test;
     Sort.Test.test;
     DsortDecl.Test.test;
+    DtypeDecl.Test.test;
     Subst.Test.test;
+    TypSubst.Test.test;
     Pat.Test.test;
     CoreExpr.Test.test;
     SurfExpr.Test.test;
@@ -54,12 +56,23 @@ let () =
            | _ -> Alcotest.fail "expected record type")
         | Error msg -> Alcotest.fail msg);
 
-      Alcotest.test_case "parse sum type" `Quick (fun () ->
-        match Parse.parse_typ "{Next:int | Done:(int * int)}" ~file:"test" with
+      Alcotest.test_case "parse type application" `Quick (fun () ->
+        match Parse.parse_typ "step(int, bool)" ~file:"test" with
         | Ok ty ->
           (match Typ.shape ty with
-           | Typ.Sum [_; _] -> ()
-           | _ -> Alcotest.fail "expected sum type with 2 cases")
+           | Typ.App (_, [t1; t2]) ->
+             (match Typ.shape t1, Typ.shape t2 with
+              | Typ.Int, Typ.Bool -> ()
+              | _ -> Alcotest.fail "expected step(int, bool)")
+           | _ -> Alcotest.fail "expected type application with 2 args")
+        | Error msg -> Alcotest.fail msg);
+
+      Alcotest.test_case "parse bare type name" `Quick (fun () ->
+        match Parse.parse_typ "color" ~file:"test" with
+        | Ok ty ->
+          (match Typ.shape ty with
+           | Typ.App (_, []) -> ()
+           | _ -> Alcotest.fail "expected bare App with no args")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse ptr type" `Quick (fun () ->
@@ -174,6 +187,26 @@ let () =
            | Expr.Annot (_, _, Effect.Impure) -> ()
            | _ -> Alcotest.fail "expected Annot with impure")
         | Error msg -> Alcotest.fail msg);
+
+      Alcotest.test_case "parse type decl" `Quick (fun () ->
+        let src = "type option(a) = { Some : a | None : () }" in
+        match Parse.parse_decl src ~file:"test" with
+        | Ok (Prog.TypeDecl d) ->
+          if List.length d.DtypeDecl.ctors <> 2 then
+            Alcotest.fail "expected 2 constructors";
+          if List.length d.DtypeDecl.params <> 1 then
+            Alcotest.fail "expected 1 param"
+        | Ok _ -> Alcotest.fail "expected TypeDecl"
+        | Error msg -> Alcotest.fail msg);
+
+      Alcotest.test_case "parse type decl no params" `Quick (fun () ->
+        let src = "type color = { Red : () | Blue : () }" in
+        match Parse.parse_decl src ~file:"test" with
+        | Ok (Prog.TypeDecl d) ->
+          if List.length d.DtypeDecl.params <> 0 then
+            Alcotest.fail "expected 0 params"
+        | Ok _ -> Alcotest.fail "expected TypeDecl"
+        | Error msg -> Alcotest.fail msg);
     ]);
 
     ("typecheck", [
@@ -222,28 +255,42 @@ let () =
           | Ok _ -> Alcotest.fail "should fail on unbound variable"
           | Error _ -> ());
 
-      Alcotest.test_case "check inject into sum" `Quick (fun () ->
-        let src = "Done 1 : {Next:int | Done:int} [pure]" in
-        match Parse.parse_expr src ~file:"test" with
-        | Error msg -> Alcotest.fail ("parse: " ^ msg)
-        | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
-          | Ok te ->
-            if Effect.compare (eff_of te) Effect.Pure <> 0 then
-              Alcotest.fail "expected pure"
-          | Error msg -> Alcotest.fail msg);
+      Alcotest.test_case "check inject into declared type" `Quick (fun () ->
+        let src = "type option = { Some : int | None : () }" in
+        match Parse.parse_decl src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse decl: " ^ msg)
+        | Ok d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig d with
+          | Error msg -> Alcotest.fail ("typecheck decl: " ^ msg)
+          | Ok sig_ ->
+            let expr_src = "Some 1 : option [pure]" in
+            match Parse.parse_expr expr_src ~file:"test" with
+            | Error msg -> Alcotest.fail ("parse: " ^ msg)
+            | Ok e ->
+              match Typecheck.synth sig_ Context.empty e with
+              | Ok te ->
+                if Effect.compare (eff_of te) Effect.Pure <> 0 then
+                  Alcotest.fail "expected pure"
+              | Error msg -> Alcotest.fail msg);
 
-      Alcotest.test_case "check case" `Quick (fun () ->
-        let src = "let x = (Done 1 : {Next:int | Done:int} [pure]); case x { Done y -> y | Next z -> z } : int [pure]" in
-        match Parse.parse_expr src ~file:"test" with
-        | Error msg -> Alcotest.fail ("parse: " ^ msg)
-        | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
-          | Ok te ->
-            (match Typ.shape (typ_of te) with
-             | Typ.Int -> ()
-             | _ -> Alcotest.fail "expected int result type")
-          | Error msg -> Alcotest.fail msg);
+      Alcotest.test_case "check case with declared type" `Quick (fun () ->
+        let src = "type option = { Some : int | None : () }" in
+        match Parse.parse_decl src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse decl: " ^ msg)
+        | Ok d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig d with
+          | Error msg -> Alcotest.fail ("typecheck decl: " ^ msg)
+          | Ok sig_ ->
+            let expr_src = "let x = (Some 1 : option [pure]); case x { Some y -> y | None u -> 0 } : int [pure]" in
+            match Parse.parse_expr expr_src ~file:"test" with
+            | Error msg -> Alcotest.fail ("parse: " ^ msg)
+            | Ok e ->
+              match Typecheck.synth sig_ Context.empty e with
+              | Ok te ->
+                (match Typ.shape (typ_of te) with
+                 | Typ.Int -> ()
+                 | _ -> Alcotest.fail "expected int result type")
+              | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "Div is effectful" `Quick (fun () ->
         match Parse.parse_expr "1 / 2" ~file:"test" with
@@ -355,6 +402,35 @@ let () =
                   | _ -> Alcotest.fail "arg components should be int")
                | _ -> Alcotest.fail "arg should be record type")
             | _ -> Alcotest.fail "expected App at root");
+
+      Alcotest.test_case "typecheck type decl" `Quick (fun () ->
+        let src = "type color = { Red : () | Blue : () }" in
+        match Parse.parse_decl src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse: " ^ msg)
+        | Ok d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig d with
+          | Ok _ -> ()
+          | Error msg -> Alcotest.fail ("typecheck: " ^ msg));
+
+      Alcotest.test_case "typecheck parameterized type decl" `Quick (fun () ->
+        let src = "type option(a) = { Some : a | None : () }" in
+        match Parse.parse_decl src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse: " ^ msg)
+        | Ok d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig d with
+          | Ok _ -> ()
+          | Error msg -> Alcotest.fail ("typecheck: " ^ msg));
+
+      Alcotest.test_case "typecheck inject with step (built-in)" `Quick (fun () ->
+        let src = "Done 1 : step(int, int) [pure]" in
+        match Parse.parse_expr src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse: " ^ msg)
+        | Ok e ->
+          match Typecheck.synth Typecheck.initial_sig Context.empty e with
+          | Ok te ->
+            if Effect.compare (eff_of te) Effect.Pure <> 0 then
+              Alcotest.fail "expected pure"
+          | Error msg -> Alcotest.fail msg);
     ]);
 
     ("parse-bool", [
@@ -480,6 +556,40 @@ let () =
           | Error _ -> ());
     ]);
 
+    ("typecheck-eq", [
+      Alcotest.test_case "Eq[int] synth bool pure" `Quick (fun () ->
+        match Parse.parse_expr "Eq[int] (1, 2)" ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse: " ^ msg)
+        | Ok e ->
+          match Typecheck.synth Sig.empty Context.empty e with
+          | Ok te ->
+            (match Typ.shape (typ_of te) with
+             | Typ.Bool -> ()
+             | _ -> Alcotest.fail "expected bool type");
+            if Effect.compare (eff_of te) Effect.Pure <> 0 then
+              Alcotest.fail "expected pure"
+          | Error msg -> Alcotest.fail msg);
+
+      Alcotest.test_case "Eq[bool] synth bool pure" `Quick (fun () ->
+        match Parse.parse_expr "Eq[bool] (true, false)" ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse: " ^ msg)
+        | Ok e ->
+          match Typecheck.synth Sig.empty Context.empty e with
+          | Ok te ->
+            (match Typ.shape (typ_of te) with
+             | Typ.Bool -> ()
+             | _ -> Alcotest.fail "expected bool type")
+          | Error msg -> Alcotest.fail msg);
+
+      Alcotest.test_case "Eq on record type fails" `Quick (fun () ->
+        match Parse.parse_expr "Eq[(int * int)] ((1,2), (3,4))" ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse: " ^ msg)
+        | Ok e ->
+          match Typecheck.synth Sig.empty Context.empty e with
+          | Ok _ -> Alcotest.fail "should fail: record is not an eqtype"
+          | Error _ -> ());
+    ]);
+
     ("parse-prog", [
       Alcotest.test_case "parse call" `Quick (fun () ->
         match Parse.parse_expr "foo 1" ~file:"test" with
@@ -534,10 +644,10 @@ let () =
           | Ok _ -> ()
           | Error msg -> Alcotest.fail msg);
 
-      Alcotest.test_case "typecheck recursive function" `Quick (fun () ->
+      Alcotest.test_case "typecheck recursive function with step" `Quick (fun () ->
         let src = {|
-          fun countdown(x : int) -> {Next:int | Done:()} [impure] {
-            Done () : {Next:int | Done:()} [impure]
+          fun countdown(x : int) -> step(int, ()) [impure] {
+            Done () : step(int, ()) [impure]
           }
           main = (iter (x = 10) { countdown x }) : () [impure]
         |} in
@@ -570,6 +680,21 @@ let () =
           match Typecheck.check_prog p with
           | Ok _ -> Alcotest.fail "should fail on unknown function"
           | Error _ -> ());
+
+      Alcotest.test_case "typecheck program with type decl and inject/case" `Quick (fun () ->
+        let src = {|
+          type option(a) = { Some : a | None : () }
+          fun unwrap(x : option(int)) -> int [pure] {
+            case x { Some y -> y | None u -> 0 }
+          }
+          main = (let r = unwrap (Some 42 : option(int) [pure]); ()) : () [impure]
+        |} in
+        match Parse.parse_prog src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse: " ^ msg)
+        | Ok p ->
+          match Typecheck.check_prog p with
+          | Ok _ -> ()
+          | Error msg -> Alcotest.fail msg);
     ]);
 
     ("parse-sort", [

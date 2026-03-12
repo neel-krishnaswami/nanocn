@@ -1,0 +1,13 @@
+fun isAlias(p : (ptr int * ptr int)) -> bool [pure] {
+  let (a, b) = p;
+  Eq[ptr int] (a, b)
+}
+
+main =
+  (let p = New[int] 10;
+   let q = New[int] 20;
+   let same = isAlias (p, p);
+   let diff = isAlias (p, q);
+   let u = Del[int] p;
+   let v = Del[int] q;
+   ()) : () [impure]
