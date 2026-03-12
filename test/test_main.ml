@@ -15,6 +15,9 @@ let qcheck_tests =
     Sort.Test.test;
     DsortDecl.Test.test;
     Subst.Test.test;
+    Pat.Test.test;
+    CoreExpr.Test.test;
+    SurfExpr.Test.test;
   ]
 
 (** Helper to extract type from a typed_expr *)
