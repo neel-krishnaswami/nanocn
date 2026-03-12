@@ -685,4 +685,117 @@ let () =
           | Ok _ -> ()
           | Error msg -> Alcotest.fail ("typecheck: " ^ msg));
     ]);
+
+    ("spec-typecheck-core", [
+      (* Helper: build a core expression at dummy pos *)
+      (let mk shape = CoreExpr.In (shape, object method loc = SourcePos.dummy end) in
+       let mk_sort s = Sort.In (s, object method loc = SourcePos.dummy end) in
+       let int_sort = mk_sort Sort.Int in
+       let _bool_sort = mk_sort Sort.Bool in
+       let sort_of tce = (CoreExpr.extract tce)#sort in
+       let _ctx_of tce = (CoreExpr.extract tce)#ctx in
+       let sig_ = Typecheck.initial_sig in
+
+       Alcotest.test_case "synth int literal carries int sort" `Quick (fun () ->
+         let ce = mk (CoreExpr.IntLit 42) in
+         match SpecTypecheck.synth sig_ Context.empty ce with
+         | Error msg -> Alcotest.fail msg
+         | Ok tce ->
+           if Sort.compare (sort_of tce) int_sort <> 0 then
+             Alcotest.fail "expected int sort"));
+
+      (let mk shape = CoreExpr.In (shape, object method loc = SourcePos.dummy end) in
+       let mk_sort s = Sort.In (s, object method loc = SourcePos.dummy end) in
+       let bool_sort = mk_sort Sort.Bool in
+       let sort_of tce = (CoreExpr.extract tce)#sort in
+       let sig_ = Typecheck.initial_sig in
+
+       Alcotest.test_case "synth bool literal carries bool sort" `Quick (fun () ->
+         let ce = mk (CoreExpr.BoolLit true) in
+         match SpecTypecheck.synth sig_ Context.empty ce with
+         | Error msg -> Alcotest.fail msg
+         | Ok tce ->
+           if Sort.compare (sort_of tce) bool_sort <> 0 then
+             Alcotest.fail "expected bool sort"));
+
+      (let mk shape = CoreExpr.In (shape, object method loc = SourcePos.dummy end) in
+       let mk_sort s = Sort.In (s, object method loc = SourcePos.dummy end) in
+       let int_sort = mk_sort Sort.Int in
+       let _sort_of tce = (CoreExpr.extract tce)#sort in
+       let ctx_of tce = (CoreExpr.extract tce)#ctx in
+       let sig_ = Typecheck.initial_sig in
+
+       Alcotest.test_case "check let propagates context" `Quick (fun () ->
+         let x = Var.of_string "x" SourcePos.dummy in
+         let ce = mk (CoreExpr.Let (x, mk (CoreExpr.IntLit 1),
+                                       mk (CoreExpr.Var x))) in
+         match SpecTypecheck.check sig_ Context.empty ce int_sort with
+         | Error msg -> Alcotest.fail msg
+         | Ok tce ->
+           (* The outer node has empty context *)
+           if Context.lookup_spec x (ctx_of tce) <> None then
+             Alcotest.fail "outer ctx should not have x";
+           (* The body (Var x) should have x in context *)
+           match CoreExpr.shape tce with
+           | CoreExpr.Let (_, _, body) ->
+             (match Context.lookup_spec x (ctx_of body) with
+              | Some s ->
+                if Sort.compare s int_sort <> 0 then
+                  Alcotest.fail "x should have int sort in body context"
+              | None -> Alcotest.fail "x should be in body context")
+           | _ -> Alcotest.fail "expected Let shape"));
+
+      (let mk shape = CoreExpr.In (shape, object method loc = SourcePos.dummy end) in
+       let mk_sort s = Sort.In (s, object method loc = SourcePos.dummy end) in
+       let bool_sort = mk_sort Sort.Bool in
+       let sort_of tce = (CoreExpr.extract tce)#sort in
+       let sig_ = Typecheck.initial_sig in
+
+       Alcotest.test_case "synth equality carries bool sort" `Quick (fun () ->
+         let ce = mk (CoreExpr.Eq (mk (CoreExpr.IntLit 1), mk (CoreExpr.IntLit 2))) in
+         match SpecTypecheck.synth sig_ Context.empty ce with
+         | Error msg -> Alcotest.fail msg
+         | Ok tce ->
+           if Sort.compare (sort_of tce) bool_sort <> 0 then
+             Alcotest.fail "expected bool sort for equality"));
+
+      (let mk shape = CoreExpr.In (shape, object method loc = SourcePos.dummy end) in
+       let _mk_sort s = Sort.In (s, object method loc = SourcePos.dummy end) in
+       let sig_ = Typecheck.initial_sig in
+
+       Alcotest.test_case "synth unbound spec var fails" `Quick (fun () ->
+         let x = Var.of_string "x" SourcePos.dummy in
+         let ce = mk (CoreExpr.Var x) in
+         match SpecTypecheck.synth sig_ Context.empty ce with
+         | Ok _ -> Alcotest.fail "should fail on unbound var"
+         | Error _ -> ()));
+
+      (let mk shape = CoreExpr.In (shape, object method loc = SourcePos.dummy end) in
+       let mk_sort s = Sort.In (s, object method loc = SourcePos.dummy end) in
+       let int_sort = mk_sort Sort.Int in
+       let sort_of tce = (CoreExpr.extract tce)#sort in
+       let sig_ = Typecheck.initial_sig in
+
+       Alcotest.test_case "synth spec var carries its sort" `Quick (fun () ->
+         let x = Var.of_string "x" SourcePos.dummy in
+         let ctx = Context.extend_spec x int_sort Context.empty in
+         let ce = mk (CoreExpr.Var x) in
+         match SpecTypecheck.synth sig_ ctx ce with
+         | Error msg -> Alcotest.fail msg
+         | Ok tce ->
+           if Sort.compare (sort_of tce) int_sort <> 0 then
+             Alcotest.fail "expected int sort for x"));
+
+      (let mk shape = CoreExpr.In (shape, object method loc = SourcePos.dummy end) in
+       let mk_sort s = Sort.In (s, object method loc = SourcePos.dummy end) in
+       let _int_sort = mk_sort Sort.Int in
+       let bool_sort = mk_sort Sort.Bool in
+       let sig_ = Typecheck.initial_sig in
+
+       Alcotest.test_case "check int against bool fails" `Quick (fun () ->
+         let ce = mk (CoreExpr.IntLit 42) in
+         match SpecTypecheck.check sig_ Context.empty ce bool_sort with
+         | Ok _ -> Alcotest.fail "should fail: int checked against bool"
+         | Error _ -> ()));
+    ]);
   ]

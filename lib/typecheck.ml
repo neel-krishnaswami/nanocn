@@ -272,7 +272,7 @@ let check_decl sig_ (d : Expr.expr Prog.decl) =
     (* Add recursive binding to sig *)
     let sig_with_self = Sig.extend d.name
       (Sig.SpecFun { arg = d.arg_sort; ret = d.ret_sort }) sig_ in
-    (* Build match matrix and elaborate *)
+    (* Build match matrix, elaborate, then typecheck core *)
     let result = ElabM.run (
       let open ElabM in
       let* y = fresh d.loc in
@@ -282,19 +282,22 @@ let check_decl sig_ (d : Expr.expr Prog.decl) =
                      ectx = EvalCtx.Hole;
                      body })
       ) d.branches in
-      let* _ce = Elaborate.coverage_check sig_with_self Context.empty
+      let* ce = Elaborate.coverage_check sig_with_self Context.empty
         [y] branches d.ret_sort in
-      return ()
+      return (y, ce)
     ) in
-    let* () = result in
+    let* (y, ce) = result in
+    let ctx = Context.extend_spec y d.arg_sort Context.empty in
+    let* _typed_ce = SpecTypecheck.check sig_with_self ctx ce d.ret_sort in
     Ok (Prog.SpecFunDecl d)
   | Prog.SpecDefDecl d ->
     let result = ElabM.run (
       let open ElabM in
-      let* _ce = Elaborate.check sig_ Context.empty d.body d.sort in
-      return ()
+      let* ce = Elaborate.check sig_ Context.empty d.body d.sort in
+      return ce
     ) in
-    let* () = result in
+    let* ce = result in
+    let* _typed_ce = SpecTypecheck.check sig_ Context.empty ce d.sort in
     Ok (Prog.SpecDefDecl d)
   | Prog.SortDecl d ->
     let* () = validate_sort_decl d in
