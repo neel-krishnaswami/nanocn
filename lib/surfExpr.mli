@@ -21,6 +21,7 @@ type 'a seF =
   | Annot of 'a * Sort.sort
   | IntLit of int
   | BoolLit of bool
+  | Prim of Prim.t * 'a
 
 val map : ('a -> 'b) -> 'a seF -> 'b seF
 

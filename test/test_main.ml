@@ -699,7 +699,7 @@ let () =
 
     ("parse-sort", [
       Alcotest.test_case "parse sort decl" `Quick (fun () ->
-        let src = "sort list(a) = { Nil : () | Cons : (a, list(a)) }" in
+        let src = "sort list(a) = { Nil : () | Cons : (a * list(a)) }" in
         match Parse.parse_decl src ~file:"test" with
         | Ok (Prog.SortDecl d) ->
           if List.length d.DsortDecl.ctors <> 2 then
@@ -784,6 +784,74 @@ let () =
           | Ok _ -> ()
           | Error msg -> Alcotest.fail ("typecheck: " ^ msg));
 
+      Alcotest.test_case "sort referencing undeclared sort fails" `Quick (fun () ->
+        let src = "sort bad = { Mk : unknown }" in
+        match Parse.parse_decl src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse: " ^ msg)
+        | Ok d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig d with
+          | Ok _ -> Alcotest.fail "should fail: unknown sort reference"
+          | Error _ -> ());
+
+      Alcotest.test_case "sort with wrong arity fails" `Quick (fun () ->
+        let sort_src = "sort pair(a, b) = { Mk : (a * b) }" in
+        match Parse.parse_decl sort_src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse sort: " ^ msg)
+        | Ok sort_d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig sort_d with
+          | Error msg -> Alcotest.fail ("typecheck sort: " ^ msg)
+          | Ok sig1 ->
+            let bad_src = "sort bad = { Mk : pair(int) }" in
+            match Parse.parse_decl bad_src ~file:"test" with
+            | Error msg -> Alcotest.fail ("parse bad: " ^ msg)
+            | Ok bad_d ->
+              match Typecheck.check_spec_decl sig1 bad_d with
+              | Ok _ -> Alcotest.fail "should fail: wrong arity"
+              | Error _ -> ());
+
+      Alcotest.test_case "self-referential sort succeeds" `Quick (fun () ->
+        let src = "sort list(a) = { Nil : () | Cons : (a * list(a)) }" in
+        match Parse.parse_decl src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse: " ^ msg)
+        | Ok d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig d with
+          | Ok _ -> ()
+          | Error msg -> Alcotest.fail ("typecheck: " ^ msg));
+
+      Alcotest.test_case "type referencing undeclared type fails" `Quick (fun () ->
+        let src = "type bad = { Mk : unknown }" in
+        match Parse.parse_decl src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse: " ^ msg)
+        | Ok d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig d with
+          | Ok _ -> Alcotest.fail "should fail: unknown type reference"
+          | Error _ -> ());
+
+      Alcotest.test_case "type with wrong arity fails" `Quick (fun () ->
+        let type_src = "type pair(a, b) = { Mk : (a * b) }" in
+        match Parse.parse_decl type_src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse type: " ^ msg)
+        | Ok type_d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig type_d with
+          | Error msg -> Alcotest.fail ("typecheck type: " ^ msg)
+          | Ok sig1 ->
+            let bad_src = "type bad = { Mk : pair(int) }" in
+            match Parse.parse_decl bad_src ~file:"test" with
+            | Error msg -> Alcotest.fail ("parse bad: " ^ msg)
+            | Ok bad_d ->
+              match Typecheck.check_spec_decl sig1 bad_d with
+              | Ok _ -> Alcotest.fail "should fail: wrong arity"
+              | Error _ -> ());
+
+      Alcotest.test_case "self-referential type succeeds" `Quick (fun () ->
+        let src = "type list(a) = { Nil : () | Cons : (a * list(a)) }" in
+        match Parse.parse_decl src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse: " ^ msg)
+        | Ok d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig d with
+          | Ok _ -> ()
+          | Error msg -> Alcotest.fail ("typecheck: " ^ msg));
+
       Alcotest.test_case "typecheck spec fun" `Quick (fun () ->
         (* First register a sort, then a spec function using it *)
         let sort_src = "sort color = { Red : () | Blue : () }" in
@@ -809,6 +877,24 @@ let () =
           match Typecheck.check_spec_decl Typecheck.initial_sig d with
           | Ok _ -> ()
           | Error msg -> Alcotest.fail ("typecheck: " ^ msg));
+
+      Alcotest.test_case "pure function callable from spec expr" `Quick (fun () ->
+        (* Register a pure function: fun inc(x : int) -> int [pure] *)
+        let fun_src = "fun inc(x : int) -> int [pure] { x + 1 }" in
+        match Parse.parse_decl fun_src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse fun: " ^ msg)
+        | Ok fun_d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig fun_d with
+          | Error msg -> Alcotest.fail ("typecheck fun: " ^ msg)
+          | Ok sig1 ->
+            (* Now use inc in a spec definition: spec three : int = inc 2 *)
+            let spec_src = "spec three : int = inc 2" in
+            match Parse.parse_decl spec_src ~file:"test" with
+            | Error msg -> Alcotest.fail ("parse spec: " ^ msg)
+            | Ok spec_d ->
+              match Typecheck.check_spec_decl sig1 spec_d with
+              | Ok _ -> ()
+              | Error msg -> Alcotest.fail ("typecheck spec: " ^ msg));
     ]);
 
     ("spec-typecheck-core", [

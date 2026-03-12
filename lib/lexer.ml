@@ -48,7 +48,6 @@ let keyword_or_ident s =
   | "take" -> Parser.TAKE
   | "return" -> Parser.RETURN
   | "pred" -> Parser.PRED
-  | "loc" -> Parser.LOC
   | "of" -> Parser.OF
   | "type" -> Parser.TYPE
   | _ -> Parser.IDENT s

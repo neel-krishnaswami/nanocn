@@ -224,9 +224,6 @@ and check_branches sig_ ctx branches args ty eff pos =
      | Error msg ->
        err_at_f pos "branch label %a: %s" Label.print l msg)
 
-(** Built-in spec functions for arithmetic desugaring *)
-let mk_sort_dummy s = Sort.In (s, object method loc = SourcePos.dummy end)
-
 (** Built-in step datatype: step(a, b) = { Next : a | Done : b } *)
 let step_decl =
   let next_label = match Label.of_string "Next" with Ok l -> l | Error _ -> failwith "impossible" in
@@ -245,31 +242,41 @@ let step_decl =
   }
 
 let initial_sig =
-  let int_sort = mk_sort_dummy Sort.Int in
-  let pair_int = mk_sort_dummy (Sort.Record [int_sort; int_sort]) in
-  let mk_arith name =
-    let v = Var.of_string name SourcePos.dummy in
-    (v, Sig.SpecFun { arg = pair_int; ret = int_sort })
-  in
-  let entries = [
-    mk_arith "__add";
-    mk_arith "__sub";
-    mk_arith "__mul";
-    mk_arith "__div";
-  ] in
-  let sig_ = List.fold_left (fun s (v, e) -> Sig.extend v e s) Sig.empty entries in
-  Sig.extend_type sig_ step_decl
+  Sig.extend_type Sig.empty step_decl
 
-(** Collect all TVars in a sort. *)
-let rec sort_tvars acc (Sort.In (sf, _)) =
+(** Check sort well-formedness: S ; Phi |- tau wf *)
+let rec sort_wf sig_ params (Sort.In (sf, info)) =
+  let pos = info#loc in
   match sf with
-  | Sort.TVar a -> a :: acc
-  | Sort.Int | Sort.Bool | Sort.Loc -> acc
-  | Sort.Record ts | Sort.App (_, ts) -> List.fold_left sort_tvars acc ts
-  | Sort.Pred t -> sort_tvars acc t
+  | Sort.Int | Sort.Bool -> Ok ()
+  | Sort.TVar a ->
+    if List.exists (fun p -> Tvar.compare a p = 0) params then Ok ()
+    else Error (Format.asprintf "%a: unbound type variable %a"
+                  SourcePos.print pos Tvar.print a)
+  | Sort.Ptr t -> sort_wf sig_ params t
+  | Sort.Pred t -> sort_wf sig_ params t
+  | Sort.Record ts -> sort_wf_list sig_ params ts
+  | Sort.App (d, args) ->
+    (match Sig.lookup_sort d sig_ with
+     | None ->
+       Error (Format.asprintf "%a: unknown sort %a"
+                SourcePos.print pos Dsort.print d)
+     | Some decl ->
+       if List.compare_lengths args decl.DsortDecl.params <> 0 then
+         Error (Format.asprintf "%a: sort %a expects %d arguments, got %d"
+                  SourcePos.print pos Dsort.print d
+                  (List.length decl.DsortDecl.params) (List.length args))
+       else
+         sort_wf_list sig_ params args)
+
+and sort_wf_list sig_ params = function
+  | [] -> Ok ()
+  | s :: rest ->
+    let* () = sort_wf sig_ params s in
+    sort_wf_list sig_ params rest
 
 (** Validate a datasort declaration *)
-let validate_sort_decl (d : DsortDecl.t) =
+let validate_sort_decl sig_ (d : DsortDecl.t) =
   if List.length d.ctors = 0 then
     Error "sort declaration must have at least one constructor"
   else
@@ -283,28 +290,44 @@ let validate_sort_decl (d : DsortDecl.t) =
         else check_dups rest
     in
     let* () = check_dups labels in
-    let all_tvars = List.concat_map (fun (_, s) -> sort_tvars [] s) d.ctors in
-    let rec check_bound = function
-      | [] -> Ok ()
-      | a :: rest ->
-        if List.exists (fun p -> Tvar.compare a p = 0) d.params then
-          check_bound rest
-        else
-          Error (Format.asprintf "unbound type variable %a in sort declaration %a"
-                   Tvar.print a Dsort.print d.name)
-    in
-    check_bound all_tvars
+    (* Extend sig with self for recursive references *)
+    let sig_with_self = Sig.extend_sort sig_ d in
+    (* Check well-formedness of each constructor sort *)
+    sort_wf_list sig_with_self d.params
+      (List.map snd d.ctors)
 
-(** Collect all TVars in a Typ.ty. *)
-let rec typ_tvars acc (Typ.In (tf, _)) =
+(** Check type well-formedness: S ; Phi |- A wf *)
+let rec type_wf sig_ params (Typ.In (tf, info)) =
+  let pos = info#loc in
   match tf with
-  | Typ.TVar a -> a :: acc
-  | Typ.Int | Typ.Bool -> acc
-  | Typ.Record ts | Typ.App (_, ts) -> List.fold_left typ_tvars acc ts
-  | Typ.Ptr t -> typ_tvars acc t
+  | Typ.Int | Typ.Bool -> Ok ()
+  | Typ.TVar a ->
+    if List.exists (fun p -> Tvar.compare a p = 0) params then Ok ()
+    else Error (Format.asprintf "%a: unbound type variable %a"
+                  SourcePos.print pos Tvar.print a)
+  | Typ.Ptr t -> type_wf sig_ params t
+  | Typ.Record ts -> type_wf_list sig_ params ts
+  | Typ.App (d, args) ->
+    (match Sig.lookup_type d sig_ with
+     | None ->
+       Error (Format.asprintf "%a: unknown type %a"
+                SourcePos.print pos Dsort.print d)
+     | Some decl ->
+       if List.compare_lengths args decl.DtypeDecl.params <> 0 then
+         Error (Format.asprintf "%a: type %a expects %d arguments, got %d"
+                  SourcePos.print pos Dsort.print d
+                  (List.length decl.DtypeDecl.params) (List.length args))
+       else
+         type_wf_list sig_ params args)
+
+and type_wf_list sig_ params = function
+  | [] -> Ok ()
+  | t :: rest ->
+    let* () = type_wf sig_ params t in
+    type_wf_list sig_ params rest
 
 (** Validate a datatype declaration *)
-let validate_type_decl (d : DtypeDecl.t) =
+let validate_type_decl sig_ (d : DtypeDecl.t) =
   if List.length d.ctors = 0 then
     Error "type declaration must have at least one constructor"
   else
@@ -318,17 +341,10 @@ let validate_type_decl (d : DtypeDecl.t) =
         else check_dups rest
     in
     let* () = check_dups labels in
-    let all_tvars = List.concat_map (fun (_, ty) -> typ_tvars [] ty) d.ctors in
-    let rec check_bound = function
-      | [] -> Ok ()
-      | a :: rest ->
-        if List.exists (fun p -> Tvar.compare a p = 0) d.params then
-          check_bound rest
-        else
-          Error (Format.asprintf "unbound type variable %a in type declaration %a"
-                   Tvar.print a Dsort.print d.name)
-    in
-    check_bound all_tvars
+    (* Extend sig with self for recursive references *)
+    let sig_with_self = Sig.extend_type sig_ d in
+    (* Check well-formedness of each constructor type *)
+    type_wf_list sig_with_self d.params (List.map snd d.ctors)
 
 let check_decl sig_ (d : Expr.expr Prog.decl) =
   match d with
@@ -373,10 +389,10 @@ let check_decl sig_ (d : Expr.expr Prog.decl) =
     let* _typed_ce = SpecTypecheck.check sig_ Context.empty ce d.sort in
     Ok (Prog.SpecDefDecl d)
   | Prog.SortDecl d ->
-    let* () = validate_sort_decl d in
+    let* () = validate_sort_decl sig_ d in
     Ok (Prog.SortDecl d)
   | Prog.TypeDecl d ->
-    let* () = validate_type_decl d in
+    let* () = validate_type_decl sig_ d in
     Ok (Prog.TypeDecl d)
 
 let check_spec_decl sig_ (d : Expr.expr Prog.decl) =

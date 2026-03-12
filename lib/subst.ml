@@ -53,7 +53,7 @@ module Test = struct
     let simple_sort = oneof [
       pure (mk Sort.Int);
       pure (mk Sort.Bool);
-      pure (mk Sort.Loc);
+      pure (mk (Sort.Ptr (mk Sort.Int)));
     ] in
     let* n = 0 -- 3 in
     let* entries = list_repeat n (

@@ -1,7 +1,7 @@
 type 'a sortF =
   | Int
   | Bool
-  | Loc
+  | Ptr of 'a
   | Record of 'a list
   | App of Dsort.t * 'a list
   | Pred of 'a
@@ -10,7 +10,7 @@ type 'a sortF =
 let map f = function
   | Int -> Int
   | Bool -> Bool
-  | Loc -> Loc
+  | Ptr t -> Ptr (f t)
   | Record ts -> Record (List.map f ts)
   | App (d, ts) -> App (d, List.map f ts)
   | Pred t -> Pred (f t)
@@ -34,9 +34,9 @@ and compare_sortF s1 s2 =
   | Bool, Bool -> 0
   | Bool, _ -> -1
   | _, Bool -> 1
-  | Loc, Loc -> 0
-  | Loc, _ -> -1
-  | _, Loc -> 1
+  | Ptr t1, Ptr t2 -> compare_sort t1 t2
+  | Ptr _, _ -> -1
+  | _, Ptr _ -> 1
   | Record ts1, Record ts2 -> compare_list ts1 ts2
   | Record _, _ -> -1
   | _, Record _ -> 1
@@ -65,12 +65,12 @@ let rec print fmt (In (s, _)) =
   match s with
   | Int -> Format.fprintf fmt "int"
   | Bool -> Format.fprintf fmt "bool"
-  | Loc -> Format.fprintf fmt "loc"
+  | Ptr t -> Format.fprintf fmt "@[<hov 2>ptr@ %a@]" print t
   | Record [] -> Format.fprintf fmt "()"
-  | Record [t] -> Format.fprintf fmt "(%a,)" print t
+  | Record [t] -> Format.fprintf fmt "(%a *)" print t
   | Record ts ->
     Format.fprintf fmt "@[<hov 2>(%a)@]"
-      (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") print)
+      (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt " *@ ") print)
       ts
   | App (d, []) -> Dsort.print fmt d
   | App (d, ts) ->
@@ -82,7 +82,8 @@ let rec print fmt (In (s, _)) =
 
 let rec is_spec_type (In (s, _)) =
   match s with
-  | Int | Bool | Loc -> true
+  | Int | Bool -> true
+  | Ptr t -> is_spec_type t
   | Record ts -> List.for_all is_spec_type ts
   | App (_, ts) -> List.for_all is_spec_type ts
   | Pred _ -> false
@@ -97,14 +98,14 @@ module Test = struct
         oneof [
           pure (mk Int);
           pure (mk Bool);
-          pure (mk Loc);
+          pure (mk (Ptr (mk Int)));
         ]
       else
         let sub = self (n / 3) in
         oneof [
           pure (mk Int);
           pure (mk Bool);
-          pure (mk Loc);
+          map (fun t -> mk (Ptr t)) sub;
           map (fun ts -> mk (Record ts)) (list_size (0 -- 3) sub);
           (let* d = Dsort.Test.gen in
            let* ts = list_size (0 -- 2) sub in
@@ -127,7 +128,8 @@ module Test = struct
            let rec contains_pred (In (sh, _)) =
              match sh with
              | Pred _ -> true
-             | Int | Bool | Loc | TVar _ -> false
+             | Int | Bool | TVar _ -> false
+             | Ptr t -> contains_pred t
              | Record ts -> List.exists contains_pred ts
              | App (_, ts) -> List.exists contains_pred ts
            in

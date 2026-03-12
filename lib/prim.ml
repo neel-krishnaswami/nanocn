@@ -35,6 +35,22 @@ let print fmt = function
   | Get ty -> Format.fprintf fmt "Get[%a]" Typ.print ty
   | Set ty -> Format.fprintf fmt "Set[%a]" Typ.print ty
 
+let spec_sort p =
+  let dummy = object method loc = SourcePos.dummy end in
+  let mk s = Sort.In (s, dummy) in
+  let int_sort = mk Sort.Int in
+  let bool_sort = mk Sort.Bool in
+  let pair_int = mk (Sort.Record [int_sort; int_sort]) in
+  let pair_bool = mk (Sort.Record [bool_sort; bool_sort]) in
+  match p with
+  | Add -> Some (pair_int, int_sort)
+  | Sub -> Some (pair_int, int_sort)
+  | Mul -> Some (pair_int, int_sort)
+  | And -> Some (pair_bool, bool_sort)
+  | Or -> Some (pair_bool, bool_sort)
+  | Not -> Some (bool_sort, bool_sort)
+  | Div | Eq _ | New _ | Del _ | Get _ | Set _ -> None
+
 module Test = struct
   let gen =
     let open QCheck.Gen in

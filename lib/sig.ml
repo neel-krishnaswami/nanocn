@@ -28,6 +28,24 @@ let rec lookup_spec_fun name = function
     Some (arg, ret)
   | _ :: rest -> lookup_spec_fun name rest
 
+let rec typ_to_sort (Typ.In (tf, b)) =
+  let sf = match tf with
+    | Typ.Int -> Sort.Int
+    | Typ.Bool -> Sort.Bool
+    | Typ.Ptr t -> Sort.Ptr (typ_to_sort t)
+    | Typ.Record ts -> Sort.Record (List.map typ_to_sort ts)
+    | Typ.App (d, ts) -> Sort.App (d, List.map typ_to_sort ts)
+    | Typ.TVar a -> Sort.TVar a
+  in
+  Sort.In (sf, b)
+
+let rec lookup_pure_fun name = function
+  | [] -> None
+  | Named (n, FunSig { arg; ret; eff = Effect.Pure }) :: _
+    when Var.compare name n = 0 ->
+    Some (typ_to_sort arg, typ_to_sort ret)
+  | _ :: rest -> lookup_pure_fun name rest
+
 let rec lookup_spec_val name = function
   | [] -> None
   | Named (n, SpecVal { sort }) :: _ when Var.compare name n = 0 ->

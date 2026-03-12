@@ -18,6 +18,11 @@ val lookup_fun : Var.t -> t -> (Typ.ty * Typ.ty * Effect.t) option
 val lookup_spec_fun : Var.t -> t -> (Sort.sort * Sort.sort) option
 (** [lookup_spec_fun f sig] returns [(arg, ret)] for a spec function. *)
 
+val lookup_pure_fun : Var.t -> t -> (Sort.sort * Sort.sort) option
+(** [lookup_pure_fun f sig] returns [(arg_sort, ret_sort)] for a pure
+    computational function, converting its type signature to sorts.
+    Returns [None] for impure functions or non-function entries. *)
+
 val lookup_spec_val : Var.t -> t -> Sort.sort option
 (** [lookup_spec_val f sig] returns the sort for a spec value. *)
 

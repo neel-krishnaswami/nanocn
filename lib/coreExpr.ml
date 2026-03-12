@@ -17,6 +17,7 @@ type 'a ceF =
   | Annot of 'a * Sort.sort
   | IntLit of int
   | BoolLit of bool
+  | Prim of Prim.t * 'a
 
 let map f = function
   | Var x -> Var x
@@ -38,6 +39,7 @@ let map f = function
   | Annot (a, s) -> Annot (f a, s)
   | IntLit n -> IntLit n
   | BoolLit b -> BoolLit b
+  | Prim (p, a) -> Prim (p, f a)
 
 type 'b t = In of 'b t ceF * 'b
 
@@ -86,6 +88,7 @@ let rec print fmt (In (s, _)) =
   | Annot (a, s) -> Format.fprintf fmt "@[<hov 2>%a :@ %a@]" print a Sort.print s
   | IntLit n -> Format.fprintf fmt "%d" n
   | BoolLit b -> Format.fprintf fmt "%s" (if b then "true" else "false")
+  | Prim (p, a) -> Format.fprintf fmt "@[<hov 2>%a@ %a@]" Prim.print p print a
 
 module Test = struct
   let gen =
@@ -113,6 +116,9 @@ module Test = struct
            let* e = sub in
            pure (mk (Con (l, e))));
           map (fun es -> mk (Tuple es)) (list_size (0 -- 3) sub);
+          (let* p = Prim.Test.gen in
+           let* e = sub in
+           pure (mk (Prim (p, e))));
         ])
 
   let test =

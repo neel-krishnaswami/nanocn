@@ -46,13 +46,13 @@ S {{ tex \Sigma }} :: 'Sig_' ::=                            {{ com signatures }}
   | S , f : F                          :: :: Ext
   | S , spec f : tau -> tau'           :: :: SpecFun  {{ tex [[S]], \mathsf{spec}\; [[f]] : [[tau]] \to [[tau']] }}
   | S , spec f : tau                   :: :: SpecVal  {{ tex [[S]], \mathsf{spec}\; [[f]] : [[tau]] }}
-  | S , sort D ( a1 , .. , ai ) = { L1 : tau1 '|' .. '|' Ln : taun }  :: :: Sort
-  | S , type D ( a1 , .. , ai ) = { L1 : A1 '|' .. '|' Ln : An }  :: :: Type
+  | S , sort D ( a1 , .. , ai ) = { L1 : tau1 '|' .. '|' Ln : taun }  :: :: Sort  {{ tex [[S]], \mathsf{sort}\;[[D]](\overline{a}) = \{\overline{L : \tau}\} }}
+  | S , type D ( a1 , .. , ai ) = { L1 : A1 '|' .. '|' Ln : An }  :: :: Type  {{ tex [[S]], \mathsf{type}\;[[D]](\overline{a}) = \{\overline{L : A}\} }}
 
 Phi {{ tex \Phi }} :: 'TVCtx_' ::=                             {{ com type variable contexts }}
   | notvs                              :: :: Empty          {{ tex \cdot }}
   | Phi , a                            :: :: Ext
-  | a1 , .. , ai                       :: :: List
+  | a1 , .. , ai                       :: :: List           {{ tex \overline{a} }}
 
 prim :: 'Prim_' ::=                                            {{ com primitives }}
   | Add                                :: :: Add            {{ com addition }}
@@ -96,7 +96,7 @@ prog :: 'Prog_' ::=                                        {{ com programs }}
 tau {{ tex \tau }} :: 'Sort_' ::=                          {{ com assertion sorts }}
   | int                                :: :: Int            {{ com integers }}
   | bool                               :: :: Bool           {{ com booleans }}
-  | loc                                :: :: Loc            {{ com locations }}
+  | ptr tau'                           :: :: Ptr            {{ com pointer }}
   | ( tau1 , .. , taun )               :: :: Record         {{ com tuple }}
   | D ( tau1 , .. , taun )             :: :: App            {{ com datasort application }}
   | pred tau'                          :: :: Pred           {{ com predicate sort }}
@@ -105,7 +105,7 @@ tau {{ tex \tau }} :: 'Sort_' ::=                          {{ com assertion sort
 stau {{ tex \sigma }} :: 'SSort_' ::=                      {{ com spec types }}
   | int                                :: :: Int            {{ com integers }}
   | bool                               :: :: Bool           {{ com booleans }}
-  | loc                                :: :: Loc            {{ com locations }}
+  | ptr stau'                          :: :: Ptr            {{ com pointer }}
   | ( stau1 , .. , staun )             :: :: Record         {{ com tuple }}
   | D ( stau1 , .. , staun )           :: :: App            {{ com datasort application }}
 
@@ -135,6 +135,8 @@ scrs {{ tex \overline{y} }} :: 'Scrs_' ::=                   {{ com scrutinee va
 
 ce :: 'CE_' ::=                                            {{ com core assertion expressions }}
   | x                                  :: :: Var
+  | lit                                :: :: IntLit         {{ com integer literal }}
+  | blit                               :: :: BoolLit        {{ com boolean literal }}
   | ce1 '==' ce2                       :: :: Eq            {{ tex [[ce1]] \doteq [[ce2]] }}
   | ce1 '&&' ce2                       :: :: And           {{ tex [[ce1]] \wedge [[ce2]] }}
   | not ce                             :: :: Not           {{ tex \neg [[ce]] }}
@@ -150,9 +152,12 @@ ce :: 'CE_' ::=                                            {{ com core assertion
   | let x = ce1 ; ce2                  :: :: Let
   | if ce1 then ce2 else ce3           :: :: If
   | ce : tau                           :: :: Annot
+  | prim ce                            :: :: Prim           {{ com primitive application }}
 
 se :: 'SE_' ::=                                            {{ com surface assertion expressions }}
   | x                                  :: :: Var
+  | lit                                :: :: IntLit         {{ com integer literal }}
+  | blit                               :: :: BoolLit        {{ com boolean literal }}
   | se1 '==' se2                       :: :: Eq            {{ tex [[se1]] \doteq [[se2]] }}
   | se1 '&&' se2                       :: :: And           {{ tex [[se1]] \wedge [[se2]] }}
   | not se                             :: :: Not           {{ tex \neg [[se]] }}
@@ -166,6 +171,7 @@ se :: 'SE_' ::=                                            {{ com surface assert
   | f                                  :: :: Const          {{ com spec constant }}
   | if se1 then se2 else se3           :: :: If
   | se : tau                           :: :: Annot
+  | prim se                            :: :: Prim           {{ com primitive application }}
 
 mbranches {{ tex M }} :: 'MB_' ::=                                {{ com match branches }}
   | nobranches                         :: :: Empty          {{ tex \cdot }}
@@ -193,65 +199,112 @@ formula :: 'formula_' ::=
   | L != L'                            :: :: label_neq   {{ tex [[L]] \neq [[L']] }}
   | mbranches = mk tau { pat1 --> se1 || .. || patn --> sen }  :: :: mk_branches  {{ tex [[mbranches]] = \overline{ pat \mathord{:} [[tau]], \cdot \to [\cdot][\cdot] \, se } }}
   | ce = fill E ce'                    :: :: fill_ctx      {{ tex [[ce]] = [[E]] [ [[ce']] ] }}
+  | prim : tau -> tau'                  :: :: spec_prim    {{ tex [[prim]] \mathord{:} [[tau]] \to [[tau']] }}
+  | D != D'                             :: :: dsort_neq  {{ tex [[D]] \neq [[D']] }}
+  | n = k                               :: :: arity_eq   {{ tex [[n]] = [[k]] }}
   | formula1 .. formulan                :: :: dots
 
 subrules
-  stau <:: tau
+  stau <:: A
+  A <:: tau
 
 defns Jtype :: '' ::=
 
-  defn Phi |- A wf :: :: type_wf :: 'TWf_'
-  {{ tex [[Phi]] \vdash [[A]] \;\mathsf{wf} }} by
+  defn S ; Phi |- A wf :: :: type_wf :: 'TWf_'
+  {{ tex [[S]] ; [[Phi]] \vdash [[A]] \;\mathsf{wf} }} by
 
     ------------- :: int
-    Phi |- int wf
+    S ; Phi |- int wf
 
     -------------- :: bool
-    Phi |- bool wf
+    S ; Phi |- bool wf
 
-    Phi |- A wf
+    S ; Phi |- A wf
     ---------------- :: ptr
-    Phi |- ptr A wf
+    S ; Phi |- ptr A wf
 
-    Phi |- A1 wf .. Phi |- An wf
-    -------------------------------- :: record
-    Phi |- ( A1 , .. , An ) wf
+    S ; Phi |- A1 wf .. S ; Phi |- An wf
+    ---------------------------------------- :: record
+    S ; Phi |- ( A1 , .. , An ) wf
 
-    Phi |- A1 wf .. Phi |- An wf
-    -------------------------------- :: app
-    Phi |- D ( A1 , .. , An ) wf
+    type D ( a1 , .. , ak ) in S    n = k
+    S ; Phi |- A1 wf .. S ; Phi |- An wf
+    ---------------------------------------- :: app
+    S ; Phi |- D ( A1 , .. , An ) wf
 
     a in Phi
     ------------- :: tvar
-    Phi |- a wf
+    S ; Phi |- a wf
 
-  defn Phi |- tau wf :: :: sort_wf :: 'SWf_'
-  {{ tex [[Phi]] \vdash [[tau]] \;\mathsf{wf} }} by
+  defn S ; Phi ; D' |- A guarded :: :: type_guarded :: 'TWfG_'
+  {{ tex [[S]] ; [[Phi]] ; [[D']] \vdash [[A]] \;\mathsf{guarded} }} by
 
     --------------- :: int
-    Phi |- int wf
+    S ; Phi ; D' |- int guarded
 
     ---------------- :: bool
-    Phi |- bool wf
+    S ; Phi ; D' |- bool guarded
 
-    --------------- :: loc
-    Phi |- loc wf
+    S ; Phi |- A wf
+    ------------------- :: ptr
+    S ; Phi ; D' |- ptr A guarded
 
-    Phi |- tau1 wf .. Phi |- taun wf
-    ------------------------------------ :: record
-    Phi |- ( tau1 , .. , taun ) wf
+    S ; Phi ; D' |- A1 guarded .. S ; Phi ; D' |- An guarded
+    ----------------------------------------------------------- :: record
+    S ; Phi ; D' |- ( A1 , .. , An ) guarded
 
-    Phi |- tau1 wf .. Phi |- taun wf
-    ------------------------------------ :: app
-    Phi |- D ( tau1 , .. , taun ) wf
+    type D ( a1 , .. , ak ) in S    n = k    D != D'
+    S ; Phi ; D' |- A1 guarded .. S ; Phi ; D' |- An guarded
+    ----------------------------------------------------------- :: app
+    S ; Phi ; D' |- D ( A1 , .. , An ) guarded
 
-    Phi |- tau wf
+    a in Phi
+    --------------- :: tvar
+    S ; Phi ; D' |- a guarded
+
+  defn S |- sort D ( a1 , .. , ai ) = { L1 : tau1 '|' .. '|' Ln : taun } sort_ok :: :: sort_decl_wf :: 'SDWf_'
+  {{ tex [[S]] \vdash \mathsf{sort}\; [[D]](\overline{a}) = \{\overline{L : \tau}\} \;\mathsf{ok} }} by
+
+    S , sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } ; a1 , .. , ai |- tau1 wf .. S , sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } ; a1 , .. , ai |- taun wf
+    ---------------------------------------------------------------------------- :: ok
+    S |- sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } sort_ok
+
+  defn S |- type D ( a1 , .. , ai ) = { L1 : A1 '|' .. '|' Ln : An } type_ok :: :: type_decl_wf :: 'TDWf_'
+  {{ tex [[S]] \vdash \mathsf{type}\; [[D]](\overline{a}) = \{\overline{L : A}\} \;\mathsf{ok} }} by
+
+    S , type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } ; a1 , .. , ai ; D |- A1 guarded .. S , type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } ; a1 , .. , ai ; D |- An guarded
+    ---------------------------------------------------------------------------- :: ok
+    S |- type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } type_ok
+
+  defn S ; Phi |- tau wf :: :: sort_wf :: 'SWf_'
+  {{ tex [[S]] ; [[Phi]] \vdash [[tau]] \;\mathsf{wf} }} by
+
+    --------------- :: int
+    S ; Phi |- int wf
+
+    ---------------- :: bool
+    S ; Phi |- bool wf
+
+    S ; Phi |- tau wf
+    ------------------- :: ptr
+    S ; Phi |- ptr tau wf
+
+    S ; Phi |- tau1 wf .. S ; Phi |- taun wf
+    -------------------------------------------- :: record
+    S ; Phi |- ( tau1 , .. , taun ) wf
+
+    sort D ( a1 , .. , ak ) in S    n = k
+    S ; Phi |- tau1 wf .. S ; Phi |- taun wf
+    -------------------------------------------- :: app
+    S ; Phi |- D ( tau1 , .. , taun ) wf
+
+    S ; Phi |- tau wf
     ------------------- :: pred
-    Phi |- pred tau wf
+    S ; Phi |- pred tau wf
 
     a in Phi
     ------------- :: tvar
-    Phi |- a wf
+    S ; Phi |- a wf
 
   defn A eqtype :: :: eqtype :: 'EqTy_'
   {{ tex [[A]] \;\mathsf{eqtype} }} by
@@ -316,6 +369,27 @@ defns Jtype :: '' ::=
 
     -------------------------------------------------- :: set
     Set [ A ] : ( ptr A , A ) -> ( ) [ impure ]
+
+  defn prim : tau -> tau' :: :: spec_prim_type :: 'SPT_'
+  {{ tex [[prim]] \mathord{:} [[tau]] \to [[tau']] }} by
+
+    ----------------------------------- :: add
+    Add : ( int , int ) -> int
+
+    ----------------------------------- :: sub
+    Sub : ( int , int ) -> int
+
+    ----------------------------------- :: mul
+    Mul : ( int , int ) -> int
+
+    --------------------------------------- :: and
+    And : ( bool , bool ) -> bool
+
+    --------------------------------------- :: or
+    Or : ( bool , bool ) -> bool
+
+    ----------------------------- :: not
+    Not : bool -> bool
 
   defn S ; G |- e ==> A [ eff ] :: :: synth :: 'Syn_'
   {{ tex [[S]] ; [[G]] \vdash_{[[eff]]} [[e]] \Rightarrow [[A]] }} by
@@ -408,12 +482,12 @@ defns Jtype :: '' ::=
     ------------------------------------------------- :: specdef
     S |- spec f : tau = se prog
 
-    a1 , .. , ai |- tau1 wf .. a1 , .. , ai |- taun wf
+    S |- sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } sort_ok
     S , sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } |- prog
     ---------------------------------------------------------------------------- :: sortdecl
     S |- sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } prog
 
-    a1 , .. , ai |- A1 wf .. a1 , .. , ai |- An wf
+    S |- type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } type_ok
     S , type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } |- prog
     ---------------------------------------------------------------------------- :: typedecl
     S |- type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } prog
@@ -447,6 +521,12 @@ defns Jcore :: '' ::=
     ----------------------- :: var
     S ; G |- x ==> tau
 
+    ----------------------- :: int
+    S ; G |- lit ==> int
+
+    -------------------------- :: bool
+    S ; G |- blit ==> bool
+
     S ; G |- ce1 ==> stau    S ; G |- ce2 <== stau
     ------------------------------------------------- :: eq
     S ; G |- ce1 == ce2 ==> bool
@@ -466,6 +546,10 @@ defns Jcore :: '' ::=
     -------------------------------------------------- :: call
     S ; G |- f ce ==> tau'
 
+    f : stau -> stau' [ pure ] in S    S ; G |- ce <== stau
+    -------------------------------------------------------- :: purecall
+    S ; G |- f ce ==> stau'
+
     spec f : tau in S
     ----------------------- :: const
     S ; G |- f ==> tau
@@ -473,6 +557,10 @@ defns Jcore :: '' ::=
     S ; G |- ce <== tau
     ---------------------------------- :: annot
     S ; G |- ce : tau ==> tau
+
+    prim : tau -> tau'    S ; G |- ce <== tau
+    ------------------------------------------- :: prim
+    S ; G |- prim ce ==> tau'
 
   defn S ; G |- ce <== tau :: :: core_check :: 'CoreChk_'
   {{ tex [[S]] ; [[G]] \vdash [[ce]] \Leftarrow [[tau]] }} by
@@ -523,6 +611,12 @@ defns Jassert :: '' ::=
     ----------------------- :: var
     S ; G |- x ==> tau ~~> x
 
+    ----------------------- :: int
+    S ; G |- lit ==> int ~~> lit
+
+    -------------------------- :: bool
+    S ; G |- blit ==> bool ~~> blit
+
     S ; G |- se1 ==> stau ~~> ce1    S ; G |- se2 <== stau ~~> ce2
     ------------------------------------------------- :: eq
     S ; G |- se1 == se2 ==> bool ~~> ce1 == ce2
@@ -539,6 +633,10 @@ defns Jassert :: '' ::=
     -------------------------------------------------- :: call
     S ; G |- f se ==> tau' ~~> f ce
 
+    f : stau -> stau' [ pure ] in S    S ; G |- se <== stau ~~> ce
+    --------------------------------------------------------------- :: purecall
+    S ; G |- f se ==> stau' ~~> f ce
+
     spec f : tau in S
     ----------------------- :: const
     S ; G |- f ==> tau ~~> f
@@ -546,6 +644,10 @@ defns Jassert :: '' ::=
     S ; G |- se <== tau ~~> ce
     ---------------------------------- :: annot
     S ; G |- se : tau ==> tau ~~> ce : tau
+
+    prim : tau -> tau'    S ; G |- se <== tau ~~> ce
+    -------------------------------------------------- :: prim
+    S ; G |- prim se ==> tau' ~~> prim ce
 
   defn S ; G |- se <== tau ~~> ce :: :: spec_check :: 'SpecChk_'
   {{ tex [[S]] ; [[G]] \vdash [[se]] \Leftarrow [[tau]] \leadsto [[ce]] }} by

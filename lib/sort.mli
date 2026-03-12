@@ -1,13 +1,13 @@
 (** Assertion sorts (τ).
 
-    Sorts classify assertion-language values: integers, booleans, locations,
+    Sorts classify assertion-language values: integers, booleans, pointers,
     tuples, datasort applications, and predicates. *)
 
 (** The shape functor for sorts. ['a] is the recursive occurrence. *)
 type 'a sortF =
   | Int
   | Bool
-  | Loc
+  | Ptr of 'a
   | Record of 'a list
   | App of Dsort.t * 'a list
   | Pred of 'a

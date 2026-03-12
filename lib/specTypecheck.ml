@@ -67,7 +67,13 @@ let rec synth sig_ ctx (CoreExpr.In (shape, info)) =
      | Some (arg_sort, ret_sort) ->
        let* arg' = check sig_ ctx arg arg_sort in
        Ok (mk ctx pos ret_sort (CoreExpr.Call (name, arg')))
-     | None -> err_at_f pos "unknown spec function %a" Var.print name)
+     | None ->
+       match Sig.lookup_pure_fun name sig_ with
+       | Some (arg_sort, ret_sort) ->
+         let* arg' = check sig_ ctx arg arg_sort in
+         Ok (mk ctx pos ret_sort (CoreExpr.Call (name, arg')))
+       | None ->
+         err_at_f pos "unknown spec function %a" Var.print name)
 
   | CoreExpr.Const name ->
     (match Sig.lookup_spec_val name sig_ with
@@ -77,6 +83,15 @@ let rec synth sig_ ctx (CoreExpr.In (shape, info)) =
   | CoreExpr.Annot (ce, s) ->
     let* ce' = check sig_ ctx ce s in
     Ok (mk ctx pos s (CoreExpr.Annot (ce', s)))
+
+  | CoreExpr.Prim (p, arg) ->
+    (match Prim.spec_sort p with
+     | Some (arg_sort, ret_sort) ->
+       let* arg' = check sig_ ctx arg arg_sort in
+       Ok (mk ctx pos ret_sort (CoreExpr.Prim (p, arg')))
+     | None ->
+       err_at_f pos "primitive %a is not available in spec expressions"
+         Prim.print p)
 
   | CoreExpr.Return _ | CoreExpr.Take _ | CoreExpr.Let _
   | CoreExpr.Con _ | CoreExpr.Case _ | CoreExpr.Tuple _

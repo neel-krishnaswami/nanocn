@@ -151,7 +151,13 @@ let rec synth sig_ ctx (SurfExpr.In (shape, info)) =
      | Some (arg_sort, ret_sort) ->
        let* ce_arg = check sig_ ctx arg arg_sort in
        ElabM.return (mk_ce pos (CoreExpr.Call (name, ce_arg)), ret_sort)
-     | None -> fail_at_f pos "unknown spec function %a" Var.print name)
+     | None ->
+       match Sig.lookup_pure_fun name sig_ with
+       | Some (arg_sort, ret_sort) ->
+         let* ce_arg = check sig_ ctx arg arg_sort in
+         ElabM.return (mk_ce pos (CoreExpr.Call (name, ce_arg)), ret_sort)
+       | None ->
+         fail_at_f pos "unknown spec function %a" Var.print name)
 
   | SurfExpr.Const name ->
     (match Sig.lookup_spec_val name sig_ with
@@ -161,6 +167,15 @@ let rec synth sig_ ctx (SurfExpr.In (shape, info)) =
   | SurfExpr.Annot (se, s) ->
     let* ce = check sig_ ctx se s in
     ElabM.return (mk_ce pos (CoreExpr.Annot (ce, s)), s)
+
+  | SurfExpr.Prim (p, arg) ->
+    (match Prim.spec_sort p with
+     | Some (arg_sort, ret_sort) ->
+       let* ce_arg = check sig_ ctx arg arg_sort in
+       ElabM.return (mk_ce pos (CoreExpr.Prim (p, ce_arg)), ret_sort)
+     | None ->
+       fail_at_f pos "primitive %a is not available in spec expressions"
+         Prim.print p)
 
   | SurfExpr.Return _ | SurfExpr.Take _ | SurfExpr.Let _
   | SurfExpr.Tuple _ | SurfExpr.Inject _ | SurfExpr.Case _

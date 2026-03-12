@@ -40,9 +40,6 @@
   let mk_var startpos endpos s =
     Var.of_string s (mk_loc startpos endpos)
 
-  (** Built-in spec function names for arithmetic desugaring *)
-  let spec_arith_var name startpos endpos =
-    Var.of_string name (mk_loc startpos endpos)
 %}
 
 %token <int> INT_LIT
@@ -53,7 +50,7 @@
 %token PURE IMPURE
 %token SET GET NEW DEL
 %token TRUE FALSE IF THEN ELSE NOT_KW
-%token SPEC SORT TYPE TAKE RETURN PRED LOC OF OWN EQEQ EQ
+%token SPEC SORT TYPE TAKE RETURN PRED OF OWN EQEQ EQ
 %token PLUS MINUS STAR SLASH
 %token AMPAMP BARBAR
 %token LBRACKET RBRACKET LPAREN RPAREN LBRACE RBRACE
@@ -174,6 +171,8 @@ effect:
 sort:
   | PRED; s = atomic_sort
     { mk_sort $startpos $endpos (Sort.Pred s) }
+  | PTR; s = atomic_sort
+    { mk_sort $startpos $endpos (Sort.Ptr s) }
   | s = atomic_sort
     { s }
 
@@ -182,14 +181,12 @@ atomic_sort:
     { mk_sort $startpos $endpos (Sort.Record []) }
   | LPAREN; s = sort; RPAREN
     { s }
-  | LPAREN; s = sort; COMMA; ss = separated_nonempty_list(COMMA, sort); RPAREN
+  | LPAREN; s = sort; STAR; ss = separated_nonempty_list(STAR, sort); RPAREN
     { mk_sort $startpos $endpos (Sort.Record (s :: ss)) }
   | INT_KW
     { mk_sort $startpos $endpos Sort.Int }
   | BOOL_KW
     { mk_sort $startpos $endpos Sort.Bool }
-  | LOC
-    { mk_sort $startpos $endpos Sort.Loc }
   | d = IDENT; LPAREN; ss = separated_nonempty_list(COMMA, sort); RPAREN
     { mk_sort $startpos $endpos (Sort.App (dsort d, ss)) }
   | d = IDENT
@@ -253,25 +250,18 @@ spec_eq_expr:
 
 spec_add_expr:
   | e1 = spec_add_expr; PLUS; e2 = spec_mul_expr
-    { let name = spec_arith_var "__add" $startpos $endpos in
-      let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
-      mk_surfexpr $startpos $endpos (SurfExpr.Call (name, tup)) }
+    { let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.Prim (Prim.Add, tup)) }
   | e1 = spec_add_expr; MINUS; e2 = spec_mul_expr
-    { let name = spec_arith_var "__sub" $startpos $endpos in
-      let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
-      mk_surfexpr $startpos $endpos (SurfExpr.Call (name, tup)) }
+    { let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.Prim (Prim.Sub, tup)) }
   | e = spec_mul_expr
     { e }
 
 spec_mul_expr:
   | e1 = spec_mul_expr; STAR; e2 = spec_app_expr
-    { let name = spec_arith_var "__mul" $startpos $endpos in
-      let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
-      mk_surfexpr $startpos $endpos (SurfExpr.Call (name, tup)) }
-  | e1 = spec_mul_expr; SLASH; e2 = spec_app_expr
-    { let name = spec_arith_var "__div" $startpos $endpos in
-      let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
-      mk_surfexpr $startpos $endpos (SurfExpr.Call (name, tup)) }
+    { let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.Prim (Prim.Mul, tup)) }
   | e = spec_app_expr
     { e }
 

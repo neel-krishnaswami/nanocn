@@ -88,7 +88,7 @@ module Test = struct
     let simple_sort = oneof [
       pure (mk_sort Sort.Int);
       pure (mk_sort Sort.Bool);
-      pure (mk_sort Sort.Loc);
+      pure (mk_sort (Sort.Ptr (mk_sort Sort.Int)));
     ] in
     let* name = Dsort.Test.gen in
     let* n_params = 0 -- 2 in

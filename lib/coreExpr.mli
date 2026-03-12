@@ -23,6 +23,7 @@ type 'a ceF =
   | Annot of 'a * Sort.sort
   | IntLit of int
   | BoolLit of bool
+  | Prim of Prim.t * 'a
 
 val map : ('a -> 'b) -> 'a ceF -> 'b ceF
 
