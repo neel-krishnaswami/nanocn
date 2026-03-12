@@ -5,6 +5,7 @@ type 'a sortF =
   | Record of 'a list
   | App of Dsort.t * 'a list
   | Pred of 'a
+  | TVar of Tvar.t
 
 let map f = function
   | Int -> Int
@@ -13,6 +14,7 @@ let map f = function
   | Record ts -> Record (List.map f ts)
   | App (d, ts) -> App (d, List.map f ts)
   | Pred t -> Pred (f t)
+  | TVar a -> TVar a
 
 type 'b t = In of 'b t sortF * 'b
 
@@ -44,6 +46,9 @@ and compare_sortF s1 s2 =
   | App _, _ -> -1
   | _, App _ -> 1
   | Pred t1, Pred t2 -> compare_sort t1 t2
+  | Pred _, _ -> -1
+  | _, Pred _ -> 1
+  | TVar a1, TVar a2 -> Tvar.compare a1 a2
 
 and compare_list ts1 ts2 =
   match ts1, ts2 with
@@ -73,6 +78,7 @@ let rec print fmt (In (s, _)) =
       (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") print)
       ts
   | Pred t -> Format.fprintf fmt "@[<hov 2>pred@ %a@]" print t
+  | TVar a -> Tvar.print fmt a
 
 let rec is_spec_type (In (s, _)) =
   match s with
@@ -80,6 +86,7 @@ let rec is_spec_type (In (s, _)) =
   | Record ts -> List.for_all is_spec_type ts
   | App (_, ts) -> List.for_all is_spec_type ts
   | Pred _ -> false
+  | TVar _ -> true
 
 module Test = struct
   let gen =
@@ -103,6 +110,7 @@ module Test = struct
            let* ts = list_size (0 -- 2) sub in
            pure (mk (App (d, ts))));
           map (fun t -> mk (Pred t)) sub;
+          map (fun a -> mk (TVar a)) Tvar.Test.gen;
         ])
 
   let test =
@@ -119,7 +127,7 @@ module Test = struct
            let rec contains_pred (In (sh, _)) =
              match sh with
              | Pred _ -> true
-             | Int | Bool | Loc -> false
+             | Int | Bool | Loc | TVar _ -> false
              | Record ts -> List.exists contains_pred ts
              | App (_, ts) -> List.exists contains_pred ts
            in

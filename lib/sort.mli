@@ -11,6 +11,7 @@ type 'a sortF =
   | Record of 'a list
   | App of Dsort.t * 'a list
   | Pred of 'a
+  | TVar of Tvar.t
 
 val map : ('a -> 'b) -> 'a sortF -> 'b sortF
 

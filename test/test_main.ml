@@ -13,6 +13,8 @@ let qcheck_tests =
     Dsort.Test.test;
     Tvar.Test.test;
     Sort.Test.test;
+    DsortDecl.Test.test;
+    Subst.Test.test;
   ]
 
 (** Helper to extract type from a typed_expr *)
