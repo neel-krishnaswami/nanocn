@@ -43,6 +43,10 @@ let toplevel () =
         LNoise.history_add line |> ignore;
         if starts_with_prefix line "fun " then
           handle_decl sig_ ctx line
+        else if starts_with_prefix line "sort " then
+          handle_spec_decl sig_ ctx line
+        else if starts_with_prefix line "spec " then
+          handle_spec_decl sig_ ctx line
         else if starts_with_prefix line "let " then
           handle_let sig_ ctx line
         else
@@ -68,6 +72,37 @@ let toplevel () =
         | _ ->
           Format.eprintf "@[<v>ERROR:@ unexpected declaration form@]@.";
           loop sig_ ctx
+  and handle_spec_decl sig_ ctx line =
+    match Parse.parse_decl line ~file:"<toplevel>" with
+    | Error msg ->
+      Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
+      loop sig_ ctx
+    | Ok d ->
+      match Typecheck.check_spec_decl sig_ d with
+      | Error msg ->
+        Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
+        loop sig_ ctx
+      | Ok sig' ->
+        (match d with
+         | Prog.SortDecl dd ->
+           if dd.DsortDecl.params = [] then
+             Format.printf "sort %a@." Dsort.print dd.name
+           else
+             Format.printf "sort %a(%a)@." Dsort.print dd.name
+               (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ")
+                  Tvar.print) dd.DsortDecl.params;
+           loop sig' ctx
+         | Prog.SpecFunDecl dd ->
+           Format.printf "spec %a : %a -> %a@."
+             Var.print dd.name Sort.print dd.arg_sort Sort.print dd.ret_sort;
+           loop sig' ctx
+         | Prog.SpecDefDecl dd ->
+           Format.printf "spec %a : %a@."
+             Var.print dd.name Sort.print dd.sort;
+           loop sig' ctx
+         | Prog.FunDecl fd ->
+           print_fun_sig fd.name fd.arg_ty fd.ret_ty fd.eff;
+           loop sig' ctx)
   and handle_let sig_ ctx line =
     match Parse.parse_let line ~file:"<toplevel>" with
     | Error msg ->
@@ -100,7 +135,7 @@ let toplevel () =
         Format.printf "_ : %a [%a]@." Typ.print ty Effect.print eff;
         loop sig_ ctx
   in
-  loop Sig.empty Context.empty
+  loop Typecheck.initial_sig Context.empty
 
 let () =
   match Sys.argv with
