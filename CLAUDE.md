@@ -17,8 +17,11 @@ Instructions to Claude for writing OCaml code:
       a change to the code is made, the Ott file for the syntax and typing rules must be updated 
       as well. 
 
-1. Programs should be composed of small modules, each implementing a single concern or 
-   data structure.
+1. Programs should be composed of small modules, each implementing a single concern or
+   data structure. However, mutual recursion between functions is a good reason to
+   place them in the same module — prefer a single larger module with `and`-linked
+   mutually recursive functions over separate modules connected by callbacks or
+   recursive module declarations.
 
 2. Write .mli files first, before writing any part of a module.
 

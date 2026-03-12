@@ -404,18 +404,19 @@ val synth : Sig.t -> Context.t -> CoreExpr.ce -> (typed_ce, string) result
 val check : Sig.t -> Context.t -> CoreExpr.ce -> Sort.sort -> (typed_ce, string) result
 ```
 
-### 5d. `Coverage` module — pattern match compilation
+### 5d. `Elaborate` module — surface elaboration and pattern match compilation
 
-Implements the coverage/match compilation judgement. This is the most complex
-part of the implementation. It takes a match matrix (list of branches with
-pattern bindings, contexts, evaluation contexts, and body expressions) and
-compiles it to a core expression.
+This single module implements both the surface→core elaboration
+(`spec_synth`/`spec_check`) and the coverage/pattern match compilation
+judgement (`coverage_check`). These are mutually recursive: elaboration
+calls coverage for `case`/`let`/`take` with patterns, and coverage calls
+elaboration at `Cov_done` to elaborate the branch body. Placing them in
+the same module lets us use OCaml's `and` for mutual recursion, avoiding
+callbacks or recursive modules.
 
-Key data types:
+Key coverage data types:
 
 ```ocaml
-(* coverage.mli *)
-
 (** A single binding: pattern with its sort *)
 type binding = Pat.pat * Sort.sort
 
@@ -429,25 +430,18 @@ type branch = {
 
 (** Scrutinee variable list *)
 type scrutinees = Var.t list
-
-val check :
-  Sig.t -> Context.t -> scrutinees -> branch list -> Sort.sort ->
-  CoreExpr.ce ElabM.t
 ```
 
-Internally, `check` dispatches on the form of the leading pattern column:
+Coverage dispatches on the form of the leading pattern column:
 - All variables → `strip_var` then recurse
 - Has constructor patterns → `spec_con` to group by constructor, emit `case`
 - Has tuple patterns → `expand_tup` to flatten, emit `let (...) = y`
-- Empty scrutinees, single branch → `done`: typecheck body, apply eval context
+- Empty scrutinees, single branch → `done`: elaborate body, apply eval context
 
 Each case uses `ElabM.fresh` to generate fresh scrutinee and binding
 variables as needed.
 
-### 5e. `Elaborate` module — surface expression elaboration
-
-Implements `spec_synth` and `spec_check`: bidirectional typechecking of
-surface expressions that simultaneously elaborates them to core expressions.
+Elaboration interface:
 
 ```ocaml
 (* elaborate.mli *)
@@ -458,12 +452,12 @@ val check : Sig.t -> Context.t -> SurfExpr.se -> Sort.sort ->
   CoreExpr.ce ElabM.t
 ```
 
-The elaboration of `case`, `let`, and `take` invokes Coverage.check.
+The elaboration of `case`, `let`, and `take` calls `coverage_check`.
 For example, `case se of { pat1 -> se1 | ... | patn -> sen }`:
 1. Synthesize the scrutinee type τ'
 2. Build the match matrix: `mk τ' { pat1 --> se1 || ... || patn --> sen }`
 3. `let* y = ElabM.fresh` for the scrutinee variable
-4. Call `Coverage.check` to get the body `ce`
+4. Call `coverage_check` to get the body `ce`
 5. Return `let y = ce'; ce`
 
 
@@ -620,7 +614,7 @@ the .mli file first, then the .ml implementation, then QCheck tests.
 2. **Phase 2** (DsortDecl, Subst) — depends on Phase 1
 3. **Phase 3** (Pat, CoreExpr, SurfExpr, EvalCtx) — depends on Phases 1-2
 4. **Phase 4** (Context/Sig extensions) — depends on Phases 1-2, touches existing code
-5. **Phase 5** (SpecTypecheck, Coverage, Elaborate) — depends on all above
+5. **Phase 5** (SpecTypecheck, Elaborate) — depends on all above
 6. **Phase 6** (Lexer/Parser) — depends on Phases 1-3
 7. **Phase 7** (Prog extension) — depends on Phases 5-6
 8. **Phase 8** (REPL) — depends on Phase 7
@@ -638,9 +632,12 @@ are mostly independent (Phase 6 just needs the types from 1-3).
    enforce the separation: assertion expressions can only use spec variables,
    and computational expressions can only use comp variables.
 
-3. **Pattern match compilation is done during elaboration.** The Coverage
-   module implements the matrix decomposition algorithm from the Ott spec.
-   Surface patterns are compiled into core case/let expressions.
+3. **Pattern match compilation is done during elaboration.** The Elaborate
+   module contains both surface→core elaboration and the matrix decomposition
+   algorithm from the Ott spec, as mutually recursive functions. Surface
+   patterns are compiled into core case/let expressions. These live in one
+   module because elaboration calls coverage (for case/let/take with patterns)
+   and coverage calls elaboration (at Cov_done to elaborate branch bodies).
 
 4. **Fresh variable generation.** Coverage needs fresh variables. The `Var`
    module has a purely functional `supply` type with
