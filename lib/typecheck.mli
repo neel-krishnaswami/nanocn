@@ -19,3 +19,10 @@ val check_prog : Expr.expr Prog.t -> (typed_expr Prog.t, string) result
 
 val check_decl : Sig.t -> Expr.expr Prog.decl -> (typed_expr Prog.decl, string) result
 (** Typecheck a single declaration against a signature. *)
+
+val initial_sig : Sig.t
+(** The initial signature with built-in spec functions (__add, etc.). *)
+
+val check_spec_decl : Sig.t -> Expr.expr Prog.decl -> (Sig.t, string) result
+(** [check_spec_decl sig d] validates a spec or sort declaration,
+    returning the updated signature. *)

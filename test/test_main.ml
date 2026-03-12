@@ -614,4 +614,75 @@ let () =
         | Ok _ -> Alcotest.fail "expected SpecDefDecl"
         | Error msg -> Alcotest.fail msg);
     ]);
+
+    ("typecheck-spec", [
+      Alcotest.test_case "typecheck sort decl" `Quick (fun () ->
+        let src = "sort color = { Red : () | Blue : () }" in
+        match Parse.parse_decl src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse: " ^ msg)
+        | Ok d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig d with
+          | Ok _ -> ()
+          | Error msg -> Alcotest.fail ("typecheck: " ^ msg));
+
+      Alcotest.test_case "sort decl no ctors fails" `Quick (fun () ->
+        (* Can't parse an empty sort, so build one manually *)
+        let d = Prog.SortDecl DsortDecl.{
+          name = (match Dsort.of_string "empty" with Ok d -> d | _ -> failwith "impossible");
+          params = [];
+          ctors = [];
+          loc = SourcePos.dummy;
+        } in
+        match Typecheck.check_spec_decl Typecheck.initial_sig d with
+        | Ok _ -> Alcotest.fail "should fail on empty sort"
+        | Error _ -> ());
+
+      Alcotest.test_case "sort decl duplicate ctors fails" `Quick (fun () ->
+        let mk_label s = match Label.of_string s with Ok l -> l | _ -> failwith "impossible" in
+        let unit_sort = Sort.In (Sort.Record [], (object method loc = SourcePos.dummy end)) in
+        let d = Prog.SortDecl DsortDecl.{
+          name = (match Dsort.of_string "bad" with Ok d -> d | _ -> failwith "impossible");
+          params = [];
+          ctors = [(mk_label "Aa", unit_sort); (mk_label "Aa", unit_sort)];
+          loc = SourcePos.dummy;
+        } in
+        match Typecheck.check_spec_decl Typecheck.initial_sig d with
+        | Ok _ -> Alcotest.fail "should fail on duplicate ctors"
+        | Error _ -> ());
+
+      Alcotest.test_case "typecheck spec def" `Quick (fun () ->
+        let src = "spec zero : int = 0" in
+        match Parse.parse_decl src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse: " ^ msg)
+        | Ok d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig d with
+          | Ok _ -> ()
+          | Error msg -> Alcotest.fail ("typecheck: " ^ msg));
+
+      Alcotest.test_case "typecheck spec fun" `Quick (fun () ->
+        (* First register a sort, then a spec function using it *)
+        let sort_src = "sort color = { Red : () | Blue : () }" in
+        match Parse.parse_decl sort_src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse sort: " ^ msg)
+        | Ok sort_d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig sort_d with
+          | Error msg -> Alcotest.fail ("typecheck sort: " ^ msg)
+          | Ok sig1 ->
+            let fun_src = "spec isRed : color -> int = { Red () -> 1 | Blue () -> 0 }" in
+            match Parse.parse_decl fun_src ~file:"test" with
+            | Error msg -> Alcotest.fail ("parse fun: " ^ msg)
+            | Ok fun_d ->
+              match Typecheck.check_spec_decl sig1 fun_d with
+              | Ok _ -> ()
+              | Error msg -> Alcotest.fail ("typecheck fun: " ^ msg));
+
+      Alcotest.test_case "typecheck spec def with arithmetic" `Quick (fun () ->
+        let src = "spec five : int = 2 + 3" in
+        match Parse.parse_decl src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse: " ^ msg)
+        | Ok d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig d with
+          | Ok _ -> ()
+          | Error msg -> Alcotest.fail ("typecheck: " ^ msg));
+    ]);
   ]

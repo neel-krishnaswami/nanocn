@@ -223,6 +223,40 @@ and check_branches sig_ ctx branches cases ty eff pos =
      | None ->
        err_at_f pos "branch label %a not in sum type" Label.print l)
 
+(** Built-in spec functions for arithmetic desugaring *)
+let mk_sort_dummy s = Sort.In (s, object method loc = SourcePos.dummy end)
+
+let initial_sig =
+  let int_sort = mk_sort_dummy Sort.Int in
+  let pair_int = mk_sort_dummy (Sort.Record [int_sort; int_sort]) in
+  let mk_arith name =
+    let v = Var.of_string name SourcePos.dummy in
+    (v, Sig.SpecFun { arg = pair_int; ret = int_sort })
+  in
+  let entries = [
+    mk_arith "__add";
+    mk_arith "__sub";
+    mk_arith "__mul";
+    mk_arith "__div";
+  ] in
+  List.fold_left (fun s (v, e) -> Sig.extend v e s) Sig.empty entries
+
+(** Validate a datasort declaration *)
+let validate_sort_decl (d : DsortDecl.t) =
+  if List.length d.ctors = 0 then
+    Error "sort declaration must have at least one constructor"
+  else
+    let labels = DsortDecl.ctor_labels d in
+    let rec check_dups = function
+      | [] -> Ok ()
+      | l :: rest ->
+        if List.exists (fun l' -> Label.compare l l' = 0) rest then
+          Error (Format.asprintf "duplicate constructor %a in sort declaration"
+                   Label.print l)
+        else check_dups rest
+    in
+    check_dups labels
+
 let check_decl sig_ (d : Expr.expr Prog.decl) =
   match d with
   | Prog.FunDecl d ->
@@ -234,12 +268,49 @@ let check_decl sig_ (d : Expr.expr Prog.decl) =
     let ctx = Context.extend_comp d.param d.arg_ty Context.empty in
     let* body' = check sig_for_body ctx d.body d.ret_ty d.eff in
     Ok (Prog.FunDecl { d with body = body' })
-  | Prog.SpecFunDecl _ ->
-    Error "spec function declarations not yet implemented"
-  | Prog.SpecDefDecl _ ->
-    Error "spec definition declarations not yet implemented"
-  | Prog.SortDecl _ ->
-    Error "sort declarations not yet implemented"
+  | Prog.SpecFunDecl d ->
+    (* Add recursive binding to sig *)
+    let sig_with_self = Sig.extend d.name
+      (Sig.SpecFun { arg = d.arg_sort; ret = d.ret_sort }) sig_ in
+    (* Build match matrix and elaborate *)
+    let result = ElabM.run (
+      let open ElabM in
+      let* y = fresh d.loc in
+      let branches = List.map (fun (pat, body) ->
+        Elaborate.({ bindings = [(pat, d.arg_sort)];
+                     spec_bindings = [];
+                     ectx = EvalCtx.Hole;
+                     body })
+      ) d.branches in
+      let* _ce = Elaborate.coverage_check sig_with_self Context.empty
+        [y] branches d.ret_sort in
+      return ()
+    ) in
+    let* () = result in
+    Ok (Prog.SpecFunDecl d)
+  | Prog.SpecDefDecl d ->
+    let result = ElabM.run (
+      let open ElabM in
+      let* _ce = Elaborate.check sig_ Context.empty d.body d.sort in
+      return ()
+    ) in
+    let* () = result in
+    Ok (Prog.SpecDefDecl d)
+  | Prog.SortDecl d ->
+    let* () = validate_sort_decl d in
+    Ok (Prog.SortDecl d)
+
+let check_spec_decl sig_ (d : Expr.expr Prog.decl) =
+  let* _d' = check_decl sig_ d in
+  match d with
+  | Prog.SortDecl dd ->
+    Ok (Sig.extend_sort sig_ dd)
+  | Prog.SpecFunDecl dd ->
+    Ok (Sig.extend dd.name (Sig.SpecFun { arg = dd.arg_sort; ret = dd.ret_sort }) sig_)
+  | Prog.SpecDefDecl dd ->
+    Ok (Sig.extend dd.name (Sig.SpecVal { sort = dd.sort }) sig_)
+  | Prog.FunDecl dd ->
+    Ok (Sig.extend dd.name (Sig.FunSig { arg = dd.arg_ty; ret = dd.ret_ty; eff = dd.eff }) sig_)
 
 let check_prog (p : Expr.expr Prog.t) : (typed_expr Prog.t, string) result =
   let unit_ty = mk_ty (Typ.Record []) in
@@ -251,12 +322,16 @@ let check_prog (p : Expr.expr Prog.t) : (typed_expr Prog.t, string) result =
         | Prog.FunDecl fd ->
           let entry = Sig.FunSig { arg = fd.arg_ty; ret = fd.ret_ty; eff = fd.eff } in
           Sig.extend fd.name entry sig_
-        | Prog.SpecFunDecl _ | Prog.SpecDefDecl _ | Prog.SortDecl _ ->
-          sig_
+        | Prog.SpecFunDecl fd ->
+          Sig.extend fd.name (Sig.SpecFun { arg = fd.arg_sort; ret = fd.ret_sort }) sig_
+        | Prog.SpecDefDecl fd ->
+          Sig.extend fd.name (Sig.SpecVal { sort = fd.sort }) sig_
+        | Prog.SortDecl dd ->
+          Sig.extend_sort sig_ dd
       in
       let* (final_sig, rest') = check_decls sig' rest in
       Ok (final_sig, d' :: rest')
   in
-  let* (final_sig, decls') = check_decls Sig.empty p.decls in
+  let* (final_sig, decls') = check_decls initial_sig p.decls in
   let* main' = check final_sig Context.empty p.main unit_ty Effect.Impure in
   Ok { Prog.decls = decls'; main = main'; loc = p.loc }
