@@ -571,4 +571,47 @@ let () =
           | Ok _ -> Alcotest.fail "should fail on unknown function"
           | Error _ -> ());
     ]);
+
+    ("parse-sort", [
+      Alcotest.test_case "parse sort decl" `Quick (fun () ->
+        let src = "sort list(a) = { Nil : () | Cons : (a, list(a)) }" in
+        match Parse.parse_decl src ~file:"test" with
+        | Ok (Prog.SortDecl d) ->
+          if List.length d.DsortDecl.ctors <> 2 then
+            Alcotest.fail "expected 2 constructors"
+        | Ok _ -> Alcotest.fail "expected SortDecl"
+        | Error msg -> Alcotest.fail msg);
+
+      Alcotest.test_case "parse sort decl no params" `Quick (fun () ->
+        let src = "sort color = { Red : () | Blue : () }" in
+        match Parse.parse_decl src ~file:"test" with
+        | Ok (Prog.SortDecl d) ->
+          if List.length d.DsortDecl.params <> 0 then
+            Alcotest.fail "expected 0 params"
+        | Ok _ -> Alcotest.fail "expected SortDecl"
+        | Error msg -> Alcotest.fail msg);
+
+      Alcotest.test_case "parse spec fun decl" `Quick (fun () ->
+        let src = "spec length : list(int) -> int = { Nil () -> 0 | Cons (x, xs) -> 1 + length xs }" in
+        match Parse.parse_decl src ~file:"test" with
+        | Ok (Prog.SpecFunDecl d) ->
+          if List.length d.branches <> 2 then
+            Alcotest.fail "expected 2 branches"
+        | Ok _ -> Alcotest.fail "expected SpecFunDecl"
+        | Error msg -> Alcotest.fail msg);
+
+      Alcotest.test_case "parse spec def decl" `Quick (fun () ->
+        let src = "spec zero : int = 0" in
+        match Parse.parse_decl src ~file:"test" with
+        | Ok (Prog.SpecDefDecl _) -> ()
+        | Ok _ -> Alcotest.fail "expected SpecDefDecl"
+        | Error msg -> Alcotest.fail msg);
+
+      Alcotest.test_case "parse spec expr with ==" `Quick (fun () ->
+        let src = "spec eq : int = if x == y then 1 else 0" in
+        match Parse.parse_decl src ~file:"test" with
+        | Ok (Prog.SpecDefDecl _) -> ()
+        | Ok _ -> Alcotest.fail "expected SpecDefDecl"
+        | Error msg -> Alcotest.fail msg);
+    ]);
   ]

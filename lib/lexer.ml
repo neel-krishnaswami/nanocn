@@ -43,6 +43,13 @@ let keyword_or_ident s =
   | "then" -> Parser.THEN
   | "else" -> Parser.ELSE
   | "not" -> Parser.NOT_KW
+  | "spec" -> Parser.SPEC
+  | "sort" -> Parser.SORT
+  | "take" -> Parser.TAKE
+  | "return" -> Parser.RETURN
+  | "pred" -> Parser.PRED
+  | "loc" -> Parser.LOC
+  | "of" -> Parser.OF
   | _ -> Parser.IDENT s
 
 let keyword_or_label s =
@@ -51,6 +58,7 @@ let keyword_or_label s =
   | "Get" -> Parser.GET
   | "New" -> Parser.NEW
   | "Del" -> Parser.DEL
+  | "Own" -> Parser.OWN
   | _ -> Parser.LABEL s
 
 let rec token buf =
@@ -69,6 +77,7 @@ let rec token buf =
   | '}' -> Parser.RBRACE
   | ',' -> Parser.COMMA
   | ';' -> Parser.SEMICOLON
+  | "==" -> Parser.EQEQ
   | '=' -> Parser.EQUAL
   | ':' -> Parser.COLON
   | "->" -> Parser.ARROW

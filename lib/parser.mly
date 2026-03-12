@@ -18,13 +18,31 @@
   let mk_expr startpos endpos s =
     Expr.In (s, loc_obj startpos endpos)
 
+  let mk_sort startpos endpos s =
+    Sort.In (s, loc_obj startpos endpos)
+
+  let mk_pat startpos endpos s =
+    Pat.In (s, loc_obj startpos endpos)
+
+  let mk_surfexpr startpos endpos s =
+    SurfExpr.In (s, loc_obj startpos endpos)
+
   let label s =
     match Label.of_string s with
     | Ok l -> l
     | Error _ -> failwith ("invalid label: " ^ s)
 
+  let dsort s =
+    match Dsort.of_string s with
+    | Ok d -> d
+    | Error _ -> failwith ("invalid datasort name: " ^ s)
+
   let mk_var startpos endpos s =
     Var.of_string s (mk_loc startpos endpos)
+
+  (** Built-in spec function names for arithmetic desugaring *)
+  let spec_arith_var name startpos endpos =
+    Var.of_string name (mk_loc startpos endpos)
 %}
 
 %token <int> INT_LIT
@@ -35,6 +53,7 @@
 %token PURE IMPURE
 %token SET GET NEW DEL
 %token TRUE FALSE IF THEN ELSE NOT_KW
+%token SPEC SORT TAKE RETURN PRED LOC OF OWN EQEQ
 %token PLUS MINUS STAR SLASH
 %token AMPAMP BARBAR
 %token LBRACKET RBRACKET LPAREN RPAREN LBRACE RBRACE
@@ -69,10 +88,42 @@ repl_decl:
 repl_let:
   | LET; x = ident_var; EQUAL; e = expr; EOF { (x, e) }
 
+(* ===== Declarations ===== *)
+
 decl:
   | FUN; f = ident_var; LPAREN; x = ident_var; COLON; a = typ; RPAREN; ARROW; b = typ; LBRACKET; eff = effect; RBRACKET; LBRACE; body = expr; RBRACE
     { Prog.FunDecl { name = f; param = x;
         arg_ty = a; ret_ty = b; eff; body; loc = mk_loc $startpos $endpos } }
+  | SPEC; f = ident_var; COLON; a = sort; ARROW; b = sort; EQUAL; LBRACE; bs = separated_nonempty_list(BAR, spec_branch); RBRACE
+    { Prog.SpecFunDecl { name = f; arg_sort = a; ret_sort = b;
+        branches = bs; loc = mk_loc $startpos $endpos } }
+  | SPEC; f = ident_var; COLON; s = sort; EQUAL; body = spec_expr
+    { Prog.SpecDefDecl { name = f; sort = s; body;
+        loc = mk_loc $startpos $endpos } }
+  | SORT; d = IDENT; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
+    { let decl = DsortDecl.({
+        name = dsort d;
+        params = List.map Tvar.of_string params;
+        ctors = cs;
+        loc = mk_loc $startpos $endpos;
+      }) in
+      Prog.SortDecl (DsortDecl.resolve_tvars decl) }
+  | SORT; d = IDENT; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
+    { Prog.SortDecl DsortDecl.({
+        name = dsort d;
+        params = [];
+        ctors = cs;
+        loc = mk_loc $startpos $endpos;
+      }) }
+
+spec_branch:
+  | p = pat; ARROW; e = spec_expr
+    { (p, e) }
+
+ctor_decl:
+  | l = LABEL; COLON; s = sort { (label l, s) }
+
+(* ===== Computational types ===== *)
 
 typ:
   | PTR; t = atomic_typ
@@ -100,6 +151,142 @@ label_typ:
 effect:
   | PURE   { Effect.Pure }
   | IMPURE { Effect.Impure }
+
+(* ===== Sorts ===== *)
+
+sort:
+  | PRED; s = atomic_sort
+    { mk_sort $startpos $endpos (Sort.Pred s) }
+  | s = atomic_sort
+    { s }
+
+atomic_sort:
+  | LPAREN; RPAREN
+    { mk_sort $startpos $endpos (Sort.Record []) }
+  | LPAREN; s = sort; RPAREN
+    { s }
+  | LPAREN; s = sort; COMMA; ss = separated_nonempty_list(COMMA, sort); RPAREN
+    { mk_sort $startpos $endpos (Sort.Record (s :: ss)) }
+  | INT_KW
+    { mk_sort $startpos $endpos Sort.Int }
+  | BOOL_KW
+    { mk_sort $startpos $endpos Sort.Bool }
+  | LOC
+    { mk_sort $startpos $endpos Sort.Loc }
+  | d = IDENT; LPAREN; ss = separated_nonempty_list(COMMA, sort); RPAREN
+    { mk_sort $startpos $endpos (Sort.App (dsort d, ss)) }
+  | d = IDENT
+    { mk_sort $startpos $endpos (Sort.App (dsort d, [])) }
+
+(* ===== Patterns ===== *)
+
+pat:
+  | l = LABEL; p = atomic_pat
+    { mk_pat $startpos $endpos (Pat.Con (label l, p)) }
+  | p = atomic_pat
+    { p }
+
+atomic_pat:
+  | x = ident_var
+    { mk_pat $startpos $endpos (Pat.Var x) }
+  | LPAREN; RPAREN
+    { mk_pat $startpos $endpos (Pat.Tuple []) }
+  | LPAREN; p = pat; RPAREN
+    { p }
+  | LPAREN; p = pat; COMMA; ps = separated_nonempty_list(COMMA, pat); RPAREN
+    { mk_pat $startpos $endpos (Pat.Tuple (p :: ps)) }
+
+(* ===== Spec expressions ===== *)
+
+spec_expr:
+  | e = spec_seq_expr; COLON; s = sort
+    { mk_surfexpr $startpos $endpos (SurfExpr.Annot (e, s)) }
+  | e = spec_seq_expr
+    { e }
+
+spec_seq_expr:
+  | LET; p = pat; EQUAL; e1 = spec_expr; SEMICOLON; e2 = spec_seq_expr
+    { mk_surfexpr $startpos $endpos (SurfExpr.Let (p, e1, e2)) }
+  | TAKE; p = pat; EQUAL; e1 = spec_expr; SEMICOLON; e2 = spec_seq_expr
+    { mk_surfexpr $startpos $endpos (SurfExpr.Take (p, e1, e2)) }
+  | RETURN; e = spec_app_expr
+    { mk_surfexpr $startpos $endpos (SurfExpr.Return e) }
+  | CASE; e = spec_app_expr; OF; LBRACE; bs = separated_nonempty_list(BAR, spec_case_branch); RBRACE
+    { mk_surfexpr $startpos $endpos (SurfExpr.Case (e, bs)) }
+  | IF; e1 = spec_expr; THEN; e2 = spec_expr; ELSE; e3 = spec_seq_expr
+    { mk_surfexpr $startpos $endpos (SurfExpr.If (e1, e2, e3)) }
+  | e = spec_and_expr
+    { e }
+
+spec_case_branch:
+  | p = pat; ARROW; e = spec_expr
+    { (p, e) }
+
+spec_and_expr:
+  | e1 = spec_and_expr; AMPAMP; e2 = spec_eq_expr
+    { mk_surfexpr $startpos $endpos (SurfExpr.And (e1, e2)) }
+  | e = spec_eq_expr
+    { e }
+
+spec_eq_expr:
+  | e1 = spec_add_expr; EQEQ; e2 = spec_add_expr
+    { mk_surfexpr $startpos $endpos (SurfExpr.Eq (e1, e2)) }
+  | e = spec_add_expr
+    { e }
+
+spec_add_expr:
+  | e1 = spec_add_expr; PLUS; e2 = spec_mul_expr
+    { let name = spec_arith_var "__add" $startpos $endpos in
+      let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.Call (name, tup)) }
+  | e1 = spec_add_expr; MINUS; e2 = spec_mul_expr
+    { let name = spec_arith_var "__sub" $startpos $endpos in
+      let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.Call (name, tup)) }
+  | e = spec_mul_expr
+    { e }
+
+spec_mul_expr:
+  | e1 = spec_mul_expr; STAR; e2 = spec_app_expr
+    { let name = spec_arith_var "__mul" $startpos $endpos in
+      let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.Call (name, tup)) }
+  | e1 = spec_mul_expr; SLASH; e2 = spec_app_expr
+    { let name = spec_arith_var "__div" $startpos $endpos in
+      let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.Call (name, tup)) }
+  | e = spec_app_expr
+    { e }
+
+spec_app_expr:
+  | NOT_KW; e = spec_simple_expr
+    { mk_surfexpr $startpos $endpos (SurfExpr.Not e) }
+  | l = LABEL; e = spec_simple_expr
+    { mk_surfexpr $startpos $endpos (SurfExpr.Inject (label l, e)) }
+  | f = ident_var; e = spec_simple_expr
+    { mk_surfexpr $startpos $endpos (SurfExpr.Call (f, e)) }
+  | e = spec_simple_expr
+    { e }
+
+spec_simple_expr:
+  | x = ident_var
+    { mk_surfexpr $startpos $endpos (SurfExpr.Var x) }
+  | n = INT_LIT
+    { mk_surfexpr $startpos $endpos (SurfExpr.IntLit n) }
+  | TRUE
+    { mk_surfexpr $startpos $endpos (SurfExpr.BoolLit true) }
+  | FALSE
+    { mk_surfexpr $startpos $endpos (SurfExpr.BoolLit false) }
+  | OWN; LBRACKET; _s = sort; RBRACKET
+    { mk_surfexpr $startpos $endpos (SurfExpr.Const (mk_var $startpos $endpos "__own")) }
+  | LPAREN; RPAREN
+    { mk_surfexpr $startpos $endpos (SurfExpr.Tuple []) }
+  | LPAREN; e = spec_expr; RPAREN
+    { e }
+  | LPAREN; e = spec_expr; COMMA; es = separated_nonempty_list(COMMA, spec_expr); RPAREN
+    { mk_surfexpr $startpos $endpos (SurfExpr.Tuple (e :: es)) }
+
+(* ===== Computational expressions ===== *)
 
 expr:
   | e = seq_expr; COLON; t = typ; LBRACKET; eff = effect; RBRACKET
