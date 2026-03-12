@@ -326,6 +326,43 @@ and type_wf_list sig_ params = function
     let* () = type_wf sig_ params t in
     type_wf_list sig_ params rest
 
+(** Check guarded well-formedness: S ; Phi ; D' |- A guarded
+    Like type_wf, but bare self-references to [guard] are rejected;
+    only references under ptr are allowed. *)
+let rec type_guarded sig_ params guard (Typ.In (tf, info)) =
+  let pos = info#loc in
+  match tf with
+  | Typ.Int | Typ.Bool -> Ok ()
+  | Typ.TVar a ->
+    if List.exists (fun p -> Tvar.compare a p = 0) params then Ok ()
+    else Error (Format.asprintf "%a: unbound type variable %a"
+                  SourcePos.print pos Tvar.print a)
+  | Typ.Ptr t -> type_wf sig_ params t
+  | Typ.Record ts -> type_guarded_list sig_ params guard ts
+  | Typ.App (d, args) ->
+    if Dsort.compare d guard = 0 then
+      Error (Format.asprintf
+               "%a: recursive reference to %a must go through ptr"
+               SourcePos.print pos Dsort.print d)
+    else
+      (match Sig.lookup_type d sig_ with
+       | None ->
+         Error (Format.asprintf "%a: unknown type %a"
+                  SourcePos.print pos Dsort.print d)
+       | Some decl ->
+         if List.compare_lengths args decl.DtypeDecl.params <> 0 then
+           Error (Format.asprintf "%a: type %a expects %d arguments, got %d"
+                    SourcePos.print pos Dsort.print d
+                    (List.length decl.DtypeDecl.params) (List.length args))
+         else
+           type_guarded_list sig_ params guard args)
+
+and type_guarded_list sig_ params guard = function
+  | [] -> Ok ()
+  | t :: rest ->
+    let* () = type_guarded sig_ params guard t in
+    type_guarded_list sig_ params guard rest
+
 (** Validate a datatype declaration *)
 let validate_type_decl sig_ (d : DtypeDecl.t) =
   if List.length d.ctors = 0 then
@@ -343,8 +380,8 @@ let validate_type_decl sig_ (d : DtypeDecl.t) =
     let* () = check_dups labels in
     (* Extend sig with self for recursive references *)
     let sig_with_self = Sig.extend_type sig_ d in
-    (* Check well-formedness of each constructor type *)
-    type_wf_list sig_with_self d.params (List.map snd d.ctors)
+    (* Check guarded well-formedness of each constructor type *)
+    type_guarded_list sig_with_self d.params d.name (List.map snd d.ctors)
 
 let check_decl sig_ (d : Expr.expr Prog.decl) =
   match d with

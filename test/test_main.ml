@@ -843,8 +843,17 @@ let () =
               | Ok _ -> Alcotest.fail "should fail: wrong arity"
               | Error _ -> ());
 
-      Alcotest.test_case "self-referential type succeeds" `Quick (fun () ->
+      Alcotest.test_case "bare self-referential type rejected" `Quick (fun () ->
         let src = "type list(a) = { Nil : () | Cons : (a * list(a)) }" in
+        match Parse.parse_decl src ~file:"test" with
+        | Error msg -> Alcotest.fail ("parse: " ^ msg)
+        | Ok d ->
+          match Typecheck.check_spec_decl Typecheck.initial_sig d with
+          | Ok _ -> Alcotest.fail "should reject bare self-reference"
+          | Error _ -> ());
+
+      Alcotest.test_case "ptr self-referential type succeeds" `Quick (fun () ->
+        let src = "type list(a) = { Nil : () | Cons : (a * ptr list(a)) }" in
         match Parse.parse_decl src ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok d ->
