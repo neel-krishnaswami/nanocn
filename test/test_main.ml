@@ -18,6 +18,7 @@ let qcheck_tests =
     Pat.Test.test;
     CoreExpr.Test.test;
     SurfExpr.Test.test;
+    ElabM.Test.test;
   ]
 
 (** Helper to extract type from a typed_expr *)
