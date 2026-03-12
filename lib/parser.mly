@@ -71,7 +71,7 @@ repl_let:
 
 decl:
   | FUN; f = ident_var; LPAREN; x = ident_var; COLON; a = typ; RPAREN; ARROW; b = typ; LBRACKET; eff = effect; RBRACKET; LBRACE; body = expr; RBRACE
-    { { Prog.name = f; param = x;
+    { Prog.FunDecl { name = f; param = x;
         arg_ty = a; ret_ty = b; eff; body; loc = mk_loc $startpos $endpos } }
 
 typ:

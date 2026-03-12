@@ -25,12 +25,12 @@ let starts_with_prefix s prefix =
   let n = String.length prefix in
   String.length s >= n && String.sub s 0 n = prefix
 
-let print_sig_entry name (d : Expr.expr Prog.decl) =
+let print_fun_sig name arg_ty ret_ty eff =
   Format.printf "%a : %a -> %a [%a]@."
     Var.print name
-    Typ.print d.arg_ty
-    Typ.print d.ret_ty
-    Effect.print d.eff
+    Typ.print arg_ty
+    Typ.print ret_ty
+    Effect.print eff
 
 let toplevel () =
   let rec loop sig_ ctx =
@@ -59,10 +59,15 @@ let toplevel () =
         Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
         loop sig_ ctx
       | Ok _ ->
-        let entry = { Sig.arg = d.arg_ty; ret = d.ret_ty; eff = d.eff } in
-        let sig' = Sig.extend d.name entry sig_ in
-        print_sig_entry d.name d;
-        loop sig' ctx
+        match d with
+        | Prog.FunDecl fd ->
+          let entry = Sig.FunSig { arg = fd.arg_ty; ret = fd.ret_ty; eff = fd.eff } in
+          let sig' = Sig.extend fd.name entry sig_ in
+          print_fun_sig fd.name fd.arg_ty fd.ret_ty fd.eff;
+          loop sig' ctx
+        | _ ->
+          Format.eprintf "@[<v>ERROR:@ unexpected declaration form@]@.";
+          loop sig_ ctx
   and handle_let sig_ ctx line =
     match Parse.parse_let line ~file:"<toplevel>" with
     | Error msg ->
@@ -75,7 +80,7 @@ let toplevel () =
         loop sig_ ctx
       | Ok te ->
         let ty = (Expr.extract te)#typ in
-        let ctx' = Context.extend x ty ctx in
+        let ctx' = Context.extend_comp x ty ctx in
         let eff = (Expr.extract te)#eff in
         Format.printf "%a : %a [%a]@." Var.print x Typ.print ty Effect.print eff;
         loop sig_ ctx'

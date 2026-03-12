@@ -18,5 +18,4 @@ val check_prog : Expr.expr Prog.t -> (typed_expr Prog.t, string) result
 (** Typecheck a complete program. *)
 
 val check_decl : Sig.t -> Expr.expr Prog.decl -> (typed_expr Prog.decl, string) result
-(** Typecheck a single function declaration against a signature.
-    The function's own signature is in scope for recursion. *)
+(** Typecheck a single declaration against a signature. *)

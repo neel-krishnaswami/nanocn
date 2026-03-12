@@ -1,14 +1,29 @@
-(** Program structure: function declarations followed by a main expression. *)
+(** Program structure: declarations followed by a main expression. *)
 
-type 'a decl = {
-  name : Var.t;
-  param : Var.t;
-  arg_ty : Typ.ty;
-  ret_ty : Typ.ty;
-  eff : Effect.t;
-  body : 'a;
-  loc : SourcePos.t;
-}
+type 'a decl =
+  | FunDecl of {
+      name : Var.t;
+      param : Var.t;
+      arg_ty : Typ.ty;
+      ret_ty : Typ.ty;
+      eff : Effect.t;
+      body : 'a;
+      loc : SourcePos.t;
+    }
+  | SpecFunDecl of {
+      name : Var.t;
+      arg_sort : Sort.sort;
+      ret_sort : Sort.sort;
+      branches : (Pat.pat * SurfExpr.se) list;
+      loc : SourcePos.t;
+    }
+  | SpecDefDecl of {
+      name : Var.t;
+      sort : Sort.sort;
+      body : SurfExpr.se;
+      loc : SourcePos.t;
+    }
+  | SortDecl of DsortDecl.t
 
 type 'a t = {
   decls : 'a decl list;

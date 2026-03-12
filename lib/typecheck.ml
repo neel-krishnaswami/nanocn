@@ -59,7 +59,7 @@ let rec synth sig_ ctx (Expr.In (shape, info) as _e) =
   let pos = info#loc in
   match shape with
   | Expr.Var x ->
-    (match Context.lookup x ctx with
+    (match Context.lookup_comp x ctx with
      | Some a -> Ok (mk ctx pos a Effect.Pure (Expr.Var x))
      | None -> err_at_f pos "unbound variable %a" Var.print x)
 
@@ -75,10 +75,10 @@ let rec synth sig_ ctx (Expr.In (shape, info) as _e) =
     Ok (mk ctx pos ret_ty eff (Expr.App (p, arg')))
 
   | Expr.Call (name, arg) ->
-    (match Sig.lookup name sig_ with
-     | Some entry ->
-       let* arg' = check sig_ ctx arg entry.Sig.arg Effect.Pure in
-       Ok (mk ctx pos entry.ret entry.eff (Expr.Call (name, arg')))
+    (match Sig.lookup_fun name sig_ with
+     | Some (arg_ty, ret_ty, eff) ->
+       let* arg' = check sig_ ctx arg arg_ty Effect.Pure in
+       Ok (mk ctx pos ret_ty eff (Expr.Call (name, arg')))
      | None -> err_at_f pos "unknown function %a" Var.print name)
 
   | Expr.Annot (e, ty, eff) ->
@@ -100,7 +100,7 @@ and check sig_ ctx (Expr.In (shape, info) as e) ty eff =
     if not (Effect.sub eff' eff) then
       err_at pos "effect of let binding exceeds allowed effect"
     else
-      let ctx' = Context.extend x a ctx in
+      let ctx' = Context.extend_comp x a ctx in
       let* e2' = check sig_ ctx' e2 ty eff in
       Ok (mk ctx pos ty eff (Expr.Let (x, e1', e2')))
 
@@ -118,7 +118,7 @@ and check sig_ ctx (Expr.In (shape, info) as e) ty eff =
              (List.length ts) (List.length xs)
          else
            let bindings = List.combine xs ts in
-           let ctx' = Context.extend_list bindings ctx in
+           let ctx' = Context.extend_comp_list bindings ctx in
            let* e2' = check sig_ ctx' e2 ty eff in
            Ok (mk ctx pos ty eff (Expr.LetTuple (xs, e1', e2')))
        | _ -> err_at pos "let-tuple: scrutinee must have record type")
@@ -169,7 +169,7 @@ and check sig_ ctx (Expr.In (shape, info) as e) ty eff =
       let next_label = match Label.of_string "Next" with Ok l -> l | Error _ -> failwith "impossible" in
       let done_label = match Label.of_string "Done" with Ok l -> l | Error _ -> failwith "impossible" in
       let iter_ty = mk_ty (Typ.Sum [(next_label, a); (done_label, ty)]) in
-      let ctx' = Context.extend x a ctx in
+      let ctx' = Context.extend_comp x a ctx in
       let* body' = check sig_ ctx' body iter_ty Effect.Impure in
       Ok (mk ctx pos ty eff (Expr.Iter (x, e1', body')))
 
@@ -216,31 +216,44 @@ and check_branches sig_ ctx branches cases ty eff pos =
   | (l, x, body) :: rest ->
     (match find_label l cases with
      | Some a ->
-       let ctx' = Context.extend x a ctx in
+       let ctx' = Context.extend_comp x a ctx in
        let* body' = check sig_ ctx' body ty eff in
        let* rest' = check_branches sig_ ctx rest cases ty eff pos in
        Ok ((l, x, body') :: rest')
      | None ->
        err_at_f pos "branch label %a not in sum type" Label.print l)
 
-let check_decl sig_ (d : Expr.expr Prog.decl) : (typed_expr Prog.decl, string) result =
-  let entry = { Sig.arg = d.arg_ty; ret = d.ret_ty; eff = d.eff } in
-  let sig_for_body = match d.eff with
-    | Effect.Impure -> Sig.extend d.name entry sig_
-    | Effect.Pure -> sig_
-  in
-  let ctx = Context.extend d.param d.arg_ty Context.empty in
-  let* body' = check sig_for_body ctx d.body d.ret_ty d.eff in
-  Ok { d with body = body' }
+let check_decl sig_ (d : Expr.expr Prog.decl) =
+  match d with
+  | Prog.FunDecl d ->
+    let entry = Sig.FunSig { arg = d.arg_ty; ret = d.ret_ty; eff = d.eff } in
+    let sig_for_body = match d.eff with
+      | Effect.Impure -> Sig.extend d.name entry sig_
+      | Effect.Pure -> sig_
+    in
+    let ctx = Context.extend_comp d.param d.arg_ty Context.empty in
+    let* body' = check sig_for_body ctx d.body d.ret_ty d.eff in
+    Ok (Prog.FunDecl { d with body = body' })
+  | Prog.SpecFunDecl _ ->
+    Error "spec function declarations not yet implemented"
+  | Prog.SpecDefDecl _ ->
+    Error "spec definition declarations not yet implemented"
+  | Prog.SortDecl _ ->
+    Error "sort declarations not yet implemented"
 
 let check_prog (p : Expr.expr Prog.t) : (typed_expr Prog.t, string) result =
   let unit_ty = mk_ty (Typ.Record []) in
   let rec check_decls sig_ = function
     | [] -> Ok (sig_, [])
-    | (d : Expr.expr Prog.decl) :: rest ->
+    | d :: rest ->
       let* d' = check_decl sig_ d in
-      let entry = { Sig.arg = d.arg_ty; ret = d.ret_ty; eff = d.eff } in
-      let sig' = Sig.extend d.name entry sig_ in
+      let sig' = match d with
+        | Prog.FunDecl fd ->
+          let entry = Sig.FunSig { arg = fd.arg_ty; ret = fd.ret_ty; eff = fd.eff } in
+          Sig.extend fd.name entry sig_
+        | Prog.SpecFunDecl _ | Prog.SpecDefDecl _ | Prog.SortDecl _ ->
+          sig_
+      in
       let* (final_sig, rest') = check_decls sig' rest in
       Ok (final_sig, d' :: rest')
   in
