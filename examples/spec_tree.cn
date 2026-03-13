@@ -1,11 +1,11 @@
 sort tree(a) = { Leaf : a | Node : (tree(a) * tree(a)) }
 
-spec size : tree(int) -> int = {
+fun size : tree(int) -> int [spec] = {
     Leaf x -> 1
   | Node (l, r) -> size l + size r
 }
 
-spec depth : tree(int) -> int = {
+fun depth : tree(int) -> int [spec] = {
     Leaf x -> 0
   | Node (l, r) ->
       if depth l == depth r then 1 + depth l

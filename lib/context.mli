@@ -1,29 +1,20 @@
-(** Typing contexts mapping variables to types or sorts.
+(** Typing contexts mapping variables to sorts and effects.
 
-    Computational variables carry [Typ.ty], specification variables
-    carry [Sort.sort]. Lookup functions enforce the separation. *)
+    All bindings carry [Sort.sort * Effect.t]. The effect is [purify eff]
+    of the ambient effect where the variable was bound. *)
 
 type t
 
 val empty : t
 
-val extend_comp : Var.t -> Typ.ty -> t -> t
-(** [extend_comp x ty ctx] adds a computational variable binding. *)
+val extend : Var.t -> Sort.sort -> Effect.t -> t -> t
+(** [extend x sort eff ctx] adds a binding for [x]. *)
 
-val extend_spec : Var.t -> Sort.sort -> t -> t
-(** [extend_spec x sort ctx] adds a specification variable binding. *)
+val lookup : Var.t -> t -> (Sort.sort * Effect.t) option
+(** [lookup x ctx] returns the sort and effect for [x]. *)
 
-val lookup_comp : Var.t -> t -> Typ.ty option
-(** [lookup_comp x ctx] looks up a computational variable. *)
-
-val lookup_spec : Var.t -> t -> Sort.sort option
-(** [lookup_spec x ctx] looks up a specification variable. *)
-
-val extend_comp_list : (Var.t * Typ.ty) list -> t -> t
-(** [extend_comp_list bindings ctx] extends [ctx] with multiple computational bindings. *)
-
-val extend_spec_list : (Var.t * Sort.sort) list -> t -> t
-(** [extend_spec_list bindings ctx] extends [ctx] with multiple spec bindings. *)
+val extend_list : (Var.t * Sort.sort * Effect.t) list -> t -> t
+(** [extend_list bindings ctx] extends [ctx] with multiple bindings. *)
 
 val print : Format.formatter -> t -> unit
 

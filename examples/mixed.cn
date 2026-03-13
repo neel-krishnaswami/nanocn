@@ -2,20 +2,20 @@ sort option(a) = { Some : a | None : () }
 
 type optionT(a) = { Some : a | None : () }
 
-spec fromOpt : option(int) -> int = {
+fun fromOpt : option(int) -> int [spec] = {
     Some x -> x
   | None () -> 0
 }
 
-fun unwrap(o : optionT(int)) -> int [pure] {
-  case o of {
+fun unwrap : optionT(int) -> int [pure] = {
+  o -> case o of {
     Some n -> n
   | None u -> 0
   }
 }
 
-fun makeOpt(x : int) -> optionT(int) [pure] {
-  Some x : optionT(int) [pure]
+fun makeOpt : int -> optionT(int) [pure] = {
+  x -> Some x : optionT(int) [pure]
 }
 
 main : () [impure] =

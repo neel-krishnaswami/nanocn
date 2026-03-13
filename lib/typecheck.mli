@@ -1,31 +1,31 @@
-(** Bidirectional typechecker.
+(** Unified bidirectional typechecker.
 
-    Implements synthesis and checking judgements, returning a fully
-    annotated expression tree where each node carries its source location,
-    typing context, type, and effect.
-*)
+    Implements synthesis and checking judgements for core expressions,
+    returning a fully annotated expression tree where each node carries
+    its source location, typing context, sort, and effect. *)
 
-type typed_info = < loc : SourcePos.t; ctx : Context.t; typ : Typ.ty; eff : Effect.t >
-type typed_expr = typed_info Expr.t
+type typed_info = < loc : SourcePos.t; ctx : Context.t; sort : Sort.sort; eff : Effect.t >
+type typed_ce = typed_info CoreExpr.t
 
-val synth : Sig.t -> Context.t -> Expr.expr -> (typed_expr, string) result
-(** Synthesize a type and effect for the given expression. *)
+val synth : Sig.t -> Context.t -> Effect.t -> CoreExpr.ce -> (typed_ce, string) result
+(** Synthesize a sort and effect for the given expression.
+    [eff] is the ambient effect. *)
 
-val check : Sig.t -> Context.t -> Expr.expr -> Typ.ty -> Effect.t -> (typed_expr, string) result
-(** Check an expression against a given type and effect. *)
+val check : Sig.t -> Context.t -> CoreExpr.ce -> Sort.sort -> Effect.t -> (typed_ce, string) result
+(** Check an expression against a given sort and effect. *)
 
-val prim_signature : Prim.t -> Typ.ty * Typ.ty * Effect.t
-(** [prim_signature p] returns [(arg_type, ret_type, effect)] for primitive [p]. *)
+val prim_signature : Prim.t -> Sort.sort * Sort.sort * Effect.t
+(** [prim_signature p] returns [(arg_sort, ret_sort, effect)] for primitive [p]. *)
 
-val check_prog : SurfComp.se Prog.t -> (typed_expr Prog.t, string) result
-(** Typecheck a complete program. *)
+val check_prog : SurfExpr.se Prog.t -> (typed_ce Prog.core_prog, string) result
+(** Typecheck a complete program (elaborate + typecheck). *)
 
-val check_decl : Sig.t -> SurfComp.se Prog.decl -> (typed_expr Prog.decl, string) result
+val check_decl : Sig.t -> SurfExpr.se Prog.decl -> (typed_ce Prog.core_decl, string) result
 (** Typecheck a single declaration against a signature. *)
 
 val initial_sig : Sig.t
-(** The initial signature with built-in spec functions (__add, etc.). *)
+(** The initial signature with built-in types (step). *)
 
-val check_spec_decl : Sig.t -> SurfComp.se Prog.decl -> (Sig.t, string) result
-(** [check_spec_decl sig d] validates a spec or sort declaration,
+val check_spec_decl : Sig.t -> SurfExpr.se Prog.decl -> (Sig.t, string) result
+(** [check_spec_decl sig d] validates a declaration,
     returning the updated signature. *)

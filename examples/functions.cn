@@ -1,9 +1,9 @@
-fun double(x : int) -> int [pure] {
-  x + x
+fun double : int -> int [pure] = {
+  x -> x + x
 }
 
-fun sumPair((a, b) : (int * int)) -> int [pure] {
-  a + b
+fun sumPair : (int * int) -> int [pure] = {
+  (a, b) -> a + b
 }
 
 main : () [impure] =

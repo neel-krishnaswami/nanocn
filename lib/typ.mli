@@ -23,7 +23,7 @@ val shape : 'b t -> 'b t tF
 type ty = < loc : SourcePos.t > t
 
 val compare : ty -> ty -> int
-val print : Format.formatter -> ty -> unit
+val print : Format.formatter -> _ t -> unit
 
 val is_eqtype : ty -> bool
 (** [is_eqtype t] returns [true] if [t] is [int], [bool], or [ptr _]. *)

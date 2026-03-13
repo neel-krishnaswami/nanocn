@@ -1,4 +1,5 @@
-fun factorial(n : int) -> int [impure] {
+fun factorial : int -> int [impure] = {
+  n ->
   let acc = New[int] 1;
   let cur = New[int] n;
   iter (i = Get[int] cur) {

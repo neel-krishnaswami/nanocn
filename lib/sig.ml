@@ -1,7 +1,5 @@
 type entry =
-  | FunSig of { arg : Typ.ty; ret : Typ.ty; eff : Effect.t }
-  | SpecFun of { arg : Sort.sort; ret : Sort.sort }
-  | SpecVal of { sort : Sort.sort }
+  | FunSig of { arg : Sort.sort; ret : Sort.sort; eff : Effect.t }
   | SortDecl of DsortDecl.t
   | TypeDecl of DtypeDecl.t
 
@@ -21,36 +19,6 @@ let rec lookup_fun name = function
   | Named (n, FunSig { arg; ret; eff }) :: _ when Var.compare name n = 0 ->
     Some (arg, ret, eff)
   | _ :: rest -> lookup_fun name rest
-
-let rec lookup_spec_fun name = function
-  | [] -> None
-  | Named (n, SpecFun { arg; ret }) :: _ when Var.compare name n = 0 ->
-    Some (arg, ret)
-  | _ :: rest -> lookup_spec_fun name rest
-
-let rec typ_to_sort (Typ.In (tf, b)) =
-  let sf = match tf with
-    | Typ.Int -> Sort.Int
-    | Typ.Bool -> Sort.Bool
-    | Typ.Ptr t -> Sort.Ptr (typ_to_sort t)
-    | Typ.Record ts -> Sort.Record (List.map typ_to_sort ts)
-    | Typ.App (d, ts) -> Sort.App (d, List.map typ_to_sort ts)
-    | Typ.TVar a -> Sort.TVar a
-  in
-  Sort.In (sf, b)
-
-let rec lookup_pure_fun name = function
-  | [] -> None
-  | Named (n, FunSig { arg; ret; eff = Effect.Pure }) :: _
-    when Var.compare name n = 0 ->
-    Some (typ_to_sort arg, typ_to_sort ret)
-  | _ :: rest -> lookup_pure_fun name rest
-
-let rec lookup_spec_val name = function
-  | [] -> None
-  | Named (n, SpecVal { sort }) :: _ when Var.compare name n = 0 ->
-    Some sort
-  | _ :: rest -> lookup_spec_val name rest
 
 let rec lookup_sort dsort = function
   | [] -> None
@@ -100,13 +68,7 @@ let print fmt sig_ =
   let pp_entry fmt = function
     | Named (name, FunSig { arg; ret; eff }) ->
       Format.fprintf fmt "@[%a : %a -> %a [%a]@]"
-        Var.print name Typ.print arg Typ.print ret Effect.print eff
-    | Named (name, SpecFun { arg; ret }) ->
-      Format.fprintf fmt "@[spec %a : %a -> %a@]"
-        Var.print name Sort.print arg Sort.print ret
-    | Named (name, SpecVal { sort }) ->
-      Format.fprintf fmt "@[spec %a : %a@]"
-        Var.print name Sort.print sort
+        Var.print name Sort.print arg Sort.print ret Effect.print eff
     | Named (_, SortDecl d) ->
       DsortDecl.print fmt d
     | Named (_, TypeDecl d) ->
@@ -126,12 +88,12 @@ module Test = struct
   let test =
     [ QCheck.Test.make ~name:"sig lookup_fun finds extended entry"
         ~count:100
-        QCheck.(pair (make Var.Test.gen) (make Typ.Test.gen))
-        (fun (name, ty) ->
-           let entry = FunSig { arg = ty; ret = ty; eff = Effect.Pure } in
+        QCheck.(pair (make Var.Test.gen) (make Sort.Test.gen))
+        (fun (name, sort) ->
+           let entry = FunSig { arg = sort; ret = sort; eff = Effect.Pure } in
            let s = extend name entry empty in
            match lookup_fun name s with
-           | Some (arg, _, _) -> Typ.compare arg ty = 0
+           | Some (arg, _, _) -> Sort.compare arg sort = 0
            | None -> false)
     ]
 end

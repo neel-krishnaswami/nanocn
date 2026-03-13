@@ -1,5 +1,5 @@
-fun isAlias((a, b) : (ptr int * ptr int)) -> bool [pure] {
-  Eq[ptr int] (a, b)
+fun isAlias : (ptr int * ptr int) -> bool [pure] = {
+  (a, b) -> Eq[ptr int] (a, b)
 }
 
 main : () [impure] =

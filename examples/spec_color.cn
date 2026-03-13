@@ -1,6 +1,6 @@
 sort color = { Red : () | Blue : () | Green : () }
 
-spec isWarm : color -> bool = {
+fun isWarm : color -> bool [spec] = {
     Red () -> true
   | Blue () -> false
   | Green () -> false

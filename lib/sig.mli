@@ -1,9 +1,10 @@
-(** Signature context for function, spec function, spec value, datasort, and datatype declarations. *)
+(** Signature context for function, datasort, and datatype declarations.
+
+    All functions use a unified [FunSig] entry with a sort-level signature
+    and effect. Spec functions have [eff = Spec]. *)
 
 type entry =
-  | FunSig of { arg : Typ.ty; ret : Typ.ty; eff : Effect.t }
-  | SpecFun of { arg : Sort.sort; ret : Sort.sort }
-  | SpecVal of { sort : Sort.sort }
+  | FunSig of { arg : Sort.sort; ret : Sort.sort; eff : Effect.t }
   | SortDecl of DsortDecl.t
   | TypeDecl of DtypeDecl.t
 
@@ -12,19 +13,8 @@ type t
 val empty : t
 val extend : Var.t -> entry -> t -> t
 
-val lookup_fun : Var.t -> t -> (Typ.ty * Typ.ty * Effect.t) option
-(** [lookup_fun f sig] returns [(arg, ret, eff)] for a computational function. *)
-
-val lookup_spec_fun : Var.t -> t -> (Sort.sort * Sort.sort) option
-(** [lookup_spec_fun f sig] returns [(arg, ret)] for a spec function. *)
-
-val lookup_pure_fun : Var.t -> t -> (Sort.sort * Sort.sort) option
-(** [lookup_pure_fun f sig] returns [(arg_sort, ret_sort)] for a pure
-    computational function, converting its type signature to sorts.
-    Returns [None] for impure functions or non-function entries. *)
-
-val lookup_spec_val : Var.t -> t -> Sort.sort option
-(** [lookup_spec_val f sig] returns the sort for a spec value. *)
+val lookup_fun : Var.t -> t -> (Sort.sort * Sort.sort * Effect.t) option
+(** [lookup_fun f sig] returns [(arg, ret, eff)] for any function. *)
 
 val lookup_sort : Dsort.t -> t -> DsortDecl.t option
 (** [lookup_sort d sig] returns the datasort declaration for [d]. *)

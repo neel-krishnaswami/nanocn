@@ -1,12 +1,12 @@
-spec square : int -> int = {
+fun square : int -> int [spec] = {
   x -> x * x
 }
 
-spec cube : int -> int = {
+fun cube : int -> int [spec] = {
   x -> x * x * x
 }
 
-spec diff : (int * int) -> int = {
+fun diff : (int * int) -> int [spec] = {
   (a, b) -> a - b
 }
 

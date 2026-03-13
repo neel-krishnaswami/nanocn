@@ -89,6 +89,46 @@ let rec is_spec_type (In (s, _)) =
   | Pred _ -> false
   | TVar _ -> true
 
+let rec typ_to_sort (Typ.In (tf, b)) =
+  let sf = match tf with
+    | Typ.Int -> Int
+    | Typ.Bool -> Bool
+    | Typ.Ptr t -> Ptr (typ_to_sort t)
+    | Typ.Record ts -> Record (List.map typ_to_sort ts)
+    | Typ.App (d, ts) -> App (d, List.map typ_to_sort ts)
+    | Typ.TVar a -> TVar a
+  in
+  In (sf, b)
+
+let rec sort_to_typ (In (sf, b)) =
+  match sf with
+  | Int -> Ok (Typ.In (Typ.Int, b))
+  | Bool -> Ok (Typ.In (Typ.Bool, b))
+  | Ptr t ->
+    (match sort_to_typ t with
+     | Ok t' -> Ok (Typ.In (Typ.Ptr t', b))
+     | Error _ as e -> e)
+  | Record ts ->
+    (match sort_to_typ_list ts with
+     | Ok ts' -> Ok (Typ.In (Typ.Record ts', b))
+     | Error _ as e -> e)
+  | App (d, ts) ->
+    (match sort_to_typ_list ts with
+     | Ok ts' -> Ok (Typ.In (Typ.App (d, ts'), b))
+     | Error _ as e -> e)
+  | TVar a -> Ok (Typ.In (Typ.TVar a, b))
+  | Pred _ -> Error "sort contains pred, cannot convert to type"
+
+and sort_to_typ_list = function
+  | [] -> Ok []
+  | s :: rest ->
+    match sort_to_typ s with
+    | Error _ as e -> e
+    | Ok t ->
+      match sort_to_typ_list rest with
+      | Error _ as e -> e
+      | Ok rest' -> Ok (t :: rest')
+
 module Test = struct
   let gen =
     let open QCheck.Gen in

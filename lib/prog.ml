@@ -1,24 +1,10 @@
 type 'a decl =
   | FunDecl of {
       name : Var.t;
-      param : Pat.pat;
-      arg_ty : Typ.ty;
-      ret_ty : Typ.ty;
-      eff : Effect.t;
-      body : 'a;
-      loc : SourcePos.t;
-    }
-  | SpecFunDecl of {
-      name : Var.t;
       arg_sort : Sort.sort;
       ret_sort : Sort.sort;
-      branches : (Pat.pat * SurfExpr.se) list;
-      loc : SourcePos.t;
-    }
-  | SpecDefDecl of {
-      name : Var.t;
-      sort : Sort.sort;
-      body : SurfExpr.se;
+      eff : Effect.t;
+      branches : (Pat.pat * 'a) list;
       loc : SourcePos.t;
     }
   | SortDecl of DsortDecl.t
@@ -27,53 +13,67 @@ type 'a decl =
 type 'a t = {
   decls : 'a decl list;
   main : 'a;
-  main_ty : Typ.ty;
+  main_sort : Sort.sort;
   main_eff : Effect.t;
   loc : SourcePos.t;
-}
-
-let map_decl f = function
-  | FunDecl d -> FunDecl { d with body = f d.body }
-  | SpecFunDecl d -> SpecFunDecl d
-  | SpecDefDecl d -> SpecDefDecl d
-  | SortDecl d -> SortDecl d
-  | TypeDecl d -> TypeDecl d
-
-let map f p = {
-  decls = List.map (map_decl f) p.decls;
-  main = f p.main;
-  main_ty = p.main_ty;
-  main_eff = p.main_eff;
-  loc = p.loc;
 }
 
 let print pp fmt p =
   List.iter (fun d ->
     match d with
     | FunDecl d ->
-      Format.fprintf fmt "@[<v>@[<hov 2>fun %a(%a : %a) ->@ %a [%a] {@ %a@]@ }@]@.@."
-        Var.print d.name
-        Pat.print d.param
-        Typ.print d.arg_ty
-        Typ.print d.ret_ty
-        Effect.print d.eff
-        pp d.body
-    | SpecFunDecl d ->
-      Format.fprintf fmt "@[<v>@[<hov 2>spec %a :@ %a -> %a = { ... }@]@]@.@."
+      Format.fprintf fmt "@[<v>@[<hov 2>fun %a :@ %a -> %a [%a] = { ... }@]@]@.@."
         Var.print d.name
         Sort.print d.arg_sort
         Sort.print d.ret_sort
-    | SpecDefDecl d ->
-      Format.fprintf fmt "@[<v>@[<hov 2>spec %a :@ %a = ...@]@]@.@."
-        Var.print d.name
-        Sort.print d.sort
+        Effect.print d.eff
     | SortDecl d ->
       Format.fprintf fmt "%a@.@." DsortDecl.print d
     | TypeDecl d ->
       Format.fprintf fmt "%a@.@." DtypeDecl.print d
   ) p.decls;
   Format.fprintf fmt "@[<hov 2>main : %a [%a] =@ %a@]"
-    Typ.print p.main_ty Effect.print p.main_eff pp p.main
+    Sort.print p.main_sort Effect.print p.main_eff pp p.main
+
+type 'a core_decl =
+  | CoreFunDecl of {
+      name : Var.t;
+      param : Var.t;
+      arg_sort : Sort.sort;
+      ret_sort : Sort.sort;
+      eff : Effect.t;
+      body : 'a;
+      loc : SourcePos.t;
+    }
+  | CoreSortDecl of DsortDecl.t
+  | CoreTypeDecl of DtypeDecl.t
+
+type 'a core_prog = {
+  core_decls : 'a core_decl list;
+  core_main : 'a;
+  core_main_sort : Sort.sort;
+  core_main_eff : Effect.t;
+  core_loc : SourcePos.t;
+}
+
+let print_core_prog pp fmt p =
+  List.iter (fun d ->
+    match d with
+    | CoreFunDecl d ->
+      Format.fprintf fmt "@[<v>@[<hov 2>fun %a (%a : %a) : %a [%a] =@ %a@]@]@.@."
+        Var.print d.name
+        Var.print d.param
+        Sort.print d.arg_sort
+        Sort.print d.ret_sort
+        Effect.print d.eff
+        pp d.body
+    | CoreSortDecl d ->
+      Format.fprintf fmt "%a@.@." DsortDecl.print d
+    | CoreTypeDecl d ->
+      Format.fprintf fmt "%a@.@." DtypeDecl.print d
+  ) p.core_decls;
+  Format.fprintf fmt "@[<hov 2>main : %a [%a] =@ %a@]"
+    Sort.print p.core_main_sort Effect.print p.core_main_eff pp p.core_main
 
 module Test = struct
   let test = []

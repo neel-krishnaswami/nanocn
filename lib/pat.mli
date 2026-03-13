@@ -20,7 +20,7 @@ val shape : 'b t -> 'b t patF
 type pat = < loc : SourcePos.t > t
 
 val compare : pat -> pat -> int
-val print : Format.formatter -> pat -> unit
+val print : Format.formatter -> _ t -> unit
 
 val linear_check : pat -> (unit, string) result
 (** [linear_check p] returns [Ok ()] if no variable appears more than once

@@ -1,5 +1,5 @@
-fun swap((x, y) : (int * int)) -> (int * int) [pure] {
-  (y, x)
+fun swap : (int * int) -> (int * int) [pure] = {
+  (x, y) -> (y, x)
 }
 
 main : () [impure] =

@@ -1,9 +1,9 @@
-fun double(x : int) -> int [pure] {
-  x + x
+fun double : int -> int [pure] = {
+  x -> x + x
 }
 
-fun quadruple(x : int) -> int [pure] {
-  double (double x)
+fun quadruple : int -> int [pure] = {
+  x -> double (double x)
 }
 
 main : () [impure] =

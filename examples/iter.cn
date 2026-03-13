@@ -1,5 +1,5 @@
-fun countdown(x : int) -> step(int, ()) [impure] {
-  Done () : step(int, ()) [impure]
+fun countdown : int -> step(int, ()) [impure] = {
+  x -> Done () : step(int, ()) [impure]
 }
 
 main : () [impure] =

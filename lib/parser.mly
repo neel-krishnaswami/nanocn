@@ -15,17 +15,14 @@
   let mk_typ startpos endpos s =
     Typ.In (s, loc_obj startpos endpos)
 
-  let mk_surfcomp startpos endpos s =
-    SurfComp.In (s, loc_obj startpos endpos)
+  let mk_surfexpr startpos endpos s =
+    SurfExpr.In (s, loc_obj startpos endpos)
 
   let mk_sort startpos endpos s =
     Sort.In (s, loc_obj startpos endpos)
 
   let mk_pat startpos endpos s =
     Pat.In (s, loc_obj startpos endpos)
-
-  let mk_surfexpr startpos endpos s =
-    SurfExpr.In (s, loc_obj startpos endpos)
 
   let label s =
     match Label.of_string s with
@@ -57,11 +54,11 @@
 %token COMMA SEMICOLON EQUAL COLON ARROW BAR
 %token EOF
 
-%start <SurfComp.se> program
-%start <Typ.ty> typ_eof
-%start <SurfComp.se Prog.t> prog_eof
-%start <SurfComp.se Prog.decl> repl_decl
-%start <Var.t * SurfComp.se> repl_let
+%start <SurfExpr.se> program
+%start <Sort.sort> sort_eof
+%start <SurfExpr.se Prog.t> prog_eof
+%start <SurfExpr.se Prog.decl> repl_decl
+%start <Var.t * SurfExpr.se> repl_let
 
 %%
 
@@ -72,12 +69,12 @@
 program:
   | e = expr; EOF { e }
 
-typ_eof:
-  | t = typ; EOF { t }
+sort_eof:
+  | s = sort; EOF { s }
 
 prog_eof:
-  | ds = list(decl); MAIN; COLON; mty = typ; LBRACKET; meff = effect; RBRACKET; EQUAL; e = expr; EOF
-    { { Prog.decls = ds; main = e; main_ty = mty; main_eff = meff;
+  | ds = list(decl); MAIN; COLON; ms = sort; LBRACKET; meff = effect; RBRACKET; EQUAL; e = expr; EOF
+    { { Prog.decls = ds; main = e; main_sort = ms; main_eff = meff;
         loc = mk_loc $startpos $endpos } }
 
 repl_decl:
@@ -89,15 +86,9 @@ repl_let:
 (* ===== Declarations ===== *)
 
 decl:
-  | FUN; f = ident_var; LPAREN; p = pat; COLON; a = typ; RPAREN; ARROW; b = typ; LBRACKET; eff = effect; RBRACKET; LBRACE; body = expr; RBRACE
-    { Prog.FunDecl { name = f; param = p;
-        arg_ty = a; ret_ty = b; eff; body; loc = mk_loc $startpos $endpos } }
-  | SPEC; f = ident_var; COLON; a = sort; ARROW; b = sort; EQUAL; LBRACE; bs = separated_nonempty_list(BAR, spec_branch); RBRACE
-    { Prog.SpecFunDecl { name = f; arg_sort = a; ret_sort = b;
+  | FUN; f = ident_var; COLON; a = sort; ARROW; b = sort; LBRACKET; eff = effect; RBRACKET; EQUAL; LBRACE; bs = separated_nonempty_list(BAR, branch); RBRACE
+    { Prog.FunDecl { name = f; arg_sort = a; ret_sort = b; eff;
         branches = bs; loc = mk_loc $startpos $endpos } }
-  | SPEC; f = ident_var; COLON; s = sort; EQUAL; body = spec_expr
-    { Prog.SpecDefDecl { name = f; sort = s; body;
-        loc = mk_loc $startpos $endpos } }
   | SORT; d = IDENT; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
     { let decl = DsortDecl.({
         name = dsort d;
@@ -129,8 +120,8 @@ decl:
         loc = mk_loc $startpos $endpos;
       }) }
 
-spec_branch:
-  | p = pat; ARROW; e = spec_expr
+branch:
+  | p = pat; ARROW; e = expr
     { (p, e) }
 
 ctor_decl:
@@ -139,7 +130,7 @@ ctor_decl:
 type_ctor_decl:
   | l = LABEL; COLON; t = typ { (label l, t) }
 
-(* ===== Computational types ===== *)
+(* ===== Computational types (for primitive type arguments only) ===== *)
 
 typ:
   | PTR; t = atomic_typ
@@ -166,6 +157,7 @@ atomic_typ:
 effect:
   | PURE   { Effect.Pure }
   | IMPURE { Effect.Impure }
+  | SPEC   { Effect.Spec }
 
 (* ===== Sorts ===== *)
 
@@ -211,156 +203,82 @@ atomic_pat:
   | LPAREN; p = pat; COMMA; ps = separated_nonempty_list(COMMA, pat); RPAREN
     { mk_pat $startpos $endpos (Pat.Tuple (p :: ps)) }
 
-(* ===== Spec expressions ===== *)
-
-spec_expr:
-  | e = spec_seq_expr; COLON; s = sort
-    { mk_surfexpr $startpos $endpos (SurfExpr.Annot (e, s)) }
-  | e = spec_seq_expr
-    { e }
-
-spec_seq_expr:
-  | LET; p = pat; EQUAL; e1 = spec_expr; SEMICOLON; e2 = spec_seq_expr
-    { mk_surfexpr $startpos $endpos (SurfExpr.Let (p, e1, e2)) }
-  | TAKE; p = pat; EQUAL; e1 = spec_expr; SEMICOLON; e2 = spec_seq_expr
-    { mk_surfexpr $startpos $endpos (SurfExpr.Take (p, e1, e2)) }
-  | RETURN; e = spec_app_expr
-    { mk_surfexpr $startpos $endpos (SurfExpr.Return e) }
-  | CASE; e = spec_app_expr; OF; LBRACE; bs = separated_nonempty_list(BAR, spec_case_branch); RBRACE
-    { mk_surfexpr $startpos $endpos (SurfExpr.Case (e, bs)) }
-  | IF; e1 = spec_expr; THEN; e2 = spec_expr; ELSE; e3 = spec_seq_expr
-    { mk_surfexpr $startpos $endpos (SurfExpr.If (e1, e2, e3)) }
-  | e = spec_and_expr
-    { e }
-
-spec_case_branch:
-  | p = pat; ARROW; e = spec_expr
-    { (p, e) }
-
-spec_and_expr:
-  | e1 = spec_and_expr; AMPAMP; e2 = spec_eq_expr
-    { mk_surfexpr $startpos $endpos (SurfExpr.And (e1, e2)) }
-  | e = spec_eq_expr
-    { e }
-
-spec_eq_expr:
-  | e1 = spec_add_expr; EQEQ; e2 = spec_add_expr
-    { mk_surfexpr $startpos $endpos (SurfExpr.Eq (e1, e2)) }
-  | e = spec_add_expr
-    { e }
-
-spec_add_expr:
-  | e1 = spec_add_expr; PLUS; e2 = spec_mul_expr
-    { let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
-      mk_surfexpr $startpos $endpos (SurfExpr.Prim (Prim.Add, tup)) }
-  | e1 = spec_add_expr; MINUS; e2 = spec_mul_expr
-    { let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
-      mk_surfexpr $startpos $endpos (SurfExpr.Prim (Prim.Sub, tup)) }
-  | e = spec_mul_expr
-    { e }
-
-spec_mul_expr:
-  | e1 = spec_mul_expr; STAR; e2 = spec_app_expr
-    { let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
-      mk_surfexpr $startpos $endpos (SurfExpr.Prim (Prim.Mul, tup)) }
-  | e = spec_app_expr
-    { e }
-
-spec_app_expr:
-  | NOT_KW; e = spec_simple_expr
-    { mk_surfexpr $startpos $endpos (SurfExpr.Not e) }
-  | l = LABEL; e = spec_simple_expr
-    { mk_surfexpr $startpos $endpos (SurfExpr.Inject (label l, e)) }
-  | f = ident_var; e = spec_simple_expr
-    { mk_surfexpr $startpos $endpos (SurfExpr.Call (f, e)) }
-  | e = spec_simple_expr
-    { e }
-
-spec_simple_expr:
-  | x = ident_var
-    { mk_surfexpr $startpos $endpos (SurfExpr.Var x) }
-  | n = INT_LIT
-    { mk_surfexpr $startpos $endpos (SurfExpr.IntLit n) }
-  | TRUE
-    { mk_surfexpr $startpos $endpos (SurfExpr.BoolLit true) }
-  | FALSE
-    { mk_surfexpr $startpos $endpos (SurfExpr.BoolLit false) }
-  | OWN; LBRACKET; _s = sort; RBRACKET
-    { mk_surfexpr $startpos $endpos (SurfExpr.Const (mk_var $startpos $endpos "__own")) }
-  | LPAREN; RPAREN
-    { mk_surfexpr $startpos $endpos (SurfExpr.Tuple []) }
-  | LPAREN; e = spec_expr; RPAREN
-    { e }
-  | LPAREN; e = spec_expr; COMMA; es = separated_nonempty_list(COMMA, spec_expr); RPAREN
-    { mk_surfexpr $startpos $endpos (SurfExpr.Tuple (e :: es)) }
-
-(* ===== Computational expressions ===== *)
+(* ===== Unified expressions ===== *)
 
 expr:
-  | e = seq_expr; COLON; t = typ; LBRACKET; eff = effect; RBRACKET
-    { mk_surfcomp $startpos $endpos (SurfComp.Annot (e, t, eff)) }
+  | e = seq_expr; COLON; s = sort; LBRACKET; eff = effect; RBRACKET
+    { mk_surfexpr $startpos $endpos (SurfExpr.Annot (e, s, eff)) }
   | e = seq_expr
     { e }
 
 seq_expr:
   | LET; p = pat; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
-    { mk_surfcomp $startpos $endpos (SurfComp.Let (p, e1, e2)) }
-  | CASE; e = app_expr; OF; LBRACE; bs = separated_nonempty_list(BAR, branch); RBRACE
-    { mk_surfcomp $startpos $endpos (SurfComp.Case (e, bs)) }
+    { mk_surfexpr $startpos $endpos (SurfExpr.Let (p, e1, e2)) }
+  | TAKE; p = pat; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
+    { mk_surfexpr $startpos $endpos (SurfExpr.Take (p, e1, e2)) }
+  | RETURN; e = app_expr
+    { mk_surfexpr $startpos $endpos (SurfExpr.Return e) }
+  | CASE; e = app_expr; OF; LBRACE; bs = separated_nonempty_list(BAR, case_branch); RBRACE
+    { mk_surfexpr $startpos $endpos (SurfExpr.Case (e, bs)) }
   | ITER; LPAREN; p = pat; EQUAL; e1 = expr; RPAREN; LBRACE; e2 = expr; RBRACE
-    { mk_surfcomp $startpos $endpos (SurfComp.Iter (p, e1, e2)) }
+    { mk_surfexpr $startpos $endpos (SurfExpr.Iter (p, e1, e2)) }
   | IF; e1 = expr; THEN; e2 = expr; ELSE; e3 = seq_expr
-    { mk_surfcomp $startpos $endpos (SurfComp.If (e1, e2, e3)) }
+    { mk_surfexpr $startpos $endpos (SurfExpr.If (e1, e2, e3)) }
   | e = or_expr
     { e }
 
-branch:
+case_branch:
   | p = pat; ARROW; e = expr
     { (p, e) }
 
 or_expr:
   | e1 = or_expr; BARBAR; e2 = and_expr
-    { let tup = mk_surfcomp $startpos $endpos (SurfComp.Tuple [e1; e2]) in
-      mk_surfcomp $startpos $endpos (SurfComp.App (Prim.Or, tup)) }
+    { let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.App (Prim.Or, tup)) }
   | e = and_expr
     { e }
 
 and_expr:
-  | e1 = and_expr; AMPAMP; e2 = add_expr
-    { let tup = mk_surfcomp $startpos $endpos (SurfComp.Tuple [e1; e2]) in
-      mk_surfcomp $startpos $endpos (SurfComp.App (Prim.And, tup)) }
+  | e1 = and_expr; AMPAMP; e2 = eq_expr
+    { mk_surfexpr $startpos $endpos (SurfExpr.And (e1, e2)) }
+  | e = eq_expr
+    { e }
+
+eq_expr:
+  | e1 = add_expr; EQEQ; e2 = add_expr
+    { mk_surfexpr $startpos $endpos (SurfExpr.Eq (e1, e2)) }
   | e = add_expr
     { e }
 
 add_expr:
   | e1 = add_expr; PLUS; e2 = mul_expr
-    { let tup = mk_surfcomp $startpos $endpos (SurfComp.Tuple [e1; e2]) in
-      mk_surfcomp $startpos $endpos (SurfComp.App (Prim.Add, tup)) }
+    { let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.App (Prim.Add, tup)) }
   | e1 = add_expr; MINUS; e2 = mul_expr
-    { let tup = mk_surfcomp $startpos $endpos (SurfComp.Tuple [e1; e2]) in
-      mk_surfcomp $startpos $endpos (SurfComp.App (Prim.Sub, tup)) }
+    { let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.App (Prim.Sub, tup)) }
   | e = mul_expr
     { e }
 
 mul_expr:
   | e1 = mul_expr; STAR; e2 = app_expr
-    { let tup = mk_surfcomp $startpos $endpos (SurfComp.Tuple [e1; e2]) in
-      mk_surfcomp $startpos $endpos (SurfComp.App (Prim.Mul, tup)) }
+    { let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.App (Prim.Mul, tup)) }
   | e1 = mul_expr; SLASH; e2 = app_expr
-    { let tup = mk_surfcomp $startpos $endpos (SurfComp.Tuple [e1; e2]) in
-      mk_surfcomp $startpos $endpos (SurfComp.App (Prim.Div, tup)) }
+    { let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.App (Prim.Div, tup)) }
   | e = app_expr
     { e }
 
 app_expr:
   | l = LABEL; e = app_expr
-    { mk_surfcomp $startpos $endpos (SurfComp.Inject (label l, e)) }
+    { mk_surfexpr $startpos $endpos (SurfExpr.Inject (label l, e)) }
   | p = state_prim; LBRACKET; t = typ; RBRACKET; e = simple_expr
-    { mk_surfcomp $startpos $endpos (SurfComp.App (p t, e)) }
+    { mk_surfexpr $startpos $endpos (SurfExpr.App (p t, e)) }
   | NOT_KW; e = simple_expr
-    { mk_surfcomp $startpos $endpos (SurfComp.App (Prim.Not, e)) }
+    { mk_surfexpr $startpos $endpos (SurfExpr.Not e) }
   | f = ident_var; e = simple_expr
-    { mk_surfcomp $startpos $endpos (SurfComp.Call (f, e)) }
+    { mk_surfexpr $startpos $endpos (SurfExpr.Call (f, e)) }
   | e = simple_expr
     { e }
 
@@ -373,16 +291,18 @@ state_prim:
 
 simple_expr:
   | x = ident_var
-    { mk_surfcomp $startpos $endpos (SurfComp.Var x) }
+    { mk_surfexpr $startpos $endpos (SurfExpr.Var x) }
   | n = INT_LIT
-    { mk_surfcomp $startpos $endpos (SurfComp.IntLit n) }
+    { mk_surfexpr $startpos $endpos (SurfExpr.IntLit n) }
   | TRUE
-    { mk_surfcomp $startpos $endpos (SurfComp.BoolLit true) }
+    { mk_surfexpr $startpos $endpos (SurfExpr.BoolLit true) }
   | FALSE
-    { mk_surfcomp $startpos $endpos (SurfComp.BoolLit false) }
+    { mk_surfexpr $startpos $endpos (SurfExpr.BoolLit false) }
+  | OWN; LBRACKET; s = sort; RBRACKET
+    { mk_surfexpr $startpos $endpos (SurfExpr.Own s) }
   | LPAREN; RPAREN
-    { mk_surfcomp $startpos $endpos (SurfComp.Tuple []) }
+    { mk_surfexpr $startpos $endpos (SurfExpr.Tuple []) }
   | LPAREN; e = expr; RPAREN
     { e }
   | LPAREN; e = expr; COMMA; es = separated_nonempty_list(COMMA, expr); RPAREN
-    { mk_surfcomp $startpos $endpos (SurfComp.Tuple (e :: es)) }
+    { mk_surfexpr $startpos $endpos (SurfExpr.Tuple (e :: es)) }

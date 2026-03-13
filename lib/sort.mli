@@ -25,11 +25,18 @@ val shape : 'b t -> 'b t sortF
 type sort = < loc : SourcePos.t > t
 
 val compare : sort -> sort -> int
-val print : Format.formatter -> sort -> unit
+val print : Format.formatter -> _ t -> unit
 
 val is_spec_type : sort -> bool
 (** [is_spec_type s] is [true] if [s] contains no [Pred] anywhere.
     Enforces the σ ⊂ τ subrule: equality is only defined on spec types. *)
+
+val typ_to_sort : Typ.ty -> sort
+(** [typ_to_sort ty] converts a type to the corresponding sort.
+    Types are a subset of sorts (no Pred). *)
+
+val sort_to_typ : sort -> (Typ.ty, string) result
+(** [sort_to_typ s] converts a sort to a type, failing if [s] contains Pred. *)
 
 module Test : sig
   val gen : sort QCheck.Gen.t
