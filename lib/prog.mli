@@ -3,7 +3,7 @@
 type 'a decl =
   | FunDecl of {
       name : Var.t;
-      param : Var.t;
+      param : Pat.pat;
       arg_ty : Typ.ty;
       ret_ty : Typ.ty;
       eff : Effect.t;
@@ -29,6 +29,8 @@ type 'a decl =
 type 'a t = {
   decls : 'a decl list;
   main : 'a;
+  main_ty : Typ.ty;
+  main_eff : Effect.t;
   loc : SourcePos.t;
 }
 

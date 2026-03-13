@@ -1,13 +1,13 @@
 type option(a) = { Some : a | None : () }
 
 fun toInt(x : option(int)) -> int [pure] {
-  case x {
+  case x of {
     Some n -> n
   | None u -> 0
   }
 }
 
-main =
-  (let a = toInt (Some 42 : option(int) [pure]);
-   let b = toInt (None () : option(int) [pure]);
-   ()) : () [impure]
+main : () [impure] =
+  let a = toInt (Some 42 : option(int) [pure]);
+  let b = toInt (None () : option(int) [pure]);
+  ()

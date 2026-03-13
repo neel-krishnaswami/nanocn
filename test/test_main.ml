@@ -20,6 +20,7 @@ let qcheck_tests =
     Pat.Test.test;
     CoreExpr.Test.test;
     SurfExpr.Test.test;
+    SurfComp.Test.test;
     ElabM.Test.test;
   ]
 
@@ -27,6 +28,18 @@ let qcheck_tests =
 let typ_of te = (Expr.extract te)#typ
 let eff_of te = (Expr.extract te)#eff
 let ctx_of te = (Expr.extract te)#ctx
+
+(** Helper: elaborate a surface comp expr then synthesize *)
+let elab_synth sig_ ctx se =
+  match ElabM.run (CompElaborate.synth sig_ ctx se) with
+  | Error msg -> Error msg
+  | Ok (core_e, _ty, _eff) -> Typecheck.synth sig_ ctx core_e
+
+(** Helper: elaborate a surface comp expr then check *)
+let elab_check sig_ ctx se ty eff =
+  match ElabM.run (CompElaborate.check sig_ ctx se ty eff) with
+  | Error msg -> Error msg
+  | Ok core_e -> Typecheck.check sig_ ctx core_e ty eff
 
 let () =
   let suite =
@@ -89,42 +102,42 @@ let () =
       Alcotest.test_case "parse variable" `Quick (fun () ->
         match Parse.parse_expr "x" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.Var _ -> ()
+          (match SurfComp.shape e with
+           | SurfComp.Var _ -> ()
            | _ -> Alcotest.fail "expected Var")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse int literal" `Quick (fun () ->
         match Parse.parse_expr "42" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.IntLit 42 -> ()
+          (match SurfComp.shape e with
+           | SurfComp.IntLit 42 -> ()
            | _ -> Alcotest.fail "expected IntLit 42")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse let" `Quick (fun () ->
         match Parse.parse_expr "let x = 1; x" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.Let (_, _, _) -> ()
+          (match SurfComp.shape e with
+           | SurfComp.Let (_, _, _) -> ()
            | _ -> Alcotest.fail "expected Let")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse tuple" `Quick (fun () ->
         match Parse.parse_expr "(1, 2, 3)" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.Tuple [_; _; _] -> ()
+          (match SurfComp.shape e with
+           | SurfComp.Tuple [_; _; _] -> ()
            | _ -> Alcotest.fail "expected 3-tuple")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse arith primitive" `Quick (fun () ->
         match Parse.parse_expr "x + y" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.App (Prim.Add, arg) ->
-             (match Expr.shape arg with
-              | Expr.Tuple [_; _] -> ()
+          (match SurfComp.shape e with
+           | SurfComp.App (Prim.Add, arg) ->
+             (match SurfComp.shape arg with
+              | SurfComp.Tuple [_; _] -> ()
               | _ -> Alcotest.fail "expected 2-tuple argument")
            | _ -> Alcotest.fail "expected App Add")
         | Error msg -> Alcotest.fail msg);
@@ -132,8 +145,8 @@ let () =
       Alcotest.test_case "parse state op with type" `Quick (fun () ->
         match Parse.parse_expr "New[int] x" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.App (Prim.New ty, _) ->
+          (match SurfComp.shape e with
+           | SurfComp.App (Prim.New ty, _) ->
              (match Typ.shape ty with
               | Typ.Int -> ()
               | _ -> Alcotest.fail "expected int type param")
@@ -143,48 +156,48 @@ let () =
       Alcotest.test_case "parse Get with ptr type" `Quick (fun () ->
         match Parse.parse_expr "Get[int] p" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.App (Prim.Get _, _) -> ()
+          (match SurfComp.shape e with
+           | SurfComp.App (Prim.Get _, _) -> ()
            | _ -> Alcotest.fail "expected App Get")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse inject" `Quick (fun () ->
         match Parse.parse_expr "Done x" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.Inject (_, _) -> ()
+          (match SurfComp.shape e with
+           | SurfComp.Inject (_, _) -> ()
            | _ -> Alcotest.fail "expected Inject")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse case" `Quick (fun () ->
-        match Parse.parse_expr "case x { Done y -> y | Next z -> z }" ~file:"test" with
+        match Parse.parse_expr "case x of { Done y -> y | Next z -> z }" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.Case (_, [_; _]) -> ()
+          (match SurfComp.shape e with
+           | SurfComp.Case (_, [_; _]) -> ()
            | _ -> Alcotest.fail "expected Case with 2 branches")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse iter" `Quick (fun () ->
         match Parse.parse_expr "iter (x = 0) { Done x }" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.Iter (_, _, _) -> ()
+          (match SurfComp.shape e with
+           | SurfComp.Iter (_, _, _) -> ()
            | _ -> Alcotest.fail "expected Iter")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse annotation with effect" `Quick (fun () ->
         match Parse.parse_expr "x : int [pure]" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.Annot (_, _, Effect.Pure) -> ()
+          (match SurfComp.shape e with
+           | SurfComp.Annot (_, _, Effect.Pure) -> ()
            | _ -> Alcotest.fail "expected Annot with pure")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse annotation impure" `Quick (fun () ->
         match Parse.parse_expr "x : int [impure]" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.Annot (_, _, Effect.Impure) -> ()
+          (match SurfComp.shape e with
+           | SurfComp.Annot (_, _, Effect.Impure) -> ()
            | _ -> Alcotest.fail "expected Annot with impure")
         | Error msg -> Alcotest.fail msg);
 
@@ -214,7 +227,7 @@ let () =
         match Parse.parse_expr "42" ~file:"test" with
         | Error msg -> Alcotest.fail msg
         | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
+          match elab_synth Sig.empty Context.empty e with
           | Ok te ->
             (match Typ.shape (typ_of te) with
              | Typ.Int -> ()
@@ -229,7 +242,7 @@ let () =
         | Ok e ->
           let int_ty = Typ.In (Typ.Int, object method loc = SourcePos.dummy end) in
           let pair_ty = Typ.In (Typ.Record [int_ty; int_ty], object method loc = SourcePos.dummy end) in
-          match Typecheck.check Sig.empty Context.empty e pair_ty Effect.Pure with
+          match elab_check Sig.empty Context.empty e pair_ty Effect.Pure with
           | Ok te ->
             if not (Typ.compare (typ_of te) pair_ty = 0) then
               Alcotest.fail "expected pair type on output"
@@ -240,7 +253,7 @@ let () =
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
           let int_ty = Typ.In (Typ.Int, object method loc = SourcePos.dummy end) in
-          match Typecheck.check Sig.empty Context.empty e int_ty Effect.Pure with
+          match elab_check Sig.empty Context.empty e int_ty Effect.Pure with
           | Ok te ->
             (match Typ.shape (typ_of te) with
              | Typ.Int -> ()
@@ -251,7 +264,7 @@ let () =
         match Parse.parse_expr "x" ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
+          match elab_synth Sig.empty Context.empty e with
           | Ok _ -> Alcotest.fail "should fail on unbound variable"
           | Error _ -> ());
 
@@ -267,7 +280,7 @@ let () =
             match Parse.parse_expr expr_src ~file:"test" with
             | Error msg -> Alcotest.fail ("parse: " ^ msg)
             | Ok e ->
-              match Typecheck.synth sig_ Context.empty e with
+              match elab_synth sig_ Context.empty e with
               | Ok te ->
                 if Effect.compare (eff_of te) Effect.Pure <> 0 then
                   Alcotest.fail "expected pure"
@@ -281,11 +294,11 @@ let () =
           match Typecheck.check_spec_decl Typecheck.initial_sig d with
           | Error msg -> Alcotest.fail ("typecheck decl: " ^ msg)
           | Ok sig_ ->
-            let expr_src = "let x = (Some 1 : option [pure]); case x { Some y -> y | None u -> 0 } : int [pure]" in
+            let expr_src = "let x = (Some 1 : option [pure]); case x of { Some y -> y | None u -> 0 } : int [pure]" in
             match Parse.parse_expr expr_src ~file:"test" with
             | Error msg -> Alcotest.fail ("parse: " ^ msg)
             | Ok e ->
-              match Typecheck.synth sig_ Context.empty e with
+              match elab_synth sig_ Context.empty e with
               | Ok te ->
                 (match Typ.shape (typ_of te) with
                  | Typ.Int -> ()
@@ -296,7 +309,7 @@ let () =
         match Parse.parse_expr "1 / 2" ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
+          match elab_synth Sig.empty Context.empty e with
           | Ok te ->
             if Effect.compare (eff_of te) Effect.Impure <> 0 then
               Alcotest.fail "Div should be effectful"
@@ -307,7 +320,7 @@ let () =
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
           let int_ty = Typ.In (Typ.Int, object method loc = SourcePos.dummy end) in
-          match Typecheck.check Sig.empty Context.empty e int_ty Effect.Pure with
+          match elab_check Sig.empty Context.empty e int_ty Effect.Pure with
           | Ok _ -> ()
           | Error msg -> Alcotest.fail msg);
 
@@ -315,7 +328,7 @@ let () =
         match Parse.parse_expr "New[int] 1" ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
+          match elab_synth Sig.empty Context.empty e with
           | Ok te ->
             (match Typ.shape (typ_of te) with
              | Typ.Ptr inner ->
@@ -333,7 +346,7 @@ let () =
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
           let int_ty = Typ.In (Typ.Int, object method loc = SourcePos.dummy end) in
-          match Typecheck.check Sig.empty Context.empty e int_ty Effect.Impure with
+          match elab_check Sig.empty Context.empty e int_ty Effect.Impure with
           | Ok _ -> ()
           | Error msg -> Alcotest.fail msg);
 
@@ -343,7 +356,7 @@ let () =
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
           let unit_ty = Typ.In (Typ.Record [], object method loc = SourcePos.dummy end) in
-          match Typecheck.check Sig.empty Context.empty e unit_ty Effect.Impure with
+          match elab_check Sig.empty Context.empty e unit_ty Effect.Impure with
           | Ok _ -> ()
           | Error msg -> Alcotest.fail msg);
 
@@ -351,7 +364,7 @@ let () =
         match Parse.parse_expr "1 / 2 : int [pure]" ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
+          match elab_synth Sig.empty Context.empty e with
           | Ok _ -> Alcotest.fail "should fail: Div is effectful but annotated pure"
           | Error _ -> ());
 
@@ -360,32 +373,34 @@ let () =
         match Parse.parse_expr src ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
+          match elab_synth Sig.empty Context.empty e with
           | Error msg -> Alcotest.fail msg
           | Ok te ->
             (* The root Annot node should have the empty context *)
             (match Context.lookup_comp (Var.of_string "x" SourcePos.dummy) (ctx_of te) with
              | Some _ -> Alcotest.fail "root context should not contain x"
              | None -> ());
-            (* Inside the Annot is a Let; its body should have x in context *)
+            (* After elaboration, let x = 1; x becomes let y = 1; let x = y; x
+               so the structure is Annot(Let(y, _, Let(x, _, body))) *)
             match Expr.shape te with
-            | Expr.Annot (let_node, _, _) ->
-              (match Expr.shape let_node with
-               | Expr.Let (_, _, e2) ->
-                 (match Context.lookup_comp (Var.of_string "x" SourcePos.dummy) (ctx_of e2) with
-                  | Some ty ->
-                    (match Typ.shape ty with
+            | Expr.Annot (outer_let, _, _) ->
+              (match Expr.shape outer_let with
+               | Expr.Let (_, _, inner_let) ->
+                 (match Expr.shape inner_let with
+                  | Expr.Let (_, _, body) ->
+                    (* body is Var x and should have x in context *)
+                    (match Typ.shape (typ_of body) with
                      | Typ.Int -> ()
-                     | _ -> Alcotest.fail "x should have type int in body context")
-                  | None -> Alcotest.fail "x should be in body context")
-               | _ -> Alcotest.fail "expected Let inside Annot")
+                     | _ -> Alcotest.fail "body should have type int")
+                  | _ -> Alcotest.fail "expected inner Let")
+               | _ -> Alcotest.fail "expected outer Let inside Annot")
             | _ -> Alcotest.fail "expected Annot at root");
 
       Alcotest.test_case "typed output carries types on subterms" `Quick (fun () ->
         match Parse.parse_expr "1 + 2" ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
+          match elab_synth Sig.empty Context.empty e with
           | Error msg -> Alcotest.fail msg
           | Ok te ->
             (* Root should be int *)
@@ -426,7 +441,7 @@ let () =
         match Parse.parse_expr src ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
-          match Typecheck.synth Typecheck.initial_sig Context.empty e with
+          match elab_synth Typecheck.initial_sig Context.empty e with
           | Ok te ->
             if Effect.compare (eff_of te) Effect.Pure <> 0 then
               Alcotest.fail "expected pure"
@@ -445,26 +460,26 @@ let () =
       Alcotest.test_case "parse true" `Quick (fun () ->
         match Parse.parse_expr "true" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.BoolLit true -> ()
+          (match SurfComp.shape e with
+           | SurfComp.BoolLit true -> ()
            | _ -> Alcotest.fail "expected BoolLit true")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse false" `Quick (fun () ->
         match Parse.parse_expr "false" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.BoolLit false -> ()
+          (match SurfComp.shape e with
+           | SurfComp.BoolLit false -> ()
            | _ -> Alcotest.fail "expected BoolLit false")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse if-then-else" `Quick (fun () ->
         match Parse.parse_expr "if true then 1 else 2 : int [pure]" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.Annot (inner, _, _) ->
-             (match Expr.shape inner with
-              | Expr.If (_, _, _) -> ()
+          (match SurfComp.shape e with
+           | SurfComp.Annot (inner, _, _) ->
+             (match SurfComp.shape inner with
+              | SurfComp.If (_, _, _) -> ()
               | _ -> Alcotest.fail "expected If inside Annot")
            | _ -> Alcotest.fail "expected Annot at root")
         | Error msg -> Alcotest.fail msg);
@@ -472,24 +487,24 @@ let () =
       Alcotest.test_case "parse and" `Quick (fun () ->
         match Parse.parse_expr "true && false" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.App (Prim.And, _) -> ()
+          (match SurfComp.shape e with
+           | SurfComp.App (Prim.And, _) -> ()
            | _ -> Alcotest.fail "expected App And")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse or" `Quick (fun () ->
         match Parse.parse_expr "true || false" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.App (Prim.Or, _) -> ()
+          (match SurfComp.shape e with
+           | SurfComp.App (Prim.Or, _) -> ()
            | _ -> Alcotest.fail "expected App Or")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse not" `Quick (fun () ->
         match Parse.parse_expr "not true" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.App (Prim.Not, _) -> ()
+          (match SurfComp.shape e with
+           | SurfComp.App (Prim.Not, _) -> ()
            | _ -> Alcotest.fail "expected App Not")
         | Error msg -> Alcotest.fail msg);
     ]);
@@ -499,7 +514,7 @@ let () =
         match Parse.parse_expr "true" ~file:"test" with
         | Error msg -> Alcotest.fail msg
         | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
+          match elab_synth Sig.empty Context.empty e with
           | Ok te ->
             (match Typ.shape (typ_of te) with
              | Typ.Bool -> ()
@@ -513,7 +528,7 @@ let () =
         match Parse.parse_expr src ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
+          match elab_synth Sig.empty Context.empty e with
           | Ok te ->
             (match Typ.shape (typ_of te) with
              | Typ.Int -> ()
@@ -524,7 +539,7 @@ let () =
         match Parse.parse_expr "not true" ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
+          match elab_synth Sig.empty Context.empty e with
           | Ok te ->
             (match Typ.shape (typ_of te) with
              | Typ.Bool -> ()
@@ -537,7 +552,7 @@ let () =
         match Parse.parse_expr "true && false" ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
+          match elab_synth Sig.empty Context.empty e with
           | Ok te ->
             (match Typ.shape (typ_of te) with
              | Typ.Bool -> ()
@@ -551,7 +566,7 @@ let () =
         match Parse.parse_expr src ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
+          match elab_synth Sig.empty Context.empty e with
           | Ok _ -> Alcotest.fail "should fail: condition is not bool"
           | Error _ -> ());
     ]);
@@ -561,7 +576,7 @@ let () =
         match Parse.parse_expr "Eq[int] (1, 2)" ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
+          match elab_synth Sig.empty Context.empty e with
           | Ok te ->
             (match Typ.shape (typ_of te) with
              | Typ.Bool -> ()
@@ -574,7 +589,7 @@ let () =
         match Parse.parse_expr "Eq[bool] (true, false)" ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
+          match elab_synth Sig.empty Context.empty e with
           | Ok te ->
             (match Typ.shape (typ_of te) with
              | Typ.Bool -> ()
@@ -585,7 +600,7 @@ let () =
         match Parse.parse_expr "Eq[(int * int)] ((1,2), (3,4))" ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
-          match Typecheck.synth Sig.empty Context.empty e with
+          match elab_synth Sig.empty Context.empty e with
           | Ok _ -> Alcotest.fail "should fail: record is not an eqtype"
           | Error _ -> ());
     ]);
@@ -594,13 +609,13 @@ let () =
       Alcotest.test_case "parse call" `Quick (fun () ->
         match Parse.parse_expr "foo 1" ~file:"test" with
         | Ok e ->
-          (match Expr.shape e with
-           | Expr.Call (_, _) -> ()
+          (match SurfComp.shape e with
+           | SurfComp.Call (_, _) -> ()
            | _ -> Alcotest.fail "expected Call")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse simple program" `Quick (fun () ->
-        let src = "main = () : () [impure]" in
+        let src = "main : () [impure] = ()" in
         match Parse.parse_prog src ~file:"test" with
         | Ok p ->
           if List.length p.Prog.decls <> 0 then
@@ -608,7 +623,7 @@ let () =
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse program with function" `Quick (fun () ->
-        let src = "fun double(x : int) -> int [pure] { x + x } main = () : () [impure]" in
+        let src = "fun double(x : int) -> int [pure] { x + x } main : () [impure] = ()" in
         match Parse.parse_prog src ~file:"test" with
         | Ok p ->
           if List.length p.Prog.decls <> 1 then
@@ -618,7 +633,7 @@ let () =
 
     ("typecheck-prog", [
       Alcotest.test_case "typecheck trivial program" `Quick (fun () ->
-        let src = "main = () : () [impure]" in
+        let src = "main : () [impure] = ()" in
         match Parse.parse_prog src ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok p ->
@@ -627,7 +642,7 @@ let () =
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "typecheck program with function" `Quick (fun () ->
-        let src = "fun double(x : int) -> int [pure] { x + x } main = () : () [impure]" in
+        let src = "fun double(x : int) -> int [pure] { x + x } main : () [impure] = ()" in
         match Parse.parse_prog src ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok p ->
@@ -636,7 +651,7 @@ let () =
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "typecheck function call" `Quick (fun () ->
-        let src = "fun double(x : int) -> int [pure] { x + x } main = (let r = double 21; ()) : () [impure]" in
+        let src = "fun double(x : int) -> int [pure] { x + x } main : () [impure] = (let r = double 21; ())" in
         match Parse.parse_prog src ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok p ->
@@ -649,7 +664,7 @@ let () =
           fun countdown(x : int) -> step(int, ()) [impure] {
             Done () : step(int, ()) [impure]
           }
-          main = (iter (x = 10) { countdown x }) : () [impure]
+          main : () [impure] = iter (x = 10) { countdown x }
         |} in
         match Parse.parse_prog src ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
@@ -663,7 +678,7 @@ let () =
           fun loop(x : int) -> int [pure] {
             loop x
           }
-          main = () : () [impure]
+          main : () [impure] = ()
         |} in
         match Parse.parse_prog src ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
@@ -673,7 +688,7 @@ let () =
           | Error _ -> ());
 
       Alcotest.test_case "unknown function fails" `Quick (fun () ->
-        let src = "main = (unknown 1 : int [pure]) : () [impure]" in
+        let src = "main : () [impure] = (unknown 1 : int [pure])" in
         match Parse.parse_prog src ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok p ->
@@ -685,9 +700,9 @@ let () =
         let src = {|
           type option(a) = { Some : a | None : () }
           fun unwrap(x : option(int)) -> int [pure] {
-            case x { Some y -> y | None u -> 0 }
+            case x of { Some y -> y | None u -> 0 }
           }
-          main = (let r = unwrap (Some 42 : option(int) [pure]); ()) : () [impure]
+          main : () [impure] = (let r = unwrap (Some 42 : option(int) [pure]); ())
         |} in
         match Parse.parse_prog src ~file:"test" with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)

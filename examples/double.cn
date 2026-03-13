@@ -6,6 +6,6 @@ fun quadruple(x : int) -> int [pure] {
   double (double x)
 }
 
-main =
-  (let r = quadruple 5;
-   ()) : () [impure]
+main : () [impure] =
+  let r = quadruple 5;
+  ()

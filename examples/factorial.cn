@@ -16,6 +16,6 @@ fun factorial(n : int) -> int [impure] {
   }
 }
 
-main =
-  (let r = factorial 5;
-   ()) : () [impure]
+main : () [impure] =
+  let r = factorial 5;
+  ()

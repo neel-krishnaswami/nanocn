@@ -45,7 +45,7 @@ let prim_signature (p : Prim.t) =
   | Get a -> (mk_ty (Typ.Ptr a), a, Effect.Impure)
   | Set a -> (mk_ty (Typ.Record [mk_ty (Typ.Ptr a); a]), unit_ty, Effect.Impure)
 
-(** Synthesize: Σ; Γ ⊢ e ⇒ A[ϵ] *)
+(** Synthesize: Sigma; Gamma |- e => A[epsilon] *)
 let rec synth sig_ ctx (Expr.In (shape, info) as _e) =
   let pos = info#loc in
   match shape with
@@ -87,7 +87,7 @@ let rec synth sig_ ctx (Expr.In (shape, info) as _e) =
   | Expr.Case _ | Expr.Iter _ | Expr.If _ ->
     err_at pos "cannot synthesize type; add a type annotation"
 
-(** Check: Σ; Γ ⊢ e ⇐ A[ϵ] *)
+(** Check: Sigma; Gamma |- e <= A[epsilon] *)
 and check sig_ ctx (Expr.In (shape, info) as e) ty eff =
   let pos = info#loc in
   match shape with
@@ -383,7 +383,8 @@ let validate_type_decl sig_ (d : DtypeDecl.t) =
     (* Check guarded well-formedness of each constructor type *)
     type_guarded_list sig_with_self d.params d.name (List.map snd d.ctors)
 
-let check_decl sig_ (d : Expr.expr Prog.decl) =
+(** Elaborate and typecheck a FunDecl body *)
+let elaborate_fun_body sig_ (d : SurfComp.se Prog.decl) =
   match d with
   | Prog.FunDecl d ->
     let entry = Sig.FunSig { arg = d.arg_ty; ret = d.ret_ty; eff = d.eff } in
@@ -391,9 +392,28 @@ let check_decl sig_ (d : Expr.expr Prog.decl) =
       | Effect.Impure -> Sig.extend d.name entry sig_
       | Effect.Pure -> sig_
     in
-    let ctx = Context.extend_comp d.param d.arg_ty Context.empty in
-    let* body' = check sig_for_body ctx d.body d.ret_ty d.eff in
-    Ok (Prog.FunDecl { d with body = body' })
+    let result = ElabM.run (
+      let open ElabM in
+      let* y = fresh d.loc in
+      let branch = CompElaborate.{
+        bindings = [(d.param, d.arg_ty)];
+        comp_bindings = [];
+        ectx = CompEvalCtx.Hole;
+        body = d.body;
+      } in
+      let* core_body = CompElaborate.coverage_check sig_for_body Context.empty
+        [y] [branch] d.ret_ty d.eff in
+      return (y, core_body)
+    ) in
+    let* (y, core_body) = result in
+    let ctx = Context.extend_comp y d.arg_ty Context.empty in
+    let* typed_body = check sig_for_body ctx core_body d.ret_ty d.eff in
+    Ok (Prog.FunDecl { d with body = typed_body })
+  | _ -> Error "elaborate_fun_body: not a FunDecl"
+
+let check_decl sig_ (d : SurfComp.se Prog.decl) =
+  match d with
+  | Prog.FunDecl _ -> elaborate_fun_body sig_ d
   | Prog.SpecFunDecl d ->
     (* Add recursive binding to sig *)
     let sig_with_self = Sig.extend d.name
@@ -432,7 +452,7 @@ let check_decl sig_ (d : Expr.expr Prog.decl) =
     let* () = validate_type_decl sig_ d in
     Ok (Prog.TypeDecl d)
 
-let check_spec_decl sig_ (d : Expr.expr Prog.decl) =
+let check_spec_decl sig_ (d : SurfComp.se Prog.decl) =
   let* _d' = check_decl sig_ d in
   match d with
   | Prog.SortDecl dd ->
@@ -446,8 +466,7 @@ let check_spec_decl sig_ (d : Expr.expr Prog.decl) =
   | Prog.FunDecl dd ->
     Ok (Sig.extend dd.name (Sig.FunSig { arg = dd.arg_ty; ret = dd.ret_ty; eff = dd.eff }) sig_)
 
-let check_prog (p : Expr.expr Prog.t) : (typed_expr Prog.t, string) result =
-  let unit_ty = mk_ty (Typ.Record []) in
+let check_prog (p : SurfComp.se Prog.t) : (typed_expr Prog.t, string) result =
   let rec check_decls sig_ = function
     | [] -> Ok (sig_, [])
     | d :: rest ->
@@ -469,5 +488,11 @@ let check_prog (p : Expr.expr Prog.t) : (typed_expr Prog.t, string) result =
       Ok (final_sig, d' :: rest')
   in
   let* (final_sig, decls') = check_decls initial_sig p.decls in
-  let* main' = check final_sig Context.empty p.main unit_ty Effect.Impure in
-  Ok { Prog.decls = decls'; main = main'; loc = p.loc }
+  (* Elaborate main *)
+  let result = ElabM.run (
+    CompElaborate.check final_sig Context.empty p.main p.main_ty p.main_eff
+  ) in
+  let* core_main = result in
+  let* main' = check final_sig Context.empty core_main p.main_ty p.main_eff in
+  Ok { Prog.decls = decls'; main = main'; main_ty = p.main_ty; main_eff = p.main_eff;
+       loc = p.loc }

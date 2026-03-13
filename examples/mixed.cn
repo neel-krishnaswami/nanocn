@@ -8,7 +8,7 @@ spec fromOpt : option(int) -> int = {
 }
 
 fun unwrap(o : optionT(int)) -> int [pure] {
-  case o {
+  case o of {
     Some n -> n
   | None u -> 0
   }
@@ -18,10 +18,10 @@ fun makeOpt(x : int) -> optionT(int) [pure] {
   Some x : optionT(int) [pure]
 }
 
-main =
-  (let o = makeOpt 42;
-   let v = unwrap o;
-   let p = New[int] v;
-   let r = Get[int] p;
-   let u = Del[int] p;
-   ()) : () [impure]
+main : () [impure] =
+  let o = makeOpt 42;
+  let v = unwrap o;
+  let p = New[int] v;
+  let r = Get[int] p;
+  let u = Del[int] p;
+  ()

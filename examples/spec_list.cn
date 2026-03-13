@@ -1,4 +1,4 @@
-sort list(a) = { Nil : () | Cons : (a, list(a)) }
+sort list(a) = { Nil : () | Cons : (a * list(a)) }
 
 spec length : list(int) -> int = {
     Nil () -> 0
@@ -10,4 +10,4 @@ spec sum : list(int) -> int = {
   | Cons (x, xs) -> x + sum xs
 }
 
-main = () : () [impure]
+main : () [impure] = ()

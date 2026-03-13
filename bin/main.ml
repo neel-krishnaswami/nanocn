@@ -118,32 +118,39 @@ let toplevel () =
     | Error msg ->
       Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
       loop sig_ ctx
-    | Ok (x, e) ->
-      match Typecheck.synth sig_ ctx e with
-      | Error msg ->
-        Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
-        loop sig_ ctx
-      | Ok te ->
-        let ty = (Expr.extract te)#typ in
-        let ctx' = Context.extend_comp x ty ctx in
-        let eff = (Expr.extract te)#eff in
-        Format.printf "%a : %a [%a]@." Var.print x Typ.print ty Effect.print eff;
-        loop sig_ ctx'
+    | Ok (x, se) ->
+      let result = ElabM.run (
+        CompElaborate.synth sig_ ctx se
+      ) in
+      (match result with
+       | Error msg ->
+         Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
+         loop sig_ ctx
+       | Ok (core_e, ty, eff) ->
+         match Typecheck.synth sig_ ctx core_e with
+         | Error msg ->
+           Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
+           loop sig_ ctx
+         | Ok _te ->
+           let ctx' = Context.extend_comp x ty ctx in
+           Format.printf "%a : %a [%a]@." Var.print x Typ.print ty Effect.print eff;
+           loop sig_ ctx')
   and handle_expr sig_ ctx line =
     match Parse.parse_expr line ~file:"<toplevel>" with
     | Error msg ->
       Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
       loop sig_ ctx
-    | Ok e ->
-      match Typecheck.synth sig_ ctx e with
-      | Error msg ->
-        Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
-        loop sig_ ctx
-      | Ok te ->
-        let ty = (Expr.extract te)#typ in
-        let eff = (Expr.extract te)#eff in
-        Format.printf "_ : %a [%a]@." Typ.print ty Effect.print eff;
-        loop sig_ ctx
+    | Ok se ->
+      let result = ElabM.run (
+        CompElaborate.synth sig_ ctx se
+      ) in
+      (match result with
+       | Error msg ->
+         Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
+         loop sig_ ctx
+       | Ok (_core_e, ty, eff) ->
+         Format.printf "_ : %a [%a]@." Typ.print ty Effect.print eff;
+         loop sig_ ctx)
   in
   loop Typecheck.initial_sig Context.empty
 

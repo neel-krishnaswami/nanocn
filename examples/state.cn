@@ -1,8 +1,8 @@
-main =
-  (let p = New[int] 0;
-   let x = Get[int] p;
-   let v = x + 1;
-   let u = Set[int] (p, v);
-   let y = Get[int] p;
-   let w = Del[int] p;
-   ()) : () [impure]
+main : () [impure] =
+  let p = New[int] 0;
+  let x = Get[int] p;
+  let v = x + 1;
+  let u = Set[int] (p, v);
+  let y = Get[int] p;
+  let w = Del[int] p;
+  ()

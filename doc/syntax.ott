@@ -1,4 +1,5 @@
 % nanocn: a small language with bidirectional typechecking
+% Merged spec: unified expression grammars, three-level effects
 
 metavar var, x, y, z ::=
 metavar label, L, Next, Done ::=
@@ -18,34 +19,40 @@ terminals :: 'terminals_' ::=
   | ||                                 :: :: doublepipe {{ tex \mid }}
 
 A, B, C :: 'T_' ::=                                        {{ com types }}
-  | int                                :: :: Int            {{ com integers }}
-  | bool                               :: :: Bool           {{ com booleans }}
-  | ptr A                              :: :: Ptr            {{ com pointer }}
+  | int                                :: :: Int            {{ com integers }} {{ tex \mathsf{int} }}
+  | bool                               :: :: Bool           {{ com booleans }} {{ tex \mathsf{bool} }}
+  | ptr A                              :: :: Ptr            {{ com pointer }}  {{ tex \mathsf{ptr}\;[[A]] }}
   | ( A1 , .. , An )                   :: :: Record         {{ com record }}
   | D ( A1 , .. , An )                 :: :: App            {{ com datatype application }}
   | a                                  :: :: TVar           {{ com type variable }}
 
-eff {{ tex \epsilon }} :: 'Eff_' ::=                        {{ com effects }}
+eff, eff_b {{ tex \epsilon }} :: 'Eff_' ::=                        {{ com effects }}
   | pure                               :: :: Pure            {{ tex \mathbf{0} }}
   | impure                             :: :: Impure          {{ tex \mathbf{1} }}
+  | spec                               :: :: Spec            {{ tex \mathbf{S} }}
 
+tau {{ tex \tau }} :: 'Sort_' ::=                          {{ com sorts }}
+  | int                                :: :: Int            {{ com integers }} {{ tex \mathsf{int} }}
+  | bool                               :: :: Bool           {{ com booleans }} {{ tex \mathsf{bool} }}
+  | ptr tau'                           :: :: Ptr            {{ com pointer }}  {{ tex \mathsf{ptr}\;[[tau']] }}
+  | ( tau1 , .. , taun )               :: :: Record         {{ com tuple }}
+  | D ( tau1 , .. , taun )             :: :: App            {{ com datasort application }}
+  | pred tau'                          :: :: Pred           {{ com predicate sort }} {{ tex \mathsf{pred}\;[[tau']] }}
+  | a                                  :: :: TVar           {{ com type variable }}
 
 F :: 'P_' ::=                                              {{ com function signatures }}
-  | A -> B [ eff ]                      :: :: FunSig   {{ tex [[A]] \to_{[[eff]]} [[B]] }}
+  | tau -> tau' [ eff ]                :: :: FunSig   {{ tex [[tau]] \to_{[[eff]]} [[tau']] }}
 
 
 G {{ tex \Gamma }} :: 'Ctx_' ::=                            {{ com contexts }}
   | empty                              :: :: Empty          {{ tex \cdot }}
-  | G , x : A                          :: :: Ext
-  | G , spec x : tau                   :: :: SpecExt        {{ tex [[G]], \mathsf{spec}\; [[x]] : [[tau]] }}
+  | G , x : tau [ eff ]               :: :: Ext            {{ tex [[G]], [[x]] \mathord{:}_{[[eff]]} [[tau]] }}
   | G , G'                             :: :: Concat
 
 
 S {{ tex \Sigma }} :: 'Sig_' ::=                            {{ com signatures }}
   | noprims                            :: :: Empty    {{ tex \cdot }}
   | S , f : F                          :: :: Ext
-  | S , spec f : tau -> tau'           :: :: SpecFun  {{ tex [[S]], \mathsf{spec}\; [[f]] : [[tau]] \to [[tau']] }}
-  | S , spec f : tau                   :: :: SpecVal  {{ tex [[S]], \mathsf{spec}\; [[f]] : [[tau]] }}
   | S , sort D ( a1 , .. , ai ) = { L1 : tau1 '|' .. '|' Ln : taun }  :: :: Sort  {{ tex [[S]], \mathsf{sort}\;[[D]](\overline{a}) = \{\overline{L : \tau}\} }}
   | S , type D ( a1 , .. , ai ) = { L1 : A1 '|' .. '|' Ln : An }  :: :: Type  {{ tex [[S]], \mathsf{type}\;[[D]](\overline{a}) = \{\overline{L : A}\} }}
 
@@ -68,50 +75,71 @@ prim :: 'Prim_' ::=                                            {{ com primitives
   | Get [ A ]                          :: :: Get            {{ com dereference }}
   | Set [ A ]                          :: :: Set            {{ com update }}
 
-e :: 'E_' ::=                                               {{ com expressions }}
+
+% ===== Core Expressions (merged computation + assertion) =====
+
+ce :: 'CE_' ::=                                               {{ com core expressions }}
   | x                                  :: :: Var
   | lit                                :: :: IntLit         {{ com integer literal }}
   | blit                               :: :: BoolLit        {{ com boolean literal }}
-  | let x = e1 ; e2                    :: :: Let
-  | ( e1 , .. , en )                   :: :: Tuple
-  | let ( x1 , .. , xn ) = e1 ; e2    :: :: LetTuple
-  | L e                                :: :: Inject
-  | case e { L1 x1 -> e1 '|' .. '|' Ln xn -> en }   :: :: Case
-  | iter ( x = e1 ) { e2 }            :: :: Iter
-  | prim e                               :: :: App
-  | if e1 then e2 else e3              :: :: If             {{ com conditional }}
-  | e : A [ eff ]                      :: :: Annot
-  | f e                                :: :: Call
+  | let x = ce1 ; ce2                  :: :: Let
+  | ( ce1 , .. , cen )                 :: :: Tuple
+  | let ( x1 , .. , xn ) = ce1 ; ce2  :: :: LetTuple
+  | L ce                               :: :: Inject
+  | case ce of { L1 x1 -> ce1 '|' .. '|' Ln xn -> cen }   :: :: Case
+  | iter ( x = ce1 ) { ce2 }          :: :: Iter
+  | prim ce                            :: :: App
+  | if ce1 then ce2 else ce3          :: :: If             {{ com conditional }}
+  | ce : tau [ eff ]                   :: :: Annot
+  | f ce                               :: :: Call
+  | ce1 '==' ce2                       :: :: Eq            {{ tex [[ce1]] \doteq [[ce2]] }}
+  | ce1 '&&' ce2                       :: :: And           {{ tex [[ce1]] \wedge [[ce2]] }}
+  | not ce                             :: :: Not           {{ tex \neg [[ce]] }}
+  | Own [ tau ]                        :: :: Own           {{ tex \mathsf{Own}_{[[tau]]} }}
+  | take x = ce1 ; ce2                :: :: Take
+  | return ce                          :: :: Return
 
-prog :: 'Prog_' ::=                                        {{ com programs }}
-  | fun f ( x : A ) -> B [ eff ] { e } prog   :: :: Decl   {{ tex \mathsf{fun}\;[[f]] ( [[x]] \mathord{:} [[A]] ) \to_{[[eff]]} [[B]] \; \{ [[e]] \} \quad [[prog]] }}
-  | spec f : tau -> tau' = { pat1 -> se1 '|' .. '|' patn -> sen } prog   :: :: SpecFun
-  | spec f : tau = se prog                     :: :: SpecDef  {{ tex \mathsf{spec}\;[[f]] : [[tau]] = [[se]] \quad [[prog]] }}
+
+
+% ===== Surface Expressions (merged computation + assertion) =====
+
+se :: 'SE_' ::=                                            {{ com surface expressions }}
+  | x                                  :: :: Var
+  | lit                                :: :: IntLit         {{ com integer literal }}
+  | blit                               :: :: BoolLit        {{ com boolean literal }}
+  | let pat = se1 ; se2                :: :: Let
+  | ( se1 , .. , sen )                 :: :: Tuple
+  | L se                               :: :: Inject
+  | case se of { pat1 -> se1 '|' .. '|' patn -> sen }  :: :: Case
+  | iter ( pat = se1 ) { se2 }        :: :: Iter
+  | prim se                            :: :: App
+  | if se1 then se2 else se3          :: :: If             {{ com conditional }}
+  | se : tau [ eff ]                   :: :: Annot
+  | f se                               :: :: Call
+  | se1 '==' se2                       :: :: Eq            {{ tex [[se1]] \doteq [[se2]] }}
+  | se1 '&&' se2                       :: :: And           {{ tex [[se1]] \wedge [[se2]] }}
+  | not se                             :: :: Not           {{ tex \neg [[se]] }}
+  | take pat = se1 ; se2              :: :: Take
+  | return se                          :: :: Return
+
+
+
+% ===== Programs =====
+
+prog :: 'Prog_' ::=                                        {{ com surface programs }}
+  | fun f : tau -> tau' [ eff ] = { pat1 --> se1 '|' .. '|' patn --> sen } prog   :: :: FunDecl   {{ tex \mathsf{fun}\;[[f]] : [[tau]] \to_{[[eff]]} [[tau']] = \{\overline{[[pat]] \to [[se]]}\} \quad \ottnt{prog} }}
   | sort D ( a1 , .. , ai ) = { L1 : tau1 '|' .. '|' Ln : taun } prog   :: :: SortDecl
   | type D ( a1 , .. , ai ) = { L1 : A1 '|' .. '|' Ln : An } prog     :: :: TypeDecl
-  | main = e                                   :: :: Main   {{ tex \mathsf{main} = [[e]] }}
+  | main : tau [ eff ] = se                    :: :: Main   {{ tex \mathsf{main} : [[tau]]_{[[eff]]} = [[se]] }}
 
-% ===== Assertion Language =====
+cprog :: 'CProg_' ::=                                      {{ com core programs }}
+  | fun f ( x : tau ) -> tau' [ eff ] = ce cprog   :: :: FunDecl   {{ tex \mathsf{fun}\;[[f]]([[x]] : [[tau]]) \to_{[[eff]]} [[tau']] = [[ce]] \quad \ottnt{cprog} }}
+  | sort D ( a1 , .. , ai ) = { L1 : tau1 '|' .. '|' Ln : taun } cprog   :: :: SortDecl
+  | type D ( a1 , .. , ai ) = { L1 : A1 '|' .. '|' Ln : An } cprog     :: :: TypeDecl
+  | main : tau [ eff ] = ce                    :: :: Main   {{ tex \mathsf{main} : [[tau]]_{[[eff]]} = [[ce]] }}
 
-tau {{ tex \tau }} :: 'Sort_' ::=                          {{ com assertion sorts }}
-  | int                                :: :: Int            {{ com integers }}
-  | bool                               :: :: Bool           {{ com booleans }}
-  | ptr tau'                           :: :: Ptr            {{ com pointer }}
-  | ( tau1 , .. , taun )               :: :: Record         {{ com tuple }}
-  | D ( tau1 , .. , taun )             :: :: App            {{ com datasort application }}
-  | pred tau'                          :: :: Pred           {{ com predicate sort }}
-  | a                                  :: :: TVar           {{ com type variable }}
 
-stau {{ tex \sigma }} :: 'SSort_' ::=                      {{ com spec types }}
-  | int                                :: :: Int            {{ com integers }}
-  | bool                               :: :: Bool           {{ com booleans }}
-  | ptr stau'                          :: :: Ptr            {{ com pointer }}
-  | ( stau1 , .. , staun )             :: :: Record         {{ com tuple }}
-  | D ( stau1 , .. , staun )           :: :: App            {{ com datasort application }}
-
-chi {{ tex \chi }} :: 'Scheme_' ::=                        {{ com sort schemes }}
-  | tau                                :: :: Base
-  | tau -> tau'                        :: :: Arrow          {{ tex [[tau]] \to [[tau']] }}
+% ===== Pattern Matching Infrastructure =====
 
 pat :: 'Pat_' ::=                                          {{ com patterns }}
   | x                                  :: :: Var
@@ -133,80 +161,41 @@ scrs {{ tex \overline{y} }} :: 'Scrs_' ::=                   {{ com scrutinee va
   | y , scrs                          :: :: Cons
   | y1 , .. , yn , scrs               :: :: ConsList
 
-ce :: 'CE_' ::=                                            {{ com core assertion expressions }}
-  | x                                  :: :: Var
-  | lit                                :: :: IntLit         {{ com integer literal }}
-  | blit                               :: :: BoolLit        {{ com boolean literal }}
-  | ce1 '==' ce2                       :: :: Eq            {{ tex [[ce1]] \doteq [[ce2]] }}
-  | ce1 '&&' ce2                       :: :: And           {{ tex [[ce1]] \wedge [[ce2]] }}
-  | not ce                             :: :: Not           {{ tex \neg [[ce]] }}
-  | Own [ tau ]                        :: :: Own           {{ tex \mathsf{Own}_{[[tau]]} }}
-  | take x = ce1 ; ce2                 :: :: Take
-  | return ce                          :: :: Return
-  | L ce                               :: :: Con
-  | case ce of { L1 x1 -> ce1 '|' .. '|' Ln xn -> cen }  :: :: Case
-  | ( ce1 , .. , cen )                 :: :: Tuple
-  | let ( x1 , .. , xn ) = ce1 ; ce2   :: :: LetTuple
-  | f ce                               :: :: Call
-  | f                                  :: :: Const          {{ com spec constant }}
-  | let x = ce1 ; ce2                  :: :: Let
-  | if ce1 then ce2 else ce3           :: :: If
-  | ce : tau                           :: :: Annot
-  | prim ce                            :: :: Prim           {{ com primitive application }}
-
-se :: 'SE_' ::=                                            {{ com surface assertion expressions }}
-  | x                                  :: :: Var
-  | lit                                :: :: IntLit         {{ com integer literal }}
-  | blit                               :: :: BoolLit        {{ com boolean literal }}
-  | se1 '==' se2                       :: :: Eq            {{ tex [[se1]] \doteq [[se2]] }}
-  | se1 '&&' se2                       :: :: And           {{ tex [[se1]] \wedge [[se2]] }}
-  | not se                             :: :: Not           {{ tex \neg [[se]] }}
-  | take pat = se1 ; se2               :: :: Take
-  | return se                          :: :: Return
-  | let pat = se1 ; se2                :: :: Let
-  | ( se1 , .. , sen )                 :: :: Tuple
-  | L se                                :: :: Inject
-  | case se of { pat1 -> se1 '|' .. '|' patn -> sen }  :: :: Case
-  | f se                               :: :: Call
-  | f                                  :: :: Const          {{ com spec constant }}
-  | if se1 then se2 else se3           :: :: If
-  | se : tau                           :: :: Annot
-  | prim se                            :: :: Prim           {{ com primitive application }}
-
 mbranches {{ tex M }} :: 'MB_' ::=                                {{ com match branches }}
   | nobranches                         :: :: Empty          {{ tex \cdot }}
   | binds --> [ G ] [ E ] se || mbranches     :: :: Cons
   | binds --> [ G ] [ E ] se                  :: :: Single
 
+
 formula :: 'formula_' ::=
   | judgement                           :: :: judgement
-  | x : A in G                         :: :: var_in      {{ tex [[x]] \mathord{:} [[A]] \in [[G]] }}
+  | x : tau [ eff ] in G               :: :: var_in      {{ tex [[x]] \mathord{:}_{[[eff]]} [[tau]] \in [[G]] }}
   | f : F in S                         :: :: proc_in     {{ tex [[f]] \mathord{:} [[F]] \in [[S]] }}
   | A eqtype                           :: :: eqtype      {{ tex [[A]] \;\mathsf{eqtype} }}
-  | spec x : tau in G                  :: :: spec_var_in {{ tex \mathsf{spec}\; [[x]] \mathord{:} [[tau]] \in [[G]] }}
-  | spec f : chi in S                  :: :: spec_fun_in {{ tex \mathsf{spec}\; [[f]] \mathord{:} [[chi]] \in [[S]] }}
-  | sort D ( a1 , .. , ai ) in S        :: :: sort_decl
-  | L : tau rawctor D in S         :: :: raw_ctor   {{ tex [[L]] \mathord{:} [[tau]] \in \mathrm{ctors}([[D]]) \in [[S]] }}
+  | sort D ( a1 , .. , ai ) in S       :: :: sort_decl
+  | L : tau rawctor D in S             :: :: raw_ctor   {{ tex [[L]] \mathord{:} [[tau]] \in \mathrm{ctors}([[D]]) \in [[S]] }}
   | tau = subst tau1 / a1 , .. , taui / ai in tau'   :: :: subst_eq
   | sort D ( a1 , .. , ak ) = { L1 : tau1 | .. | Ln : taun } in S   :: :: sort_lookup
-  | type D ( a1 , .. , ai ) in S        :: :: type_decl
-  | L : A rawtypector D in S     :: :: rawtypector   {{ tex [[L]] \mathord{:} [[A]] \in \mathsf{tyctors}([[D]]) \in [[S]] }}
+  | type D ( a1 , .. , ai ) in S       :: :: type_decl
+  | L : A rawtypector D in S           :: :: rawtypector   {{ tex [[L]] \mathord{:} [[A]] \in \mathsf{tyctors}([[D]]) \in [[S]] }}
   | A = subst A1 / a1 , .. , Ai / ai in A'   :: :: type_subst_eq
   | type D ( a1 , .. , ak ) = { L1 : A1 | .. | Ln : An } in S   :: :: type_lookup
-  | L : A in_type D ( A1 , .. , Ai ) in S   :: :: type_ctor_in
   | type D ( x , y ) = { Next : a , Done : b } in S   :: :: step_lookup   {{ tex \mathsf{type}\; [[D]]( [[a]], [[b]]) = \{ \mathsf{Next}\mathord{:}[[a]] \mid \mathsf{Done}\mathord{:}[[b]] \} \in [[S]] }}
   | a in Phi                            :: :: tvar_in     {{ tex [[a]] \in [[Phi]] }}
   | L != L'                            :: :: label_neq   {{ tex [[L]] \neq [[L']] }}
   | mbranches = mk tau { pat1 --> se1 || .. || patn --> sen }  :: :: mk_branches  {{ tex [[mbranches]] = \overline{ pat \mathord{:} [[tau]], \cdot \to [\cdot][\cdot] \, se } }}
   | ce = fill E ce'                    :: :: fill_ctx      {{ tex [[ce]] = [[E]] [ [[ce']] ] }}
-  | prim : tau -> tau'                  :: :: spec_prim    {{ tex [[prim]] \mathord{:} [[tau]] \to [[tau']] }}
   | D != D'                             :: :: dsort_neq  {{ tex [[D]] \neq [[D']] }}
   | n = k                               :: :: arity_eq   {{ tex [[n]] = [[k]] }}
   | formula1 .. formulan                :: :: dots
 
 subrules
-  stau <:: A
   A <:: tau
+
+
+% =============================================================================
+% Well-formedness, effects, and primitive typing
+% =============================================================================
 
 defns Jtype :: '' ::=
 
@@ -330,6 +319,25 @@ defns Jtype :: '' ::=
     --------------- :: impure_impure
     impure <= impure
 
+    ------------- :: pure_spec
+    pure <= spec
+
+    ------------- :: spec_spec
+    spec <= spec
+
+  defn eff' = purify eff :: :: purify :: 'Pur_'
+  {{ tex [[eff']] = \lfloor [[eff]] \rfloor }} by
+
+    -------------------- :: pure
+    pure = purify pure
+
+    -------------------- :: impure
+    pure = purify impure
+
+    -------------------- :: spec
+    spec = purify spec
+
+
   defn prim : A -> B [ eff ] :: :: prim_type :: 'PT_'
   {{ tex [[prim]] \mathord{:} [[A]] \to_{[[eff]]} [[B]] }} by
 
@@ -370,29 +378,13 @@ defns Jtype :: '' ::=
     -------------------------------------------------- :: set
     Set [ A ] : ( ptr A , A ) -> ( ) [ impure ]
 
-  defn prim : tau -> tau' :: :: spec_prim_type :: 'SPT_'
-  {{ tex [[prim]] \mathord{:} [[tau]] \to [[tau']] }} by
 
-    ----------------------------------- :: add
-    Add : ( int , int ) -> int
+% =============================================================================
+% Core typing (merged computation + assertion)
+% =============================================================================
 
-    ----------------------------------- :: sub
-    Sub : ( int , int ) -> int
-
-    ----------------------------------- :: mul
-    Mul : ( int , int ) -> int
-
-    --------------------------------------- :: and
-    And : ( bool , bool ) -> bool
-
-    --------------------------------------- :: or
-    Or : ( bool , bool ) -> bool
-
-    ----------------------------- :: not
-    Not : bool -> bool
-
-  defn S ; G |- e ==> A [ eff ] :: :: synth :: 'Syn_'
-  {{ tex [[S]] ; [[G]] \vdash_{[[eff]]} [[e]] \Rightarrow [[A]] }} by
+  defn S ; G |- ce ==> tau [ eff ] :: :: synth :: 'Syn_'
+  {{ tex [[S]] ; [[G]] \vdash_{[[eff]]} [[ce]] \Rightarrow [[tau]] }} by
 
     ----------------------- :: int
     S ; G |- lit ==> int [ pure ]
@@ -400,290 +392,328 @@ defns Jtype :: '' ::=
     -------------------------- :: bool
     S ; G |- blit ==> bool [ pure ]
 
-    x : A in G
+    x : tau [ eff ] in G
     ----------------------- :: var
-    S ; G |- x ==> A [ pure ]
+    S ; G |- x ==> tau [ eff ]
 
-    S ; G |- e <== A [ eff ]
+    S ; G |- ce <== tau [ eff ]
     ---------------------------------- :: annot
-    S ; G |- e : A [ eff ] ==> A [ eff ]
+    S ; G |- ce : tau [ eff ] ==> tau [ eff ]
 
-    prim : A -> B [ eff ]    S ; G |- e <== A [ pure ]
+    prim : A -> B [ eff ]    S ; G |- ce <== A [ pure ]
     --------------------------------------------------- :: app
-    S ; G |- prim e ==> B [ eff ]
+    S ; G |- prim ce ==> B [ eff ]
 
-    f : F in S    S ; G |- e <== A [ pure ]
+    f : F in S    S ; G |- ce <== tau [ pure ]
     ---------------------------------------- :: call
-    S ; G |- f e ==> B [ eff ]
+    S ; G |- f ce ==> tau' [ eff ]
 
-  defn S ; G |- e <== A [ eff ] :: :: check :: 'Chk_'
-  {{ tex [[S]] ; [[G]] \vdash_{[[eff]]} [[e]] \Leftarrow [[A]] }} by
+    f : tau -> tau' [ spec ] in S    S ; G |- ce <== tau [ spec ]
+    --------------------------------------------------------------- :: speccall
+    S ; G |- f ce ==> tau' [ spec ]
 
-    S ; G |- e1 ==> A [ eff' ]    eff' <= eff    S ; G , x : A |- e2 <== B [ eff ]
+    f : A -> B [ pure ] in S    S ; G |- ce <== A [ spec ]
+    -------------------------------------------------------- :: purecall
+    S ; G |- f ce ==> B [ spec ]
+
+    S ; G |- ce1 ==> A [ eff' ]    S ; G |- ce2 <== A [ spec ]
+    ------------------------------------------------- :: eq
+    S ; G |- ce1 == ce2 ==> bool [ spec ]
+
+    S ; G |- ce1 <== bool [ spec ]    S ; G |- ce2 <== bool [ spec ]
+    ------------------------------------------------- :: and
+    S ; G |- ce1 && ce2 ==> bool [ spec ]
+
+    S ; G |- ce <== bool [ spec ]
+    ----------------------- :: not
+    S ; G |- not ce ==> bool [ spec ]
+
+    --------------------------------- :: own
+    S ; G |- Own [ tau ] ==> pred tau [ spec ]
+
+    prim : A -> B [ pure ]    S ; G |- ce <== A [ spec ]
+    --------------------------------------------------- :: specapp
+    S ; G |- prim ce ==> B [ spec ]
+
+  defn S ; G |- ce <== tau [ eff ] :: :: check :: 'Chk_'
+  {{ tex [[S]] ; [[G]] \vdash_{[[eff]]} [[ce]] \Leftarrow [[tau]] }} by
+
+    S ; G |- ce1 ==> tau [ eff' ]    eff' <= eff    eff_b = purify eff    S ; G , x : tau [ eff_b ] |- ce2 <== tau' [ eff ]
     -------------------------------------------------------------------------- :: let
-    S ; G |- let x = e1 ; e2 <== B [ eff ]
+    S ; G |- let x = ce1 ; ce2 <== tau' [ eff ]
 
-    S ; G |- e1 <== A1 [ eff ] .. S ; G |- en <== An [ eff ]
+    S ; G |- ce1 <== tau1 [ eff ] .. S ; G |- cen <== taun [ eff ]
     --------------------------------------------------- :: tuple
-    S ; G |- ( e1 , .. , en ) <== ( A1 , .. , An ) [ eff ]
+    S ; G |- ( ce1 , .. , cen ) <== ( tau1 , .. , taun ) [ eff ]
 
-    S ; G |- e1 ==> ( A1 , .. , An ) [ eff' ]    eff' <= eff    S ; G' |- e2 <== C [ eff ]
+    S ; G |- ce1 ==> ( tau1 , .. , taun ) [ eff' ]    eff' <= eff    S ; G' |- ce2 <== tau' [ eff ]
     ---------------------------------------------------------------------------------- :: lettuple
-    S ; G |- let ( x1 , .. , xn ) = e1 ; e2 <== C [ eff ]
+    S ; G |- let ( x1 , .. , xn ) = ce1 ; ce2 <== tau' [ eff ]
 
-    L : A in_type D ( A1 , .. , Ai ) in S    S ; G |- e <== A [ eff ]
+    L : tau in D ( tau1 , .. , taui ) in S    S ; G |- ce <== tau [ eff ]
     ----------------------------------------------------------------- :: inject
-    S ; G |- L e <== D ( A1 , .. , Ai ) [ eff ]
+    S ; G |- L ce <== D ( tau1 , .. , taui ) [ eff ]
 
-    S ; G |- e ==> D ( A1 , .. , Ai ) [ eff' ]
+    S ; G |- ce ==> D ( tau1 , .. , taui ) [ eff' ]
     eff' <= eff
-    type D ( a1 , .. , ai ) = { L1 : B1 | .. | Ln : Bn } in S
-    L1 : C1 in_type D ( A1 , .. , Ai ) in S .. Ln : Cn in_type D ( A1 , .. , Ai ) in S
-    S ; G , x1 : C1 |- e1 <== C [ eff ] .. S ; G , xn : Cn |- en <== C [ eff ]
+    eff_b = purify eff
+    D ( a1 , .. , ak ) = { L1 : tau'1 | .. | Ln : tau'n } decl_in S
+    L1 : tau''1 in D ( tau1 , .. , taui ) in S .. Ln : tau''n in D ( tau1 , .. , taui ) in S
+    S ; G , x1 : tau''1 [ eff_b ] |- ce1 <== tau [ eff ] .. S ; G , xn : tau''n [ eff_b ] |- cen <== tau [ eff ]
     ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- :: case
-    S ; G |- case e { L1 x1 -> e1 | .. | Ln xn -> en } <== C [ eff ]
+    S ; G |- case ce of { L1 x1 -> ce1 | .. | Ln xn -> cen } <== tau [ eff ]
 
-    S ; G |- e1 ==> A [ eff' ]
+    S ; G |- ce1 ==> A [ eff' ]
     type D ( x , y ) = { Next : a , Done : b } in S
-    S ; G , x : A |- e2 <== D ( A , B ) [ impure ]
+    eff_b = purify impure
+    S ; G , x : A [ eff_b ] |- ce2 <== D ( A , B ) [ impure ]
     impure <= eff
     --------------------------------------------------------------------------------------------------------------------------------------- :: iter
-    S ; G |- iter ( x = e1 ) { e2 } <== B [ eff ]
+    S ; G |- iter ( x = ce1 ) { ce2 } <== B [ eff ]
 
-    S ; G |- e1 <== bool [ eff ]    S ; G |- e2 <== A [ eff ]    S ; G |- e3 <== A [ eff ]
+    S ; G |- ce1 <== bool [ eff ]    S ; G |- ce2 <== tau [ eff ]    S ; G |- ce3 <== tau [ eff ]
     ------------------------------------------------------------------------------------- :: if
-    S ; G |- if e1 then e2 else e3 <== A [ eff ]
+    S ; G |- if ce1 then ce2 else ce3 <== tau [ eff ]
 
-    S ; G |- e ==> A [ eff' ]    eff' <= eff
+    S ; G |- ce <== tau [ eff ]
+    ---------------------------------- :: return
+    S ; G |- return ce <== pred tau [ eff ]
+
+    S ; G |- ce1 ==> pred tau [ eff' ]    eff' <= eff    eff_b = purify eff    S ; G , x : tau [ eff_b ] |- ce2 <== pred tau' [ eff ]
+    -------------------------------------------------------------------------- :: take
+    S ; G |- take x = ce1 ; ce2 <== pred tau' [ eff ]
+
+    S ; G |- ce ==> tau [ eff' ]    eff' <= eff
     --------------------------------------- :: sub
-    S ; G |- e <== A [ eff ]
-    
+    S ; G |- ce <== tau [ eff ]
 
-  defn S |- prog :: :: prog :: 'Prog_'
-  {{ tex [[S]] \vdash [[prog]] }} by
 
-    S ; G |- e <== ( ) [ impure ]
-    --------------------------- :: main
-    S |- main = e
+% =============================================================================
+% Core program typing
+% =============================================================================
 
-    S ; G , x : A |- e <== B [ pure ]    S , f : A -> B [ pure ] |- prog
+  defn S |- cprog :: :: cprog :: 'CProg_'
+  {{ tex [[S]] \vdash [[cprog]] }} by
+
+    S ; G |- ce <== tau [ eff ]
+    ------------------------------------------------------ :: main
+    S |- main : tau [ eff ] = ce
+
+    S ; G , x : A [ pure ] |- ce <== B [ pure ]
+    S , f : A -> B [ pure ] |- cprog
     --------------------------------------------------------------------------- :: purefun
-    S |- fun f ( x : A ) -> B [ pure ] { e } prog
+    S |- fun f ( x : A ) -> B [ pure ] = ce cprog
 
-    S , f : A -> B [ impure ] ; G , x : A |- e <== B [ impure ]    S , f : A -> B [ impure ] |- prog
+    S , f : A -> B [ impure ] ; G , x : A [ pure ] |- ce <== B [ impure ]
+    S , f : A -> B [ impure ] |- cprog
     ------------------------------------------------------------------------------------------------- :: impurefun
-    S |- fun f ( x : A ) -> B [ impure ] { e } prog
+    S |- fun f ( x : A ) -> B [ impure ] = ce cprog
 
-    mbranches = mk tau { pat1 --> se1 || .. || patn --> sen }    S , spec f : tau -> tau' ; G |- y , noscrs ; mbranches <== tau' ~~> ce    S , spec f : tau -> tau' |- prog
+    S , f : tau -> tau' [ spec ] ; G , x : tau [ spec ] |- ce <== tau' [ spec ]
+    S , f : tau -> tau' [ spec ] |- cprog
     ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- :: specfun
-    S |- spec f : tau -> tau' = { pat1 -> se1 | .. | patn -> sen } prog
-
-    S ; G |- se <== tau ~~> ce    S , spec f : tau |- prog
-    ------------------------------------------------- :: specdef
-    S |- spec f : tau = se prog
+    S |- fun f ( x : tau ) -> tau' [ spec ] = ce cprog
 
     S |- sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } sort_ok
-    S , sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } |- prog
+    S , sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } |- cprog
     ---------------------------------------------------------------------------- :: sortdecl
-    S |- sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } prog
+    S |- sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } cprog
 
     S |- type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } type_ok
-    S , type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } |- prog
+    S , type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } |- cprog
     ---------------------------------------------------------------------------- :: typedecl
-    S |- type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } prog
+    S |- type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } cprog
 
+
+% =============================================================================
+% Constructor lookup (unified sort + type)
+% =============================================================================
 
 defns Jcore :: '' ::=
 
   defn L : tau in D ( tau1 , .. , taui ) in S :: :: ctor_lookup :: 'Ctor_' by
 
     sort D ( a1 , .. , ai ) in S    L : tau' rawctor D in S    tau = subst tau1 / a1 , .. , taui / ai in tau'
-    ---------------------------------------------------------------------------------------------------------- :: lookup
+    ---------------------------------------------------------------------------------------------------------- :: sort
     L : tau in D ( tau1 , .. , taui ) in S
 
-  defn L : A in_type D ( A1 , .. , Ai ) in S :: :: type_ctor_lookup :: 'TCtor_' by
-
     type D ( a1 , .. , ai ) in S    L : A' rawtypector D in S    A = subst A1 / a1 , .. , Ai / ai in A'
-    ------------------------------------------------------------------------------------------------------ :: lookup
-    L : A in_type D ( A1 , .. , Ai ) in S
+    ------------------------------------------------------------------------------------------------------ :: type
+    L : A in D ( A1 , .. , Ai ) in S
 
-  defn S ; G |- ( L x ) : tau' -> ce <== tau :: :: core_branch :: 'CoreBr_'
-  {{ tex [[S]] ; [[G]] \vdash ( [[L]] \; [[x]] ) \mathbin{:} [[tau']] \to [[ce]] \Leftarrow [[tau]] }} by
+  defn D ( a1 , .. , ak ) = { L1 : tau1 '|' .. '|' Ln : taun } decl_in S :: :: decl_lookup :: 'DL_'
+  {{ tex [[D]](\overline{a}) = \{\overline{L : \tau}\} \in [[S]] }} by
 
-    L : tau'' in D ( tau1 , .. , taui ) in S    S ; G , spec x : tau'' |- ce <== tau
-    ---------------------------------------------------------------------------------- :: check
-    S ; G |- ( L x ) : D ( tau1 , .. , taui ) -> ce <== tau
+    sort D ( a1 , .. , ak ) = { L1 : tau1 | .. | Ln : taun } in S
+    --------------------------------------------------------------- :: sort
+    D ( a1 , .. , ak ) = { L1 : tau1 | .. | Ln : taun } decl_in S
 
-  defn S ; G |- ce ==> tau :: :: core_synth :: 'CoreSyn_'
-  {{ tex [[S]] ; [[G]] \vdash [[ce]] \Rightarrow [[tau]] }} by
+    type D ( a1 , .. , ak ) = { L1 : A1 | .. | Ln : An } in S
+    --------------------------------------------------------------- :: type
+    D ( a1 , .. , ak ) = { L1 : A1 | .. | Ln : An } decl_in S
 
-    spec x : tau in G
+
+% =============================================================================
+% Surface elaboration (merged computation + assertion)
+% =============================================================================
+
+defns Jelaborate :: '' ::=
+
+  defn S ; G |- se ==> tau [ eff ] ~~> ce :: :: surf_synth :: 'SurfSyn_'
+  {{ tex [[S]] ; [[G]] \vdash_{[[eff]]} [[se]] \Rightarrow [[tau]] \leadsto [[ce]] }} by
+
+    x : tau [ eff ] in G
     ----------------------- :: var
-    S ; G |- x ==> tau
+    S ; G |- x ==> tau [ eff ] ~~> x
 
     ----------------------- :: int
-    S ; G |- lit ==> int
+    S ; G |- lit ==> int [ pure ] ~~> lit
 
     -------------------------- :: bool
-    S ; G |- blit ==> bool
+    S ; G |- blit ==> bool [ pure ] ~~> blit
 
-    S ; G |- ce1 ==> stau    S ; G |- ce2 <== stau
-    ------------------------------------------------- :: eq
-    S ; G |- ce1 == ce2 ==> bool
-
-    S ; G |- ce1 <== bool    S ; G |- ce2 <== bool
-    ------------------------------------------------- :: and
-    S ; G |- ce1 && ce2 ==> bool
-
-    S ; G |- ce <== bool
-    ----------------------- :: not
-    S ; G |- not ce ==> bool
-
-    --------------------------------- :: own
-    S ; G |- Own [ tau ] ==> pred tau
-
-    spec f : tau -> tau' in S    S ; G |- ce <== tau
-    -------------------------------------------------- :: call
-    S ; G |- f ce ==> tau'
-
-    f : stau -> stau' [ pure ] in S    S ; G |- ce <== stau
-    -------------------------------------------------------- :: purecall
-    S ; G |- f ce ==> stau'
-
-    spec f : tau in S
-    ----------------------- :: const
-    S ; G |- f ==> tau
-
-    S ; G |- ce <== tau
+    S ; G |- se <== tau [ eff ] ~~> ce
     ---------------------------------- :: annot
-    S ; G |- ce : tau ==> tau
+    S ; G |- se : tau [ eff ] ==> tau [ eff ] ~~> ce : tau [ eff ]
 
-    prim : tau -> tau'    S ; G |- ce <== tau
-    ------------------------------------------- :: prim
-    S ; G |- prim ce ==> tau'
+    prim : A -> B [ eff ]
+    S ; G |- se <== A [ pure ] ~~> ce
+    --------------------------------------------------- :: app
+    S ; G |- prim se ==> B [ eff ] ~~> prim ce
 
-  defn S ; G |- ce <== tau :: :: core_check :: 'CoreChk_'
-  {{ tex [[S]] ; [[G]] \vdash [[ce]] \Leftarrow [[tau]] }} by
+    f : F in S
+    S ; G |- se <== tau [ pure ] ~~> ce
+    ---------------------------------------- :: call
+    S ; G |- f se ==> tau' [ eff ] ~~> f ce
 
-    S ; G |- ce <== tau
-    ---------------------------------- :: return
-    S ; G |- return ce <== pred tau
+    f : tau -> tau' [ spec ] in S
+    S ; G |- se <== tau [ spec ] ~~> ce
+    --------------------------------------------------------------- :: speccall
+    S ; G |- f se ==> tau' [ spec ] ~~> f ce
 
-    S ; G |- ce1 ==> pred tau    S ; G , spec x : tau |- ce2 <== pred tau'
-    -------------------------------------------------------------------------- :: take
-    S ; G |- take x = ce1 ; ce2 <== pred tau'
-
-    S ; G |- ce1 ==> tau    S ; G , spec x : tau |- ce2 <== tau'
-    --------------------------------------------------------------- :: let
-    S ; G |- let x = ce1 ; ce2 <== tau'
-
-    L : tau in D ( tau1 , .. , taui ) in S    S ; G |- ce <== tau
-    ---------------------------------------------------------------- :: con
-    S ; G |- L ce <== D ( tau1 , .. , taui )
-
-    S ; G |- ce1 <== tau1 .. S ; G |- cen <== taun
-    --------------------------------------------------- :: tuple
-    S ; G |- ( ce1 , .. , cen ) <== ( tau1 , .. , taun )
-
-    S ; G |- ce1 ==> ( tau1 , .. , taun )    S ; G' |- ce2 <== tau'
-    ------------------------------------------------------------------ :: lettuple
-    S ; G |- let ( x1 , .. , xn ) = ce1 ; ce2 <== tau'
-
-    S ; G |- ce ==> tau'    S ; G |- ( L1 x1 ) : tau' -> ce1 <== tau .. S ; G |- ( Ln xn ) : tau' -> cen <== tau
-    --------------------------------------------------------------------------------------------------------- :: case
-    S ; G |- case ce of { L1 x1 -> ce1 | .. | Ln xn -> cen } <== tau
-
-    S ; G |- ce1 <== bool    S ; G |- ce2 <== tau    S ; G |- ce3 <== tau
-    ----------------------------------------------------------------------- :: if
-    S ; G |- if ce1 then ce2 else ce3 <== tau
-
-    S ; G |- ce ==> tau
-    ----------------------- :: sub
-    S ; G |- ce <== tau
-
-
-defns Jassert :: '' ::=
-
-  defn S ; G |- se ==> tau ~~> ce :: :: spec_synth :: 'SpecSyn_'
-  {{ tex [[S]] ; [[G]] \vdash [[se]] \Rightarrow [[tau]] \leadsto [[ce]] }} by
-
-    spec x : tau in G
-    ----------------------- :: var
-    S ; G |- x ==> tau ~~> x
-
-    ----------------------- :: int
-    S ; G |- lit ==> int ~~> lit
-
-    -------------------------- :: bool
-    S ; G |- blit ==> bool ~~> blit
-
-    S ; G |- se1 ==> stau ~~> ce1    S ; G |- se2 <== stau ~~> ce2
-    ------------------------------------------------- :: eq
-    S ; G |- se1 == se2 ==> bool ~~> ce1 == ce2
-
-    S ; G |- se1 <== bool ~~> ce1    S ; G |- se2 <== bool ~~> ce2
-    ------------------------------------------------- :: and
-    S ; G |- se1 && se2 ==> bool ~~> ce1 && ce2
-
-    S ; G |- se <== bool ~~> ce
-    ----------------------- :: not
-    S ; G |- not se ==> bool ~~> not ce
-
-    spec f : tau -> tau' in S    S ; G |- se <== tau ~~> ce
-    -------------------------------------------------- :: call
-    S ; G |- f se ==> tau' ~~> f ce
-
-    f : stau -> stau' [ pure ] in S    S ; G |- se <== stau ~~> ce
+    f : A -> B [ pure ] in S
+    S ; G |- se <== A [ spec ] ~~> ce
     --------------------------------------------------------------- :: purecall
-    S ; G |- f se ==> stau' ~~> f ce
+    S ; G |- f se ==> B [ spec ] ~~> f ce
 
-    spec f : tau in S
-    ----------------------- :: const
-    S ; G |- f ==> tau ~~> f
+    S ; G |- se1 ==> A [ eff' ] ~~> ce1
+    S ; G |- se2 <== A [ spec ] ~~> ce2
+    ------------------------------------------------- :: eq
+    S ; G |- se1 == se2 ==> bool [ spec ] ~~> ce1 == ce2
 
-    S ; G |- se <== tau ~~> ce
-    ---------------------------------- :: annot
-    S ; G |- se : tau ==> tau ~~> ce : tau
+    S ; G |- se1 <== bool [ spec ] ~~> ce1
+    S ; G |- se2 <== bool [ spec ] ~~> ce2
+    ------------------------------------------------- :: and
+    S ; G |- se1 && se2 ==> bool [ spec ] ~~> ce1 && ce2
 
-    prim : tau -> tau'    S ; G |- se <== tau ~~> ce
-    -------------------------------------------------- :: prim
-    S ; G |- prim se ==> tau' ~~> prim ce
+    S ; G |- se <== bool [ spec ] ~~> ce
+    ----------------------- :: not
+    S ; G |- not se ==> bool [ spec ] ~~> not ce
 
-  defn S ; G |- se <== tau ~~> ce :: :: spec_check :: 'SpecChk_'
-  {{ tex [[S]] ; [[G]] \vdash [[se]] \Leftarrow [[tau]] \leadsto [[ce]] }} by
+    prim : A -> B [ pure ]
+    S ; G |- se <== A [ spec ] ~~> ce
+    --------------------------------------------------- :: specapp
+    S ; G |- prim se ==> B [ spec ] ~~> prim ce
 
-    S ; G |- se <== tau ~~> ce
-    ---------------------------------- :: return
-    S ; G |- return se <== pred tau ~~> return ce
+  defn S ; G |- se <== tau [ eff ] ~~> ce :: :: surf_check :: 'SurfChk_'
+  {{ tex [[S]] ; [[G]] \vdash_{[[eff]]} [[se]] \Leftarrow [[tau]] \leadsto [[ce]] }} by
 
-    S ; G |- se1 ==> pred tau ~~> ce1    S ; G |- y , noscrs ; pat : tau --> [ empty ] [ hole ] se2 <== pred tau' ~~> ce2
-    ------------------------------------------------------------------------------------------------------------------- :: take
-    S ; G |- take pat = se1 ; se2 <== pred tau' ~~> take y = ce1 ; ce2
+    S ; G |- se1 ==> tau [ eff' ] ~~> ce1
+    eff' <= eff
+    S ; G |- y , noscrs ; pat : tau --> [ empty ] [ hole ] se2 <== tau' [ eff ] ~~> ce2
+    -------------------------------------------------------------------------- :: let
+    S ; G |- let pat = se1 ; se2 <== tau' [ eff ] ~~> let y = ce1 ; ce2
 
-    S ; G |- se1 ==> tau ~~> ce1    S ; G |- y , noscrs ; pat : tau --> [ empty ] [ hole ] se2 <== tau' ~~> ce2
-    -------------------------------------------------------------------------------------------------------- :: let
-    S ; G |- let pat = se1 ; se2 <== tau' ~~> let y = ce1 ; ce2
-
-    S ; G |- se1 <== tau1 ~~> ce1 .. S ; G |- sen <== taun ~~> cen
+    S ; G |- se1 <== tau1 [ eff ] ~~> ce1 .. S ; G |- sen <== taun [ eff ] ~~> cen
     --------------------------------------------------- :: tuple
-    S ; G |- ( se1 , .. , sen ) <== ( tau1 , .. , taun ) ~~> ( ce1 , .. , cen )
+    S ; G |- ( se1 , .. , sen ) <== ( tau1 , .. , taun ) [ eff ] ~~> ( ce1 , .. , cen )
 
-    L : tau in D ( tau1 , .. , taui ) in S    S ; G |- se <== tau ~~> ce
-    ---------------------------------------------------------------- :: inject
-    S ; G |- L se <== D ( tau1 , .. , taui ) ~~> L ce
+    L : tau in D ( tau1 , .. , taui ) in S
+    S ; G |- se <== tau [ eff ] ~~> ce
+    ----------------------------------------------------------------- :: inject
+    S ; G |- L se <== D ( tau1 , .. , taui ) [ eff ] ~~> L ce
 
-    S ; G |- se ==> tau' ~~> ce'    mbranches = mk tau' { pat1 --> se1 || .. || patn --> sen }    S ; G |- y , noscrs ; mbranches <== tau ~~> ce
-    ------------------------------------------------------------------------------------------------------------------------------------ :: case
-    S ; G |- case se of { pat1 -> se1 | .. | patn -> sen } <== tau ~~> let y = ce' ; ce
+    S ; G |- se ==> tau [ eff' ] ~~> ce'
+    eff' <= eff
+    mbranches = mk tau { pat1 --> se1 || .. || patn --> sen }
+    S ; G |- y , noscrs ; mbranches <== tau' [ eff ] ~~> ce
+    ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- :: case
+    S ; G |- case se of { pat1 -> se1 | .. | patn -> sen } <== tau' [ eff ] ~~> let y = ce' ; ce
 
-    S ; G |- se1 <== bool ~~> ce1    S ; G |- se2 <== tau ~~> ce2    S ; G |- se3 <== tau ~~> ce3
-    ----------------------------------------------------------------------- :: if
-    S ; G |- if se1 then se2 else se3 <== tau ~~> if ce1 then ce2 else ce3
+    S ; G |- se1 ==> A [ eff' ] ~~> ce1
+    eff' <= eff
+    type D ( x , y ) = { Next : a , Done : b } in S
+    mbranches = mk A { pat --> se2 }
+    S ; G |- z , noscrs ; mbranches <== D ( A , B ) [ impure ] ~~> ce2
+    impure <= eff
+    --------------------------------------------------------------------------------------------------------------------------------------- :: iter
+    S ; G |- iter ( pat = se1 ) { se2 } <== B [ eff ] ~~> iter ( z = ce1 ) { ce2 }
 
-    S ; G |- se ==> tau ~~> ce
-    ----------------------- :: sub
-    S ; G |- se <== tau ~~> ce
+    S ; G |- se1 <== bool [ eff ] ~~> ce1
+    S ; G |- se2 <== tau [ eff ] ~~> ce2
+    S ; G |- se3 <== tau [ eff ] ~~> ce3
+    ------------------------------------------------------------------------------------- :: if
+    S ; G |- if se1 then se2 else se3 <== tau [ eff ] ~~> if ce1 then ce2 else ce3
 
+    S ; G |- se <== tau [ eff ] ~~> ce
+    ---------------------------------- :: return
+    S ; G |- return se <== pred tau [ eff ] ~~> return ce
+
+    S ; G |- se1 ==> pred tau [ eff' ] ~~> ce1
+    eff' <= eff
+    S ; G |- y , noscrs ; pat : tau --> [ empty ] [ hole ] se2 <== pred tau' [ eff ] ~~> ce2
+    ------------------------------------------------------------------------------------------------------------------- :: take
+    S ; G |- take pat = se1 ; se2 <== pred tau' [ eff ] ~~> take y = ce1 ; ce2
+
+    S ; G |- se ==> tau [ eff' ] ~~> ce
+    eff' <= eff
+    --------------------------------------- :: sub
+    S ; G |- se <== tau [ eff ] ~~> ce
+
+
+% =============================================================================
+% Program elaboration
+% =============================================================================
+
+  defn S |- prog ~~> cprog :: :: prog :: 'Prog_'
+  {{ tex [[S]] \vdash [[prog]] \leadsto [[cprog]] }} by
+
+    S ; G |- se <== tau [ eff ] ~~> ce
+    ------------------------------------------------------ :: main
+    S |- main : tau [ eff ] = se ~~> main : tau [ eff ] = ce
+
+    mbranches = mk A { pat1 --> se1 || .. || patn --> sen }
+    S ; G |- y , noscrs ; mbranches <== B [ pure ] ~~> ce
+    S , f : A -> B [ pure ] |- prog ~~> cprog
+    --------------------------------------------------------------------------- :: purefun
+    S |- fun f : A -> B [ pure ] = { pat1 --> se1 | .. | patn --> sen } prog ~~> fun f ( y : A ) -> B [ pure ] = ce cprog
+
+    mbranches = mk A { pat1 --> se1 || .. || patn --> sen }
+    S , f : A -> B [ impure ] ; G |- y , noscrs ; mbranches <== B [ impure ] ~~> ce
+    S , f : A -> B [ impure ] |- prog ~~> cprog
+    ------------------------------------------------------------------------------------------------- :: impurefun
+    S |- fun f : A -> B [ impure ] = { pat1 --> se1 | .. | patn --> sen } prog ~~> fun f ( y : A ) -> B [ impure ] = ce cprog
+
+    mbranches = mk tau { pat1 --> se1 || .. || patn --> sen }
+    S , f : tau -> tau' [ spec ] ; G |- y , noscrs ; mbranches <== tau' [ spec ] ~~> ce
+    S , f : tau -> tau' [ spec ] |- prog ~~> cprog
+    ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- :: specfun
+    S |- fun f : tau -> tau' [ spec ] = { pat1 --> se1 | .. | patn --> sen } prog ~~> fun f ( y : tau ) -> tau' [ spec ] = ce cprog
+
+    S |- sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } sort_ok
+    S , sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } |- prog ~~> cprog
+    ---------------------------------------------------------------------------- :: sortdecl
+    S |- sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } prog ~~> sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } cprog
+
+    S |- type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } type_ok
+    S , type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } |- prog ~~> cprog
+    ---------------------------------------------------------------------------- :: typedecl
+    S |- type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } prog ~~> type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } cprog
+
+
+% =============================================================================
+% Pattern matching (unified)
+% =============================================================================
 
 defns Jmatch :: '' ::=
 
@@ -707,73 +737,73 @@ defns Jmatch :: '' ::=
     ---------------------------------------- :: there
     binds --> [ G ] [ E ] se || mbranches has_tup
 
-  defn mbranches / var y ~~> mbranches' :: :: strip_var :: 'SV_'
-  {{ tex [[mbranches]] \ottsym{/} \ottmv{var} \overset{[[y]]}{\leadsto} [[mbranches']] }} by
+  defn mbranches / var y [ eff ] ~~> mbranches' :: :: strip_var :: 'SV_'
+  {{ tex [[mbranches]] \ottsym{/} \ottmv{var} \overset{[[y]]}{\leadsto}_{[[eff]]} [[mbranches']] }} by
 
     ---------------------------------------- :: empty
-    nobranches / var y ~~> nobranches
+    nobranches / var y [ eff ] ~~> nobranches
 
-    mbranches / var y ~~> mbranches'
+    mbranches / var y [ eff ] ~~> mbranches'
     ------------------------------------------------------------------ :: cons
-    x : tau , binds --> [ G ] [ E ] se || mbranches / var y ~~> binds --> [ G , spec x : tau ] [ let x = y ; E ] se || mbranches'
+    x : tau , binds --> [ G ] [ E ] se || mbranches / var y [ eff ] ~~> binds --> [ G , x : tau [ eff ] ] [ let x = y ; E ] se || mbranches'
 
-  defn mbranches / L : tau @ y ~~> mbranches' :: :: spec_con :: 'SC_'
-  {{ tex [[mbranches]] \ottsym{/} [[L]] \mathord{:} [[tau]] \overset{[[y]]}{\leadsto} [[mbranches']] }} by
+  defn mbranches / L : tau @ y [ eff ] ~~> mbranches' :: :: spec_con :: 'SC_'
+  {{ tex [[mbranches]] \ottsym{/} [[L]] \mathord{:} [[tau]] \overset{[[y]]}{\leadsto}_{[[eff]]} [[mbranches']] }} by
 
     ------------------------------------------------------------------ :: empty
-    nobranches / L : tau @ y ~~> nobranches
+    nobranches / L : tau @ y [ eff ] ~~> nobranches
 
-    mbranches / L : tau @ y ~~> mbranches'
+    mbranches / L : tau @ y [ eff ] ~~> mbranches'
     ------------------------------------------------------------------------------------------------ :: match
-    L pat : tau' , binds --> [ G ] [ E ] se || mbranches / L : tau @ y ~~> pat : tau , binds --> [ G ] [ E ] se || mbranches'
+    L pat : tau' , binds --> [ G ] [ E ] se || mbranches / L : tau @ y [ eff ] ~~> pat : tau , binds --> [ G ] [ E ] se || mbranches'
 
-    L != L'    mbranches / L : tau @ y ~~> mbranches'
+    L != L'    mbranches / L : tau @ y [ eff ] ~~> mbranches'
     ------------------------------------------------------------------------------------------------ :: skip
-    L' pat : tau' , binds --> [ G ] [ E ] se || mbranches / L : tau @ y ~~> mbranches'
+    L' pat : tau' , binds --> [ G ] [ E ] se || mbranches / L : tau @ y [ eff ] ~~> mbranches'
 
-    mbranches / L : tau @ y ~~> mbranches'
+    mbranches / L : tau @ y [ eff ] ~~> mbranches'
     ------------------------------------------------------------------------------------------------------------ :: var
-    x : tau' , binds --> [ G ] [ E ] se || mbranches / L : tau @ y ~~> z : tau , binds --> [ G , spec x : tau' ] [ let x = y ; E ] se || mbranches'
+    x : tau' , binds --> [ G ] [ E ] se || mbranches / L : tau @ y [ eff ] ~~> z : tau , binds --> [ G , x : tau' [ eff ] ] [ let x = y ; E ] se || mbranches'
 
-  defn mbranches / tup @ y ~~> mbranches' :: :: expand_tup :: 'ET_'
-  {{ tex [[mbranches]] \ottsym{/} \ottkw{tup} \overset{[[y]]}{\leadsto} [[mbranches']] }} by
+  defn mbranches / tup @ y [ eff ] ~~> mbranches' :: :: expand_tup :: 'ET_'
+  {{ tex [[mbranches]] \ottsym{/} \ottkw{tup} \overset{[[y]]}{\leadsto}_{[[eff]]} [[mbranches']] }} by
 
     -------------------------------------------------------- :: empty
-    nobranches / tup @ y ~~> nobranches
+    nobranches / tup @ y [ eff ] ~~> nobranches
 
-    mbranches / tup @ y ~~> mbranches'
+    mbranches / tup @ y [ eff ] ~~> mbranches'
     ------------------------------------------------------------------------------------------------------------ :: tuple
-    ( pat1 , .. , patk ) : ( tau1 , .. , tauk ) , binds --> [ G ] [ E ] se || mbranches / tup @ y ~~> pat1 : tau1 , .. , patk : tauk , binds --> [ G ] [ E ] se || mbranches'
+    ( pat1 , .. , patk ) : ( tau1 , .. , tauk ) , binds --> [ G ] [ E ] se || mbranches / tup @ y [ eff ] ~~> pat1 : tau1 , .. , patk : tauk , binds --> [ G ] [ E ] se || mbranches'
 
-    mbranches / tup @ y ~~> mbranches'
+    mbranches / tup @ y [ eff ] ~~> mbranches'
     ------------------------------------------------------------------------------------------------------------ :: var
-    x : ( tau1 , .. , tauk ) , binds --> [ G ] [ E ] se || mbranches / tup @ y ~~> z1 : tau1 , .. , zk : tauk , binds --> [ G , spec x : ( tau1 , .. , tauk ) ] [ let x = y ; E ] se || mbranches'
+    x : ( tau1 , .. , tauk ) , binds --> [ G ] [ E ] se || mbranches / tup @ y [ eff ] ~~> z1 : tau1 , .. , zk : tauk , binds --> [ G , x : ( tau1 , .. , tauk ) [ eff ] ] [ let x = y ; E ] se || mbranches'
 
-  defn S ; G |- scrs ; mbranches <== tau ~~> ce :: :: coverage :: 'Cov_'
-  {{ tex [[S]] ; [[G]] \vdash [[scrs]] ; [[mbranches]] \Leftarrow [[tau]] \leadsto [[ce]] }} by
+  defn S ; G |- scrs ; mbranches <== tau [ eff ] ~~> ce :: :: coverage :: 'Cov_'
+  {{ tex [[S]] ; [[G]] \vdash [[scrs]] ; [[mbranches]] \Leftarrow_{[[eff]]} [[tau]] \leadsto [[ce]] }} by
 
-    S ; G , G' |- se <== tau ~~> ce'    ce = fill E ce'
+    S ; G , G' |- se <== tau [ eff ] ~~> ce'    ce = fill E ce'
     ------------------------------------------------------------------ :: done
-    S ; G |- noscrs ; nobinds --> [ G' ] [ E ] se || mbranches <== tau ~~> ce
+    S ; G |- noscrs ; nobinds --> [ G' ] [ E ] se || mbranches <== tau [ eff ] ~~> ce
 
-    mbranches / var y ~~> mbranches'
-    S ; G |- scrs ; mbranches' <== tau ~~> ce
+    eff_b = purify eff    mbranches / var y [ eff_b ] ~~> mbranches'
+    S ; G |- scrs ; mbranches' <== tau [ eff ] ~~> ce
     ------------------------------------------------ :: var
-    S ; G |- y , scrs ; mbranches <== tau ~~> ce
+    S ; G |- y , scrs ; mbranches <== tau [ eff ] ~~> ce
 
-    mbranches has_con
-    sort D ( a1 , .. , ak ) = { L1 : tau'1 | .. | Ln : tau'n } in S
+    eff_b = purify eff    mbranches has_con
+    D ( a1 , .. , ak ) = { L1 : tau'1 | .. | Ln : tau'n } decl_in S
     L1 : tau''1 in D ( tau1 , .. , taui ) in S .. Ln : tau''n in D ( tau1 , .. , taui ) in S
-    mbranches / L1 : tau''1 @ y ~~> mbranches1 .. mbranches / Ln : tau''n @ y ~~> mbranchesn
-    S ; G |- x1 , scrs ; mbranches1 <== tau ~~> ce1 .. S ; G |- xn , scrs ; mbranchesn <== tau ~~> cen
+    mbranches / L1 : tau''1 @ y [ eff_b ] ~~> mbranches1 .. mbranches / Ln : tau''n @ y [ eff_b ] ~~> mbranchesn
+    S ; G |- x1 , scrs ; mbranches1 <== tau [ eff ] ~~> ce1 .. S ; G |- xn , scrs ; mbranchesn <== tau [ eff ] ~~> cen
     --------------------------------------------------------------------------------------------------------- :: con
-    S ; G |- y , scrs ; mbranches <== tau ~~> case y of { L1 x1 -> ce1 | .. | Ln xn -> cen }
+    S ; G |- y , scrs ; mbranches <== tau [ eff ] ~~> case y of { L1 x1 -> ce1 | .. | Ln xn -> cen }
 
-    mbranches has_tup
-    mbranches / tup @ y ~~> mbranches'
-    S ; G |- y1 , .. , yn , scrs ; mbranches' <== tau ~~> ce
+    eff_b = purify eff    mbranches has_tup
+    mbranches / tup @ y [ eff_b ] ~~> mbranches'
+    S ; G |- y1 , .. , yn , scrs ; mbranches' <== tau [ eff ] ~~> ce
     ----------------------------------------------------------------------------------------------------------------- :: tup
-    S ; G |- y , scrs ; mbranches <== tau ~~> let ( y1 , .. , yn ) = y ; ce
+    S ; G |- y , scrs ; mbranches <== tau [ eff ] ~~> let ( y1 , .. , yn ) = y ; ce
 
   defn fill E ce ~~> ce' :: :: fill_ctx :: 'Fill_'
   {{ tex [[E]] [ [[ce]] ] \leadsto [[ce']] }} by

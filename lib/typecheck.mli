@@ -14,15 +14,18 @@ val synth : Sig.t -> Context.t -> Expr.expr -> (typed_expr, string) result
 val check : Sig.t -> Context.t -> Expr.expr -> Typ.ty -> Effect.t -> (typed_expr, string) result
 (** Check an expression against a given type and effect. *)
 
-val check_prog : Expr.expr Prog.t -> (typed_expr Prog.t, string) result
+val prim_signature : Prim.t -> Typ.ty * Typ.ty * Effect.t
+(** [prim_signature p] returns [(arg_type, ret_type, effect)] for primitive [p]. *)
+
+val check_prog : SurfComp.se Prog.t -> (typed_expr Prog.t, string) result
 (** Typecheck a complete program. *)
 
-val check_decl : Sig.t -> Expr.expr Prog.decl -> (typed_expr Prog.decl, string) result
+val check_decl : Sig.t -> SurfComp.se Prog.decl -> (typed_expr Prog.decl, string) result
 (** Typecheck a single declaration against a signature. *)
 
 val initial_sig : Sig.t
 (** The initial signature with built-in spec functions (__add, etc.). *)
 
-val check_spec_decl : Sig.t -> Expr.expr Prog.decl -> (Sig.t, string) result
+val check_spec_decl : Sig.t -> SurfComp.se Prog.decl -> (Sig.t, string) result
 (** [check_spec_decl sig d] validates a spec or sort declaration,
     returning the updated signature. *)

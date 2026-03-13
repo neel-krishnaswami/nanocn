@@ -2,7 +2,7 @@ fun countdown(x : int) -> step(int, ()) [impure] {
   Done () : step(int, ()) [impure]
 }
 
-main =
-  (iter (x = 10) {
+main : () [impure] =
+  iter (x = 10) {
     countdown x
-  }) : () [impure]
+  }

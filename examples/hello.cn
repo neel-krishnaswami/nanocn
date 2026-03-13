@@ -1,1 +1,1 @@
-main = () : () [impure]
+main : () [impure] = ()

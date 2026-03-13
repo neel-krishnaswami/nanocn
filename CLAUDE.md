@@ -2,22 +2,24 @@ Instructions to Claude for writing OCaml code:
 
 0. When writing code, do these things first: 
 
-   1. Write a plan with high-level architectural decisions. Analyze this plan for defects, 
+   1. The Ott file (`doc/syntax.ott`) is the source of truth for the language. ANY
+      change to syntax or typing rules MUST be made there FIRST, before modifying the
+      implementation. 
+
+   2. Write a plan with high-level architectural decisions. Analyze this plan for defects, 
       and keep fixing them until no obvious deficiencies remain. 
 
-   2. Write a detailed design document, with design choices for each module. Again, before
+   3. Write a detailed design document, with design choices for each module. Again, before
       proceeding to implementaiton, analyze the design for obvious flaws before proceeding. 
       If there is a fundamental design problem, DO NOT try to smooth it over. Instead, consult
       the user about how to proceed, giving them the key options. 
 
-   3. If the detailed design reveals a key flaw, consider whether the high-level plan needs
+   4. If the detailed design reveals a key flaw, consider whether the high-level plan needs
       to be revised. Consult the user about how to proceed, and give them some options. 
 
-   4. Documentation in the doc/ directory MUST remain in sync with the implementation. Whenever
-      a change to the code is made, the Ott file for the syntax and typing rules must be updated
-      as well. The Ott file (`doc/syntax.ott`) is the source of truth for the language — any
-      change to syntax or typing rules must be made there FIRST, before modifying the
-      implementation.
+   5. Copy each design document to a file `doc/history/PLAN-NAME.md`, so the user can read it,
+      and new sessions can understand the changes. 
+
 
 1. Programs should be composed of small modules, each implementing a single concern or
    data structure. However, mutual recursion between functions is a good reason to
@@ -62,14 +64,17 @@ Instructions to Claude for writing OCaml code:
 
 3. Unless explicitly instructed otherwise, DO NOT write code which uses effects.
 
-   - Use result types instead of exceptions. 
+   - Use a monad with a result type instead of exceptions. 
+
+   - Prefer monadic state-passing to mutable data structures. 
 
    - Permission to use mutable data structures is granted on a per-module basis, and 
      permission in one module does not grant it in any other. 
 
    - Do not perform IO operations, except in the top-level main function. 
 
-3. Write programs by pattern matching over data structures. Avoid using partial accessors or incomplete patterns matches. 
+3. Write programs by pattern matching over data structures. Avoid
+   using partial accessors or incomplete patterns matches.
   
 4. Higher-order functions should be used sparingly, in idiomatic ways.
 

@@ -1,0 +1,18 @@
+type list(a) = { Nil : () | Cons : (a * ptr list(a)) }
+
+fun head(xs : list(int)) -> int [pure] {
+  case xs of {
+    Nil u -> 0
+  | Cons (x, rest) -> x
+  }
+}
+
+fun sumPair((a, b) : (int * int)) -> int [pure] {
+  a + b
+}
+
+main : () [impure] =
+  let xs = (Cons (42, New[list(int)] (Nil () : list(int) [pure])) : list(int) [impure]);
+  let h = head xs;
+  let s = sumPair (h, 1);
+  ()

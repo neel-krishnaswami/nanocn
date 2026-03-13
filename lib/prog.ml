@@ -1,7 +1,7 @@
 type 'a decl =
   | FunDecl of {
       name : Var.t;
-      param : Var.t;
+      param : Pat.pat;
       arg_ty : Typ.ty;
       ret_ty : Typ.ty;
       eff : Effect.t;
@@ -27,6 +27,8 @@ type 'a decl =
 type 'a t = {
   decls : 'a decl list;
   main : 'a;
+  main_ty : Typ.ty;
+  main_eff : Effect.t;
   loc : SourcePos.t;
 }
 
@@ -40,6 +42,8 @@ let map_decl f = function
 let map f p = {
   decls = List.map (map_decl f) p.decls;
   main = f p.main;
+  main_ty = p.main_ty;
+  main_eff = p.main_eff;
   loc = p.loc;
 }
 
@@ -49,7 +53,7 @@ let print pp fmt p =
     | FunDecl d ->
       Format.fprintf fmt "@[<v>@[<hov 2>fun %a(%a : %a) ->@ %a [%a] {@ %a@]@ }@]@.@."
         Var.print d.name
-        Var.print d.param
+        Pat.print d.param
         Typ.print d.arg_ty
         Typ.print d.ret_ty
         Effect.print d.eff
@@ -68,7 +72,8 @@ let print pp fmt p =
     | TypeDecl d ->
       Format.fprintf fmt "%a@.@." DtypeDecl.print d
   ) p.decls;
-  Format.fprintf fmt "@[<hov 2>main =@ %a@]" pp p.main
+  Format.fprintf fmt "@[<hov 2>main : %a [%a] =@ %a@]"
+    Typ.print p.main_ty Effect.print p.main_eff pp p.main
 
 module Test = struct
   let test = []

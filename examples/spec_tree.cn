@@ -1,4 +1,4 @@
-sort tree(a) = { Leaf : a | Node : (tree(a), tree(a)) }
+sort tree(a) = { Leaf : a | Node : (tree(a) * tree(a)) }
 
 spec size : tree(int) -> int = {
     Leaf x -> 1
@@ -12,4 +12,4 @@ spec depth : tree(int) -> int = {
       else 1 + depth r
 }
 
-main = () : () [impure]
+main : () [impure] = ()

@@ -6,8 +6,8 @@ spec cube : int -> int = {
   x -> x * x * x
 }
 
-spec diff : (int, int) -> int = {
+spec diff : (int * int) -> int = {
   (a, b) -> a - b
 }
 
-main = () : () [impure]
+main : () [impure] = ()
