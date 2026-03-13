@@ -71,14 +71,6 @@ Resource context well-formedness is given by a judgement Σ; Γ ⊢ Ω wf
 Refined terms are computational terms, plus some additional clauses for manipulating the 
 proof state. 
 
-## Typechecking refined computational terms 
-
-The synthesis judgement is now of the form 
-
-Σ; Γ; Ω ⊢ t ⇒ { x : A | ϕ(x) } [eff]
-
-Σ; Γ; Ω ⊢ t ⇐ { x: A | ϕ(x) } [eff] 
-
 The grammar of refined terms will be defined as follows. We will use ce for core terms, either pure or spec, and r for resource terms (to be defined later): 
 
 Variables and introduction forms are unchanged:
@@ -120,11 +112,17 @@ We can split takes:
 
    | let* (x, u1, u2) = bind u; Γ; Ω, u:(take x = ct1; ct2)@ct3 ↝ Γ, x:tau; Ω, u1:ct1@x, u2:ct2@ct3 
 
-We will omit rules for performing reductions, because we will use the SMT solver to perform them. 
+We will omit rules for performing reductions, because we will use the SMT solver to perform them (see below):
 
 ## Solver representation
 
-We will declare a new sort for predicates:
+I think the entire CN assertion language can fit inside SMT-LIB 2.7, *including* resource assertions. 
+This looks like it can make it easier to simplify many things, because many manual simplifications
+now come for free with the SMT equality machinery.  
+
+### The Pred monad. 
+
+We will declare a new sort for predicates. 
 
 (declare-sort Pred 1)
 
@@ -132,9 +130,10 @@ We will declare a new sort for predicates:
 (declare-sort-parameter B)
 
 (declare-fun return (A) (Pred A))
-
 (declare-fun bind ((Pred A) (-> A (Pred B))) (Pred B))
 
+
+;; We will need triggers for these, but I'm confident that they can be added in a non-decidability-breaking way. 
 
 (assert (forall ((m (M A)))
   (= (bind m return) m)))
@@ -145,3 +144,13 @@ We will declare a new sort for predicates:
 (assert (forall ((m (M A)) (f (-> A (M B))) (g (-> B (M C))))
   (= (bind (bind m f) g)
      (bind m (lambda ((x A)) (bind (@ f x) g))))))
+
+
+## Typechecking
+
+The checking/synthesis judgements is now of the form 
+
+Σ; Γ; Ω ⊢ t ⇒ { x : A | ϕ(x) } [eff]
+
+Σ; Γ; Ω ⊢ t ⇐ { x: A | ϕ(x) } [eff] 
+
