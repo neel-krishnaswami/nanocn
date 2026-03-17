@@ -3,34 +3,39 @@
     Surface expressions retain complex patterns in let, take, case, and iter.
     They are elaborated to core expressions during typechecking. *)
 
-(** The shape functor for surface expressions. ['a] is the recursive occurrence. *)
-type 'a seF =
+(** The shape functor for surface expressions.
+    ['a] = recursive positions, ['b] = auxiliary info.
+    Embeds ['b Pat.t] and ['b Sort.t] so that annotation info flows through. *)
+type ('a, 'b) seF =
   | Var of Var.t
   | IntLit of int
   | BoolLit of bool
-  | Let of Pat.pat * 'a * 'a
+  | Let of 'b Pat.t * 'a * 'a
   | Tuple of 'a list
   | Inject of Label.t * 'a
-  | Case of 'a * (Pat.pat * 'a) list
-  | Iter of Pat.pat * 'a * 'a
+  | Case of 'a * ('b Pat.t * 'a) list
+  | Iter of 'b Pat.t * 'a * 'a
   | App of Prim.t * 'a
   | Call of Var.t * 'a
   | If of 'a * 'a * 'a
-  | Annot of 'a * Sort.sort * Effect.t
+  | Annot of 'a * 'b Sort.t * Effect.t
   | Eq of 'a * 'a
   | And of 'a * 'a
   | Not of 'a
-  | Own of Sort.sort
-  | Take of Pat.pat * 'a * 'a
+  | Own of 'b Sort.t
+  | Take of 'b Pat.t * 'a * 'a
   | Return of 'a
 
-val map : ('a -> 'b) -> 'a seF -> 'b seF
+val map_shape : ('a -> 'c) -> ('a, 'b) seF -> ('c, 'b) seF
+val map_info : ('b -> 'c) -> ('a, 'b) seF -> ('a, 'c) seF
 
 (** A surface expression tree annotated with ['b] at each node. *)
-type 'b t = In of 'b t seF * 'b
+type 'b t
 
-val extract : 'b t -> 'b
-val shape : 'b t -> 'b t seF
+val mk : 'b -> ('b t, 'b) seF -> 'b t
+val info : 'b t -> 'b
+val shape : 'b t -> ('b t, 'b) seF
+val map : ('b -> 'c) -> 'b t -> 'c t
 
 (** Concrete located surface expression. *)
 type se = < loc : SourcePos.t > t

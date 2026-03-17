@@ -9,13 +9,15 @@ let rec lookup a = function
   | (a', s) :: rest ->
     if Tvar.compare a a' = 0 then Some s else lookup a rest
 
-let rec apply sub (Sort.In (sf, b)) =
+let rec apply sub s =
+  let b = Sort.info s in
+  let sf = Sort.shape s in
   match sf with
   | Sort.TVar a ->
     (match lookup a sub with
-     | Some s -> s
-     | None -> Sort.In (sf, b))
-  | _ -> Sort.In (Sort.map (apply sub) sf, b)
+     | Some s' -> s'
+     | None -> s)
+  | _ -> Sort.mk b (Sort.map_shape (apply sub) sf)
 
 let of_lists tvars sorts =
   if List.length tvars <> List.length sorts then
@@ -49,11 +51,11 @@ let print fmt sub =
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let mk s = Sort.In (s, object method loc = SourcePos.dummy end) in
+    let mk_t s = Sort.mk (object method loc = SourcePos.dummy end) s in
     let simple_sort = oneof [
-      pure (mk Sort.Int);
-      pure (mk Sort.Bool);
-      pure (mk (Sort.Ptr (mk Sort.Int)));
+      pure (mk_t Sort.Int);
+      pure (mk_t Sort.Bool);
+      pure (mk_t (Sort.Ptr (mk_t Sort.Int)));
     ] in
     let* n = 0 -- 3 in
     let* entries = list_repeat n (
@@ -64,7 +66,7 @@ module Test = struct
     pure entries
 
   let test =
-    let mk s = Sort.In (s, object method loc = SourcePos.dummy end) in
+    let mk_t s = Sort.mk (object method loc = SourcePos.dummy end) s in
     [ QCheck.Test.make ~name:"subst compare is reflexive"
         ~count:100
         (QCheck.make gen)
@@ -79,9 +81,9 @@ module Test = struct
         ~count:100
         (QCheck.make Tvar.Test.gen)
         (fun a ->
-           let target = mk Sort.Int in
+           let target = mk_t Sort.Int in
            let sub = extend a target empty in
-           let input = mk (Sort.TVar a) in
+           let input = mk_t (Sort.TVar a) in
            Sort.compare (apply sub input) target = 0);
 
       QCheck.Test.make ~name:"subst of_lists succeeds on equal lengths"

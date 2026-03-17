@@ -1,22 +1,31 @@
-type 'a patF =
+type ('a, 'b) patF =
   | Var of Var.t
   | Con of Label.t * 'a
   | Tuple of 'a list
 
-let map f = function
+let map_shape f = function
   | Var x -> Var x
   | Con (l, p) -> Con (l, f p)
   | Tuple ps -> Tuple (List.map f ps)
 
-type 'b t = In of 'b t patF * 'b
+let map_info _ = function
+  | Var x -> Var x
+  | Con (l, p) -> Con (l, p)
+  | Tuple ps -> Tuple ps
 
-let extract (In (_, b)) = b
-let shape (In (s, _)) = s
+type 'b t = In of 'b * ('b t, 'b) patF
+
+let mk b sf = In (b, sf)
+let info (In (b, _)) = b
+let shape (In (_, sf)) = sf
+
+let rec map f (In (b, sf)) =
+  In (f b, map_shape (map f) sf)
 
 type pat = < loc : SourcePos.t > t
 
-let rec compare_pat (In (s1, _)) (In (s2, _)) =
-  compare_patF s1 s2
+let rec compare_pat p1 p2 =
+  compare_patF (shape p1) (shape p2)
 
 and compare_patF s1 s2 =
   match s1, s2 with
@@ -41,8 +50,8 @@ and compare_list ps1 ps2 =
 
 let compare = compare_pat
 
-let rec print fmt (In (s, _)) =
-  match s with
+let rec print fmt t =
+  match shape t with
   | Var x -> Var.print fmt x
   | Con (l, p) -> Format.fprintf fmt "@[<hov 2>%a@ %a@]" Label.print l print p
   | Tuple [] -> Format.fprintf fmt "()"
@@ -52,8 +61,8 @@ let rec print fmt (In (s, _)) =
       (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") print)
       ps
 
-let rec vars (In (s, _)) =
-  match s with
+let rec vars p =
+  match shape p with
   | Var x -> [x]
   | Con (_, p) -> vars p
   | Tuple ps -> List.concat_map vars ps
@@ -73,18 +82,18 @@ let linear_check p =
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let mk s = In (s, object method loc = SourcePos.dummy end) in
+    let mk_t s = mk (object method loc = SourcePos.dummy end) s in
     sized @@ fix (fun self n ->
       if n <= 0 then
-        map (fun v -> mk (Var v)) Var.Test.gen
+        map (fun v -> mk_t (Var v)) Var.Test.gen
       else
         let sub = self (n / 3) in
         oneof [
-          map (fun v -> mk (Var v)) Var.Test.gen;
+          map (fun v -> mk_t (Var v)) Var.Test.gen;
           (let* l = Label.Test.gen in
            let* p = sub in
-           pure (mk (Con (l, p))));
-          map (fun ps -> mk (Tuple ps)) (list_size (0 -- 3) sub);
+           pure (mk_t (Con (l, p))));
+          map (fun ps -> mk_t (Tuple ps)) (list_size (0 -- 3) sub);
         ])
 
   let test =
@@ -99,5 +108,15 @@ module Test = struct
         (fun p ->
            let vs = vars p in
            List.length vs >= 0);
+
+      QCheck.Test.make ~name:"pat mk/info/shape round-trip"
+        ~count:100
+        (QCheck.make gen)
+        (fun p -> compare (mk (info p) (shape p)) p = 0);
+
+      QCheck.Test.make ~name:"pat map Fun.id is identity"
+        ~count:100
+        (QCheck.make gen)
+        (fun p -> compare (map Fun.id p) p = 0);
     ]
 end

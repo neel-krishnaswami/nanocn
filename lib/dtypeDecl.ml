@@ -19,15 +19,17 @@ let resolve_tvars d =
   let param_names =
     List.map Tvar.to_string d.params
   in
-  let rec resolve_ty (Typ.In (tf, b)) =
+  let rec resolve_ty t =
+    let b = Typ.info t in
+    let tf = Typ.shape t in
     match tf with
     | Typ.App (dsname, []) ->
       let name_str = Dsort.to_string dsname in
       if List.exists (fun p -> String.compare p name_str = 0) param_names then
-        Typ.In (Typ.TVar (Tvar.of_string name_str), b)
+        Typ.mk b (Typ.TVar (Tvar.of_string name_str))
       else
-        Typ.In (tf, b)
-    | _ -> Typ.In (Typ.map resolve_ty tf, b)
+        t
+    | _ -> Typ.mk b (Typ.map_shape resolve_ty tf)
   in
   let ctors = List.map (fun (l, ty) -> (l, resolve_ty ty)) d.ctors in
   { d with ctors }
@@ -84,7 +86,7 @@ let print fmt d =
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let mk_ty t = Typ.In (t, object method loc = SourcePos.dummy end) in
+    let mk_ty s = Typ.mk (object method loc = SourcePos.dummy end) s in
     let simple_ty = oneof [
       pure (mk_ty Typ.Int);
       pure (mk_ty Typ.Bool);

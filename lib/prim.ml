@@ -39,7 +39,7 @@ module Test = struct
   let gen =
     let open QCheck.Gen in
     let dummy = object method loc = SourcePos.dummy end in
-    let int_ty = Typ.In (Typ.Int, dummy) in
+    let int_ty = Typ.mk dummy Typ.Int in
     oneofl [ Add; Mul; Sub; Div; And; Or; Not; Eq int_ty; New int_ty; Del int_ty; Get int_ty; Set int_ty ]
 
   let test = []

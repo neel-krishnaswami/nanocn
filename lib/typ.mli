@@ -1,7 +1,8 @@
 (** Types in the language. *)
 
-(** The shape functor for types. ['a] is the recursive occurrence. *)
-type 'a tF =
+(** The shape functor for types.
+    ['a] = recursive positions, ['b] = auxiliary info (phantom here). *)
+type ('a, 'b) tF =
   | Record of 'a list
   | App of Dsort.t * 'a list
   | TVar of Tvar.t
@@ -9,15 +10,18 @@ type 'a tF =
   | Bool
   | Ptr of 'a
 
-val map : ('a -> 'b) -> 'a tF -> 'b tF
-val compare_tF : ('a -> 'a -> int) -> 'a tF -> 'a tF -> int
-val print_tF : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a tF -> unit
+val map_shape : ('a -> 'c) -> ('a, 'b) tF -> ('c, 'b) tF
+val map_info : ('b -> 'c) -> ('a, 'b) tF -> ('a, 'c) tF
+val compare_tF : ('a -> 'a -> int) -> ('a, 'b) tF -> ('a, 'b) tF -> int
+val print_tF : (Format.formatter -> 'a -> unit) -> Format.formatter -> ('a, 'b) tF -> unit
 
 (** A type tree annotated with ['b] at each node. *)
-type 'b t = In of 'b t tF * 'b
+type 'b t
 
-val extract : 'b t -> 'b
-val shape : 'b t -> 'b t tF
+val mk : 'b -> ('b t, 'b) tF -> 'b t
+val info : 'b t -> 'b
+val shape : 'b t -> ('b t, 'b) tF
+val map : ('b -> 'c) -> 'b t -> 'c t
 
 (** Concrete located type. *)
 type ty = < loc : SourcePos.t > t
@@ -29,7 +33,7 @@ val is_eqtype : ty -> bool
 (** [is_eqtype t] returns [true] if [t] is [int], [bool], or [ptr _]. *)
 
 module Test : sig
-  val gen_tF : 'a QCheck.Gen.t -> 'a tF QCheck.Gen.t
+  val gen_tF : 'a QCheck.Gen.t -> ('a, 'b) tF QCheck.Gen.t
   val gen : ty QCheck.Gen.t
   val test : QCheck.Test.t list
 end

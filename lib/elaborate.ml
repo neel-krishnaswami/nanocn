@@ -1,7 +1,7 @@
 let ( let* ) = ElabM.( let* )
 
-let mk_ce pos s = CoreExpr.In (s, object method loc = pos end)
-let mk_sort pos s = Sort.In (s, object method loc = pos end)
+let mk_ce pos s = CoreExpr.mk (object method loc = pos end) s
+let mk_sort pos s = Sort.mk (object method loc = pos end) s
 
 let fail_at pos msg =
   ElabM.fail (Format.asprintf "@[%a:@ %s@]" SourcePos.print pos msg)
@@ -15,7 +15,7 @@ let sort_equal a b = Sort.compare a b = 0
 
 let prim_signature (p : Prim.t) =
   let dummy_info = object method loc = SourcePos.dummy end in
-  let mk s = Sort.In (s, dummy_info) in
+  let mk s = Sort.mk dummy_info s in
   let int_sort = mk Sort.Int in
   let bool_sort = mk Sort.Bool in
   let pair_int = mk (Sort.Record [int_sort; int_sort]) in
@@ -61,13 +61,13 @@ type branch = {
 let has_con branches =
   List.exists (fun br ->
     match br.bindings with
-    | (Pat.In (Pat.Con _, _), _) :: _ -> true
+    | (p, _) :: _ -> (match Pat.shape p with Pat.Con _ -> true | _ -> false)
     | _ -> false) branches
 
 let has_tup branches =
   List.exists (fun br ->
     match br.bindings with
-    | (Pat.In (Pat.Tuple _, _), _) :: _ -> true
+    | (p, _) :: _ -> (match Pat.shape p with Pat.Tuple _ -> true | _ -> false)
     | _ -> false) branches
 
 (** strip_var: all leading patterns are variables.
@@ -77,12 +77,15 @@ let strip_var y eff branches =
   let bind_eff = Effect.purify eff in
   List.map (fun br ->
     match br.bindings with
-    | (Pat.In (Pat.Var x, _), sort) :: rest ->
-      let y_ce = mk_ce (Var.binding_site y) (CoreExpr.Var y) in
-      { bindings = rest;
-        ctx_bindings = br.ctx_bindings @ [(x, sort, bind_eff)];
-        ectx = EvalCtx.extend br.ectx x y_ce;
-        body = br.body }
+    | (p, sort) :: rest ->
+      (match Pat.shape p with
+       | Pat.Var x ->
+         let y_ce = mk_ce (Var.binding_site y) (CoreExpr.Var y) in
+         { bindings = rest;
+           ctx_bindings = br.ctx_bindings @ [(x, sort, bind_eff)];
+           ectx = EvalCtx.extend br.ectx x y_ce;
+           body = br.body }
+       | _ -> br)
     | _ -> br
   ) branches
 
@@ -92,22 +95,24 @@ let rec spec_con label ctor_sort y eff branches =
   | [] -> ElabM.return []
   | br :: rest ->
     match br.bindings with
-    | (Pat.In (Pat.Con (l, subpat), _), _sort) :: binds
-      when Label.compare l label = 0 ->
-      let* rest' = spec_con label ctor_sort y eff rest in
-      ElabM.return ({ br with bindings = (subpat, ctor_sort) :: binds } :: rest')
-    | (Pat.In (Pat.Con _, _), _) :: _ ->
-      spec_con label ctor_sort y eff rest
-    | (Pat.In (Pat.Var x, _), sort) :: binds ->
-      let* z = ElabM.fresh (Var.binding_site x) in
-      let y_ce = mk_ce (Var.binding_site y) (CoreExpr.Var y) in
-      let z_pat = Pat.In (Pat.Var z, object method loc = Var.binding_site z end) in
-      let bind_eff = Effect.purify eff in
-      let* rest' = spec_con label ctor_sort y eff rest in
-      ElabM.return ({ bindings = (z_pat, ctor_sort) :: binds;
-                      ctx_bindings = br.ctx_bindings @ [(x, sort, bind_eff)];
-                      ectx = EvalCtx.extend br.ectx x y_ce;
-                      body = br.body } :: rest')
+    | (p, sort) :: binds ->
+      (match Pat.shape p with
+       | Pat.Con (l, subpat) when Label.compare l label = 0 ->
+         let* rest' = spec_con label ctor_sort y eff rest in
+         ElabM.return ({ br with bindings = (subpat, ctor_sort) :: binds } :: rest')
+       | Pat.Con _ ->
+         spec_con label ctor_sort y eff rest
+       | Pat.Var x ->
+         let* z = ElabM.fresh (Var.binding_site x) in
+         let y_ce = mk_ce (Var.binding_site y) (CoreExpr.Var y) in
+         let z_pat = Pat.mk (object method loc = Var.binding_site z end) (Pat.Var z) in
+         let bind_eff = Effect.purify eff in
+         let* rest' = spec_con label ctor_sort y eff rest in
+         ElabM.return ({ bindings = (z_pat, ctor_sort) :: binds;
+                         ctx_bindings = br.ctx_bindings @ [(x, sort, bind_eff)];
+                         ectx = EvalCtx.extend br.ectx x y_ce;
+                         body = br.body } :: rest')
+       | _ -> spec_con label ctor_sort y eff rest)
     | _ -> spec_con label ctor_sort y eff rest
 
 (** expand_tup: expand tuple patterns in the leading position. *)
@@ -116,25 +121,30 @@ let rec expand_tup sorts y eff branches =
   | [] -> ElabM.return []
   | br :: rest ->
     match br.bindings with
-    | (Pat.In (Pat.Tuple pats, _), _sort) :: binds ->
-      if List.compare_lengths pats sorts <> 0 then
-        ElabM.fail "tuple pattern length mismatch"
-      else
-        let new_bindings = List.combine pats sorts in
-        let* rest' = expand_tup sorts y eff rest in
-        ElabM.return ({ br with bindings = new_bindings @ binds } :: rest')
-    | (Pat.In (Pat.Var x, _), sort) :: binds ->
-      let* fresh_zs = fresh_vars_for_sorts sorts (Var.binding_site x) in
-      let z_pats = List.map (fun (z, s) ->
-        (Pat.In (Pat.Var z, object method loc = Var.binding_site z end), s)
-      ) fresh_zs in
-      let y_ce = mk_ce (Var.binding_site y) (CoreExpr.Var y) in
-      let bind_eff = Effect.purify eff in
-      let* rest' = expand_tup sorts y eff rest in
-      ElabM.return ({ bindings = z_pats @ binds;
-                      ctx_bindings = br.ctx_bindings @ [(x, sort, bind_eff)];
-                      ectx = EvalCtx.extend br.ectx x y_ce;
-                      body = br.body } :: rest')
+    | (p, sort) :: binds ->
+      (match Pat.shape p with
+       | Pat.Tuple pats ->
+         if List.compare_lengths pats sorts <> 0 then
+           ElabM.fail "tuple pattern length mismatch"
+         else
+           let new_bindings = List.combine pats sorts in
+           let* rest' = expand_tup sorts y eff rest in
+           ElabM.return ({ br with bindings = new_bindings @ binds } :: rest')
+       | Pat.Var x ->
+         let* fresh_zs = fresh_vars_for_sorts sorts (Var.binding_site x) in
+         let z_pats = List.map (fun (z, s) ->
+           (Pat.mk (object method loc = Var.binding_site z end) (Pat.Var z), s)
+         ) fresh_zs in
+         let y_ce = mk_ce (Var.binding_site y) (CoreExpr.Var y) in
+         let bind_eff = Effect.purify eff in
+         let* rest' = expand_tup sorts y eff rest in
+         ElabM.return ({ bindings = z_pats @ binds;
+                         ctx_bindings = br.ctx_bindings @ [(x, sort, bind_eff)];
+                         ectx = EvalCtx.extend br.ectx x y_ce;
+                         body = br.body } :: rest')
+       | _ ->
+         let* rest' = expand_tup sorts y eff rest in
+         ElabM.return rest')
     | _ ->
       let* rest' = expand_tup sorts y eff rest in
       ElabM.return rest'
@@ -149,9 +159,9 @@ and fresh_vars_for_sorts sorts pos =
 
 (** {1 Elaboration} *)
 
-let rec synth sig_ ctx eff (SurfExpr.In (shape, info)) =
-  let pos = info#loc in
-  match shape with
+let rec synth sig_ ctx eff se =
+  let pos = (SurfExpr.info se)#loc in
+  match SurfExpr.shape se with
   | SurfExpr.Var x ->
     (match Context.lookup x ctx with
      | Some (s, var_eff) ->
@@ -226,9 +236,9 @@ let rec synth sig_ ctx eff (SurfExpr.In (shape, info)) =
   | SurfExpr.Iter _ | SurfExpr.If _ ->
     fail_at pos "cannot synthesize sort; add a type annotation"
 
-and check sig_ ctx (SurfExpr.In (shape, info) as se) sort eff =
-  let pos = info#loc in
-  match shape with
+and check sig_ ctx se sort eff =
+  let pos = (SurfExpr.info se)#loc in
+  match SurfExpr.shape se with
   | SurfExpr.Return inner ->
     (match Sort.shape sort with
      | Sort.Pred tau ->

@@ -9,13 +9,15 @@ let rec lookup a = function
   | (a', ty) :: rest ->
     if Tvar.compare a a' = 0 then Some ty else lookup a rest
 
-let rec apply sub (Typ.In (tf, b)) =
+let rec apply sub t =
+  let b = Typ.info t in
+  let tf = Typ.shape t in
   match tf with
   | Typ.TVar a ->
     (match lookup a sub with
      | Some ty -> ty
-     | None -> Typ.In (tf, b))
-  | _ -> Typ.In (Typ.map (apply sub) tf, b)
+     | None -> t)
+  | _ -> Typ.mk b (Typ.map_shape (apply sub) tf)
 
 let of_lists tvars tys =
   if List.length tvars <> List.length tys then
@@ -49,10 +51,10 @@ let print fmt sub =
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let mk t = Typ.In (t, object method loc = SourcePos.dummy end) in
+    let mk_t s = Typ.mk (object method loc = SourcePos.dummy end) s in
     let simple_ty = oneof [
-      pure (mk Typ.Int);
-      pure (mk Typ.Bool);
+      pure (mk_t Typ.Int);
+      pure (mk_t Typ.Bool);
     ] in
     let* n = 0 -- 3 in
     let* entries = list_repeat n (
@@ -63,7 +65,7 @@ module Test = struct
     pure entries
 
   let test =
-    let mk t = Typ.In (t, object method loc = SourcePos.dummy end) in
+    let mk_t s = Typ.mk (object method loc = SourcePos.dummy end) s in
     [ QCheck.Test.make ~name:"typSubst compare is reflexive"
         ~count:100
         (QCheck.make gen)
@@ -78,9 +80,9 @@ module Test = struct
         ~count:100
         (QCheck.make Tvar.Test.gen)
         (fun a ->
-           let target = mk Typ.Int in
+           let target = mk_t Typ.Int in
            let sub = extend a target empty in
-           let input = mk (Typ.TVar a) in
+           let input = mk_t (Typ.TVar a) in
            Typ.compare (apply sub input) target = 0);
 
       QCheck.Test.make ~name:"typSubst of_lists succeeds on equal lengths"

@@ -9,7 +9,7 @@ let rec fill ctx ce =
   | Hole -> ce
   | Let (x, e, rest) ->
     let inner = fill rest ce in
-    CoreExpr.In (CoreExpr.Let (x, e, inner), dummy_info)
+    CoreExpr.mk dummy_info (CoreExpr.Let (x, e, inner))
 
 let rec extend ctx x e =
   match ctx with

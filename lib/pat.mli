@@ -2,19 +2,23 @@
 
     Patterns bind variables in case, let, and take expressions. *)
 
-(** The shape functor for patterns. ['a] is the recursive occurrence. *)
-type 'a patF =
+(** The shape functor for patterns.
+    ['a] = recursive positions, ['b] = auxiliary info (phantom here). *)
+type ('a, 'b) patF =
   | Var of Var.t
   | Con of Label.t * 'a
   | Tuple of 'a list
 
-val map : ('a -> 'b) -> 'a patF -> 'b patF
+val map_shape : ('a -> 'c) -> ('a, 'b) patF -> ('c, 'b) patF
+val map_info : ('b -> 'c) -> ('a, 'b) patF -> ('a, 'c) patF
 
 (** A pattern tree annotated with ['b] at each node. *)
-type 'b t = In of 'b t patF * 'b
+type 'b t
 
-val extract : 'b t -> 'b
-val shape : 'b t -> 'b t patF
+val mk : 'b -> ('b t, 'b) patF -> 'b t
+val info : 'b t -> 'b
+val shape : 'b t -> ('b t, 'b) patF
+val map : ('b -> 'c) -> 'b t -> 'c t
 
 (** Concrete located pattern. *)
 type pat = < loc : SourcePos.t > t

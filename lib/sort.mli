@@ -3,8 +3,9 @@
     Sorts classify assertion-language values: integers, booleans, pointers,
     tuples, datasort applications, and predicates. *)
 
-(** The shape functor for sorts. ['a] is the recursive occurrence. *)
-type 'a sortF =
+(** The shape functor for sorts.
+    ['a] = recursive positions, ['b] = auxiliary info (phantom here). *)
+type ('a, 'b) sortF =
   | Int
   | Bool
   | Ptr of 'a
@@ -13,13 +14,16 @@ type 'a sortF =
   | Pred of 'a
   | TVar of Tvar.t
 
-val map : ('a -> 'b) -> 'a sortF -> 'b sortF
+val map_shape : ('a -> 'c) -> ('a, 'b) sortF -> ('c, 'b) sortF
+val map_info : ('b -> 'c) -> ('a, 'b) sortF -> ('a, 'c) sortF
 
 (** A sort tree annotated with ['b] at each node. *)
-type 'b t = In of 'b t sortF * 'b
+type 'b t
 
-val extract : 'b t -> 'b
-val shape : 'b t -> 'b t sortF
+val mk : 'b -> ('b t, 'b) sortF -> 'b t
+val info : 'b t -> 'b
+val shape : 'b t -> ('b t, 'b) sortF
+val map : ('b -> 'c) -> 'b t -> 'c t
 
 (** Concrete located sort. *)
 type sort = < loc : SourcePos.t > t

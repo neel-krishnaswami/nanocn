@@ -13,16 +13,16 @@
     object method loc = loc end
 
   let mk_typ startpos endpos s =
-    Typ.In (s, loc_obj startpos endpos)
+    Typ.mk (loc_obj startpos endpos) s
 
   let mk_surfexpr startpos endpos s =
-    SurfExpr.In (s, loc_obj startpos endpos)
+    SurfExpr.mk (loc_obj startpos endpos) s
 
   let mk_sort startpos endpos s =
-    Sort.In (s, loc_obj startpos endpos)
+    Sort.mk (loc_obj startpos endpos) s
 
   let mk_pat startpos endpos s =
-    Pat.In (s, loc_obj startpos endpos)
+    Pat.mk (loc_obj startpos endpos) s
 
   let label s =
     match Label.of_string s with

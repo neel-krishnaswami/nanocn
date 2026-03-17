@@ -19,15 +19,17 @@ let resolve_tvars d =
   let param_names =
     List.map Tvar.to_string d.params
   in
-  let rec resolve_sort (Sort.In (sf, b)) =
+  let rec resolve_sort s =
+    let b = Sort.info s in
+    let sf = Sort.shape s in
     match sf with
     | Sort.App (dsname, []) ->
       let name_str = Dsort.to_string dsname in
       if List.exists (fun p -> String.compare p name_str = 0) param_names then
-        Sort.In (Sort.TVar (Tvar.of_string name_str), b)
+        Sort.mk b (Sort.TVar (Tvar.of_string name_str))
       else
-        Sort.In (sf, b)
-    | _ -> Sort.In (Sort.map resolve_sort sf, b)
+        s
+    | _ -> Sort.mk b (Sort.map_shape resolve_sort sf)
   in
   let ctors = List.map (fun (l, s) -> (l, resolve_sort s)) d.ctors in
   { d with ctors }
@@ -84,7 +86,7 @@ let print fmt d =
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let mk_sort s = Sort.In (s, object method loc = SourcePos.dummy end) in
+    let mk_sort s = Sort.mk (object method loc = SourcePos.dummy end) s in
     let simple_sort = oneof [
       pure (mk_sort Sort.Int);
       pure (mk_sort Sort.Bool);

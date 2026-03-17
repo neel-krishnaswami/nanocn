@@ -1,4 +1,4 @@
-type 'a tF =
+type ('a, 'b) tF =
   | Record of 'a list
   | App of Dsort.t * 'a list
   | TVar of Tvar.t
@@ -6,13 +6,21 @@ type 'a tF =
   | Bool
   | Ptr of 'a
 
-let map f = function
+let map_shape f = function
   | Record ts -> Record (List.map f ts)
   | App (d, ts) -> App (d, List.map f ts)
   | TVar a -> TVar a
   | Int -> Int
   | Bool -> Bool
   | Ptr t -> Ptr (f t)
+
+let map_info _ = function
+  | Record ts -> Record ts
+  | App (d, ts) -> App (d, ts)
+  | TVar a -> TVar a
+  | Int -> Int
+  | Bool -> Bool
+  | Ptr t -> Ptr t
 
 let compare_tF cmp t1 t2 =
   let tag = function Record _ -> 0 | App _ -> 1 | TVar _ -> 2 | Int -> 3 | Bool -> 4 | Ptr _ -> 5 in
@@ -40,23 +48,25 @@ let print_tF pp fmt = function
   | Bool -> Format.fprintf fmt "bool"
   | Ptr t -> Format.fprintf fmt "@[<hov 2>ptr@ %a@]" pp t
 
-type 'b t = In of 'b t tF * 'b
+type 'b t = In of 'b * ('b t, 'b) tF
 
-let extract (In (_, b)) = b
-let shape (In (s, _)) = s
+let mk b sf = In (b, sf)
+let info (In (b, _)) = b
+let shape (In (_, sf)) = sf
+
+let rec map f (In (b, sf)) =
+  In (f b, map_shape (map f) sf)
 
 type ty = < loc : SourcePos.t > t
 
 let rec compare t1 t2 =
-  let In (s1, _) = t1 in
-  let In (s2, _) = t2 in
-  compare_tF compare s1 s2
+  compare_tF compare (shape t1) (shape t2)
 
-let rec print fmt (In (s, _)) =
-  print_tF print fmt s
+let rec print fmt t =
+  print_tF print fmt (shape t)
 
-let is_eqtype (In (s, _)) =
-  match s with
+let is_eqtype t =
+  match shape t with
   | Int | Bool | Ptr _ -> true
   | Record _ | App _ | TVar _ -> false
 
@@ -76,28 +86,28 @@ module Test = struct
 
   let gen =
     let open QCheck.Gen in
-    let mk s =
+    let mk_t s =
       let loc = SourcePos.dummy in
-      In (s, object method loc = loc end)
+      mk (object method loc = loc end) s
     in
     sized @@ fix (fun self n ->
       if n <= 0 then
         oneof [
-          pure (mk Int);
-          pure (mk Bool);
-          pure (mk (Record []));
+          pure (mk_t Int);
+          pure (mk_t Bool);
+          pure (mk_t (Record []));
         ]
       else
         let sub = self (n / 2) in
         oneof [
-          map (fun ts -> mk (Record ts)) (list_size (0 -- 3) sub);
-          pure (mk Int);
-          pure (mk Bool);
-          map (fun a -> mk (Ptr a)) sub;
+          map (fun ts -> mk_t (Record ts)) (list_size (0 -- 3) sub);
+          pure (mk_t Int);
+          pure (mk_t Bool);
+          map (fun a -> mk_t (Ptr a)) sub;
           (let* d = Dsort.Test.gen in
            let* ts = list_size (0 -- 2) sub in
-           pure (mk (App (d, ts))));
-          map (fun a -> mk (TVar a)) Tvar.Test.gen;
+           pure (mk_t (App (d, ts))));
+          map (fun a -> mk_t (TVar a)) Tvar.Test.gen;
         ])
 
   let test =
@@ -105,9 +115,17 @@ module Test = struct
         ~count:100
         (QCheck.make gen)
         (fun t -> compare t t = 0);
-      QCheck.Test.make ~name:"map id is identity on shape"
+      QCheck.Test.make ~name:"map_shape id is identity on shape"
         ~count:100
         (QCheck.make (gen_tF QCheck.Gen.int))
-        (fun s -> compare_tF Int.compare (map Fun.id s) s = 0);
+        (fun s -> compare_tF Int.compare (map_shape Fun.id s) s = 0);
+      QCheck.Test.make ~name:"typ mk/info/shape round-trip"
+        ~count:100
+        (QCheck.make gen)
+        (fun t -> compare (mk (info t) (shape t)) t = 0);
+      QCheck.Test.make ~name:"typ map Fun.id is identity"
+        ~count:100
+        (QCheck.make gen)
+        (fun t -> compare (map Fun.id t) t = 0);
     ]
 end

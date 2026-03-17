@@ -10,18 +10,30 @@ let sort_equal (a : Sort.sort) (b : Sort.sort) = Sort.compare a b = 0
 
 let dummy_info = object method loc = SourcePos.dummy end
 
-let mk_sort s = Sort.In (s, dummy_info)
+let mk_sort s = Sort.mk dummy_info s
 
 type typed_info = < loc : SourcePos.t; ctx : Context.t; sort : Sort.sort; eff : Effect.t >
 type typed_ce = typed_info CoreExpr.t
 
 let mk ctx pos sort eff shape : typed_ce =
-  CoreExpr.In (shape, object
+  CoreExpr.mk (object
     method loc = pos
     method ctx = ctx
     method sort = sort
     method eff = eff
-  end)
+  end) shape
+
+(** Lift a [Sort.sort] into [typed_info Sort.t] so it can be embedded
+    in a typed core-expression shape.  The extra fields (ctx, sort, eff)
+    on each sort node are fillers — no client inspects them. *)
+let lift_sort (s : Sort.sort) : typed_info Sort.t =
+  Sort.map (fun loc_info ->
+    (object
+      method loc = loc_info#loc
+      method ctx = Context.empty
+      method sort = s
+      method eff = Effect.Pure
+    end : typed_info)) s
 
 (** Signature of a primitive (sort-level). *)
 let prim_signature (p : Prim.t) =
@@ -55,9 +67,9 @@ let prim_signature (p : Prim.t) =
     (mk_sort (Sort.Record [mk_sort (Sort.Ptr sa); sa]), unit_sort, Effect.Impure)
 
 (** Synthesize: S; G |- ce ==> tau [eff] *)
-let rec synth sig_ ctx eff (CoreExpr.In (shape, info)) =
-  let pos = info#loc in
-  match shape with
+let rec synth sig_ ctx eff ce =
+  let pos = (CoreExpr.info ce)#loc in
+  match CoreExpr.shape ce with
   | CoreExpr.Var x ->
     (match Context.lookup x ctx with
      | Some (s, var_eff) ->
@@ -76,7 +88,7 @@ let rec synth sig_ ctx eff (CoreExpr.In (shape, info)) =
 
   | CoreExpr.Eq (ce1, ce2) ->
     let* ce1' = synth sig_ ctx eff ce1 in
-    let s1 = (CoreExpr.extract ce1')#sort in
+    let s1 = (CoreExpr.info ce1')#sort in
     if not (Sort.is_spec_type s1) then
       err_at pos "equality requires spec type (no pred)"
     else
@@ -97,7 +109,7 @@ let rec synth sig_ ctx eff (CoreExpr.In (shape, info)) =
 
   | CoreExpr.Own s ->
     let sort = mk_sort (Sort.Pred s) in
-    Ok (mk ctx pos sort Effect.Spec (CoreExpr.Own s))
+    Ok (mk ctx pos sort Effect.Spec (CoreExpr.Own (lift_sort s)))
 
   | CoreExpr.App (p, arg) ->
     let* () = match p with
@@ -127,7 +139,7 @@ let rec synth sig_ ctx eff (CoreExpr.In (shape, info)) =
 
   | CoreExpr.Annot (ce, s, ann_eff) ->
     let* ce' = check sig_ ctx ce s ann_eff in
-    Ok (mk ctx pos s ann_eff (CoreExpr.Annot (ce', s, ann_eff)))
+    Ok (mk ctx pos s ann_eff (CoreExpr.Annot (ce', lift_sort s, ann_eff)))
 
   | CoreExpr.Return _ | CoreExpr.Take _ | CoreExpr.Let _
   | CoreExpr.Inject _ | CoreExpr.Case _ | CoreExpr.Tuple _
@@ -135,9 +147,9 @@ let rec synth sig_ ctx eff (CoreExpr.In (shape, info)) =
     err_at pos "cannot synthesize sort; add a type annotation"
 
 (** Check: S; G |- ce <== tau [eff] *)
-and check sig_ ctx (CoreExpr.In (shape, info) as ce) sort eff =
-  let pos = info#loc in
-  match shape with
+and check sig_ ctx ce sort eff =
+  let pos = (CoreExpr.info ce)#loc in
+  match CoreExpr.shape ce with
   | CoreExpr.Return inner ->
     (match Sort.shape sort with
      | Sort.Pred tau ->
@@ -149,7 +161,7 @@ and check sig_ ctx (CoreExpr.In (shape, info) as ce) sort eff =
     (match Sort.shape sort with
      | Sort.Pred _ ->
        let* ce1' = synth sig_ ctx eff ce1 in
-       let s1 = (CoreExpr.extract ce1')#sort in
+       let s1 = (CoreExpr.info ce1')#sort in
        (match Sort.shape s1 with
         | Sort.Pred tau ->
           let bind_eff = Effect.purify eff in
@@ -161,8 +173,8 @@ and check sig_ ctx (CoreExpr.In (shape, info) as ce) sort eff =
 
   | CoreExpr.Let (x, ce1, ce2) ->
     let* ce1' = synth sig_ ctx eff ce1 in
-    let tau = (CoreExpr.extract ce1')#sort in
-    let eff1 = (CoreExpr.extract ce1')#eff in
+    let tau = (CoreExpr.info ce1')#sort in
+    let eff1 = (CoreExpr.info ce1')#eff in
     if not (Effect.sub eff1 eff) then
       err_at pos "effect of let binding exceeds allowed effect"
     else
@@ -173,8 +185,8 @@ and check sig_ ctx (CoreExpr.In (shape, info) as ce) sort eff =
 
   | CoreExpr.LetTuple (xs, ce1, ce2) ->
     let* ce1' = synth sig_ ctx eff ce1 in
-    let s1 = (CoreExpr.extract ce1')#sort in
-    let eff1 = (CoreExpr.extract ce1')#eff in
+    let s1 = (CoreExpr.info ce1')#sort in
+    let eff1 = (CoreExpr.info ce1')#eff in
     if not (Effect.sub eff1 eff) then
       err_at pos "effect of let-tuple scrutinee exceeds allowed effect"
     else
@@ -214,8 +226,8 @@ and check sig_ ctx (CoreExpr.In (shape, info) as ce) sort eff =
 
   | CoreExpr.Case (scrut, branches) ->
     let* scrut' = synth sig_ ctx eff scrut in
-    let scrut_sort = (CoreExpr.extract scrut')#sort in
-    let eff1 = (CoreExpr.extract scrut')#eff in
+    let scrut_sort = (CoreExpr.info scrut')#sort in
+    let eff1 = (CoreExpr.info scrut')#eff in
     if not (Effect.sub eff1 eff) then
       err_at pos "effect of case scrutinee exceeds allowed effect"
     else
@@ -224,7 +236,7 @@ and check sig_ ctx (CoreExpr.In (shape, info) as ce) sort eff =
 
   | CoreExpr.Iter (x, e1, body) ->
     let* e1' = synth sig_ ctx eff e1 in
-    let a = (CoreExpr.extract e1')#sort in
+    let a = (CoreExpr.info e1')#sort in
     if not (Effect.sub Effect.Impure eff) then
       err_at pos "iter requires impure context"
     else
@@ -250,12 +262,12 @@ and check sig_ ctx (CoreExpr.In (shape, info) as ce) sort eff =
     else if not (Effect.sub ann_eff eff) then
       err_at pos "annotation effect exceeds allowed effect"
     else
-      Ok (mk ctx pos sort eff (CoreExpr.Annot (inner', ann_sort, ann_eff)))
+      Ok (mk ctx pos sort eff (CoreExpr.Annot (inner', lift_sort ann_sort, ann_eff)))
 
   | _ ->
     let* e' = synth sig_ ctx eff ce in
-    let syn_sort = (CoreExpr.extract e')#sort in
-    let syn_eff = (CoreExpr.extract e')#eff in
+    let syn_sort = (CoreExpr.info e')#sort in
+    let syn_eff = (CoreExpr.info e')#eff in
     if not (sort_equal syn_sort sort) then
       err_at_f pos "expected sort %a, got %a" Sort.print sort Sort.print syn_sort
     else if not (Effect.sub syn_eff eff) then
@@ -291,7 +303,7 @@ and check_case_branches sig_ ctx branches scrut_sort result_sort eff pos =
 
 (** Built-in step datatype: step(a, b) = { Next : a | Done : b } *)
 let step_decl =
-  let mk_ty s = Typ.In (s, dummy_info) in
+  let mk_ty s = Typ.mk dummy_info s in
   let next_label = match Label.of_string "Next" with Ok l -> l | Error _ -> failwith "impossible" in
   let done_label = match Label.of_string "Done" with Ok l -> l | Error _ -> failwith "impossible" in
   let a = Tvar.of_string "a" in
@@ -311,9 +323,9 @@ let initial_sig =
   Sig.extend_type Sig.empty step_decl
 
 (** Check sort well-formedness: S ; Phi |- tau wf *)
-let rec sort_wf sig_ params (Sort.In (sf, info)) =
-  let pos = info#loc in
-  match sf with
+let rec sort_wf sig_ params s =
+  let pos = (Sort.info s)#loc in
+  match Sort.shape s with
   | Sort.Int | Sort.Bool -> Ok ()
   | Sort.TVar a ->
     if List.exists (fun p -> Tvar.compare a p = 0) params then Ok ()
@@ -371,9 +383,9 @@ let validate_sort_decl sig_ (d : DsortDecl.t) =
       (List.map snd d.ctors)
 
 (** Check guarded well-formedness for datatype declarations *)
-let rec type_guarded sig_ params guard (Sort.In (sf, info)) =
-  let pos = info#loc in
-  match sf with
+let rec type_guarded sig_ params guard s =
+  let pos = (Sort.info s)#loc in
+  match Sort.shape s with
   | Sort.Int | Sort.Bool -> Ok ()
   | Sort.TVar a ->
     if List.exists (fun p -> Tvar.compare a p = 0) params then Ok ()

@@ -3,8 +3,10 @@
     Core expressions have patterns compiled away — case branches bind
     a single variable, and let/take bind a single variable. *)
 
-(** The shape functor for core expressions. ['a] is the recursive occurrence. *)
-type 'a ceF =
+(** The shape functor for core expressions.
+    ['a] = recursive positions, ['b] = auxiliary info.
+    Embeds ['b Sort.t] so that annotation info flows through sorts. *)
+type ('a, 'b) ceF =
   | Var of Var.t
   | IntLit of int
   | BoolLit of bool
@@ -17,21 +19,24 @@ type 'a ceF =
   | App of Prim.t * 'a
   | Call of Var.t * 'a
   | If of 'a * 'a * 'a
-  | Annot of 'a * Sort.sort * Effect.t
+  | Annot of 'a * 'b Sort.t * Effect.t
   | Eq of 'a * 'a
   | And of 'a * 'a
   | Not of 'a
-  | Own of Sort.sort
+  | Own of 'b Sort.t
   | Take of Var.t * 'a * 'a
   | Return of 'a
 
-val map : ('a -> 'b) -> 'a ceF -> 'b ceF
+val map_shape : ('a -> 'c) -> ('a, 'b) ceF -> ('c, 'b) ceF
+val map_info : ('b -> 'c) -> ('a, 'b) ceF -> ('a, 'c) ceF
 
 (** A core expression tree annotated with ['b] at each node. *)
-type 'b t = In of 'b t ceF * 'b
+type 'b t
 
-val extract : 'b t -> 'b
-val shape : 'b t -> 'b t ceF
+val mk : 'b -> ('b t, 'b) ceF -> 'b t
+val info : 'b t -> 'b
+val shape : 'b t -> ('b t, 'b) ceF
+val map : ('b -> 'c) -> 'b t -> 'c t
 
 (** Concrete located core expression. *)
 type ce = < loc : SourcePos.t > t
