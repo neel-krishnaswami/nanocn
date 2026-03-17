@@ -84,44 +84,5 @@ Instructions to Claude for writing OCaml code:
      structural recursion.
 
 
-5. When writing types for syntax trees: 
-
-   - Split recursive types for syntax trees into a parameterized shape type, and something which
-     ties the recursive knot.
-
-     Instead of writing: 
-
-     ```type exp = Lit of num | Add of exp * exp```
-
-     first write 
-
-     ```type 'a expF = Lit of num | Add of 'a * 'a
-     ```
-
-     This lets you expose a `map_expF : ('a -> 'b) -> 'a expF -> 'b expF` function in the interface. 
-
-   - ALWAYS make sure that syntax trees carry location information. No transformation on syntax trees
-     should ever lose location information. 
-
-     So to tie the knot for 
-
-     ```type 'a expF = Lit of num | Add of 'a * 'a
-     ```
-
-     instead of writing 
-
-
-     ```type exp = In of exp expF```
-
-     Write 
-
-     ```type 'b exp = In of 'b exp expF * 'b 
-
-        type expr = <loc : SourcePos.t> exp
-
-     ```
-
-    By using an object, multiple forms of information (eg, source position, the context, the type, etc.)
-    can be accessed with a single flat method call `(extract v)#loc`. 
-
+5. To write or edit a syntax tree, look in doc/instructions/syntax-trees.md for instructions. 
 
