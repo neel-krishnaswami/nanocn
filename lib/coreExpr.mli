@@ -10,11 +10,11 @@ type ('a, 'b) ceF =
   | Var of Var.t
   | IntLit of int
   | BoolLit of bool
-  | Let of Var.t * 'a * 'a
+  | Let of (Var.t * 'b) * 'a * 'a
   | Tuple of 'a list
-  | LetTuple of Var.t list * 'a * 'a
+  | LetTuple of (Var.t * 'b) list * 'a * 'a
   | Inject of Label.t * 'a
-  | Case of 'a * (Label.t * Var.t * 'a) list
+  | Case of 'a * (Label.t * Var.t * 'a * 'b) list
   | Iter of Var.t * 'a * 'a
   | App of Prim.t * 'a
   | Call of Var.t * 'a
@@ -24,7 +24,7 @@ type ('a, 'b) ceF =
   | And of 'a * 'a
   | Not of 'a
   | Own of 'b Sort.t
-  | Take of Var.t * 'a * 'a
+  | Take of (Var.t * 'b) * 'a * 'a
   | Return of 'a
 
 val map_shape : ('a -> 'c) -> ('a, 'b) ceF -> ('c, 'b) ceF
@@ -42,6 +42,7 @@ val map : ('b -> 'c) -> 'b t -> 'c t
 type ce = < loc : SourcePos.t > t
 
 val print : Format.formatter -> _ t -> unit
+val json : ('b -> Json.t) -> 'b t -> Json.t
 
 module Test : sig
   val gen : ce QCheck.Gen.t

@@ -20,6 +20,7 @@ let qcheck_tests =
     CoreExpr.Test.test;
     SurfExpr.Test.test;
     ElabM.Test.test;
+    Json.Test.test;
   ]
 
 (** Helper to extract sort from a typed core expr *)
@@ -637,7 +638,7 @@ let () =
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok p ->
           match Typecheck.check_prog p with
-          | Ok _ -> ()
+          | Ok (_, _) -> ()
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "typecheck program with function" `Quick (fun () ->
@@ -646,7 +647,7 @@ let () =
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok p ->
           match Typecheck.check_prog p with
-          | Ok _ -> ()
+          | Ok (_, _) -> ()
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "typecheck function call" `Quick (fun () ->
@@ -655,7 +656,7 @@ let () =
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok p ->
           match Typecheck.check_prog p with
-          | Ok _ -> ()
+          | Ok (_, _) -> ()
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "typecheck recursive function with step" `Quick (fun () ->
@@ -669,7 +670,7 @@ let () =
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok p ->
           match Typecheck.check_prog p with
-          | Ok _ -> ()
+          | Ok (_, _) -> ()
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "pure recursive function fails" `Quick (fun () ->
@@ -683,7 +684,7 @@ let () =
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok p ->
           match Typecheck.check_prog p with
-          | Ok _ -> Alcotest.fail "should fail: pure function cannot recurse"
+          | Ok (_, _) -> Alcotest.fail "should fail: pure function cannot recurse"
           | Error _ -> ());
 
       Alcotest.test_case "unknown function fails" `Quick (fun () ->
@@ -692,7 +693,7 @@ let () =
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok p ->
           match Typecheck.check_prog p with
-          | Ok _ -> Alcotest.fail "should fail on unknown function"
+          | Ok (_, _) -> Alcotest.fail "should fail on unknown function"
           | Error _ -> ());
 
       Alcotest.test_case "typecheck program with type decl and inject/case" `Quick (fun () ->
@@ -707,7 +708,7 @@ let () =
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok p ->
           match Typecheck.check_prog p with
-          | Ok _ -> ()
+          | Ok (_, _) -> ()
           | Error msg -> Alcotest.fail msg);
     ]);
 
@@ -953,7 +954,8 @@ let () =
 
        Alcotest.test_case "check let propagates context" `Quick (fun () ->
          let x = Var.of_string "x" SourcePos.dummy in
-         let ce = mk (CoreExpr.Let (x, mk (CoreExpr.IntLit 1),
+         let xb = (x, object method loc = SourcePos.dummy end) in
+         let ce = mk (CoreExpr.Let (xb, mk (CoreExpr.IntLit 1),
                                        mk (CoreExpr.Var x))) in
          match Typecheck.check sig_ Context.empty ce int_sort Effect.Spec with
          | Error msg -> Alcotest.fail msg

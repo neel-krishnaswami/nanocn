@@ -26,6 +26,10 @@ let prim_signature (p : Prim.t) =
   | Prim.Sub -> (pair_int, int_sort, Effect.Pure)
   | Prim.Mul -> (pair_int, int_sort, Effect.Pure)
   | Prim.Div -> (pair_int, int_sort, Effect.Impure)
+  | Prim.Lt -> (pair_int, bool_sort, Effect.Pure)
+  | Prim.Le -> (pair_int, bool_sort, Effect.Pure)
+  | Prim.Gt -> (pair_int, bool_sort, Effect.Pure)
+  | Prim.Ge -> (pair_int, bool_sort, Effect.Pure)
   | Prim.And -> (pair_bool, bool_sort, Effect.Pure)
   | Prim.Or -> (pair_bool, bool_sort, Effect.Pure)
   | Prim.Not -> (bool_sort, bool_sort, Effect.Pure)
@@ -52,7 +56,7 @@ type binding = Pat.pat * Sort.sort
 type branch = {
   bindings : binding list;
   ctx_bindings : (Var.t * Sort.sort * Effect.t) list;
-  ectx : EvalCtx.t;
+  ectx : < loc : SourcePos.t > EvalCtx.t;
   body : SurfExpr.se;
 }
 
@@ -83,7 +87,7 @@ let strip_var y eff branches =
          let y_ce = mk_ce (Var.binding_site y) (CoreExpr.Var y) in
          { bindings = rest;
            ctx_bindings = br.ctx_bindings @ [(x, sort, bind_eff)];
-           ectx = EvalCtx.extend br.ectx x y_ce;
+           ectx = EvalCtx.extend br.ectx x (object method loc = Var.binding_site x end) y_ce;
            body = br.body }
        | _ -> br)
     | _ -> br
@@ -110,7 +114,7 @@ let rec spec_con label ctor_sort y eff branches =
          let* rest' = spec_con label ctor_sort y eff rest in
          ElabM.return ({ bindings = (z_pat, ctor_sort) :: binds;
                          ctx_bindings = br.ctx_bindings @ [(x, sort, bind_eff)];
-                         ectx = EvalCtx.extend br.ectx x y_ce;
+                         ectx = EvalCtx.extend br.ectx x (object method loc = Var.binding_site x end) y_ce;
                          body = br.body } :: rest')
        | _ -> spec_con label ctor_sort y eff rest)
     | _ -> spec_con label ctor_sort y eff rest
@@ -140,7 +144,7 @@ let rec expand_tup sorts y eff branches =
          let* rest' = expand_tup sorts y eff rest in
          ElabM.return ({ bindings = z_pats @ binds;
                          ctx_bindings = br.ctx_bindings @ [(x, sort, bind_eff)];
-                         ectx = EvalCtx.extend br.ectx x y_ce;
+                         ectx = EvalCtx.extend br.ectx x (object method loc = Var.binding_site x end) y_ce;
                          body = br.body } :: rest')
        | _ ->
          let* rest' = expand_tup sorts y eff rest in
@@ -156,6 +160,49 @@ and fresh_vars_for_sorts sorts pos =
     let* z = ElabM.fresh pos in
     let* zs = fresh_vars_for_sorts rest pos in
     ElabM.return ((z, s) :: zs)
+
+and fresh_vars_with_positions sorts positions =
+  match sorts, positions with
+  | [], _ -> ElabM.return []
+  | s :: rest_s, pos :: rest_p ->
+    let* z = ElabM.fresh pos in
+    let* zs = fresh_vars_with_positions rest_s rest_p in
+    ElabM.return ((z, s) :: zs)
+  | s :: rest_s, [] ->
+    let* z = ElabM.fresh SourcePos.dummy in
+    let* zs = fresh_vars_with_positions rest_s [] in
+    ElabM.return ((z, s) :: zs)
+
+(** {1 Pattern position helpers} *)
+
+(** Position of the first Con subpattern matching [label]. *)
+let find_con_subpat_pos label branches fallback =
+  let rec go = function
+    | [] -> fallback
+    | br :: rest ->
+      match br.bindings with
+      | (p, _) :: _ ->
+        (match Pat.shape p with
+         | Pat.Con (l, subpat) when Label.compare l label = 0 ->
+           (Pat.info subpat)#loc
+         | _ -> go rest)
+      | _ -> go rest
+  in
+  go branches
+
+(** Positions of sub-patterns from the first Tuple pattern in branches. *)
+let find_tup_subpat_positions branches n fallback_pos =
+  let rec go = function
+    | [] -> List.init n (fun _ -> fallback_pos)
+    | br :: rest ->
+      match br.bindings with
+      | (p, _) :: _ ->
+        (match Pat.shape p with
+         | Pat.Tuple pats -> List.map (fun p -> (Pat.info p)#loc) pats
+         | _ -> go rest)
+      | _ -> go rest
+  in
+  go branches
 
 (** {1 Elaboration} *)
 
@@ -252,7 +299,7 @@ and check sig_ ctx se sort eff =
        let* (ce1, s1, _eff1) = synth sig_ ctx eff se1 in
        (match Sort.shape s1 with
         | Sort.Pred tau ->
-          let* y = ElabM.fresh pos in
+          let* y = ElabM.fresh (Pat.info pat)#loc in
           let branch = {
             bindings = [(pat, tau)];
             ctx_bindings = [];
@@ -260,7 +307,8 @@ and check sig_ ctx se sort eff =
             body = se2;
           } in
           let* ce2 = coverage_check sig_ ctx [y] [branch] sort eff in
-          ElabM.return (mk_ce pos (CoreExpr.Take (y, ce1, ce2)))
+          let yb = (y, object method loc = Var.binding_site y end) in
+          ElabM.return (mk_ce pos (CoreExpr.Take (yb, ce1, ce2)))
         | _ -> fail_at pos "take scrutinee must have pred sort")
      | _ -> fail_at pos "take requires pred sort as target")
 
@@ -269,7 +317,7 @@ and check sig_ ctx se sort eff =
     if not (Effect.sub eff1 eff) then
       fail_at pos "effect of let binding exceeds allowed effect"
     else
-      let* y = ElabM.fresh pos in
+      let* y = ElabM.fresh (Pat.info pat)#loc in
       let branch = {
         bindings = [(pat, tau)];
         ctx_bindings = [];
@@ -277,7 +325,8 @@ and check sig_ ctx se sort eff =
         body = se2;
       } in
       let* ce2 = coverage_check sig_ ctx [y] [branch] sort eff in
-      ElabM.return (mk_ce pos (CoreExpr.Let (y, ce1, ce2)))
+      let yb = (y, object method loc = Var.binding_site y end) in
+      ElabM.return (mk_ce pos (CoreExpr.Let (yb, ce1, ce2)))
 
   | SurfExpr.Tuple ses ->
     (match Sort.shape sort with
@@ -305,15 +354,16 @@ and check sig_ ctx se sort eff =
     if not (Effect.sub scrut_eff eff) then
       fail_at pos "effect of case scrutinee exceeds allowed effect"
     else
-      let* y = ElabM.fresh pos in
-      let branches = List.map (fun (pat, body) ->
+      let* y = ElabM.fresh (SurfExpr.info scrut)#loc in
+      let branches = List.map (fun (pat, body, _) ->
         { bindings = [(pat, scrut_sort)];
           ctx_bindings = [];
           ectx = EvalCtx.Hole;
           body }
       ) surf_branches in
       let* ce_body = coverage_check sig_ ctx [y] branches sort eff in
-      ElabM.return (mk_ce pos (CoreExpr.Let (y, ce_scrut, ce_body)))
+      let yb = (y, object method loc = Var.binding_site y end) in
+      ElabM.return (mk_ce pos (CoreExpr.Let (yb, ce_scrut, ce_body)))
 
   | SurfExpr.Iter (pat, se1, se2) ->
     if not (Effect.sub Effect.Impure eff) then
@@ -322,7 +372,7 @@ and check sig_ ctx se sort eff =
       let* (ce1, init_sort, _init_eff) = synth sig_ ctx eff se1 in
       let step_dsort = match Dsort.of_string "step" with Ok d -> d | Error _ -> failwith "impossible" in
       let iter_sort = mk_sort pos (Sort.App (step_dsort, [init_sort; sort])) in
-      let* y = ElabM.fresh pos in
+      let* y = ElabM.fresh (Pat.info pat)#loc in
       let branch = {
         bindings = [(pat, init_sort)];
         ctx_bindings = [];
@@ -409,13 +459,17 @@ and coverage_check sig_ ctx scrutinees branches sort eff =
     let lead_sort = find_lead_sort branches in
     (match Sort.shape lead_sort with
      | Sort.Record sorts ->
-       let* fresh_zs = fresh_vars_for_sorts sorts (Var.binding_site y) in
+       let positions = find_tup_subpat_positions branches (List.length sorts) (Var.binding_site y) in
+       let* fresh_zs = fresh_vars_with_positions sorts positions in
        let fresh_vars = List.map fst fresh_zs in
        let* branches' = expand_tup sorts y eff branches in
        let* ce = coverage_check sig_ ctx (fresh_vars @ scrs) branches' sort eff in
        let y_ce = mk_ce (Var.binding_site y) (CoreExpr.Var y) in
+       let annotated_vars = List.map (fun z ->
+         (z, object method loc = Var.binding_site z end)
+       ) fresh_vars in
        ElabM.return (mk_ce (Var.binding_site y)
-         (CoreExpr.LetTuple (fresh_vars, y_ce, ce)))
+         (CoreExpr.LetTuple (annotated_vars, y_ce, ce)))
      | _ -> ElabM.fail "coverage: tuple pattern on non-record sort")
 
   | _ :: _, _ ->
@@ -433,11 +487,13 @@ and build_sort_con_branches sig_ ctx y scrs branches sort eff labels args decl =
       | None -> failwith "impossible: label from ctor_labels not found"
     in
     let* filtered = spec_con label ctor_sort y eff branches in
-    let* xi = ElabM.fresh (Var.binding_site y) in
+    let xi_pos = find_con_subpat_pos label branches (Var.binding_site y) in
+    let* xi = ElabM.fresh xi_pos in
     let* ce_i = coverage_check sig_ ctx (xi :: scrs) filtered sort eff in
     let* rest = build_sort_con_branches sig_ ctx y scrs branches sort eff
       rest_labels args decl in
-    ElabM.return ((label, xi, ce_i) :: rest)
+    let branch_info = object method loc = Var.binding_site xi end in
+    ElabM.return ((label, xi, ce_i, branch_info) :: rest)
 
 and build_type_con_branches sig_ ctx y scrs branches sort eff labels args decl =
   match labels with
@@ -458,11 +514,13 @@ and build_type_con_branches sig_ ctx y scrs branches sort eff labels args decl =
       | None -> failwith "impossible: label from ctor_labels not found"
     in
     let* filtered = spec_con label ctor_sort y eff branches in
-    let* xi = ElabM.fresh (Var.binding_site y) in
+    let xi_pos = find_con_subpat_pos label branches (Var.binding_site y) in
+    let* xi = ElabM.fresh xi_pos in
     let* ce_i = coverage_check sig_ ctx (xi :: scrs) filtered sort eff in
     let* rest = build_type_con_branches sig_ ctx y scrs branches sort eff
       rest_labels args decl in
-    ElabM.return ((label, xi, ce_i) :: rest)
+    let branch_info = object method loc = Var.binding_site xi end in
+    ElabM.return ((label, xi, ce_i, branch_info) :: rest)
 
 and find_lead_sort branches =
   match branches with

@@ -93,6 +93,19 @@ let rec print fmt t =
   | Pred t -> Format.fprintf fmt "@[<hov 2>pred@ %a@]" print t
   | TVar a -> Tvar.print fmt a
 
+let rec json jb t =
+  let fields = ["info", jb (info t)] in
+  let shape_fields = match shape t with
+    | Int -> ["tag", Json.String "Int"]
+    | Bool -> ["tag", Json.String "Bool"]
+    | Ptr t -> ["tag", Json.String "Ptr"; "arg", json jb t]
+    | Record ts -> ["tag", Json.String "Record"; "fields", Json.Array (List.map (json jb) ts)]
+    | App (d, ts) -> ["tag", Json.String "App"; "name", Dsort.json d; "args", Json.Array (List.map (json jb) ts)]
+    | Pred t -> ["tag", Json.String "Pred"; "arg", json jb t]
+    | TVar a -> ["tag", Json.String "TVar"; "name", Tvar.json a]
+  in
+  Json.Object (shape_fields @ fields)
+
 let rec is_spec_type s =
   match shape s with
   | Int | Bool -> true

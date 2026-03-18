@@ -29,6 +29,11 @@ let print fmt = function
   | Impure -> Format.fprintf fmt "impure"
   | Spec -> Format.fprintf fmt "spec"
 
+let json = function
+  | Pure -> Json.String "pure"
+  | Impure -> Json.String "impure"
+  | Spec -> Json.String "spec"
+
 module Test = struct
   let gen =
     let open QCheck.Gen in

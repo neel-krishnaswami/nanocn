@@ -13,7 +13,7 @@ type ('a, 'b) seF =
   | Let of 'b Pat.t * 'a * 'a
   | Tuple of 'a list
   | Inject of Label.t * 'a
-  | Case of 'a * ('b Pat.t * 'a) list
+  | Case of 'a * ('b Pat.t * 'a * 'b) list
   | Iter of 'b Pat.t * 'a * 'a
   | App of Prim.t * 'a
   | Call of Var.t * 'a
@@ -41,6 +41,7 @@ val map : ('b -> 'c) -> 'b t -> 'c t
 type se = < loc : SourcePos.t > t
 
 val print : Format.formatter -> _ t -> unit
+val json : ('b -> Json.t) -> 'b t -> Json.t
 
 module Test : sig
   val gen : se QCheck.Gen.t

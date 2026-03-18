@@ -61,6 +61,15 @@ let rec print fmt t =
       (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") print)
       ps
 
+let rec json jb t =
+  let fields = ["info", jb (info t)] in
+  let shape_fields = match shape t with
+    | Var x -> ["tag", Json.String "Var"; "var", Var.json x]
+    | Con (l, p) -> ["tag", Json.String "Con"; "label", Label.json l; "arg", json jb p]
+    | Tuple ps -> ["tag", Json.String "Tuple"; "elems", Json.Array (List.map (json jb) ps)]
+  in
+  Json.Object (shape_fields @ fields)
+
 let rec vars p =
   match shape p with
   | Var x -> [x]

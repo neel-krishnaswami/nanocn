@@ -7,7 +7,7 @@
     Dispatches to datasort declarations first, then datatype declarations
     (converting types to sorts). *)
 
-val lookup : Sig.t -> Label.t -> Sort.sort list -> (Sort.sort, string) result
+val lookup : 'a Sig.t -> Label.t -> Sort.sort list -> (Sort.sort, string) result
 (** [lookup sig l args] finds constructor [l] in the signature, then
     substitutes [args] for the declaration's type parameters in the
     constructor's raw sort/type. *)

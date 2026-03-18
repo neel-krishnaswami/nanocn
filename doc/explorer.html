@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>nano-CN: mergesort elaboration</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+    font-size: 13px;
+    background: #1e1e2e;
+    color: #cdd6f4;
+    overflow: hidden;
+    height: 100vh;
+  }
+  header {
+    background: #181825;
+    border-bottom: 1px solid #313244;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 40px;
+  }
+  header h1 { font-size: 14px; color: #89b4fa; font-weight: 600; }
+  header span { font-size: 12px; color: #6c7086; }
+  .container {
+    display: flex;
+    height: calc(100vh - 40px);
+  }
+  .pane {
+    flex: 1;
+    overflow: auto;
+    padding: 16px 20px;
+    position: relative;
+  }
+  .pane-left { border-right: 1px solid #313244; }
+  .pane-label {
+    position: sticky;
+    top: 0;
+    background: #1e1e2e;
+    padding: 4px 0 8px;
+    font-size: 11px;
+    color: #6c7086;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    z-index: 10;
+  }
+  pre {
+    line-height: 1.7;
+    white-space: pre;
+    tab-size: 2;
+  }
+  /* Source highlighting */
+  .src-line { display: block; }
+  .src-highlight {
+    background: #f9e2af33;
+    border-bottom: 2px solid #f9e2af;
+    border-radius: 2px;
+    transition: background 0.15s;
+  }
+
+  /* Core binder styling */
+  .core-binder {
+    cursor: pointer;
+    border-radius: 2px;
+    padding: 0 2px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .core-binder:hover {
+    background: #89b4fa33;
+    color: #89b4fa;
+  }
+  .core-binder.active {
+    background: #89b4fa44;
+    color: #89b4fa;
+  }
+
+  /* Keywords */
+  .kw { color: #cba6f7; }
+  .fn-name { color: #89b4fa; }
+  .type-name { color: #a6e3a1; }
+  .ctor { color: #fab387; }
+  .comment { color: #6c7086; font-style: italic; }
+  .num { color: #f9e2af; }
+  .op { color: #f38ba8; }
+  .prim { color: #f38ba8; }
+  .binder { color: #94e2d5; }
+  .gen-var { color: #7f849c; }
+  .gen-binder {
+    color: #7f849c;
+    cursor: pointer;
+    border-radius: 2px;
+    padding: 0 2px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .gen-binder:hover {
+    background: #cba6f744;
+    color: #cba6f7;
+  }
+  .gen-binder.active {
+    background: #cba6f744;
+    color: #cba6f7;
+  }
+  .src-highlight-gen {
+    background: #cba6f733;
+    border-bottom: 2px solid #cba6f7;
+    border-radius: 2px;
+    transition: background 0.15s;
+  }
+
+  /* SVG overlay for arrows */
+  #arrow-svg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 100;
+  }
+  #arrow-svg path {
+    fill: none;
+    stroke: #f9e2af;
+    stroke-width: 2;
+    stroke-dasharray: 6 3;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  #arrow-svg path.visible {
+    opacity: 0.9;
+  }
+  #arrow-svg circle {
+    fill: #f9e2af;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  #arrow-svg circle.visible {
+    opacity: 0.9;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>nano-CN explorer</h1>
+  <span>examples/mergesort.cn &mdash; hover over binders in core to see source origin</span>
+</header>
+
+<svg id="arrow-svg"><defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#f9e2af"/>
+  </marker>
+  <marker id="arrowhead-gen" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <polygon points="0 0, 8 3, 0 6" fill="#cba6f7"/>
+  </marker>
+</defs></svg>
+
+<div class="container">
+  <div class="pane pane-left" id="source-pane">
+    <div class="pane-label">Source</div>
+    <pre id="source-pre"></pre>
+  </div>
+  <div class="pane pane-right" id="core-pane">
+    <div class="pane-label">Core (elaborated)</div>
+    <pre id="core-pre"></pre>
+  </div>
+</div>
+
+<script>
+// --- Source code ---
+const SOURCE = `sort list(a) = { Nil : () | Cons : (a * list(a)) }
+
+fun append : (list(int) * list(int)) -> list(int) [spec] = {
+    (Nil (), ys) -> ys
+  | (Cons (x, xs), ys) -> Cons (x, append (xs, ys))
+}
+
+fun split : list(int) -> (list(int) * list(int)) [spec] = {
+    Nil () -> (Nil (), Nil ())
+  | Cons (x, Nil ()) -> (Cons (x, Nil ()), Nil ())
+  | Cons (x, Cons (y, rest)) ->
+      let (xs, ys) = split rest;
+      (Cons (x, xs), Cons (y, ys))
+}
+
+fun merge : (list(int) * list(int)) -> list(int) [spec] = {
+    (Nil (), ys) -> ys
+  | (xs, Nil ()) -> xs
+  | (Cons (x, xs), Cons (y, ys)) ->
+      if x <= y then
+        Cons (x, merge (xs, Cons (y, ys)))
+      else
+        Cons (y, merge (Cons (x, xs), ys))
+}
+
+fun mergesort : list(int) -> list(int) [spec] = {
+    Nil () -> Nil ()
+  | Cons (x, Nil ()) -> Cons (x, Nil ())
+  | xs ->
+      let (left, right) = split xs;
+      merge (mergesort left, mergesort right)
+}
+
+main : () [impure] = ()`;
+
+// --- Core (elaborated) code ---
+const CORE = `sort list(a) = {
+  Nil : ()
+  | Cons : (a * list(a))
+}
+
+fun append (_v0 : (list(int) * list(int))) : list(int) [spec] =
+  let (_v1, _v2) = _v0;
+  case _v1 {
+    Nil _v3 ->
+      let () = _v3;
+      let ys = _v2;
+      ys
+    | Cons _v4 ->
+      let (_v5, _v6) = _v4;
+      let x = _v5;
+      let xs = _v6;
+      let ys = _v2;
+      Cons (x, append (xs, ys))
+  }
+
+fun split (_v0 : list(int)) : (list(int) * list(int)) [spec] =
+  case _v0 {
+    Nil _v1 ->
+      let () = _v1;
+      (Nil (), Nil ())
+    | Cons _v2 ->
+      let (_v3, _v4) = _v2;
+      case _v4 {
+        Nil _v5 ->
+          let () = _v5;
+          let x = _v3;
+          (Cons (x, Nil ()), Nil ())
+        | Cons _v6 ->
+          let (_v7, _v8) = _v6;
+          let x = _v3;
+          let y = _v7;
+          let rest = _v8;
+          let _v9 = split rest;
+          let (_v10, _v11) = _v9;
+          let xs = _v10;
+          let ys = _v11;
+          (Cons (x, xs), Cons (y, ys))
+      }
+  }
+
+fun merge (_v0 : (list(int) * list(int))) : list(int) [spec] =
+  let (_v1, _v2) = _v0;
+  case _v1 {
+    Nil _v4 ->
+      let () = _v4;
+      case _v2 {
+        Nil _v6 ->
+          let () = _v6;
+          let ys = _v2;
+          ys
+        | Cons _v8 ->
+          let ys = _v2;
+          ys
+      }
+    | Cons _v10 ->
+      let (_v11, _v12) = _v10;
+      case _v2 {
+        Nil _v15 ->
+          let () = _v15;
+          let xs = _v1;
+          xs
+        | Cons _v16 ->
+          let (_v17, _v18) = _v16;
+          let x = _v11;
+          let xs = _v12;
+          let y = _v17;
+          let ys = _v18;
+          if x <= y then
+            Cons (x, merge (xs, Cons (y, ys)))
+          else
+            Cons (y, merge (Cons (x, xs), ys))
+      }
+  }
+
+fun mergesort (_v0 : list(int)) : list(int) [spec] =
+  case _v0 {
+    Nil _v2 ->
+      let () = _v2;
+      Nil ()
+    | Cons _v4 ->
+      let (_v5, _v6) = _v4;
+      case _v6 {
+        Nil _v10 ->
+          let () = _v10;
+          let x = _v5;
+          Cons (x, Nil ())
+        | Cons _v12 ->
+          let xs = _v0;
+          let _v13 = split xs;
+          let (_v14, _v15) = _v13;
+          let left = _v14;
+          let right = _v15;
+          merge (mergesort left, mergesort right)
+      }
+  }
+
+main : () [impure] = ()`;
+
+// --- Binder-to-source mappings (extracted from JSON AST) ---
+// Includes both user-named and generated (_vN) binders.
+// Each points to the specific source pattern element it corresponds to.
+const BINDERS = [
+  // === append ===
+  // param + pattern compilation
+  { id: "append-_v0-0",  name: "_v0",  srcLine: 4,  srcStart: 4,  srcEnd: 16, func: "append", gen: true },
+  { id: "append-_v1-0",  name: "_v1",  srcLine: 4,  srcStart: 5,  srcEnd: 11, func: "append", gen: true },
+  { id: "append-_v2-0",  name: "_v2",  srcLine: 4,  srcStart: 13, srcEnd: 15, func: "append", gen: true },
+  { id: "append-_v3-0",  name: "_v3",  srcLine: 4,  srcStart: 9,  srcEnd: 11, func: "append", gen: true },
+  { id: "append-_v4-0",  name: "_v4",  srcLine: 5,  srcStart: 10, srcEnd: 17, func: "append", gen: true },
+  { id: "append-ys-0",   name: "ys",   srcLine: 4,  srcStart: 13, srcEnd: 15, func: "append", gen: false },
+  { id: "append-_v5-0",  name: "_v5",  srcLine: 5,  srcStart: 11, srcEnd: 12, func: "append", gen: true },
+  { id: "append-_v6-0",  name: "_v6",  srcLine: 5,  srcStart: 14, srcEnd: 16, func: "append", gen: true },
+  { id: "append-x-0",    name: "x",    srcLine: 5,  srcStart: 11, srcEnd: 12, func: "append", gen: false },
+  { id: "append-xs-0",   name: "xs",   srcLine: 5,  srcStart: 14, srcEnd: 16, func: "append", gen: false },
+  { id: "append-ys-1",   name: "ys",   srcLine: 5,  srcStart: 19, srcEnd: 21, func: "append", gen: false },
+  // === split ===
+  { id: "split-_v0-0",   name: "_v0",  srcLine: 9,  srcStart: 4,  srcEnd: 10, func: "split", gen: true },
+  { id: "split-_v1-0",   name: "_v1",  srcLine: 9,  srcStart: 8,  srcEnd: 10, func: "split", gen: true },
+  { id: "split-_v2-0",   name: "_v2",  srcLine: 10, srcStart: 9,  srcEnd: 20, func: "split", gen: true },
+  { id: "split-_v3-0",   name: "_v3",  srcLine: 10, srcStart: 10, srcEnd: 11, func: "split", gen: true },
+  { id: "split-_v4-0",   name: "_v4",  srcLine: 10, srcStart: 13, srcEnd: 19, func: "split", gen: true },
+  { id: "split-_v5-0",   name: "_v5",  srcLine: 10, srcStart: 17, srcEnd: 19, func: "split", gen: true },
+  { id: "split-_v6-0",   name: "_v6",  srcLine: 11, srcStart: 18, srcEnd: 27, func: "split", gen: true },
+  { id: "split-x-0",     name: "x",    srcLine: 10, srcStart: 10, srcEnd: 11, func: "split", gen: false },
+  { id: "split-_v7-0",   name: "_v7",  srcLine: 11, srcStart: 19, srcEnd: 20, func: "split", gen: true },
+  { id: "split-_v8-0",   name: "_v8",  srcLine: 11, srcStart: 22, srcEnd: 26, func: "split", gen: true },
+  { id: "split-x-1",     name: "x",    srcLine: 11, srcStart: 10, srcEnd: 11, func: "split", gen: false },
+  { id: "split-y-0",     name: "y",    srcLine: 11, srcStart: 19, srcEnd: 20, func: "split", gen: false },
+  { id: "split-rest-0",  name: "rest", srcLine: 11, srcStart: 22, srcEnd: 26, func: "split", gen: false },
+  { id: "split-_v9-0",   name: "_v9",  srcLine: 12, srcStart: 10, srcEnd: 18, func: "split", gen: true },
+  { id: "split-_v10-0",  name: "_v10", srcLine: 12, srcStart: 11, srcEnd: 13, func: "split", gen: true },
+  { id: "split-_v11-0",  name: "_v11", srcLine: 12, srcStart: 15, srcEnd: 17, func: "split", gen: true },
+  { id: "split-xs-0",    name: "xs",   srcLine: 12, srcStart: 11, srcEnd: 13, func: "split", gen: false },
+  { id: "split-ys-0",    name: "ys",   srcLine: 12, srcStart: 15, srcEnd: 17, func: "split", gen: false },
+  // === merge ===
+  { id: "merge-_v0-0",   name: "_v0",  srcLine: 17, srcStart: 4,  srcEnd: 16, func: "merge", gen: true },
+  { id: "merge-_v1-0",   name: "_v1",  srcLine: 17, srcStart: 5,  srcEnd: 11, func: "merge", gen: true },
+  { id: "merge-_v2-0",   name: "_v2",  srcLine: 17, srcStart: 13, srcEnd: 15, func: "merge", gen: true },
+  { id: "merge-_v4-0",   name: "_v4",  srcLine: 17, srcStart: 9,  srcEnd: 11, func: "merge", gen: true },
+  { id: "merge-_v10-0",  name: "_v10", srcLine: 19, srcStart: 10, srcEnd: 17, func: "merge", gen: true },
+  { id: "merge-_v6-0",   name: "_v6",  srcLine: 18, srcStart: 13, srcEnd: 15, func: "merge", gen: true },
+  { id: "merge-_v8-0",   name: "_v8",  srcLine: 17, srcStart: 13, srcEnd: 15, func: "merge", gen: true },
+  { id: "merge-ys-0",    name: "ys",   srcLine: 17, srcStart: 13, srcEnd: 15, func: "merge", gen: false },
+  { id: "merge-_v5-0",   name: "_v5",  srcLine: 17, srcStart: 13, srcEnd: 15, func: "merge", gen: true },
+  { id: "merge-ys-1",    name: "ys",   srcLine: 17, srcStart: 13, srcEnd: 15, func: "merge", gen: false },
+  { id: "merge-_v7-0",   name: "_v7",  srcLine: 17, srcStart: 13, srcEnd: 15, func: "merge", gen: true },
+  { id: "merge-_v11-0",  name: "_v11", srcLine: 19, srcStart: 11, srcEnd: 12, func: "merge", gen: true },
+  { id: "merge-_v12-0",  name: "_v12", srcLine: 19, srcStart: 14, srcEnd: 16, func: "merge", gen: true },
+  { id: "merge-_v15-0",  name: "_v15", srcLine: 18, srcStart: 13, srcEnd: 15, func: "merge", gen: true },
+  { id: "merge-_v16-0",  name: "_v16", srcLine: 19, srcStart: 24, srcEnd: 31, func: "merge", gen: true },
+  { id: "merge-xs-0",    name: "xs",   srcLine: 18, srcStart: 5,  srcEnd: 7,  func: "merge", gen: false },
+  { id: "merge-_v9-0",   name: "_v9",  srcLine: 18, srcStart: 5,  srcEnd: 7,  func: "merge", gen: true },
+  { id: "merge-_v13-0",  name: "_v13", srcLine: 18, srcStart: 5,  srcEnd: 7,  func: "merge", gen: true },
+  { id: "merge-_v14-0",  name: "_v14", srcLine: 18, srcStart: 5,  srcEnd: 7,  func: "merge", gen: true },
+  { id: "merge-_v17-0",  name: "_v17", srcLine: 19, srcStart: 25, srcEnd: 26, func: "merge", gen: true },
+  { id: "merge-_v18-0",  name: "_v18", srcLine: 19, srcStart: 28, srcEnd: 30, func: "merge", gen: true },
+  { id: "merge-x-0",     name: "x",    srcLine: 19, srcStart: 11, srcEnd: 12, func: "merge", gen: false },
+  { id: "merge-xs-1",    name: "xs",   srcLine: 19, srcStart: 14, srcEnd: 16, func: "merge", gen: false },
+  { id: "merge-y-0",     name: "y",    srcLine: 19, srcStart: 25, srcEnd: 26, func: "merge", gen: false },
+  { id: "merge-ys-2",    name: "ys",   srcLine: 19, srcStart: 28, srcEnd: 30, func: "merge", gen: false },
+  // === mergesort ===
+  { id: "mergesort-_v0-0",   name: "_v0",   srcLine: 27, srcStart: 4,  srcEnd: 10, func: "mergesort", gen: true },
+  { id: "mergesort-_v2-0",   name: "_v2",   srcLine: 27, srcStart: 8,  srcEnd: 10, func: "mergesort", gen: true },
+  { id: "mergesort-_v4-0",   name: "_v4",   srcLine: 28, srcStart: 9,  srcEnd: 20, func: "mergesort", gen: true },
+  { id: "mergesort-_v5-0",   name: "_v5",   srcLine: 28, srcStart: 10, srcEnd: 11, func: "mergesort", gen: true },
+  { id: "mergesort-_v6-0",   name: "_v6",   srcLine: 28, srcStart: 13, srcEnd: 19, func: "mergesort", gen: true },
+  { id: "mergesort-_v10-0",  name: "_v10",  srcLine: 28, srcStart: 17, srcEnd: 19, func: "mergesort", gen: true },
+  { id: "mergesort-_v12-0",  name: "_v12",  srcLine: 28, srcStart: 13, srcEnd: 19, func: "mergesort", gen: true },
+  { id: "mergesort-x-0",     name: "x",     srcLine: 28, srcStart: 10, srcEnd: 11, func: "mergesort", gen: false },
+  { id: "mergesort-xs-0",    name: "xs",    srcLine: 29, srcStart: 4,  srcEnd: 6,  func: "mergesort", gen: false },
+  { id: "mergesort-_v3-0",   name: "_v3",   srcLine: 29, srcStart: 4,  srcEnd: 6,  func: "mergesort", gen: true },
+  { id: "mergesort-_v7-0",   name: "_v7",   srcLine: 29, srcStart: 4,  srcEnd: 6,  func: "mergesort", gen: true },
+  { id: "mergesort-_v8-0",   name: "_v8",   srcLine: 29, srcStart: 4,  srcEnd: 6,  func: "mergesort", gen: true },
+  { id: "mergesort-_v11-0",  name: "_v11",  srcLine: 29, srcStart: 4,  srcEnd: 6,  func: "mergesort", gen: true },
+  { id: "mergesort-_v13-0",  name: "_v13",  srcLine: 30, srcStart: 10, srcEnd: 23, func: "mergesort", gen: true },
+  { id: "mergesort-_v14-0",  name: "_v14",  srcLine: 30, srcStart: 11, srcEnd: 15, func: "mergesort", gen: true },
+  { id: "mergesort-_v15-0",  name: "_v15",  srcLine: 30, srcStart: 17, srcEnd: 22, func: "mergesort", gen: true },
+  { id: "mergesort-left-0",  name: "left",  srcLine: 30, srcStart: 11, srcEnd: 15, func: "mergesort", gen: false },
+  { id: "mergesort-right-0", name: "right", srcLine: 30, srcStart: 17, srcEnd: 22, func: "mergesort", gen: false },
+];
+
+// --- Render source with per-character spans for highlighting ---
+function renderSource(text, container) {
+  const lines = text.split('\n');
+  lines.forEach((line, i) => {
+    const lineNum = i + 1;
+    const lineEl = document.createElement('span');
+    lineEl.className = 'src-line';
+    lineEl.dataset.line = lineNum;
+
+    // Wrap each character in a span for precise highlighting
+    for (let c = 0; c < line.length; c++) {
+      const ch = document.createElement('span');
+      ch.textContent = line[c];
+      ch.dataset.line = lineNum;
+      ch.dataset.col = c;
+      ch.id = `src-${lineNum}-${c}`;
+      lineEl.appendChild(ch);
+    }
+    lineEl.appendChild(document.createTextNode('\n'));
+    container.appendChild(lineEl);
+  });
+}
+
+// --- Render core with syntax highlighting and binder spans ---
+function renderCore(text, container) {
+  const lines = text.split('\n');
+  // Build a map: for each function, track which binder index we're on
+  const binderCounters = {};
+
+  // We need to find "let <name> =" patterns in the core and wrap <name> in a span
+  // Also find "fun <fname> (<param>" patterns
+  let binderIdx = 0;
+  let currentFunc = null;
+
+  lines.forEach((line, lineIdx) => {
+    const lineEl = document.createElement('span');
+    lineEl.className = 'src-line';
+
+    // Detect function header
+    const funMatch = line.match(/^fun (\w+)/);
+    if (funMatch) {
+      currentFunc = funMatch[1];
+    }
+
+    // Tokenize and highlight
+    let pos = 0;
+    const tokens = tokenize(line);
+    tokens.forEach(tok => {
+      if (tok.type === 'binder' && currentFunc) {
+        // Find matching BINDER entry
+        const key = currentFunc + ':' + tok.text;
+        if (!binderCounters[key]) binderCounters[key] = 0;
+        const idx = binderCounters[key]++;
+
+        // Find the binder in our list
+        const match = findBinder(currentFunc, tok.text, idx);
+        if (match) {
+          const span = document.createElement('span');
+          const isGen = match.gen;
+          span.className = isGen ? 'gen-binder' : 'core-binder binder';
+          span.textContent = tok.text;
+          span.dataset.binderId = match.id;
+          span.dataset.srcLine = match.srcLine;
+          span.dataset.srcStart = match.srcStart;
+          span.dataset.srcEnd = match.srcEnd;
+          span.dataset.gen = isGen ? '1' : '0';
+          lineEl.appendChild(span);
+          return;
+        }
+      }
+
+      const span = document.createElement('span');
+      span.className = tok.cls || '';
+      span.textContent = tok.text;
+      lineEl.appendChild(span);
+    });
+
+    lineEl.appendChild(document.createTextNode('\n'));
+    container.appendChild(lineEl);
+  });
+}
+
+function findBinder(func, name, occurrence) {
+  let count = 0;
+  for (const b of BINDERS) {
+    if (b.func === func && b.name === name) {
+      if (count === occurrence) return b;
+      count++;
+    }
+  }
+  return null;
+}
+
+function tokenize(line) {
+  const tokens = [];
+  const keywords = new Set(['let', 'fun', 'case', 'if', 'then', 'else', 'sort', 'type', 'main', 'iter', 'take', 'return']);
+  const ctors = new Set(['Nil', 'Cons', 'Next', 'Done']);
+  const types = new Set(['int', 'bool', 'ptr', 'list', 'step', 'spec', 'impure', 'pure', 'pred']);
+  const ops = new Set(['=', '->', '|', ':', '*', '<=', '>=', '<', '>', '+', '&&', '||', '==']);
+
+  // Check if this is a "let <name> =" line to identify binders
+  const letMatch = line.match(/^(\s*)(let)\s+(\(?)/);
+  const isLetLine = !!letMatch;
+
+  let i = 0;
+  while (i < line.length) {
+    // Whitespace
+    if (line[i] === ' ' || line[i] === '\t') {
+      let j = i;
+      while (j < line.length && (line[j] === ' ' || line[j] === '\t')) j++;
+      tokens.push({ text: line.substring(i, j), type: 'ws', cls: '' });
+      i = j;
+      continue;
+    }
+
+    // Word
+    if (/[a-zA-Z_]/.test(line[i])) {
+      let j = i;
+      while (j < line.length && /[a-zA-Z0-9_]/.test(line[j])) j++;
+      const word = line.substring(i, j);
+
+      if (keywords.has(word)) {
+        tokens.push({ text: word, type: 'kw', cls: 'kw' });
+        // After 'let', look for the binder name
+        if (word === 'let') {
+          // Skip whitespace
+          let k = j;
+          while (k < line.length && line[k] === ' ') k++;
+          if (k < line.length && line[k] === '(') {
+            // let (a, b) = ... - tuple destructuring, handle parens
+            tokens.push({ text: line.substring(j, k+1), type: 'ws', cls: '' });
+            k++;
+            // Parse comma-separated binder names inside parens
+            while (k < line.length && line[k] !== ')') {
+              while (k < line.length && (line[k] === ' ' || line[k] === ',')) {
+                tokens.push({ text: line[k], type: 'punct', cls: '' });
+                k++;
+              }
+              if (k < line.length && /[a-zA-Z_]/.test(line[k])) {
+                let m = k;
+                while (m < line.length && /[a-zA-Z0-9_]/.test(line[m])) m++;
+                const bname = line.substring(k, m);
+                const bcls = bname.startsWith('_v') ? 'gen-var' : 'binder';
+                tokens.push({ text: bname, type: 'binder', cls: bcls });
+                k = m;
+              }
+            }
+            if (k < line.length && line[k] === ')') {
+              tokens.push({ text: ')', type: 'punct', cls: '' });
+              k++;
+            }
+            i = k;
+            continue;
+          } else if (k < line.length && /[a-zA-Z_]/.test(line[k])) {
+            // let name = ...
+            let m = k;
+            while (m < line.length && /[a-zA-Z0-9_]/.test(line[m])) m++;
+            const bname = line.substring(k, m);
+            tokens.push({ text: line.substring(j, k), type: 'ws', cls: '' });
+            if (bname === '()') {
+              tokens.push({ text: bname, type: 'unit', cls: '' });
+            } else {
+              const bcls = bname.startsWith('_v') ? 'gen-var' : 'binder';
+              tokens.push({ text: bname, type: 'binder', cls: bcls });
+            }
+            i = m;
+            continue;
+          }
+        }
+      } else if (ctors.has(word)) {
+        tokens.push({ text: word, type: 'ctor', cls: 'ctor' });
+      } else if (types.has(word)) {
+        tokens.push({ text: word, type: 'type', cls: 'type-name' });
+      } else if (word.startsWith('_v')) {
+        // Check if this _v is in a binding position:
+        // after 'fun name (', after a constructor in case, or after 'let'
+        const prevNonWs2 = tokens.filter(t => t.type !== 'ws').slice(-1)[0];
+        if (prevNonWs2 && (prevNonWs2.text === '(' || prevNonWs2.type === 'ctor')) {
+          tokens.push({ text: word, type: 'binder', cls: 'gen-var' });
+        } else {
+          tokens.push({ text: word, type: 'gen-var', cls: 'gen-var' });
+        }
+      } else {
+        // Check if this is a function name after 'fun'
+        const prevNonWs = tokens.filter(t => t.type !== 'ws').slice(-1)[0];
+        if (prevNonWs && prevNonWs.text === 'fun') {
+          tokens.push({ text: word, type: 'fn-name', cls: 'fn-name' });
+        } else {
+          tokens.push({ text: word, type: 'ident', cls: '' });
+        }
+      }
+      i = j;
+      continue;
+    }
+
+    // Numbers
+    if (/[0-9]/.test(line[i])) {
+      let j = i;
+      while (j < line.length && /[0-9]/.test(line[j])) j++;
+      tokens.push({ text: line.substring(i, j), type: 'num', cls: 'num' });
+      i = j;
+      continue;
+    }
+
+    // Multi-char operators
+    if (i + 1 < line.length) {
+      const two = line.substring(i, i+2);
+      if (ops.has(two)) {
+        tokens.push({ text: two, type: 'op', cls: 'op' });
+        i += 2;
+        continue;
+      }
+    }
+
+    // Single char
+    tokens.push({ text: line[i], type: 'punct', cls: line[i] === '|' ? 'op' : '' });
+    i++;
+  }
+  return tokens;
+}
+
+// --- Arrow drawing ---
+const svg = document.getElementById('arrow-svg');
+let activePath = null;
+let activeCircles = [];
+let activeHighlights = [];
+let activeBinder = null;
+
+function clearArrow() {
+  if (activePath) {
+    activePath.remove();
+    activePath = null;
+  }
+  activeCircles.forEach(c => c.remove());
+  activeCircles = [];
+  activeHighlights.forEach(el => {
+    el.classList.remove('src-highlight');
+    el.classList.remove('src-highlight-gen');
+  });
+  activeHighlights = [];
+  if (activeBinder) {
+    activeBinder.classList.remove('active');
+    activeBinder = null;
+  }
+}
+
+function drawArrow(fromEl, toEls, isGen) {
+  clearArrow();
+
+  const fromRect = fromEl.getBoundingClientRect();
+  const fromX = fromRect.left + fromRect.width / 2;
+  const fromY = fromRect.top + fromRect.height / 2;
+
+  const hlClass = isGen ? 'src-highlight-gen' : 'src-highlight';
+  const color = isGen ? '#cba6f7' : '#f9e2af';
+
+  // Highlight source characters
+  toEls.forEach(el => {
+    el.classList.add(hlClass);
+    activeHighlights.push(el);
+  });
+
+  if (toEls.length === 0) return;
+
+  // Target: center of highlighted region
+  const firstRect = toEls[0].getBoundingClientRect();
+  const lastRect = toEls[toEls.length - 1].getBoundingClientRect();
+  const toX = (firstRect.left + lastRect.right) / 2;
+  const toY = firstRect.top + firstRect.height / 2;
+
+  // Draw bezier curve
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  const midX = (fromX + toX) / 2;
+
+  // Control points: curve upward then across
+  const dx = Math.abs(fromX - toX);
+  const dy = fromY - toY;
+  const cpOffset = Math.min(80, dx * 0.3);
+
+  const d = `M ${fromX} ${fromY} C ${fromX - cpOffset} ${fromY - Math.abs(dy) * 0.3}, ${toX + cpOffset} ${toY - Math.abs(dy) * 0.3}, ${toX} ${toY}`;
+
+  path.setAttribute('d', d);
+  path.setAttribute('stroke', color);
+  path.setAttribute('marker-end', isGen ? 'url(#arrowhead-gen)' : 'url(#arrowhead)');
+  path.classList.add('visible');
+  svg.appendChild(path);
+  activePath = path;
+
+  // Dots at endpoints
+  [{ x: fromX, y: fromY }, { x: toX, y: toY }].forEach(pt => {
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', pt.x);
+    circle.setAttribute('cy', pt.y);
+    circle.setAttribute('r', 3);
+    circle.setAttribute('fill', color);
+    circle.classList.add('visible');
+    svg.appendChild(circle);
+    activeCircles.push(circle);
+  });
+
+  // Mark binder active
+  fromEl.classList.add('active');
+  activeBinder = fromEl;
+}
+
+// --- Initialize ---
+const sourcePre = document.getElementById('source-pre');
+const corePre = document.getElementById('core-pre');
+
+renderSource(SOURCE, sourcePre);
+renderCore(CORE, corePre);
+
+// Attach hover listeners to both user binders and generated binders
+document.querySelectorAll('.core-binder, .gen-binder').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    const srcLine = parseInt(el.dataset.srcLine);
+    const srcStart = parseInt(el.dataset.srcStart);
+    const srcEnd = parseInt(el.dataset.srcEnd);
+    const isGen = el.dataset.gen === '1';
+
+    // Find source character spans
+    const targets = [];
+    for (let c = srcStart; c < srcEnd; c++) {
+      const target = document.getElementById(`src-${srcLine}-${c}`);
+      if (target) targets.push(target);
+    }
+
+    if (targets.length > 0) {
+      // Scroll source pane to show the target
+      const sourcePane = document.getElementById('source-pane');
+      const targetTop = targets[0].offsetTop;
+      const paneHeight = sourcePane.clientHeight;
+      if (targetTop < sourcePane.scrollTop || targetTop > sourcePane.scrollTop + paneHeight - 40) {
+        sourcePane.scrollTo({ top: Math.max(0, targetTop - paneHeight / 3), behavior: 'smooth' });
+      }
+
+      drawArrow(el, targets, isGen);
+    }
+  });
+
+  el.addEventListener('mouseleave', () => {
+    clearArrow();
+  });
+});
+
+// Redraw on scroll (arrows are in fixed position)
+document.getElementById('source-pane').addEventListener('scroll', clearArrow);
+document.getElementById('core-pane').addEventListener('scroll', clearArrow);
+</script>
+
+</body>
+</html>

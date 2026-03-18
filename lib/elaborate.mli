@@ -16,25 +16,25 @@ type binding = Pat.pat * Sort.sort
 type branch = {
   bindings : binding list;
   ctx_bindings : (Var.t * Sort.sort * Effect.t) list;
-  ectx : EvalCtx.t;
+  ectx : < loc : SourcePos.t > EvalCtx.t;
   body : SurfExpr.se;
 }
 
 (** {1 Elaboration} *)
 
-val synth : Sig.t -> Context.t -> Effect.t -> SurfExpr.se ->
+val synth : _ Sig.t -> Context.t -> Effect.t -> SurfExpr.se ->
   (CoreExpr.ce * Sort.sort * Effect.t) ElabM.t
 (** [synth sig ctx eff se] synthesizes the sort and effect of [se] and
     elaborates it to a core expression. [eff] is the ambient effect. *)
 
-val check : Sig.t -> Context.t -> SurfExpr.se -> Sort.sort -> Effect.t ->
+val check : _ Sig.t -> Context.t -> SurfExpr.se -> Sort.sort -> Effect.t ->
   CoreExpr.ce ElabM.t
 (** [check sig ctx se sort eff] checks [se] against [sort] at effect [eff]
     and elaborates it to a core expression. *)
 
 (** {1 Coverage} *)
 
-val coverage_check : Sig.t -> Context.t -> Var.t list -> branch list ->
+val coverage_check : _ Sig.t -> Context.t -> Var.t list -> branch list ->
   Sort.sort -> Effect.t -> CoreExpr.ce ElabM.t
 (** [coverage_check sig ctx scrutinees branches sort eff] compiles the
     match matrix into a core expression. *)

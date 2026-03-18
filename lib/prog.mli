@@ -2,27 +2,29 @@
 
 (** {1 Surface programs} *)
 
-type 'a decl =
+type ('a, 'b) decl =
   | FunDecl of {
       name : Var.t;
       arg_sort : Sort.sort;
       ret_sort : Sort.sort;
       eff : Effect.t;
-      branches : (Pat.pat * 'a) list;
+      branches : (Pat.pat * 'a * 'b) list;
       loc : SourcePos.t;
     }
   | SortDecl of DsortDecl.t
   | TypeDecl of DtypeDecl.t
 
-type 'a t = {
-  decls : 'a decl list;
+type ('a, 'b) t = {
+  decls : ('a, 'b) decl list;
   main : 'a;
   main_sort : Sort.sort;
   main_eff : Effect.t;
   loc : SourcePos.t;
 }
 
-val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
+val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> ('a, _) t -> unit
+val json_decl : ('a -> Json.t) -> ('b -> Json.t) -> ('a, 'b) decl -> Json.t
+val json : ('a -> Json.t) -> ('b -> Json.t) -> ('a, 'b) t -> Json.t
 
 (** {1 Core programs} *)
 
@@ -50,6 +52,8 @@ type 'a core_prog = {
 }
 
 val print_core_prog : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a core_prog -> unit
+val json_core_decl : ('a -> Json.t) -> 'a core_decl -> Json.t
+val json_core_prog : ('a -> Json.t) -> 'a core_prog -> Json.t
 
 module Test : sig
   val test : QCheck.Test.t list

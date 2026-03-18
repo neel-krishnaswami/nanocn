@@ -51,13 +51,14 @@
 %token PLUS MINUS STAR SLASH
 %token AMPAMP BARBAR
 %token LBRACKET RBRACKET LPAREN RPAREN LBRACE RBRACE
+%token LESS LESSEQ GREATER GREATEREQ
 %token COMMA SEMICOLON EQUAL COLON ARROW BAR
 %token EOF
 
 %start <SurfExpr.se> program
 %start <Sort.sort> sort_eof
-%start <SurfExpr.se Prog.t> prog_eof
-%start <SurfExpr.se Prog.decl> repl_decl
+%start <(SurfExpr.se, SourcePos.t) Prog.t> prog_eof
+%start <(SurfExpr.se, SourcePos.t) Prog.decl> repl_decl
 %start <Var.t * SurfExpr.se> repl_let
 
 %%
@@ -122,7 +123,7 @@ decl:
 
 branch:
   | p = pat; ARROW; e = expr
-    { (p, e) }
+    { (p, e, mk_loc $startpos $endpos) }
 
 ctor_decl:
   | l = LABEL; COLON; s = sort { (label l, s) }
@@ -229,7 +230,7 @@ seq_expr:
 
 case_branch:
   | p = pat; ARROW; e = expr
-    { (p, e) }
+    { (p, e, loc_obj $startpos $endpos) }
 
 or_expr:
   | e1 = or_expr; BARBAR; e2 = and_expr
@@ -245,8 +246,24 @@ and_expr:
     { e }
 
 eq_expr:
-  | e1 = add_expr; EQEQ; e2 = add_expr
+  | e1 = cmp_expr; EQEQ; e2 = cmp_expr
     { mk_surfexpr $startpos $endpos (SurfExpr.Eq (e1, e2)) }
+  | e = cmp_expr
+    { e }
+
+cmp_expr:
+  | e1 = add_expr; LESS; e2 = add_expr
+    { let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.App (Prim.Lt, tup)) }
+  | e1 = add_expr; LESSEQ; e2 = add_expr
+    { let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.App (Prim.Le, tup)) }
+  | e1 = add_expr; GREATER; e2 = add_expr
+    { let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.App (Prim.Gt, tup)) }
+  | e1 = add_expr; GREATEREQ; e2 = add_expr
+    { let tup = mk_surfexpr $startpos $endpos (SurfExpr.Tuple [e1; e2]) in
+      mk_surfexpr $startpos $endpos (SurfExpr.App (Prim.Ge, tup)) }
   | e = add_expr
     { e }
 

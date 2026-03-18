@@ -23,6 +23,12 @@ let compare a b =
 
 let print fmt v = Format.fprintf fmt "%s" (to_string v)
 
+let json v =
+  Json.Object [
+    "name", Json.String (to_string v);
+    "pos", SourcePos.json v.binding_site;
+  ]
+
 let is_generated v =
   match v.name with
   | User _ -> false

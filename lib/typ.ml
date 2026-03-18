@@ -65,6 +65,15 @@ let rec compare t1 t2 =
 let rec print fmt t =
   print_tF print fmt (shape t)
 
+let rec json t =
+  match shape t with
+  | Int -> Json.Object ["tag", Json.String "Int"]
+  | Bool -> Json.Object ["tag", Json.String "Bool"]
+  | Ptr t -> Json.Object ["tag", Json.String "Ptr"; "arg", json t]
+  | Record ts -> Json.Object ["tag", Json.String "Record"; "fields", Json.Array (List.map json ts)]
+  | App (d, ts) -> Json.Object ["tag", Json.String "App"; "name", Dsort.json d; "args", Json.Array (List.map json ts)]
+  | TVar a -> Json.Object ["tag", Json.String "TVar"; "name", Tvar.json a]
+
 let is_eqtype t =
   match shape t with
   | Int | Bool | Ptr _ -> true

@@ -41,6 +41,15 @@ let compare p1 p2 =
 let print fmt p =
   Format.fprintf fmt "%s:%d:%d-%d:%d" p.file p.start_line p.start_col p.end_line p.end_col
 
+let json p =
+  Json.Object [
+    "file", Json.String p.file;
+    "start_line", Json.Int p.start_line;
+    "start_col", Json.Int p.start_col;
+    "end_line", Json.Int p.end_line;
+    "end_col", Json.Int p.end_col;
+  ]
+
 module Test = struct
   let gen =
     let open QCheck.Gen in

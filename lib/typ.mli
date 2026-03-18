@@ -28,6 +28,7 @@ type ty = < loc : SourcePos.t > t
 
 val compare : ty -> ty -> int
 val print : Format.formatter -> _ t -> unit
+val json : _ t -> Json.t
 
 val is_eqtype : ty -> bool
 (** [is_eqtype t] returns [true] if [t] is [int], [bool], or [ptr _]. *)

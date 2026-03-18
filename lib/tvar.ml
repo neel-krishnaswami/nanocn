@@ -4,6 +4,7 @@ let of_string s = s
 let to_string s = s
 let compare = String.compare
 let print fmt s = Format.fprintf fmt "%s" s
+let json s = Json.String s
 
 module Test = struct
   let gen =

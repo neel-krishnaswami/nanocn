@@ -25,6 +25,7 @@ type pat = < loc : SourcePos.t > t
 
 val compare : pat -> pat -> int
 val print : Format.formatter -> _ t -> unit
+val json : ('b -> Json.t) -> 'b t -> Json.t
 
 val linear_check : pat -> (unit, string) result
 (** [linear_check p] returns [Ok ()] if no variable appears more than once

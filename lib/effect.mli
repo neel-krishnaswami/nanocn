@@ -18,6 +18,7 @@ val purify : t -> t
 
 val compare : t -> t -> int
 val print : Format.formatter -> t -> unit
+val json : t -> Json.t
 
 module Test : sig
   val gen : t QCheck.Gen.t

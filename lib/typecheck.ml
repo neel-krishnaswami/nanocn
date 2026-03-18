@@ -23,6 +23,14 @@ let mk ctx pos sort eff shape : typed_ce =
     method eff = eff
   end) shape
 
+let mk_bind_info x sort eff ctx : typed_info =
+  object
+    method loc = Var.binding_site x
+    method ctx = ctx
+    method sort = sort
+    method eff = eff
+  end
+
 (** Lift a [Sort.sort] into [typed_info Sort.t] so it can be embedded
     in a typed core-expression shape.  The extra fields (ctx, sort, eff)
     on each sort node are fillers — no client inspects them. *)
@@ -47,6 +55,10 @@ let prim_signature (p : Prim.t) =
   | Sub -> (pair_int, int_sort, Effect.Pure)
   | Mul -> (pair_int, int_sort, Effect.Pure)
   | Div -> (pair_int, int_sort, Effect.Impure)
+  | Lt -> (pair_int, bool_sort, Effect.Pure)
+  | Le -> (pair_int, bool_sort, Effect.Pure)
+  | Gt -> (pair_int, bool_sort, Effect.Pure)
+  | Ge -> (pair_int, bool_sort, Effect.Pure)
   | And -> (pair_bool, bool_sort, Effect.Pure)
   | Or -> (pair_bool, bool_sort, Effect.Pure)
   | Not -> (bool_sort, bool_sort, Effect.Pure)
@@ -157,7 +169,7 @@ and check sig_ ctx ce sort eff =
        Ok (mk ctx pos sort eff (CoreExpr.Return inner'))
      | _ -> err_at pos "return requires pred sort")
 
-  | CoreExpr.Take (x, ce1, ce2) ->
+  | CoreExpr.Take ((x, _), ce1, ce2) ->
     (match Sort.shape sort with
      | Sort.Pred _ ->
        let* ce1' = synth sig_ ctx eff ce1 in
@@ -167,11 +179,12 @@ and check sig_ ctx ce sort eff =
           let bind_eff = Effect.purify eff in
           let ctx' = Context.extend x tau bind_eff ctx in
           let* ce2' = check sig_ ctx' ce2 sort eff in
-          Ok (mk ctx pos sort eff (CoreExpr.Take (x, ce1', ce2')))
+          let xb = (x, mk_bind_info x tau bind_eff ctx') in
+          Ok (mk ctx pos sort eff (CoreExpr.Take (xb, ce1', ce2')))
         | _ -> err_at pos "take scrutinee must have pred sort")
      | _ -> err_at pos "take requires pred sort as target")
 
-  | CoreExpr.Let (x, ce1, ce2) ->
+  | CoreExpr.Let ((x, _), ce1, ce2) ->
     let* ce1' = synth sig_ ctx eff ce1 in
     let tau = (CoreExpr.info ce1')#sort in
     let eff1 = (CoreExpr.info ce1')#eff in
@@ -181,7 +194,8 @@ and check sig_ ctx ce sort eff =
       let bind_eff = Effect.purify eff in
       let ctx' = Context.extend x tau bind_eff ctx in
       let* ce2' = check sig_ ctx' ce2 sort eff in
-      Ok (mk ctx pos sort eff (CoreExpr.Let (x, ce1', ce2')))
+      let xb = (x, mk_bind_info x tau bind_eff ctx') in
+      Ok (mk ctx pos sort eff (CoreExpr.Let (xb, ce1', ce2')))
 
   | CoreExpr.LetTuple (xs, ce1, ce2) ->
     let* ce1' = synth sig_ ctx eff ce1 in
@@ -192,15 +206,24 @@ and check sig_ ctx ce sort eff =
     else
       (match Sort.shape s1 with
        | Sort.Record ts ->
-         if List.compare_lengths xs ts <> 0 then
+         let vars = List.map fst xs in
+         if List.compare_lengths vars ts <> 0 then
            err_at_f pos "let-tuple: expected %d components, got %d"
-             (List.length ts) (List.length xs)
+             (List.length ts) (List.length vars)
          else
            let bind_eff = Effect.purify eff in
-           let bindings = List.map (fun (x, s) -> (x, s, bind_eff)) (List.combine xs ts) in
+           let bindings = List.map (fun (x, s) -> (x, s, bind_eff)) (List.combine vars ts) in
            let ctx' = Context.extend_list bindings ctx in
            let* ce2' = check sig_ ctx' ce2 sort eff in
-           Ok (mk ctx pos sort eff (CoreExpr.LetTuple (xs, ce1', ce2')))
+           let typed_xs = List.map (fun ((x, _), s) ->
+             (x, (object
+               method loc = Var.binding_site x
+               method ctx = ctx'
+               method sort = s
+               method eff = bind_eff
+             end : typed_info))
+           ) (List.combine xs ts) in
+           Ok (mk ctx pos sort eff (CoreExpr.LetTuple (typed_xs, ce1', ce2')))
        | _ -> err_at pos "let-tuple: scrutinee must have record sort")
 
   | CoreExpr.Tuple es ->
@@ -288,14 +311,20 @@ and check_case_branches sig_ ctx branches scrut_sort result_sort eff pos =
   | Sort.App (_d, args) ->
     let rec go = function
       | [] -> Ok []
-      | (l, x, body) :: rest ->
+      | (l, x, body, _) :: rest ->
         (match CtorLookup.lookup sig_ l args with
          | Ok ctor_sort ->
            let bind_eff = Effect.purify eff in
            let ctx' = Context.extend x ctor_sort bind_eff ctx in
            let* body' = check sig_ ctx' body result_sort eff in
+           let branch_info = (object
+             method loc = pos
+             method ctx = ctx'
+             method sort = ctor_sort
+             method eff = bind_eff
+           end : typed_info) in
            let* rest' = go rest in
-           Ok ((l, x, body') :: rest')
+           Ok ((l, x, body', branch_info) :: rest')
          | Error msg -> err_at_f pos "%s" msg)
     in
     go branches
@@ -319,7 +348,7 @@ let step_decl =
     loc = SourcePos.dummy;
   }
 
-let initial_sig =
+let initial_sig : typed_ce Sig.t =
   Sig.extend_type Sig.empty step_decl
 
 (** Check sort well-formedness: S ; Phi |- tau wf *)
@@ -441,7 +470,7 @@ let validate_type_decl sig_ (d : DtypeDecl.t) =
     type_guarded_list sig_with_self d.params d.name (List.map snd ctor_sorts)
 
 (** Elaborate and typecheck a FunDecl *)
-let elaborate_fun sig_ (d : SurfExpr.se Prog.decl) =
+let elaborate_fun sig_ (d : (SurfExpr.se, _) Prog.decl) =
   match d with
   | Prog.FunDecl d ->
     let entry = Sig.FunSig { arg = d.arg_sort; ret = d.ret_sort; eff = d.eff } in
@@ -452,8 +481,12 @@ let elaborate_fun sig_ (d : SurfExpr.se Prog.decl) =
     in
     let result = ElabM.run (
       let open ElabM in
-      let* y = fresh d.loc in
-      let branches = List.map (fun (pat, body) ->
+      let param_pos = match d.branches with
+        | (pat, _, _) :: _ -> (Pat.info pat)#loc
+        | [] -> d.loc
+      in
+      let* y = fresh param_pos in
+      let branches = List.map (fun (pat, body, _) ->
         Elaborate.({ bindings = [(pat, d.arg_sort)];
                      ctx_bindings = [];
                      ectx = EvalCtx.Hole;
@@ -472,7 +505,7 @@ let elaborate_fun sig_ (d : SurfExpr.se Prog.decl) =
                             eff = d.eff; body = typed_body; loc = d.loc })
   | _ -> Error "elaborate_fun: not a FunDecl"
 
-let check_decl sig_ (d : SurfExpr.se Prog.decl) =
+let check_decl sig_ (d : (SurfExpr.se, _) Prog.decl) =
   match d with
   | Prog.FunDecl _ -> elaborate_fun sig_ d
   | Prog.SortDecl dd ->
@@ -482,30 +515,50 @@ let check_decl sig_ (d : SurfExpr.se Prog.decl) =
     let* () = validate_type_decl sig_ dd in
     Ok (Prog.CoreTypeDecl dd)
 
-let check_spec_decl sig_ (d : SurfExpr.se Prog.decl) =
-  let* _d' = check_decl sig_ d in
-  match d with
-  | Prog.SortDecl dd ->
+let check_spec_decl sig_ (d : (SurfExpr.se, _) Prog.decl) =
+  let* d' = check_decl sig_ d in
+  match d, d' with
+  | Prog.SortDecl dd, _ ->
     Ok (Sig.extend_sort sig_ dd)
-  | Prog.TypeDecl dd ->
+  | Prog.TypeDecl dd, _ ->
     Ok (Sig.extend_type sig_ dd)
-  | Prog.FunDecl dd ->
-    Ok (Sig.extend dd.name (Sig.FunSig { arg = dd.arg_sort; ret = dd.ret_sort; eff = dd.eff }) sig_)
+  | Prog.FunDecl dd, Prog.CoreFunDecl cd ->
+    let entry = match dd.eff with
+      | Effect.Impure ->
+        Sig.FunSig { arg = dd.arg_sort; ret = dd.ret_sort; eff = dd.eff }
+      | Effect.Pure | Effect.Spec ->
+        Sig.FunDef { param = cd.param; arg = dd.arg_sort; ret = dd.ret_sort;
+                     eff = dd.eff; body = cd.body }
+    in
+    Ok (Sig.extend dd.name entry sig_)
+  | _, _ -> Error "check_spec_decl: unexpected declaration combination"
 
-let check_prog (p : SurfExpr.se Prog.t) : (typed_ce Prog.core_prog, string) result =
+(** Extend the core signature after elaborating a declaration.
+    Pure/spec functions store their full definition ([FunDef]);
+    impure functions store only a prototype ([FunSig]). *)
+let extend_sig_with_decl sig_ (d : (SurfExpr.se, _) Prog.decl) (d' : typed_ce Prog.core_decl) =
+  match d, d' with
+  | Prog.FunDecl fd, Prog.CoreFunDecl cd ->
+    let entry = match fd.eff with
+      | Effect.Impure ->
+        Sig.FunSig { arg = fd.arg_sort; ret = fd.ret_sort; eff = fd.eff }
+      | Effect.Pure | Effect.Spec ->
+        Sig.FunDef { param = cd.param; arg = fd.arg_sort; ret = fd.ret_sort;
+                     eff = fd.eff; body = cd.body }
+    in
+    Sig.extend fd.name entry sig_
+  | Prog.SortDecl dd, _ ->
+    Sig.extend_sort sig_ dd
+  | Prog.TypeDecl dd, _ ->
+    Sig.extend_type sig_ dd
+  | _, _ -> sig_
+
+let check_prog (p : (SurfExpr.se, _) Prog.t) : (typed_ce Sig.t * typed_ce Prog.core_prog, string) result =
   let rec check_decls sig_ = function
     | [] -> Ok (sig_, [])
     | d :: rest ->
       let* d' = check_decl sig_ d in
-      let sig' = match d with
-        | Prog.FunDecl fd ->
-          let entry = Sig.FunSig { arg = fd.arg_sort; ret = fd.ret_sort; eff = fd.eff } in
-          Sig.extend fd.name entry sig_
-        | Prog.SortDecl dd ->
-          Sig.extend_sort sig_ dd
-        | Prog.TypeDecl dd ->
-          Sig.extend_type sig_ dd
-      in
+      let sig' = extend_sig_with_decl sig_ d d' in
       let* (final_sig, rest') = check_decls sig' rest in
       Ok (final_sig, d' :: rest')
   in
@@ -516,6 +569,7 @@ let check_prog (p : SurfExpr.se Prog.t) : (typed_ce Prog.core_prog, string) resu
   ) in
   let* core_main = result in
   let* main' = check final_sig Context.empty core_main p.main_sort p.main_eff in
-  Ok { Prog.core_decls = decls'; core_main = main';
-       core_main_sort = p.main_sort; core_main_eff = p.main_eff;
-       core_loc = p.loc }
+  Ok (final_sig,
+      { Prog.core_decls = decls'; core_main = main';
+        core_main_sort = p.main_sort; core_main_eff = p.main_eff;
+        core_loc = p.loc })

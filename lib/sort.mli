@@ -30,6 +30,7 @@ type sort = < loc : SourcePos.t > t
 
 val compare : sort -> sort -> int
 val print : Format.formatter -> _ t -> unit
+val json : ('b -> Json.t) -> 'b t -> Json.t
 
 val is_spec_type : sort -> bool
 (** [is_spec_type s] is [true] if [s] contains no [Pred] anywhere.

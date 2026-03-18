@@ -15,6 +15,7 @@ val of_string : string -> SourcePos.t -> t
 val to_string : t -> string
 val compare : t -> t -> int
 val print : Format.formatter -> t -> unit
+val json : t -> Json.t
 
 val is_generated : t -> bool
 (** [is_generated v] is [true] if [v] was created by [fresh]. *)

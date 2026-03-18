@@ -64,6 +64,17 @@ let compare d1 d2 =
       in
       compare_ctors d1.ctors d2.ctors
 
+let json_sort_loc s = Sort.json (fun b -> SourcePos.json b#loc) s
+
+let json d =
+  Json.Object [
+    "name", Dsort.json d.name;
+    "params", Json.Array (List.map Tvar.json d.params);
+    "ctors", Json.Array (List.map (fun (l, s) ->
+      Json.Object ["label", Label.json l; "sort", json_sort_loc s]) d.ctors);
+    "loc", SourcePos.json d.loc;
+  ]
+
 let print fmt d =
   let pp_param fmt tv = Tvar.print fmt tv in
   let pp_ctor fmt (l, s) =

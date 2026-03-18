@@ -8,7 +8,8 @@ let help () =
     @   help                   Show this help message@,\
     @   check <file.cn>        Typecheck a program@,\
     @   check --toplevel       Start interactive toplevel@,\
-    @   elaborate <file.cn>    Elaborate surface syntax and print core syntax@]@."
+    @   elaborate <file.cn>    Elaborate surface syntax and print core syntax@,\
+    @   json <file.cn>         Typecheck and output core AST as JSON@]@."
 
 let usage () =
   Format.eprintf "Usage: nanocn <command> (try 'nanocn help')@.";
@@ -27,7 +28,7 @@ let check_file filename =
     exit 1
   | Ok prog ->
     match Typecheck.check_prog prog with
-    | Ok _ ->
+    | Ok (_sig, _cprog) ->
       Format.printf "OK@."
     | Error msg ->
       Format.eprintf "@[<v>Type error:@ %s@]@." msg;
@@ -152,8 +153,34 @@ let elaborate_file filename =
     | Error msg ->
       Format.eprintf "@[<v>Type error:@ %s@]@." msg;
       exit 1
-    | Ok cprog ->
+    | Ok (_sig, cprog) ->
       Format.printf "%a@." (Prog.print_core_prog CoreExpr.print) cprog
+
+let json_file filename =
+  let input =
+    let ic = In_channel.open_text filename in
+    let s = In_channel.input_all ic in
+    In_channel.close ic;
+    s
+  in
+  match Parse.parse_prog input ~file:filename with
+  | Error msg ->
+    Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
+    exit 1
+  | Ok prog ->
+    match Typecheck.check_prog prog with
+    | Error msg ->
+      Format.eprintf "@[<v>Type error:@ %s@]@." msg;
+      exit 1
+    | Ok (_sig, cprog) ->
+      let jb b = Json.Object [
+        "loc", SourcePos.json b#loc;
+        "ctx", Json.String "<ctx>";
+        "sort", Sort.json (fun b' -> SourcePos.json b'#loc) b#sort;
+        "eff", Effect.json b#eff;
+      ] in
+      let j = Prog.json_core_prog (CoreExpr.json jb) cprog in
+      Format.printf "%a@." Json.print j
 
 let () =
   match Sys.argv with
@@ -161,4 +188,5 @@ let () =
   | [| _; "check"; "--toplevel" |] -> toplevel ()
   | [| _; "check"; file |] -> check_file file
   | [| _; "elaborate"; file |] -> elaborate_file file
+  | [| _; "json"; file |] -> json_file file
   | _ -> usage ()

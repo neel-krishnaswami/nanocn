@@ -78,6 +78,10 @@ let rec token buf =
   | '}' -> Parser.RBRACE
   | ',' -> Parser.COMMA
   | ';' -> Parser.SEMICOLON
+  | "<=" -> Parser.LESSEQ
+  | ">=" -> Parser.GREATEREQ
+  | '<' -> Parser.LESS
+  | '>' -> Parser.GREATER
   | "==" -> Parser.EQEQ
   | '=' -> Parser.EQUAL
   | ':' -> Parser.COLON
