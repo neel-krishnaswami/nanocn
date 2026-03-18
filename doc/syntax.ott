@@ -77,6 +77,10 @@ prim :: 'Prim_' ::=                                            {{ com primitives
   | And                                :: :: And            {{ com conjunction }}
   | Or                                 :: :: Or             {{ com disjunction }}
   | Not                                :: :: Not            {{ com negation }}
+  | Lt                                 :: :: Lt             {{ com less than }}
+  | Le                                 :: :: Le             {{ com less or equal }}
+  | Gt                                 :: :: Gt             {{ com greater than }}
+  | Ge                                 :: :: Ge             {{ com greater or equal }}
   | Eq [ A ]                           :: :: Eq             {{ com equality test }}
   | New [ A ]                          :: :: New            {{ com allocate }}
   | Del [ A ]                          :: :: Del            {{ com deallocate }}
@@ -369,6 +373,18 @@ defns Jtype :: '' ::=
 
     ----------------------------- :: not
     Not : bool -> bool [ pure ]
+
+    ------------------------------------ :: lt
+    Lt : ( int , int ) -> bool [ pure ]
+
+    ------------------------------------ :: le
+    Le : ( int , int ) -> bool [ pure ]
+
+    ------------------------------------ :: gt
+    Gt : ( int , int ) -> bool [ pure ]
+
+    ------------------------------------ :: ge
+    Ge : ( int , int ) -> bool [ pure ]
 
     A eqtype
     ------------------------------------------- :: eq
