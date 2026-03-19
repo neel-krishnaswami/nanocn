@@ -38,7 +38,10 @@ let elab_synth sig_ ctx eff se =
 let elab_check sig_ ctx se sort eff =
   match ElabM.run (Elaborate.check sig_ ctx se sort eff) with
   | Error msg -> Error msg
-  | Ok core_e -> Typecheck.check sig_ ctx core_e sort eff
+  | Ok core_e ->
+    match Typecheck.check sig_ ctx core_e sort eff with
+    | Ok (ce, _eff) -> Ok ce
+    | Error msg -> Error msg
 
 let () =
   let suite =
@@ -959,7 +962,7 @@ let () =
                                        mk (CoreExpr.Var x))) in
          match Typecheck.check sig_ Context.empty ce int_sort Effect.Spec with
          | Error msg -> Alcotest.fail msg
-         | Ok tce ->
+         | Ok (tce, _eff) ->
            (* The outer node has empty context *)
            if Context.lookup x (ctx_of_ tce) <> None then
              Alcotest.fail "outer ctx should not have x";

@@ -11,8 +11,9 @@ val synth : _ Sig.t -> Context.t -> Effect.t -> CoreExpr.ce -> (typed_ce, string
 (** Synthesize a sort and effect for the given expression.
     [eff] is the ambient effect. *)
 
-val check : _ Sig.t -> Context.t -> CoreExpr.ce -> Sort.sort -> Effect.t -> (typed_ce, string) result
-(** Check an expression against a given sort and effect. *)
+val check : _ Sig.t -> Context.t -> CoreExpr.ce -> Sort.sort -> Effect.t -> (typed_ce * Effect.t, string) result
+(** Check an expression against a given sort at ambient effect [eff0].
+    Returns the typed expression and the computed result effect. *)
 
 val prim_signature : Prim.t -> Sort.sort * Sort.sort * Effect.t
 (** [prim_signature p] returns [(arg_sort, ret_sort, effect)] for primitive [p]. *)
