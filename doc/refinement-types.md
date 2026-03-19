@@ -4,30 +4,9 @@ Next, we are going to add support refinement types to nanoCN.
 
 ## Extending the signature. 
 
-The signature must now contain the full definition of all spec functions. 
+The core signature must contain the full definition of all spec functions. (We have already
+done this.) 
 
-## What are predicates?
-
-## Refined type schemes
-
-The unrefined type scheme is of the form A → B. 
-
-Core refined type schemes take the form: 
-
-    f : ∀a:tau. Πx:A. Pre → ∃b:τ. Σy:B. z:ct [eff]
-
-Here, Pre is given by the grammar: 
-
-Pre ::= take x = ct; Pre
-     |  let x = ct; Pre
-     |  let (x1, ..., xn) = ct; Pre 
-     |  ·
-
-This is the precondition of the function. It is a sequence of take-expressions asserting 
-ownership of resources, and let-bindings naming subterms and destructuring tuples. It is 
-not an assertion term, because we need its bindings to be visible in the postcondition. 
-
-ct is a predicate term of type Pred () – i.e., a separation logic assertion. 
 
 ## Updating the context
 
@@ -38,62 +17,193 @@ or have already been used (0).
 
 u ::= 0 | 1 
 
-Γ ::= ... | log x : ϕ, res x :ᵘ ct@ct 
+Δ ::= · | Δ, x:τ [eff] | log x : ϕ, res x :ᵘ ct@ct  
 
+Within Δ, eff can only be in {pure, spec}. 
 
 So now we need a context well-formedness judgement:
 
-Σ ⊢ Γ wf 
+Σ ⊢ Δ wf 
 
 
 Σ ⊢ · wf 
 
-
-Σ ⊢ Γ wf
-———————————————————
-Σ ⊢ Γ, comp x:A wf
-
-
-Σ ⊢ Γ wf
-———————————————————
-Σ ⊢ Γ, spec x:τ wf
+Σ ⊢ Δ wf  eff ∈ {pure, spec}
+——————————————————————————————
+Σ ⊢ Δ, x:A [eff] wf
 
 
-Σ ⊢ Γ wf    Σ; Γ ⊢ ct ⇐ bool
+Σ ⊢ Δ wf    Σ; Δ ⊢ ct ⇐ bool
 ———————————————————————————————
-Σ ⊢ Γ, log x:ct wf
+Σ ⊢ Δ, log x:ct wf
 
 
-Σ ⊢ Γ wf   Σ; Γ ⊢ ct' ⇒ τ   Σ; Γ ⊢ ct ⇐ pred τ    
+Σ ⊢ Δ wf   Σ; Δ ⊢ ct' ⇒ τ   Σ; Δ ⊢ ct ⇐ pred τ    
 ——————————————————————————————————————————————————
-Σ ⊢ Γ, x:ᵘ (ct @ ct') 
+Σ ⊢ Δ, x:ᵘ (ct @ ct') 
 
+
+## Context erasure 
+
+There is an erasure judgement  |Δ| = Γ
+
+|·|                 = ·
+|Δ, res x:ᵘ(ct@ct)| = |Δ|
+|Δ, log x:ϕ|        = |Δ|
+|Δ, x:_eff τ]|      = |Δ|, x:_eff τ
+
+This will let us typecheck core terms using our existing judgemental machinery. 
 
 ## Refined terms 
 
-Refined terms are computational terms, plus some additional clauses for manipulating the 
-proof state.
+Refined terms are terms, augmented with additional clauses for manipulating the proof state.
 
 ### Proof sorts/terms
 
-The grammar of proof sorts is as follows: 
+I give the grammar of proof sorts as follows: 
 
-Pf ::= Pf ⊗ ... ⊗ Pf  | ϕ | ct @ ct | ∃x:τ. Pf 
+Pf ::= (log x:ϕ), Pf | (res x : ct@ct), Pf | (x:τ [eff]), Pf | · 
 
-The grammar of proof terms is as follows
+So a proof sort represents a list of logical facts, resources, and logical and computational values.
+The computational erasure of this is
 
-pf ::= x | (pf, ..., pf) | pack(ct, pf) | cmd pf | auto | exfalso | pf : Pf 
+|Pf| = Prod {Pf}
 
-cmd ::= auto | open-ret | make-ret | open-take | make-take | unfold[f,i]
+Prod [A1; ...;An] = (A1, ..., An)
 
-The commands `cmd` all range over a number of substructural proof term
+{ϕ ⊗ Pf}       = {Pf}
+{ct@ct' ⊗ Pf}  = {Pf}
+{∃:τ. Pf}       = {Pf}
+{Σx:A. Pf}      = A :: {Pf}
+{I}             = []
+
+So |Pf| = A means that A is the computational content of the proof sort. 
+
+A refined function type has the shape: 
+
+f : Pf1 ⊸ Pf2 [eff]
+
+The variables in Pf1 will be in scope in Pf2, like in a dependent function space. Because
+it mention terms, it also need a well-formedness check. 
+
+Σ; Δ ⊢ Pf wf
+
+
+Σ; Δ ⊢ · wf 
+
+
+Σ; Δ ⊢ Pf wf  eff ∈ {pure, spec}
+——————————————————————————————
+Σ; Δ ⊢ x:A [eff], Pf wf
+
+
+Σ; Delta ⊢_spec ct ⇐ bool [eff]    Σ; Δ ⊢ Pf wf    
+———————————————————————————————————————————————————
+Σ; Δ ⊢ log x:ct, Pf wf
+
+
+Σ; Pf ⊢_spec ct' ⇒ τ [eff']  Σ; Pf ⊢_spec ct ⇐ pred τ [eff]   Σ; Δ ⊢ Pf wf   
+—————————————————————————————————————————————————————————————————————————————
+Σ; Δ ⊢ x:ᵘ (ct @ ct'), Pf
+
+
+Σ; · ⊢ Pf1 wf    Σ; ·, Pf1 ⊢ Pf2 wf   
+—————————————————————————————————————
+Σ ⊢ Pf1 ⊸ Pf2 [eff] wf 
+
+
+## 
+
+The grammar of proof patterns is given as follows: 
+
+q ::= (x1, ..., xn)
+
+We introduce these to avoid introducing variables of arbitrary proof sort
+in the context.
+
+Core refined terms will be as follows: 
+
+crt ::=
+    | lit 
+    | blit 
+    | x    
+    | let q = crt1; crt2 
+    | crt : Pf 
+    | prim spine
+    | f spine 
+    | (spine)
+    | if[a] ce then crt1 else crt2
+    | case[a] ce of {L1 x1 -> crt1 | ... } 
+    | pcmd crt 
+    | (crt1, ..., crtn) 
+    | iter(q = crt1) { crt2 } 
+
+spine ::= ct, spine | crt, spine | ·
+
+
+
+
+
+There are three typechecking judgements, organized as follows: 
+
+Σ; Δ ⊢[eff0] crt1 ==> Pf [eff1] ⊣ Δ'
+Σ; Δ ⊢[eff0] crt2 <== Pf [eff1] ⊣ Δ'
+Σ; Δ ⊢[eff0] spine : Pf1 ⊸ Pf2 [eff1] ⊣ Δ'
+
+———————————————————————————————————————
+Σ; Δ ⊢ lit ⇒ (x:int, u: x = lit) ⊣ Δ 
+
+
+—————————————————————————————————————————
+Σ; Δ ⊢ blit ⇒ (x:bool, u: x = blit) ⊣ Δ 
+
+
+TODO – lookup judgement
+————————————————————————
+Σ; Δ ⊢[eff] x ⇒ X ⊣ Δ'
+
+
+Σ; Δ0 ⊢_eff0 crt ⇒ Pf' [eff1] ⊣ Δ1
+eff2 = ⌊eff1⌋
+Σ; Δ1 ⊢ q : Pf' [eff2] ⊣ Δ' 
+Σ; Δ1, Δ' ⊢_eff0 crt2 <== Pf [eff3] ⊣ Δ2, Δ''
+zero(Δ'')
+eff4 = eff2 ∨ eff3 
+————————————————————————————————————————————————————
+Σ; Δ0 ⊢_eff0 let q = crt1; crt2 <== Pf [eff4] ⊣ Δ2
+
+
+
+Σ; |Δ| ⊢_spec P ⇒ Pred (Step(A, B)) [eff'] 
+Σ; Δ' ⊢_pure crt1 ⇒ (a:A, u: P @ Next a) ̣[pure] ⊣ Δ'
+Σ; Δ', x : A, u : P@(Next x) ⊢_impure crt2 ⇐ (y:A+B. P@Done y) [eff] ⊣ Δ'
+—————————————————————————————————————————————————————————————————————————————————————
+Σ; Δ ⊢_impure iter[P] ((x,u) = crt1) { crt2 } ⇒ (b:B, u : P @ Done b) [impure] ⊣ Δ'
+
+
+
+Σ; Δ ⊢[eff0] crt <== Pf [eff1] ⊣ Δ'
+————————————————————————————————————————————————————
+Σ; Δ ⊢[eff0] (crt : Pf) ==> Pf [eff1] ⊣ Δ'
+
+
+
+The grammar of refined terms rt is as follows
+
+rt ::= x | (rt, ..., rt) | (ct, rt) | pcmd rt | auto | exfalso | rt : Pf 
+
+
+
+pcmd ::= auto | open-ret | make-ret | open-take | make-take | unfold[f,i]
+
+The commands `pcmd` all range over a number of substructural proof term
 formers, with the following schemas for manipulating the proof states. The
-cmd 
+pcmd 
 
-open-ret     : (return ct1@ct2)        ⊸ ∃x:τ (ct1 = ct2) 
-make-ret     : (ct1 = ct2)             ⊸ (return ct1)@ct2 
-open-take    : (take x = ct1; ct2)@ct3 ⊸ ∃x:τ. ct1@x ⊗ ct2@ct3
-make-take    : ∃x:τ. ct1@x ⊗ ct2@ct3  ⊸ (take x = ct1; ct2)@ct3
+open-ret     : (u : return ct1@ct2)          ⊸ (x:τ, u : ct1 = ct2)
+make-ret     : (u : ct1 = ct2)               ⊸ (u : (return ct1)@ct2)
+open-take    : (u : (take x = ct1; ct2)@ct3) ⊸ (x:τ, u : ct1@x, ct2@ct3)
+make-take    : (x:τ, ct1@x, ct2@ct3)         ⊸ (u : (take x = ct1; ct2)@ct3)
 
 
 
@@ -102,66 +212,59 @@ unfold[f, i] : Pf                      ⊸ Pf  // unfold the i-th occurence of f
 
 The typing rules will be as follows: 
 
-log x : ϕ ∈ Γ
+log x : ϕ ∈ Δ
 ——————————————————
-Σ; Γ ⊢ x ⇒ ϕ ⊣ Γ
+Σ; Δ ⊢ x ⇒ ϕ ⊣ Δ
 
 
-Γ = Γ0, res x :¹ (ct@ct'), Γ1
+Δ = Δ0, res x :¹ (ct@ct'), Δ1
 ————————————————————————————————————————
-Σ; Γ ⊢ x ⇒ ϕ ⊣ Γ0, res x:⁰(ct@ct'), Γ1
+Σ; Δ ⊢ x ⇒ ϕ ⊣ Δ0, res x:⁰(ct@ct'), Δ1
 
 
-Σ; Γ1 ⊢ pf1 ⇐ Pf1 ⊣ Γ1 ... Σ; Γn ⊣ pfn ⇐ Pfn ⊣ Γ_(n+1)
+Σ; Δ1 ⊢ pf1 ⇐ Pf1 ⊣ Δ1 ... Σ; Δn ⊣ pfn ⇐ Pfn ⊣ Δ_(n+1)
 ————————————————————————————————————————————————————————
-Σ; Γ ⊢ (pf1, ..., pfn) ⇐ Pf1 ⊗ ... ⊗ Pfn ⊣ Γ_(n+1)
+Σ; Δ ⊢ (pf1, ..., pfn) ⇐ Pf1 ⊗ ... ⊗ Pfn ⊣ Δ_(n+1)
 
 
-Σ; Γ ⊢ ct ⇐ τ    Σ; Γ ⊢ pf : [ct/x]Pf
+Σ; Δ ⊢ ct ⇐ τ    Σ; Δ ⊢ pf : [ct/x]Pf
 ———————————————————————————————————————
-Σ; Γ ⊢ pack(ct, pf) ⇐ ∃x:τ. Pf
+Σ; Δ ⊢ pack(ct, pf) ⇐ ∃x:τ. Pf
 
 
-Σ; Γ ⊢ pf ⇒ Pf1    Σ; Γ ⊢ cmd : Pf1 ⊸ Pf2   
+Σ; Δ ⊢ pf ⇒ Pf1    Σ; Δ ⊢ pcmd : Pf1 ⊸ Pf2   
 ———————————————————————————————————————————————
-Σ; Γ ⊢ cmd pf ⇒ Pf2 
+Σ; Δ ⊢ pcmd pf ⇒ Pf2 
 
 
 
-Σ; Γ ⊢ open-ret : (return ct1@ct2) ⊸ ∃x:τ (ct1 = ct2) 
+Σ; Δ ⊢ open-ret : (return ct1@ct2) ⊸ ∃x:τ (ct1 = ct2) 
 
-Σ; Γ ⊢ make-ret : (ct1 = ct2) ⊸ (return ct1)@ct2 
+Σ; Δ ⊢ make-ret : (ct1 = ct2) ⊸ (return ct1)@ct2 
 
-Σ; Γ ⊢ open-take : (take x = ct1; ct2)@ct3 ⊸ ∃x:τ. ct1@x ⊗ ct2@ct3
+Σ; Δ ⊢ open-take : (take x = ct1; ct2)@ct3 ⊸ ∃x:τ. ct1@x ⊗ ct2@ct3
 
-Σ; Γ ⊢ make-take : ∃x:τ. ct1@x ⊗ ct2@ct3  ⊸ (take x = ct1; ct2)@ct3
-
-
+Σ; Δ ⊢ make-take : ∃x:τ. ct1@x ⊗ ct2@ct3  ⊸ (take x = ct1; ct2)@ct3
 
 
-
-Σ; Γ ⊧ ⊥
+Σ; Δ ⊧ ⊥
 ———————————————————
-Σ; Γ ⊢ exfalso ⇐ P 
+Σ; Δ ⊢ exfalso ⇐ P 
 
 
-Σ; Γ ⊧ ϕ
+Σ; Δ ⊧ ϕ
 ————————————————
-Σ; Γ ⊢ auto ⇐ ϕ
+Σ; Δ ⊢ auto ⇐ ϕ
 
 
-
-def(f(x) = e ∈ Σ)     unfold f(x) = e @ i in Pf1 ↝ Pf2 
+def(f(x) = e ∈ Σ)     Σ; Δ ⊢ unfold f @ i in Pf1 ↝ Pf2 
 ————————————————————————————————————————————————————————
-Σ; Γ ⊢ unfold[f,i] pf : Pf1 ⊸ Pf2 
+Σ; Δ ⊢ unfold[f,i] pf : Pf1 ⊸ Pf2 
 
 
-unfold f(x) = e @ i in Pf1 ↝ Pf2 is a judgemenet finding the i-th occurence of 
-
-
-
-
-
+Σ; Δ ⊢ unfold f(x) = e @ i in Pf1 ↝ Pf2 is a judgement finding the i-th occurence of
+f(t) within  (ordering the subterms left-to-right, depth-first order), and using the
+definition f(x) = t' in Σ to rewrite f(t) to [t/x]t'. 
 
 
 
@@ -176,37 +279,12 @@ unfold f(x) = e @ i in Pf1 ↝ Pf2 is a judgemenet finding the i-th occurence of
 
 
 
-### Refined terms
 
-The grammar of refined terms will be defined as follows. We will use ce for core terms, either pure or spec, and r for resource terms (to be defined later): 
 
-Term variables and introduction forms are largely unchanged:
 
-t ::= x 
-   | (t1, ..., tn)
-   | L t
 
-Every binding form now needs an [a] binder to name the logical fact
-tracking the equality of a value and its branches: 
 
-   | let[a] x = t1; t2 
-   | let[a] (x1, ..., xn) = t1; t2 
-   | case([a] t, L1 x1 → t1 | ... | Ln xn → tn ) 
-   | true | false | if[a] t1 then t2 else t3 
 
-Since a spec type is now of the form `∀a:tau. Πx:A. P → ∃b:τ. Σy:B. z:ct`, we have to give it arguments 
-for the assertion argument, the computational argument, and any resources it needs: 
-
-   | let (a, x, u) = f(ce1, ce2, pf...)
-
-Note that we have to pass in some terms proof terms pf which access the proof state. The
-proof state contains both logical/pure facts and resource terms. 
-Proof terms embed into refined terms as follows: 
-
-t ::= ... 
-   | let* x = pf; t 
-   | let* (x1, .., xn) = pf; t 
-   | let* pack(x, y) = pf; t 
 
 
 ### Refined judgements 
@@ -246,11 +324,4 @@ We will declare a new sort for predicates.
      (bind m (lambda ((x A)) (bind (@ f x) g))))))
 
 
-## Typechecking
-
-The checking/synthesis judgements is now of the form 
-
-Σ; Γ; Ω ⊢ t ⇒ { x : A | ϕ(x) } [eff]
-
-Σ; Γ; Ω ⊢ t ⇐ { x: A | ϕ(x) } [eff] 
 
