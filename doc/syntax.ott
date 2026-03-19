@@ -212,7 +212,7 @@ mbranches {{ tex M }} :: 'MB_' ::=                                {{ com match b
 formula :: 'formula_' ::=
   | judgement                           :: :: judgement
   | x : tau [ eff ] in G               :: :: var_in      {{ tex [[x]] \mathord{:}_{[[eff]]} [[tau]] \in [[G]] }}
-  | f : F in CS                        :: :: proc_in     {{ tex [[f]] \mathord{:} [[F]] \in [[CS]] }}
+  | f : tau -> tau' [ eff ] in CS      :: :: proc_in     {{ tex [[f]] \mathord{:} [[tau]] \to_{[[eff]]} [[tau']] \in [[CS]] }}
   | A eqtype                           :: :: eqtype      {{ tex [[A]] \;\mathsf{eqtype} }}
   | sort D ( a1 , .. , ai ) in CS      :: :: sort_decl
   | L : tau rawctor D in CS            :: :: raw_ctor   {{ tex [[L]] \mathord{:} [[tau]] \in \mathrm{ctors}([[D]]) \in [[CS]] }}
@@ -232,7 +232,6 @@ formula :: 'formula_' ::=
   | n = k                               :: :: arity_eq   {{ tex [[n]] = [[k]] }}
   | eff = eff1 join eff2                :: :: eff_join   {{ tex [[eff]] = [[eff1]] \vee [[eff2]] }}
   | eff = eff1 join eff2 join eff3     :: :: eff_join3  {{ tex [[eff]] = [[eff1]] \vee [[eff2]] \vee [[eff3]] }}
-  | eff = eff' vjoin eff1 vjoin .. vjoin effn  :: :: eff_joinlist
   | eff = eff1 vjoin .. vjoin effn             :: :: eff_joinlist_nary
   | formula1 .. formulan                :: :: dots
 
