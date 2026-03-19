@@ -86,6 +86,7 @@ prim :: 'Prim_' ::=                                            {{ com primitives
   | Del [ A ]                          :: :: Del            {{ com deallocate }}
   | Get [ A ]                          :: :: Get            {{ com dereference }}
   | Set [ A ]                          :: :: Set            {{ com update }}
+  | Own [ A ]                          :: :: Own            {{ com ownership }}
 
 
 % ===== Refined contexts =====
@@ -138,9 +139,6 @@ ce :: 'CE_' ::=                                               {{ com core expres
   | ce : tau [ eff ]                   :: :: Annot
   | f ce                               :: :: Call
   | ce1 '==' ce2                       :: :: Eq            {{ tex [[ce1]] \doteq [[ce2]] }}
-  | ce1 '&&' ce2                       :: :: And           {{ tex [[ce1]] \wedge [[ce2]] }}
-  | not ce                             :: :: Not           {{ tex \neg [[ce]] }}
-  | Own [ tau ]                        :: :: Own           {{ tex \mathsf{Own}_{[[tau]]} }}
   | take x = ce1 ; ce2                :: :: Take
   | return ce                          :: :: Return
 
@@ -162,8 +160,6 @@ se :: 'SE_' ::=                                            {{ com surface expres
   | se : tau [ eff ]                   :: :: Annot
   | f se                               :: :: Call
   | se1 '==' se2                       :: :: Eq            {{ tex [[se1]] \doteq [[se2]] }}
-  | se1 '&&' se2                       :: :: And           {{ tex [[se1]] \wedge [[se2]] }}
-  | not se                             :: :: Not           {{ tex \neg [[se]] }}
   | take pat = se1 ; se2              :: :: Take
   | return se                          :: :: Return
 
@@ -384,8 +380,8 @@ defns Jtype :: '' ::=
     spec = purify spec
 
 
-  defn prim : A -> B [ eff ] :: :: prim_type :: 'PT_'
-  {{ tex [[prim]] \mathord{:} [[A]] \to_{[[eff]]} [[B]] }} by
+  defn prim : tau -> tau' [ eff ] :: :: prim_type :: 'PT_'
+  {{ tex [[prim]] \mathord{:} [[tau]] \to_{[[eff]]} [[tau']] }} by
 
     ----------------------------------- :: add
     Add : ( int , int ) -> int [ pure ]
@@ -436,6 +432,9 @@ defns Jtype :: '' ::=
     -------------------------------------------------- :: set
     Set [ A ] : ( ptr A , A ) -> ( ) [ impure ]
 
+    ---------------------------------------- :: own
+    Own [ A ] : ptr A -> pred ( A ) [ spec ]
+
 
 % =============================================================================
 % Core typing (merged computation + assertion)
@@ -458,9 +457,9 @@ defns Jtype :: '' ::=
     ---------------------------------- :: annot
     CS ; G |- ce : tau [ eff ] ==> tau [ eff ]
 
-    prim : A -> B [ eff ]    CS ; G |- ce <== A [ pure ]
+    prim : tau -> tau' [ eff ]    CS ; G |- ce <== tau [ pure ]
     --------------------------------------------------- :: app
-    CS ; G |- prim ce ==> B [ eff ]
+    CS ; G |- prim ce ==> tau' [ eff ]
 
     f : F in CS    CS ; G |- ce <== tau [ pure ]
     ---------------------------------------- :: call
@@ -478,20 +477,9 @@ defns Jtype :: '' ::=
     ------------------------------------------------- :: eq
     CS ; G |- ce1 == ce2 ==> bool [ spec ]
 
-    CS ; G |- ce1 <== bool [ spec ]    CS ; G |- ce2 <== bool [ spec ]
-    ------------------------------------------------- :: and
-    CS ; G |- ce1 && ce2 ==> bool [ spec ]
-
-    CS ; G |- ce <== bool [ spec ]
-    ----------------------- :: not
-    CS ; G |- not ce ==> bool [ spec ]
-
-    --------------------------------- :: own
-    CS ; G |- Own [ tau ] ==> pred tau [ spec ]
-
-    prim : A -> B [ pure ]    CS ; G |- ce <== A [ spec ]
+    prim : tau -> tau' [ pure ]    CS ; G |- ce <== tau [ spec ]
     --------------------------------------------------- :: specapp
-    CS ; G |- prim ce ==> B [ spec ]
+    CS ; G |- prim ce ==> tau' [ spec ]
 
   defn CS ; G |- ce <== tau [ eff ] :: :: check :: 'Chk_'
   {{ tex [[CS]] ; [[G]] \vdash_{[[eff]]} [[ce]] \Leftarrow [[tau]] }} by
@@ -634,10 +622,10 @@ defns Jelaborate :: '' ::=
     ---------------------------------- :: annot
     CS ; G |- se : tau [ eff ] ==> tau [ eff ] ~~> ce : tau [ eff ]
 
-    prim : A -> B [ eff ]
-    CS ; G |- se <== A [ pure ] ~~> ce
+    prim : tau -> tau' [ eff ]
+    CS ; G |- se <== tau [ pure ] ~~> ce
     --------------------------------------------------- :: app
-    CS ; G |- prim se ==> B [ eff ] ~~> prim ce
+    CS ; G |- prim se ==> tau' [ eff ] ~~> prim ce
 
     f : F in CS
     CS ; G |- se <== tau [ pure ] ~~> ce
@@ -659,19 +647,10 @@ defns Jelaborate :: '' ::=
     ------------------------------------------------- :: eq
     CS ; G |- se1 == se2 ==> bool [ spec ] ~~> ce1 == ce2
 
-    CS ; G |- se1 <== bool [ spec ] ~~> ce1
-    CS ; G |- se2 <== bool [ spec ] ~~> ce2
-    ------------------------------------------------- :: and
-    CS ; G |- se1 && se2 ==> bool [ spec ] ~~> ce1 && ce2
-
-    CS ; G |- se <== bool [ spec ] ~~> ce
-    ----------------------- :: not
-    CS ; G |- not se ==> bool [ spec ] ~~> not ce
-
-    prim : A -> B [ pure ]
-    CS ; G |- se <== A [ spec ] ~~> ce
+    prim : tau -> tau' [ pure ]
+    CS ; G |- se <== tau [ spec ] ~~> ce
     --------------------------------------------------- :: specapp
-    CS ; G |- prim se ==> B [ spec ] ~~> prim ce
+    CS ; G |- prim se ==> tau' [ spec ] ~~> prim ce
 
   defn CS ; G |- se <== tau [ eff ] ~~> ce :: :: surf_check :: 'SurfChk_'
   {{ tex [[CS]] ; [[G]] \vdash_{[[eff]]} [[se]] \Leftarrow [[tau]] \leadsto [[ce]] }} by

@@ -126,7 +126,8 @@
 \ottprodline{|}{\ottkw{New} \, \ottsym{[}  \ottnt{A}  \ottsym{]}}{}{}{}{\ottcom{allocate}}\ottprodnewline
 \ottprodline{|}{\ottkw{Del} \, \ottsym{[}  \ottnt{A}  \ottsym{]}}{}{}{}{\ottcom{deallocate}}\ottprodnewline
 \ottprodline{|}{\ottkw{Get} \, \ottsym{[}  \ottnt{A}  \ottsym{]}}{}{}{}{\ottcom{dereference}}\ottprodnewline
-\ottprodline{|}{\ottkw{Set} \, \ottsym{[}  \ottnt{A}  \ottsym{]}}{}{}{}{\ottcom{update}}}
+\ottprodline{|}{\ottkw{Set} \, \ottsym{[}  \ottnt{A}  \ottsym{]}}{}{}{}{\ottcom{update}}\ottprodnewline
+\ottprodline{|}{\ottkw{Own} \, \ottsym{[}  \ottnt{A}  \ottsym{]}}{}{}{}{\ottcom{ownership}}}
 
 \newcommand{\ottu}{
 \ottrulehead{\ottnt{u}}{::=}{\ottcom{usage flags}}\ottprodnewline
@@ -174,9 +175,6 @@
 \ottprodline{|}{\ottnt{ce}  \ottsym{:}  \tau  \ottsym{[}  \ottnt{eff}  \ottsym{]}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{f} \, \ottnt{ce}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{ce_{{\mathrm{1}}}}  \doteq  \ottnt{ce_{{\mathrm{2}}}} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ottnt{ce_{{\mathrm{1}}}}  \wedge  \ottnt{ce_{{\mathrm{2}}}} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \neg  \ottnt{ce} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \mathsf{Own}_{ \tau } }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{take} \, \ottmv{x}  \ottsym{=}  \ottnt{ce_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{ce_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{return} \, \ottnt{ce}}{}{}{}{}}
 
@@ -195,8 +193,6 @@
 \ottprodline{|}{\ottnt{se}  \ottsym{:}  \tau  \ottsym{[}  \ottnt{eff}  \ottsym{]}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{f} \, \ottnt{se}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{se_{{\mathrm{1}}}}  \doteq  \ottnt{se_{{\mathrm{2}}}} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ottnt{se_{{\mathrm{1}}}}  \wedge  \ottnt{se_{{\mathrm{2}}}} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \neg  \ottnt{se} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{take} \, \ottnt{pat}  \ottsym{=}  \ottnt{se_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{se_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{return} \, \ottnt{se}}{}{}{}{}}
 
@@ -278,7 +274,7 @@
 \ottprodline{|}{ \ottnt{A}  \;\mathsf{eqtype} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{eff}  \leq  \ottnt{eff'} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{eff'}  = \lfloor  \ottnt{eff}  \rfloor }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ottnt{prim}  \mathord{:}  \ottnt{A}  \to_{ \ottnt{eff} }  \ottnt{B} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{prim}  \mathord{:}  \tau  \to_{ \ottnt{eff} }  \tau' }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{ce}  \Rightarrow  \tau }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{ce}  \Leftarrow  \tau }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_c  \vdash  \ottnt{cprog} }{}{}{}{}}
@@ -801,7 +797,14 @@
 {\ottdrulename{PT\_set}}{}%
 }}
 
-\newcommand{\ottdefnprimXXtype}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{prim}  \mathord{:}  \ottnt{A}  \to_{ \ottnt{eff} }  \ottnt{B} $}{}
+
+\newcommand{\ottdrulePTXXown}[1]{\ottdrule[#1]{%
+}{
+ \ottkw{Own} \, \ottsym{[}  \ottnt{A}  \ottsym{]}  \mathord{:}   \mathsf{ptr}\; \ottnt{A}   \to_{  \mathbf{S}  }   \mathsf{pred}\; \ottsym{(}  \ottnt{A}  \ottsym{)}  }{%
+{\ottdrulename{PT\_own}}{}%
+}}
+
+\newcommand{\ottdefnprimXXtype}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{prim}  \mathord{:}  \tau  \to_{ \ottnt{eff} }  \tau' $}{}
 \ottusedrule{\ottdrulePTXXadd{}}
 \ottusedrule{\ottdrulePTXXsub{}}
 \ottusedrule{\ottdrulePTXXmul{}}
@@ -818,6 +821,7 @@
 \ottusedrule{\ottdrulePTXXdel{}}
 \ottusedrule{\ottdrulePTXXget{}}
 \ottusedrule{\ottdrulePTXXset{}}
+\ottusedrule{\ottdrulePTXXown{}}
 \end{ottdefnblock}}
 
 %% defn synth
@@ -852,9 +856,9 @@
 
 
 \newcommand{\ottdruleSynXXapp}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottnt{prim}  \mathord{:}  \ottnt{A}  \to_{ \ottnt{eff} }  \ottnt{B}  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{0}  }  \ottnt{ce}  \Leftarrow  \ottnt{A} }%
+\ottpremise{ \ottnt{prim}  \mathord{:}  \tau  \to_{ \ottnt{eff} }  \tau'  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{0}  }  \ottnt{ce}  \Leftarrow  \tau }%
 }{
- \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{prim} \, \ottnt{ce}  \Rightarrow  \ottnt{B} }{%
+ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{prim} \, \ottnt{ce}  \Rightarrow  \tau' }{%
 {\ottdrulename{Syn\_app}}{}%
 }}
 
@@ -891,33 +895,10 @@
 }}
 
 
-\newcommand{\ottdruleSynXXand}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce_{{\mathrm{1}}}}  \Leftarrow   \mathsf{bool}   \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce_{{\mathrm{2}}}}  \Leftarrow   \mathsf{bool}  }%
-}{
- \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }   \ottnt{ce_{{\mathrm{1}}}}  \wedge  \ottnt{ce_{{\mathrm{2}}}}   \Rightarrow   \mathsf{bool}  }{%
-{\ottdrulename{Syn\_and}}{}%
-}}
-
-
-\newcommand{\ottdruleSynXXnot}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow   \mathsf{bool}  }%
-}{
- \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }   \neg  \ottnt{ce}   \Rightarrow   \mathsf{bool}  }{%
-{\ottdrulename{Syn\_not}}{}%
-}}
-
-
-\newcommand{\ottdruleSynXXown}[1]{\ottdrule[#1]{%
-}{
- \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }   \mathsf{Own}_{ \tau }   \Rightarrow   \mathsf{pred}\; \tau  }{%
-{\ottdrulename{Syn\_own}}{}%
-}}
-
-
 \newcommand{\ottdruleSynXXspecapp}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottnt{prim}  \mathord{:}  \ottnt{A}  \to_{  \mathbf{0}  }  \ottnt{B}  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow  \ottnt{A} }%
+\ottpremise{ \ottnt{prim}  \mathord{:}  \tau  \to_{  \mathbf{0}  }  \tau'  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow  \tau }%
 }{
- \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{prim} \, \ottnt{ce}  \Rightarrow  \ottnt{B} }{%
+ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{prim} \, \ottnt{ce}  \Rightarrow  \tau' }{%
 {\ottdrulename{Syn\_specapp}}{}%
 }}
 
@@ -931,9 +912,6 @@
 \ottusedrule{\ottdruleSynXXspeccall{}}
 \ottusedrule{\ottdruleSynXXpurecall{}}
 \ottusedrule{\ottdruleSynXXeq{}}
-\ottusedrule{\ottdruleSynXXand{}}
-\ottusedrule{\ottdruleSynXXnot{}}
-\ottusedrule{\ottdruleSynXXown{}}
 \ottusedrule{\ottdruleSynXXspecapp{}}
 \end{ottdefnblock}}
 
@@ -1185,10 +1163,10 @@
 
 
 \newcommand{\ottdruleSurfSynXXapp}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottnt{prim}  \mathord{:}  \ottnt{A}  \to_{ \ottnt{eff} }  \ottnt{B} }%
-\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{0}  }  \ottnt{se}  \Leftarrow  \ottnt{A}  \leadsto  \ottnt{ce} }%
+\ottpremise{ \ottnt{prim}  \mathord{:}  \tau  \to_{ \ottnt{eff} }  \tau' }%
+\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{0}  }  \ottnt{se}  \Leftarrow  \tau  \leadsto  \ottnt{ce} }%
 }{
- \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{prim} \, \ottnt{se}  \Rightarrow  \ottnt{B}  \leadsto  \ottnt{prim} \, \ottnt{ce} }{%
+ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{prim} \, \ottnt{se}  \Rightarrow  \tau'  \leadsto  \ottnt{prim} \, \ottnt{ce} }{%
 {\ottdrulename{SurfSyn\_app}}{}%
 }}
 
@@ -1229,28 +1207,11 @@
 }}
 
 
-\newcommand{\ottdruleSurfSynXXand}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{se_{{\mathrm{1}}}}  \Leftarrow   \mathsf{bool}   \leadsto  \ottnt{ce_{{\mathrm{1}}}} }%
-\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{se_{{\mathrm{2}}}}  \Leftarrow   \mathsf{bool}   \leadsto  \ottnt{ce_{{\mathrm{2}}}} }%
-}{
- \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }   \ottnt{se_{{\mathrm{1}}}}  \wedge  \ottnt{se_{{\mathrm{2}}}}   \Rightarrow   \mathsf{bool}   \leadsto   \ottnt{ce_{{\mathrm{1}}}}  \wedge  \ottnt{ce_{{\mathrm{2}}}}  }{%
-{\ottdrulename{SurfSyn\_and}}{}%
-}}
-
-
-\newcommand{\ottdruleSurfSynXXnot}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{se}  \Leftarrow   \mathsf{bool}   \leadsto  \ottnt{ce} }%
-}{
- \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }   \neg  \ottnt{se}   \Rightarrow   \mathsf{bool}   \leadsto   \neg  \ottnt{ce}  }{%
-{\ottdrulename{SurfSyn\_not}}{}%
-}}
-
-
 \newcommand{\ottdruleSurfSynXXspecapp}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottnt{prim}  \mathord{:}  \ottnt{A}  \to_{  \mathbf{0}  }  \ottnt{B} }%
-\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{se}  \Leftarrow  \ottnt{A}  \leadsto  \ottnt{ce} }%
+\ottpremise{ \ottnt{prim}  \mathord{:}  \tau  \to_{  \mathbf{0}  }  \tau' }%
+\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{se}  \Leftarrow  \tau  \leadsto  \ottnt{ce} }%
 }{
- \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{prim} \, \ottnt{se}  \Rightarrow  \ottnt{B}  \leadsto  \ottnt{prim} \, \ottnt{ce} }{%
+ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{prim} \, \ottnt{se}  \Rightarrow  \tau'  \leadsto  \ottnt{prim} \, \ottnt{ce} }{%
 {\ottdrulename{SurfSyn\_specapp}}{}%
 }}
 
@@ -1264,8 +1225,6 @@
 \ottusedrule{\ottdruleSurfSynXXspeccall{}}
 \ottusedrule{\ottdruleSurfSynXXpurecall{}}
 \ottusedrule{\ottdruleSurfSynXXeq{}}
-\ottusedrule{\ottdruleSurfSynXXand{}}
-\ottusedrule{\ottdruleSurfSynXXnot{}}
 \ottusedrule{\ottdruleSurfSynXXspecapp{}}
 \end{ottdefnblock}}
 
@@ -1749,7 +1708,7 @@
 \ottall
 
 \begin{verbatim}
-Definition rules:        137 good    0 bad
-Definition rule clauses: 282 good    0 bad
+Definition rules:        133 good    0 bad
+Definition rule clauses: 273 good    0 bad
 \end{verbatim}
 \end{document}
