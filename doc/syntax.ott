@@ -88,6 +88,39 @@ prim :: 'Prim_' ::=                                            {{ com primitives
   | Set [ A ]                          :: :: Set            {{ com update }}
 
 
+% ===== Refined contexts =====
+
+u :: 'Use_' ::=                                              {{ com usage flags }}
+  | used                               :: :: Used           {{ tex \mathbf{0} }}
+  | avail                              :: :: Avail          {{ tex \mathbf{1} }}
+
+RG {{ tex \Delta }} :: 'RCtx_' ::=                            {{ com refined contexts }}
+  | rempty                             :: :: Empty          {{ tex \cdot }}
+  | RG , x : tau [ eff ]              :: :: Ext             {{ tex [[RG]], [[x]] \mathord{:}_{[[eff]]} [[tau]] }}
+  | RG , RG'                           :: :: Concat
+  | RG , log x : ce                   :: :: Log             {{ tex [[RG]], \mathsf{log}\; [[x]] \mathord{:} [[ce]] }}
+  | RG , res x :^ u ce @ ce'          :: :: Res             {{ tex [[RG]], \mathsf{res}\; [[x]] \mathord{:}^{[[u]]} [[ce]] \mathord{@} [[ce']] }}
+
+
+XR {{ tex X }} :: 'XR_' ::=                                  {{ com lookup results }}
+  | xvar tau                           :: :: Var            {{ tex [[tau]] }}
+  | xlog ce                            :: :: Log            {{ tex [[ce]] }}
+  | xres ce @ ce'                      :: :: Res            {{ tex [[ce]] \mathord{@} [[ce']] }}
+
+
+% ===== Refined type schemes =====
+
+Pre {{ tex \Pi }} :: 'Pre_' ::=                              {{ com preconditions }}
+  | nopre                              :: :: Empty          {{ tex \cdot }}
+  | take x = ce ; Pre                 :: :: Take
+  | let x = ce ; Pre                  :: :: Let
+  | let ( x1 , .. , xn ) = ce ; Pre   :: :: LetTuple
+
+rts {{ tex \mathcal{F} }} :: 'RTS_' ::=                      {{ com refined type schemes }}
+  | forall a : tau . x : A . Pre -> exists b : tau' . y : B . z : ce [ eff ]   :: :: Scheme
+    {{ tex \forall [[a]]\!:\![[tau]].\; \Pi [[x]]\!:\![[A]].\; [[Pre]] \to \exists [[b]]\!:\![[tau']].\; \Sigma [[y]]\!:\![[B]].\; [[z]]\!:\![[ce]] \;[[[eff]]] }}
+
+
 % ===== Core Expressions (merged computation + assertion) =====
 
 ce :: 'CE_' ::=                                               {{ com core expressions }}
@@ -198,6 +231,7 @@ formula :: 'formula_' ::=
   | mbranches = mk tau { pat1 --> se1 || .. || patn --> sen }  :: :: mk_branches  {{ tex [[mbranches]] = \overline{ pat \mathord{:} [[tau]], \cdot \to [\cdot][\cdot] \, se } }}
   | ce = fill E ce'                    :: :: fill_ctx      {{ tex [[ce]] = [[E]] [ [[ce']] ] }}
   | D != D'                             :: :: dsort_neq  {{ tex [[D]] \neq [[D']] }}
+  | x != y                              :: :: var_neq    {{ tex [[x]] \neq [[y]] }}
   | n = k                               :: :: arity_eq   {{ tex [[n]] = [[k]] }}
   | formula1 .. formulan                :: :: dots
 
@@ -838,3 +872,69 @@ defns Jmatch :: '' ::=
     fill E ce ~~> ce'
     ------------------------------------------------ :: let
     fill let x = ce'' ; E ce ~~> let x = ce'' ; ce'
+
+
+% =============================================================================
+% Refined context lookup
+% =============================================================================
+
+defns Jrlookup :: '' ::=
+
+  defn RG |- x rlookup XR -| RG' :: :: rlookup :: 'RLk_'
+  {{ tex [[RG]] \vdash [[x]] \Rightarrow [[XR]] \dashv [[RG']] }} by
+
+    % --- Found: variable binding (rightmost) ---
+
+    ---------------------------------------------------------------- :: var_here
+    RG , x : tau [ eff ] |- x rlookup xvar tau -| RG , x : tau [ eff ]
+
+    % --- Found: logical hypothesis (rightmost) ---
+
+    ---------------------------------------------------------------- :: log_here
+    RG , log x : ce |- x rlookup xlog ce -| RG , log x : ce
+
+    % --- Found: available resource (rightmost, usage 1 -> 0) ---
+
+    ---------------------------------------------------------------- :: res_here
+    RG , res x :^ avail ce @ ce' |- x rlookup xres ce @ ce' -| RG , res x :^ used ce @ ce'
+
+    % --- Skip: past variable binding ---
+
+    x != y    RG |- x rlookup XR -| RG'
+    ---------------------------------------------------------------- :: skip_var
+    RG , y : tau [ eff ] |- x rlookup XR -| RG' , y : tau [ eff ]
+
+    % --- Skip: past logical hypothesis ---
+
+    x != y    RG |- x rlookup XR -| RG'
+    ---------------------------------------------------------------- :: skip_log
+    RG , log y : ce |- x rlookup XR -| RG' , log y : ce
+
+    % --- Skip: past resource hypothesis ---
+
+    x != y    RG |- x rlookup XR -| RG'
+    ---------------------------------------------------------------- :: skip_res
+    RG , res y :^ u ce @ ce' |- x rlookup XR -| RG' , res y :^ u ce @ ce'
+
+
+% =============================================================================
+% Refined context well-formedness
+% =============================================================================
+
+  defn CS |- RG rwf :: :: rctx_wf :: 'RWf_'
+  {{ tex [[CS]] \vdash [[RG]] \;\mathsf{wf} }} by
+
+    ------------- :: empty
+    CS |- rempty rwf
+
+    CS |- RG rwf
+    ----------------------- :: var
+    CS |- RG , x : tau [ eff ] rwf
+
+    CS |- RG rwf    CS ; G |- ce <== bool [ spec ]
+    ------------------------------------------------ :: log
+    CS |- RG , log x : ce rwf
+
+    CS |- RG rwf    CS ; G |- ce' ==> tau [ spec ]    CS ; G |- ce <== pred tau [ spec ]
+    -------------------------------------------------------------------------------------- :: res
+    CS |- RG , res x :^ u ce @ ce' rwf
