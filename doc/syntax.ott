@@ -657,21 +657,21 @@ defns Jtype :: '' ::=
   defn CS |- cprog :: :: cprog :: 'CProg_'
   {{ tex [[CS]] \vdash [[cprog]] }} by
 
-    CS ; G |- [ eff ] ce <== tau
+    CS ; empty |- [ eff ] ce <== tau
     ------------------------------------------------------ :: main
     CS |- main : tau [ eff ] = ce
 
-    CS ; G , x : A [ pure ] |- [ pure ] ce <== B
+    CS ; empty , x : A [ pure ] |- [ pure ] ce <== B
     CS , fun f ( x : A ) -> B [ pure ] = ce |- cprog
     --------------------------------------------------------------------------- :: purefun
     CS |- fun f ( x : A ) -> B [ pure ] = ce cprog
 
-    CS , f : A -> B [ impure ] ; G , x : A [ pure ] |- [ impure ] ce <== B
+    CS , f : A -> B [ impure ] ; empty , x : A [ pure ] |- [ impure ] ce <== B
     CS , f : A -> B [ impure ] |- cprog
     ------------------------------------------------------------------------------------------------- :: impurefun
     CS |- fun f ( x : A ) -> B [ impure ] = ce cprog
 
-    CS , f : tau -> tau' [ spec ] ; G , x : tau [ spec ] |- [ spec ] ce <== tau'
+    CS , f : tau -> tau' [ spec ] ; empty , x : tau [ spec ] |- [ spec ] ce <== tau'
     CS , fun f ( x : tau ) -> tau' [ spec ] = ce |- cprog
     ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- :: specfun
     CS |- fun f ( x : tau ) -> tau' [ spec ] = ce cprog
@@ -819,24 +819,24 @@ defns Jelaborate :: '' ::=
   defn SS ; CS |- prog ~~> cprog :: :: prog :: 'Prog_'
   {{ tex \begin{array}{ @{} l @{} } [[SS]] \vdash [[prog]] \\ \quad \leadsto [[CS]] \vdash [[cprog]] \end{array} }} by
 
-    CS ; G |- [ eff ] se <== tau ~~> ce
+    CS ; empty |- [ eff ] se <== tau ~~> ce
     ------------------------------------------------------ :: main
     SS ; CS |- main : tau [ eff ] = se ~~> main : tau [ eff ] = ce
 
     mbranches = mk A { pat1 --> se1 || .. || patn --> sen }
-    CS ; G |- [ pure ] [ pure ] y , noscrs ; mbranches <== B ~~> ce
+    CS ; empty |- [ pure ] [ pure ] y , noscrs ; mbranches <== B ~~> ce
     SS , fun f : A -> B [ pure ] = { pat1 --> se1 | .. | patn --> sen } ; CS , fun f ( y : A ) -> B [ pure ] = ce |- prog ~~> cprog
     --------------------------------------------------------------------------- :: purefun
     SS ; CS |- fun f : A -> B [ pure ] = { pat1 --> se1 | .. | patn --> sen } prog ~~> fun f ( y : A ) -> B [ pure ] = ce cprog
 
     mbranches = mk A { pat1 --> se1 || .. || patn --> sen }
-    CS , f : A -> B [ impure ] ; G |- [ impure ] [ pure ] y , noscrs ; mbranches <== B ~~> ce
+    CS , f : A -> B [ impure ] ; empty |- [ impure ] [ pure ] y , noscrs ; mbranches <== B ~~> ce
     SS , f : A -> B [ impure ] ; CS , f : A -> B [ impure ] |- prog ~~> cprog
     ------------------------------------------------------------------------------------------------- :: impurefun
     SS ; CS |- fun f : A -> B [ impure ] = { pat1 --> se1 | .. | patn --> sen } prog ~~> fun f ( y : A ) -> B [ impure ] = ce cprog
 
     mbranches = mk tau { pat1 --> se1 || .. || patn --> sen }
-    CS , f : tau -> tau' [ spec ] ; G |- [ spec ] [ spec ] y , noscrs ; mbranches <== tau' ~~> ce
+    CS , f : tau -> tau' [ spec ] ; empty |- [ spec ] [ spec ] y , noscrs ; mbranches <== tau' ~~> ce
     SS , fun f : tau -> tau' [ spec ] = { pat1 --> se1 | .. | patn --> sen } ; CS , fun f ( y : tau ) -> tau' [ spec ] = ce |- prog ~~> cprog
     ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- :: specfun
     SS ; CS |- fun f : tau -> tau' [ spec ] = { pat1 --> se1 | .. | patn --> sen } prog ~~> fun f ( y : tau ) -> tau' [ spec ] = ce cprog

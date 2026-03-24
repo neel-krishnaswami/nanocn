@@ -1199,7 +1199,7 @@
 
 %% defn cprog
 \newcommand{\ottdruleCProgXXmain}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{ce}  \Leftarrow  \tau }%
+\ottpremise{ \Sigma_c  ;   \cdot   \vdash_{ \ottnt{eff} }  \ottnt{ce}  \Leftarrow  \tau }%
 }{
  \Sigma_c  \vdash   \mathsf{main} :  \tau _{ \ottnt{eff} } =  \ottnt{ce}  }{%
 {\ottdrulename{CProg\_main}}{}%
@@ -1207,7 +1207,7 @@
 
 
 \newcommand{\ottdruleCProgXXpurefun}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;   \Gamma ,  \ottmv{x}  \mathord{:}_{  \mathbf{0}  }  \ottnt{A}   \vdash_{  \mathbf{0}  }  \ottnt{ce}  \Leftarrow  \ottnt{B} }%
+\ottpremise{ \Sigma_c  ;    \cdot  ,  \ottmv{x}  \mathord{:}_{  \mathbf{0}  }  \ottnt{A}   \vdash_{  \mathbf{0}  }  \ottnt{ce}  \Leftarrow  \ottnt{B} }%
 \ottpremise{  \Sigma_c , \mathsf{fun}\; \ottmv{f} ( \ottmv{x}  :  \ottnt{A} ) \to_{  \mathbf{0}  }  \ottnt{B}  =  \ottnt{ce}   \vdash  \ottnt{cprog} }%
 }{
  \Sigma_c  \vdash   \mathsf{fun}\; \ottmv{f} ( \ottmv{x}  :  \ottnt{A} ) \to_{  \mathbf{0}  }  \ottnt{B}  =  \ottnt{ce}  \quad \ottnt{cprog}  }{%
@@ -1216,7 +1216,7 @@
 
 
 \newcommand{\ottdruleCProgXXimpurefun}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  \ottsym{,}  \ottmv{f}  \ottsym{:}   \ottnt{A}  \to_{  \mathbf{1}  }  \ottnt{B}   ;   \Gamma ,  \ottmv{x}  \mathord{:}_{  \mathbf{0}  }  \ottnt{A}   \vdash_{  \mathbf{1}  }  \ottnt{ce}  \Leftarrow  \ottnt{B} }%
+\ottpremise{ \Sigma_c  \ottsym{,}  \ottmv{f}  \ottsym{:}   \ottnt{A}  \to_{  \mathbf{1}  }  \ottnt{B}   ;    \cdot  ,  \ottmv{x}  \mathord{:}_{  \mathbf{0}  }  \ottnt{A}   \vdash_{  \mathbf{1}  }  \ottnt{ce}  \Leftarrow  \ottnt{B} }%
 \ottpremise{ \Sigma_c  \ottsym{,}  \ottmv{f}  \ottsym{:}   \ottnt{A}  \to_{  \mathbf{1}  }  \ottnt{B}   \vdash  \ottnt{cprog} }%
 }{
  \Sigma_c  \vdash   \mathsf{fun}\; \ottmv{f} ( \ottmv{x}  :  \ottnt{A} ) \to_{  \mathbf{1}  }  \ottnt{B}  =  \ottnt{ce}  \quad \ottnt{cprog}  }{%
@@ -1225,7 +1225,7 @@
 
 
 \newcommand{\ottdruleCProgXXspecfun}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  \ottsym{,}  \ottmv{f}  \ottsym{:}   \tau  \to_{  \mathbf{S}  }  \tau'   ;   \Gamma ,  \ottmv{x}  \mathord{:}_{  \mathbf{S}  }  \tau   \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow  \tau' }%
+\ottpremise{ \Sigma_c  \ottsym{,}  \ottmv{f}  \ottsym{:}   \tau  \to_{  \mathbf{S}  }  \tau'   ;    \cdot  ,  \ottmv{x}  \mathord{:}_{  \mathbf{S}  }  \tau   \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow  \tau' }%
 \ottpremise{  \Sigma_c , \mathsf{fun}\; \ottmv{f} ( \ottmv{x}  :  \tau ) \to_{  \mathbf{S}  }  \tau'  =  \ottnt{ce}   \vdash  \ottnt{cprog} }%
 }{
  \Sigma_c  \vdash   \mathsf{fun}\; \ottmv{f} ( \ottmv{x}  :  \tau ) \to_{  \mathbf{S}  }  \tau'  =  \ottnt{ce}  \quad \ottnt{cprog}  }{%
@@ -1483,7 +1483,7 @@
 
 %% defn prog
 \newcommand{\ottdruleProgXXmain}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{se}  \Leftarrow  \tau  \leadsto  \ottnt{ce} }%
+\ottpremise{ \Sigma_c  ;   \cdot   \vdash_{ \ottnt{eff} }  \ottnt{se}  \Leftarrow  \tau  \leadsto  \ottnt{ce} }%
 }{
  \begin{array}{ @{} l @{} }  \Sigma_s  \vdash   \mathsf{main} :  \tau _{ \ottnt{eff} } =  \ottnt{se}   \\ \quad \leadsto  \Sigma_c  \vdash   \mathsf{main} :  \tau _{ \ottnt{eff} } =  \ottnt{ce}   \end{array} }{%
 {\ottdrulename{Prog\_main}}{}%
@@ -1492,7 +1492,7 @@
 
 \newcommand{\ottdruleProgXXpurefun}[1]{\ottdrule[#1]{%
 \ottpremise{ M  = \overline{ pat \mathord{:}  \ottnt{A} , \cdot \to [\cdot][\cdot] \, se } }%
-\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{0}  }  \ottmv{y}  \ottsym{,}   \cdot   ;  M  \Leftarrow_{  \mathbf{0}  }  \ottnt{B}  \leadsto  \ottnt{ce} }%
+\ottpremise{ \Sigma_c  ;   \cdot   \vdash_{  \mathbf{0}  }  \ottmv{y}  \ottsym{,}   \cdot   ;  M  \Leftarrow_{  \mathbf{0}  }  \ottnt{B}  \leadsto  \ottnt{ce} }%
 \ottpremise{ \begin{array}{ @{} l @{} }   \Sigma_s , \mathsf{fun}\; \ottmv{f}  :  \ottnt{A}  \to_{  \mathbf{0}  }  \ottnt{B}  = \{\overline{ \ottkw{pat}  \to  \ottkw{se} }\}   \vdash  \ottnt{prog}  \\ \quad \leadsto   \Sigma_c , \mathsf{fun}\; \ottmv{f} ( \ottmv{y}  :  \ottnt{A} ) \to_{  \mathbf{0}  }  \ottnt{B}  =  \ottnt{ce}   \vdash  \ottnt{cprog}  \end{array} }%
 }{
  \begin{array}{ @{} l @{} }  \Sigma_s  \vdash   \mathsf{fun}\; \ottmv{f}  :  \ottnt{A}  \to_{  \mathbf{0}  }  \ottnt{B}  = \{\overline{ \ottkw{pat}  \to  \ottkw{se} }\} \quad \ottnt{prog}   \\ \quad \leadsto  \Sigma_c  \vdash   \mathsf{fun}\; \ottmv{f} ( \ottmv{y}  :  \ottnt{A} ) \to_{  \mathbf{0}  }  \ottnt{B}  =  \ottnt{ce}  \quad \ottnt{cprog}   \end{array} }{%
@@ -1502,7 +1502,7 @@
 
 \newcommand{\ottdruleProgXXimpurefun}[1]{\ottdrule[#1]{%
 \ottpremise{ M  = \overline{ pat \mathord{:}  \ottnt{A} , \cdot \to [\cdot][\cdot] \, se } }%
-\ottpremise{ \Sigma_c  \ottsym{,}  \ottmv{f}  \ottsym{:}   \ottnt{A}  \to_{  \mathbf{1}  }  \ottnt{B}   ;  \Gamma  \vdash_{  \mathbf{1}  }  \ottmv{y}  \ottsym{,}   \cdot   ;  M  \Leftarrow_{  \mathbf{0}  }  \ottnt{B}  \leadsto  \ottnt{ce} }%
+\ottpremise{ \Sigma_c  \ottsym{,}  \ottmv{f}  \ottsym{:}   \ottnt{A}  \to_{  \mathbf{1}  }  \ottnt{B}   ;   \cdot   \vdash_{  \mathbf{1}  }  \ottmv{y}  \ottsym{,}   \cdot   ;  M  \Leftarrow_{  \mathbf{0}  }  \ottnt{B}  \leadsto  \ottnt{ce} }%
 \ottpremise{ \begin{array}{ @{} l @{} }  \Sigma_s  \ottsym{,}  \ottmv{f}  \ottsym{:}   \ottnt{A}  \to_{  \mathbf{1}  }  \ottnt{B}   \vdash  \ottnt{prog}  \\ \quad \leadsto  \Sigma_c  \ottsym{,}  \ottmv{f}  \ottsym{:}   \ottnt{A}  \to_{  \mathbf{1}  }  \ottnt{B}   \vdash  \ottnt{cprog}  \end{array} }%
 }{
  \begin{array}{ @{} l @{} }  \Sigma_s  \vdash   \mathsf{fun}\; \ottmv{f}  :  \ottnt{A}  \to_{  \mathbf{1}  }  \ottnt{B}  = \{\overline{ \ottkw{pat}  \to  \ottkw{se} }\} \quad \ottnt{prog}   \\ \quad \leadsto  \Sigma_c  \vdash   \mathsf{fun}\; \ottmv{f} ( \ottmv{y}  :  \ottnt{A} ) \to_{  \mathbf{1}  }  \ottnt{B}  =  \ottnt{ce}  \quad \ottnt{cprog}   \end{array} }{%
@@ -1512,7 +1512,7 @@
 
 \newcommand{\ottdruleProgXXspecfun}[1]{\ottdrule[#1]{%
 \ottpremise{ M  = \overline{ pat \mathord{:}  \tau , \cdot \to [\cdot][\cdot] \, se } }%
-\ottpremise{ \Sigma_c  \ottsym{,}  \ottmv{f}  \ottsym{:}   \tau  \to_{  \mathbf{S}  }  \tau'   ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottmv{y}  \ottsym{,}   \cdot   ;  M  \Leftarrow_{  \mathbf{S}  }  \tau'  \leadsto  \ottnt{ce} }%
+\ottpremise{ \Sigma_c  \ottsym{,}  \ottmv{f}  \ottsym{:}   \tau  \to_{  \mathbf{S}  }  \tau'   ;   \cdot   \vdash_{  \mathbf{S}  }  \ottmv{y}  \ottsym{,}   \cdot   ;  M  \Leftarrow_{  \mathbf{S}  }  \tau'  \leadsto  \ottnt{ce} }%
 \ottpremise{ \begin{array}{ @{} l @{} }   \Sigma_s , \mathsf{fun}\; \ottmv{f}  :  \tau  \to_{  \mathbf{S}  }  \tau'  = \{\overline{ \ottkw{pat}  \to  \ottkw{se} }\}   \vdash  \ottnt{prog}  \\ \quad \leadsto   \Sigma_c , \mathsf{fun}\; \ottmv{f} ( \ottmv{y}  :  \tau ) \to_{  \mathbf{S}  }  \tau'  =  \ottnt{ce}   \vdash  \ottnt{cprog}  \end{array} }%
 }{
  \begin{array}{ @{} l @{} }  \Sigma_s  \vdash   \mathsf{fun}\; \ottmv{f}  :  \tau  \to_{  \mathbf{S}  }  \tau'  = \{\overline{ \ottkw{pat}  \to  \ottkw{se} }\} \quad \ottnt{prog}   \\ \quad \leadsto  \Sigma_c  \vdash   \mathsf{fun}\; \ottmv{f} ( \ottmv{y}  :  \tau ) \to_{  \mathbf{S}  }  \tau'  =  \ottnt{ce}  \quad \ottnt{cprog}   \end{array} }{%
