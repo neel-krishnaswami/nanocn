@@ -4,7 +4,6 @@
 metavar var, x, y, z ::=
 metavar label, L, Next, Done ::=
 metavar lit ::=
-metavar blit ::=
 metavar f ::=
 metavar dsort, D ::=
 metavar tvar, a, b ::=
@@ -18,6 +17,17 @@ terminals :: 'terminals_' ::=
   | -->                                :: :: longarrow {{ tex \to }}
   | ||                                 :: :: doublepipe {{ tex \mid }}
   | vjoin                              :: :: vjoin      {{ tex \vee }}
+  | @                                  :: :: at         {{ tex \mathord{@} }}
+  | -o                                 :: :: lollipop   {{ tex \multimap }}
+  | cand                               :: :: cand       {{ tex \wedge }}
+  | cimp                               :: :: cimp       {{ tex \Rightarrow }}
+  | decl_in                            :: :: decl_in    {{ tex \in }}
+  | true                               :: :: true       {{ tex \mathsf{true} }}
+  | false                              :: :: false      {{ tex \mathsf{false} }}
+
+blit :: 'BLit_' ::=                                       {{ com boolean literals }}
+  | true                               :: :: True
+  | false                              :: :: False
 
 A, B, C :: 'T_' ::=                                        {{ com types }}
   | int                                :: :: Int            {{ com integers }} {{ tex \mathsf{int} }}
@@ -26,6 +36,10 @@ A, B, C :: 'T_' ::=                                        {{ com types }}
   | ( A1 , .. , An )                   :: :: Record         {{ com record }}
   | D ( A1 , .. , An )                 :: :: App            {{ com datatype application }}
   | a                                  :: :: TVar           {{ com type variable }}
+
+AL {{ tex \overline{A} }} :: 'AList_' ::=                          {{ com type lists }}
+  | alnil                             :: :: Nil           {{ tex [] }}
+  | A ,, AL                           :: :: Cons          {{ tex [[A]] \mathord{::} [[AL]] }}
 
 eff, eff_b {{ tex \epsilon }} :: 'Eff_' ::=                        {{ com effects }}
   | pure                               :: :: Pure            {{ tex \mathbf{0} }}
@@ -65,6 +79,12 @@ SS {{ tex \Sigma_s }} :: 'SSig_' ::=                            {{ com surface s
   | SS , sort D ( a1 , .. , ai ) = { L1 : tau1 '|' .. '|' Ln : taun }  :: :: Sort  {{ tex [[SS]], \mathsf{sort}\;[[D]](\overline{a}) = \{\overline{L : \tau}\} }}
   | SS , type D ( a1 , .. , ai ) = { L1 : A1 '|' .. '|' Ln : An }  :: :: Type  {{ tex [[SS]], \mathsf{type}\;[[D]](\overline{a}) = \{\overline{L : A}\} }}
 
+RS {{ tex \Sigma_r }} :: 'RSig_' ::=                            {{ com refined signatures }}
+  | norprims                            :: :: Empty    {{ tex \cdot }}
+  | RS , f : F                          :: :: Ext
+  | RS , fun f ( x : tau ) -> tau' [ eff ] = ce   :: :: FunDef  {{ tex [[RS]], \mathsf{fun}\;[[f]]([[x]] : [[tau]]) \to_{[[eff]]} [[tau']] = [[ce]] }}
+  | RS , f : RF                         :: :: RFun
+
 Phi {{ tex \Phi }} :: 'TVCtx_' ::=                             {{ com type variable contexts }}
   | notvs                              :: :: Empty          {{ tex \cdot }}
   | Phi , a                            :: :: Ext
@@ -90,38 +110,6 @@ prim :: 'Prim_' ::=                                            {{ com primitives
   | Own [ A ]                          :: :: Own            {{ com ownership }}
 
 
-% ===== Refined contexts =====
-
-u :: 'Use_' ::=                                              {{ com usage flags }}
-  | used                               :: :: Used           {{ tex \mathbf{0} }}
-  | avail                              :: :: Avail          {{ tex \mathbf{1} }}
-
-RG {{ tex \Delta }} :: 'RCtx_' ::=                            {{ com refined contexts }}
-  | rempty                             :: :: Empty          {{ tex \cdot }}
-  | RG , x : tau [ eff ]              :: :: Ext             {{ tex [[RG]], [[x]] \mathord{:}_{[[eff]]} [[tau]] }}
-  | RG , RG'                           :: :: Concat
-  | RG , log x : ce                   :: :: Log             {{ tex [[RG]], \mathsf{log}\; [[x]] \mathord{:} [[ce]] }}
-  | RG , res x :^ u ce @ ce'          :: :: Res             {{ tex [[RG]], \mathsf{res}\; [[x]] \mathord{:}^{[[u]]} [[ce]] \mathord{@} [[ce']] }}
-
-
-XR {{ tex X }} :: 'XR_' ::=                                  {{ com lookup results }}
-  | xvar tau                           :: :: Var            {{ tex [[tau]] }}
-  | xlog ce                            :: :: Log            {{ tex [[ce]] }}
-  | xres ce @ ce'                      :: :: Res            {{ tex [[ce]] \mathord{@} [[ce']] }}
-
-
-% ===== Refined type schemes =====
-
-Pre {{ tex \Pi }} :: 'Pre_' ::=                              {{ com preconditions }}
-  | nopre                              :: :: Empty          {{ tex \cdot }}
-  | take x = ce ; Pre                 :: :: Take
-  | let x = ce ; Pre                  :: :: Let
-  | let ( x1 , .. , xn ) = ce ; Pre   :: :: LetTuple
-
-rts {{ tex \mathcal{F} }} :: 'RTS_' ::=                      {{ com refined type schemes }}
-  | forall a : tau . x : A . Pre -> exists b : tau' . y : B . z : ce [ eff ]   :: :: Scheme
-    {{ tex \forall [[a]]\!:\![[tau]].\; \Pi [[x]]\!:\![[A]].\; [[Pre]] \to \exists [[b]]\!:\![[tau']].\; \Sigma [[y]]\!:\![[B]].\; [[z]]\!:\![[ce]] \;[[[eff]]] }}
-
 
 % ===== Core Expressions (merged computation + assertion) =====
 
@@ -142,6 +130,8 @@ ce :: 'CE_' ::=                                               {{ com core expres
   | ce1 '==' ce2                       :: :: Eq            {{ tex [[ce1]] \doteq [[ce2]] }}
   | take x = ce1 ; ce2                :: :: Take
   | return ce                          :: :: Return
+  | ( ce )                             :: :: Paren
+  | [ ce / x ] ce'                     :: :: Subst      {{ tex [ [[ce]] / [[x]] ] [[ce']] }}
 
 
 
@@ -235,6 +225,104 @@ formula :: 'formula_' ::=
   | eff = eff1 vjoin .. vjoin effn             :: :: eff_joinlist_nary
   | G = x1 : tau1 [ eff1 ] , .. , xn : taun [ effn ]  :: :: ctx_eq
   | formula1 .. formulan                :: :: dots
+  | x : ce [ log ] in Delta          :: :: log_in     {{ tex [[x]] \mathord{:} [[ce]] \; [\mathsf{log}] \in [[Delta]] }}
+  | x : ce @ ce' [ res ( u ) ] in Delta  :: :: res_in  {{ tex [[x]] \mathord{:} [[ce]] @ [[ce']] \; [\mathsf{res}([[u]])] \in [[Delta]] }}
+  | x : tau [ eff ] in Delta         :: :: rctx_var_in {{ tex [[x]] \mathord{:}_{[[eff]]} [[tau]] \in [[Delta]] }}
+  | u in_avail                        :: :: usage_avail {{ tex [[u]] \in \{1, ?\} }}
+  | u in_zero                         :: :: usage_zero  {{ tex [[u]] \in \{0, ?\} }}
+  | u = u1 meet u2                    :: :: usage_meet  {{ tex [[u]] = [[u1]] \sqcap [[u2]] }}
+  | Delta' = affinize Delta           :: :: affinize    {{ tex [[Delta']] = \mathsf{affinize}([[Delta]]) }}
+  | zero Delta                        :: :: zero        {{ tex \mathsf{zero}([[Delta]]) }}
+  | G = erase Delta                   :: :: erase       {{ tex [[G]] = |[[Delta]]| }}
+  | G = bind Pf                       :: :: bind        {{ tex [[G]] = \mathsf{Bind}(\cdot; [[Pf]]) }}
+  | Ct = close Delta Ct'              :: :: close       {{ tex [[Ct]] = [[Delta]] \Rightarrow [[Ct']] }}
+  | f : tau -> tau' [ eff ] = ce in CS  :: :: fundef_in {{ tex [[f]]([[x]] : [[tau]]) \to_{[[eff]]} [[tau']] = [[ce]] \in [[CS]] }}
+  | eff' in_pfeff eff                    :: :: pfeff       {{ tex [[eff']] \in \{\mathbf{S}, \lfloor [[eff]] \rfloor\} }}
+  | f : RF in CS                         :: :: rf_in       {{ tex [[f]] \mathord{:} [[RF]] \in [[CS]] }}
+  | f : RF in RS                         :: :: rf_in_rs    {{ tex [[f]] \mathord{:} [[RF]] \in [[RS]] }}
+  | f : tau -> tau' [ eff ] in RS        :: :: fun_in_rs   {{ tex [[f]] \mathord{:} [[tau]] \to_{[[eff]]} [[tau']] \in [[RS]] }}
+  | f : tau -> tau' [ eff ] = ce in RS   :: :: fundef_in_rs {{ tex [[f]]([[x]] : [[tau]]) \to_{[[eff]]} [[tau']] = [[ce]] \in [[RS]] }}
+  | len Delta = len Delta'               :: :: rctx_len_eq {{ tex \mathsf{len}([[Delta]]) = \mathsf{len}([[Delta']]) }}
+  | A = prod AL                          :: :: prod         {{ tex [[A]] = \mathsf{Prod}([[AL]]) }}
+
+
+% ===== Refinement types grammar =====
+
+u :: 'Usage_' ::=                                    {{ com usage flags }}
+  | used                             :: :: Used      {{ tex 0 }}
+  | avail                            :: :: Avail     {{ tex 1 }}
+  | opt                              :: :: Opt       {{ tex \mathord{?} }}
+
+Delta {{ tex \Delta }} :: 'RCtx_' ::=                {{ com refined contexts }}
+  | rempty                           :: :: Empty     {{ tex \cdot }}
+  | Delta , x : tau [ eff ]         :: :: Ext        {{ tex [[Delta]], [[x]] \mathord{:}_{[[eff]]} [[tau]] }}
+  | Delta , x : ce [ log ]          :: :: Log        {{ tex [[Delta]], [[x]] \mathord{:} [[ce]] \; [\mathsf{log}] }}
+  | Delta , x : ce @ ce' [ res ( u ) ]  :: :: Res  {{ tex [[Delta]], [[x]] \mathord{:} [[ce]] @ [[ce']] \; [\mathsf{res}([[u]])] }}
+  | Delta , Delta'                   :: :: Concat
+
+ctxlist {{ tex \overline{\Delta} }} :: 'CList_' ::=   {{ com context lists }}
+  | Delta ; ctxlist                  :: :: Cons
+  | clnil                            :: :: Nil        {{ tex \cdot }}
+  | ( ctxlist )                      :: :: Paren
+  | Delta1 ; .. ; Deltan             :: :: List
+
+Ct {{ tex \mathcal{C} }} :: 'Ct_' ::=               {{ com SMT constraints }}
+  | Top                              :: :: Top       {{ tex \top }}
+  | Ct1 cand Ct2                     :: :: And       {{ tex [[Ct1]] \wedge [[Ct2]] }}
+  | forall x : tau . Ct             :: :: Forall     {{ tex \forall [[x]] \mathord{:} [[tau]]. \, [[Ct]] }}
+  | ce cimp Ct                       :: :: Impl      {{ tex [[ce]] \Rightarrow [[Ct]] }}
+  | Ct_ce ce                         :: :: Atom      {{ tex [[ce]] }}
+  | Bot                              :: :: Bot       {{ tex \bot }}
+  | ( Ct )                           :: :: Paren
+
+Pf :: 'Pf_' ::=                                     {{ com proof sorts }}
+  | pfnil                            :: :: Nil       {{ tex \cdot }}
+  | x : tau [ eff ] , Pf            :: :: Comp       {{ tex [[x]] \mathord{:}_{[[eff]]} [[tau]], [[Pf]] }}
+  | x : ce [ log ] , Pf             :: :: Log        {{ tex [[x]] \mathord{:} [[ce]] \; [\mathsf{log}], [[Pf]] }}
+  | x : ce @ ce' [ res ] , Pf     :: :: Res        {{ tex [[x]] \mathord{:} [[ce]] @ [[ce']] \; [\mathsf{res}], [[Pf]] }}
+  | [ ce / x ] Pf                   :: :: Subst      {{ tex [ [[ce]] / [[x]] ] [[Pf]] }}
+
+RF :: 'RF_' ::=                                      {{ com refined function types }}
+  | Pf1 -o Pf2 [ eff ]             :: :: Fun         {{ tex [[Pf1]] \multimap [[Pf2]] \; \lbrack [[eff]] \rbrack }}
+
+q :: 'RPat_' ::=                                     {{ com refined patterns }}
+  | rpempty                         :: :: Empty       {{ tex () }}
+  | ( x , q )                       :: :: Cons
+
+crt :: 'CRT_' ::=                                    {{ com core refined terms }}
+  | x                               :: :: Var
+  | lit                              :: :: IntLit      {{ com integer literal }}
+  | blit                             :: :: BoolLit     {{ com boolean literal }}
+  | let q = crt1 ; crt2            :: :: Let
+  | crt : Pf                        :: :: Annot
+  | prim rsp                        :: :: PrimApp
+  | f rsp                           :: :: Call
+  | ( rsp )                         :: :: Tuple
+  | iter [ ce ] ( q = crt1 ) { crt2 }  :: :: Iter
+  | if [ x ] ce then crt1 else crt2  :: :: If
+  | case [ y ] ce of { L1 x1 -> crt1 '|' .. '|' Ln xn -> crtn }  :: :: Case
+  | exfalso                          :: :: Exfalso     {{ tex \mathsf{exfalso} }}
+  | open-take rpf                    :: :: OpenTake    {{ tex \mathsf{open\text{-}take}\;[[rpf]] }}
+
+rsp :: 'Spine_' ::=                                  {{ com refined spines }}
+  | rspnil                           :: :: Nil        {{ tex \cdot }}
+  | ce , rsp                         :: :: Core
+  | rpf , rsp                        :: :: Res
+  | lpf , rsp                        :: :: Log
+
+lpf :: 'LPf_' ::=                                   {{ com logical proof facts }}
+  | x                               :: :: Var
+  | auto                            :: :: Auto        {{ tex \mathsf{auto} }}
+  | unfold f ( ce )                 :: :: Unfold       {{ tex \mathsf{unfold}\;[[f]]([[ce]]) }}
+  | open-ret rpf                    :: :: OpenRet      {{ tex \mathsf{open\text{-}ret}\;[[rpf]] }}
+  | lpf : ce                        :: :: Annot
+
+rpf :: 'RPf_' ::=                                    {{ com resource proof facts }}
+  | x                               :: :: Var
+  | make-ret lpf                    :: :: MakeRet      {{ tex \mathsf{make\text{-}ret}\;[[lpf]] }}
+  | make-take crt                   :: :: MakeTake     {{ tex \mathsf{make\text{-}take}\;[[crt]] }}
+  | rpf : ce @ ce'                :: :: Annot        {{ tex [[rpf]] : [[ce]] @ [[ce']] }}
+
 
 subrules
   A <:: tau
@@ -495,8 +583,9 @@ defns Jtype :: '' ::=
     CS ; G |- [ eff0 ] f ce ==> tau'
 
     A eqtype
-    CS ; G |- [ eff0 ] ce1 ==> A
-    CS ; G |- [ eff0 ] ce2 <== A
+    eff' = purify eff0
+    CS ; G |- [ eff' ] ce1 ==> A
+    CS ; G |- [ eff' ] ce2 <== A
     ------------------------------------------------- :: eq
     CS ; G |- [ eff0 ] ce1 == ce2 ==> bool
 
@@ -615,7 +704,7 @@ defns Jcore :: '' ::=
     L : A in D ( A1 , .. , Ai ) in CS
 
   defn D ( a1 , .. , ak ) = { L1 : tau1 '|' .. '|' Ln : taun } decl_in CS :: :: decl_lookup :: 'DL_'
-  {{ tex [[D]](\overline{a}) = \{\overline{L : \tau}\} \in [[CS]] }} by
+  by
 
     sort D ( a1 , .. , ak ) = { L1 : tau1 | .. | Ln : taun } in CS
     --------------------------------------------------------------- :: sort
@@ -664,8 +753,9 @@ defns Jelaborate :: '' ::=
     CS ; G |- [ eff0 ] f se ==> tau' ~~> f ce
 
     A eqtype
-    CS ; G |- [ eff0 ] se1 ==> A ~~> ce1
-    CS ; G |- [ eff0 ] se2 <== A ~~> ce2
+    eff' = purify eff0
+    CS ; G |- [ eff' ] se1 ==> A ~~> ce1
+    CS ; G |- [ eff' ] se2 <== A ~~> ce2
     ------------------------------------------------- :: eq
     CS ; G |- [ eff0 ] se1 == se2 ==> bool ~~> ce1 == ce2
 
@@ -868,66 +958,618 @@ defns Jmatch :: '' ::=
 
 
 % =============================================================================
-% Refined context lookup
+% Refinement typing
 % =============================================================================
 
-defns Jrlookup :: '' ::=
+defns Jrefine :: '' ::=
 
-  defn RG |- x rlookup XR -| RG' :: :: rlookup :: 'RLk_'
-  {{ tex [[RG]] \vdash [[x]] \Rightarrow [[XR]] \dashv [[RG']] }} by
-
-    % --- Found: variable binding (rightmost) ---
-
-    ---------------------------------------------------------------- :: var_here
-    RG , x : tau [ eff ] |- x rlookup xvar tau -| RG , x : tau [ eff ]
-
-    % --- Found: logical hypothesis (rightmost) ---
-
-    ---------------------------------------------------------------- :: log_here
-    RG , log x : ce |- x rlookup xlog ce -| RG , log x : ce
-
-    % --- Found: available resource (rightmost, usage 1 -> 0) ---
-
-    ---------------------------------------------------------------- :: res_here
-    RG , res x :^ avail ce @ ce' |- x rlookup xres ce @ ce' -| RG , res x :^ used ce @ ce'
-
-    % --- Skip: past variable binding ---
-
-    x != y    RG |- x rlookup XR -| RG'
-    ---------------------------------------------------------------- :: skip_var
-    RG , y : tau [ eff ] |- x rlookup XR -| RG' , y : tau [ eff ]
-
-    % --- Skip: past logical hypothesis ---
-
-    x != y    RG |- x rlookup XR -| RG'
-    ---------------------------------------------------------------- :: skip_log
-    RG , log y : ce |- x rlookup XR -| RG' , log y : ce
-
-    % --- Skip: past resource hypothesis ---
-
-    x != y    RG |- x rlookup XR -| RG'
-    ---------------------------------------------------------------- :: skip_res
-    RG , res y :^ u ce @ ce' |- x rlookup XR -| RG' , res y :^ u ce @ ce'
-
-
-% =============================================================================
+% -----------------------------------------------------------------------------
 % Refined context well-formedness
-% =============================================================================
+% -----------------------------------------------------------------------------
 
-  defn CS |- RG rwf :: :: rctx_wf :: 'RWf_'
-  {{ tex [[CS]] \vdash [[RG]] \;\mathsf{wf} }} by
+  defn RS |- Delta rwf :: :: rctx_wf :: 'RWf_'
+  {{ tex [[RS]] \vdash [[Delta]] \;\mathsf{wf} }} by
 
     ------------- :: empty
-    CS |- rempty rwf
+    RS |- rempty rwf
 
-    CS |- RG rwf
-    ----------------------- :: var
-    CS |- RG , x : tau [ eff ] rwf
+    RS |- Delta rwf    eff <= spec
+    --------------------------------- :: eff
+    RS |- Delta , x : tau [ eff ] rwf
 
-    CS |- RG rwf    CS ; G |- [ spec ] ce <== bool
-    ------------------------------------------------ :: log
-    CS |- RG , log x : ce rwf
+    RS |- Delta rwf    G = erase Delta    CS = comp RS    CS ; G |- [ spec ] ce <== bool
+    -------------------------------------------------------------------------------------- :: log
+    RS |- Delta , x : ce [ log ] rwf
 
-    CS |- RG rwf    CS ; G |- [ spec ] ce' ==> tau    CS ; G |- [ spec ] ce <== pred tau
-    -------------------------------------------------------------------------------------- :: res
-    CS |- RG , res x :^ u ce @ ce' rwf
+    RS |- Delta rwf    G = erase Delta    CS = comp RS    CS ; G |- [ spec ] ce ==> pred tau    CS ; G |- [ spec ] ce' <== tau
+    ----------------------------------------------------------------------------------------------------------------------------- :: res
+    RS |- Delta , x : ce @ ce' [ res ( u ) ] rwf
+
+
+% -----------------------------------------------------------------------------
+% Context erasure
+% -----------------------------------------------------------------------------
+
+  defn G = erase Delta :: :: ctx_erase :: 'Erase_'
+  {{ tex [[G]] = |[[Delta]]| }} by
+
+    ----------------------- :: empty
+    empty = erase rempty
+
+    G = erase Delta
+    ------------------------------------------- :: eff
+    G , x : tau [ eff ] = erase Delta , x : tau [ eff ]
+
+    G = erase Delta
+    ------------------------------------ :: log
+    G = erase Delta , x : ce [ log ]
+
+    G = erase Delta
+    -------------------------------------------- :: res
+    G = erase Delta , x : ce @ ce' [ res ( u ) ]
+
+
+% -----------------------------------------------------------------------------
+% Affinize
+% -----------------------------------------------------------------------------
+
+  defn Delta' = affinize Delta :: :: affinize :: 'Aff_'
+  {{ tex [[Delta']] = \mathsf{affinize}([[Delta]]) }} by
+
+    ----------------------------- :: empty
+    rempty = affinize rempty
+
+    Delta' = affinize Delta
+    ------------------------------------------------------------ :: eff
+    Delta' , x : tau [ eff ] = affinize Delta , x : tau [ eff ]
+
+    Delta' = affinize Delta
+    -------------------------------------------------------- :: log
+    Delta' , x : ce [ log ] = affinize Delta , x : ce [ log ]
+
+    Delta' = affinize Delta
+    -------------------------------------------------------------------------- :: res_used
+    Delta' , x : ce @ ce' [ res ( used ) ] = affinize Delta , x : ce @ ce' [ res ( used ) ]
+
+    Delta' = affinize Delta
+    -------------------------------------------------------------------------- :: res_avail
+    Delta' , x : ce @ ce' [ res ( opt ) ] = affinize Delta , x : ce @ ce' [ res ( avail ) ]
+
+    Delta' = affinize Delta
+    -------------------------------------------------------------------------- :: res_opt
+    Delta' , x : ce @ ce' [ res ( opt ) ] = affinize Delta , x : ce @ ce' [ res ( opt ) ]
+
+
+% -----------------------------------------------------------------------------
+% Zero check (all resources consumed or optional)
+% -----------------------------------------------------------------------------
+
+  defn zero Delta :: :: zero :: 'Zero_'
+  {{ tex \mathsf{zero}([[Delta]]) }} by
+
+    ------------- :: empty
+    zero rempty
+
+    zero Delta
+    ----------------------------- :: eff
+    zero Delta , x : tau [ eff ]
+
+    zero Delta
+    ----------------------------- :: log
+    zero Delta , x : ce [ log ]
+
+    zero Delta    u in_zero
+    --------------------------------------- :: res
+    zero Delta , x : ce @ ce' [ res ( u ) ]
+
+
+% -----------------------------------------------------------------------------
+% Context-to-constraint (closing)
+% -----------------------------------------------------------------------------
+
+  defn Ct = close Delta Ct' :: :: ctx_close :: 'Close_'
+  {{ tex [[Ct]] = [[Delta]] \Rightarrow [[Ct']] }} by
+
+    ----------------------- :: empty
+    Ct = close rempty Ct
+
+    Ct = close Delta forall x : tau . Ct'
+    ----------------------------------------------- :: eff
+    Ct = close Delta , x : tau [ eff ] Ct'
+
+    Ct = close Delta ce cimp Ct'
+    --------------------------------------- :: log
+    Ct = close Delta , x : ce [ log ] Ct'
+
+    Ct = close Delta Ct'
+    ------------------------------------------------- :: res
+    Ct = close Delta , x : ce @ ce' [ res ( u ) ] Ct'
+
+
+% -----------------------------------------------------------------------------
+% Constraint well-formedness
+% -----------------------------------------------------------------------------
+
+  defn RS ; G |- Ct cwf :: :: ct_wf :: 'CtWf_'
+  {{ tex [[RS]] ; [[G]] \vdash [[Ct]] \;\mathsf{wf} }} by
+
+    -------------------- :: top
+    RS ; G |- Top cwf
+
+    RS ; G |- Ct1 cwf    RS ; G |- Ct2 cwf
+    ----------------------------------------- :: and
+    RS ; G |- Ct1 cand Ct2 cwf
+
+    RS ; G , x : tau [ spec ] |- Ct cwf
+    -------------------------------------- :: forall
+    RS ; G |- forall x : tau . Ct cwf
+
+    CS = comp RS    CS ; G |- [ spec ] ce <== bool    RS ; G |- Ct cwf
+    --------------------------------------------------------------------- :: impl
+    RS ; G |- ce cimp Ct cwf
+
+    CS = comp RS    CS ; G |- [ spec ] ce <== bool
+    ------------------------------------------------- :: atom
+    RS ; G |- Ct_ce ce cwf
+
+    -------------------- :: bot
+    RS ; G |- Bot cwf
+
+
+% -----------------------------------------------------------------------------
+% Proof sort well-formedness
+% -----------------------------------------------------------------------------
+
+  defn RS ; G |- [ eff ] Pf pfwf :: :: pf_wf :: 'PfWf_'
+  {{ tex [[RS]] ; [[G]] \vdash_{[[eff]]} [[Pf]] \;\mathsf{wf} }} by
+
+    ----------------------------- :: nil
+    RS ; G |- [ eff ] pfnil pfwf
+
+    eff' in_pfeff eff
+    RS ; G , x : tau [ eff' ] |- [ eff ] Pf pfwf
+    ------------------------------------------------ :: comp
+    RS ; G |- [ eff ] x : tau [ eff' ] , Pf pfwf
+
+    CS = comp RS    CS ; G |- [ spec ] ce <== bool    RS ; G |- [ eff ] Pf pfwf
+    ------------------------------------------------------------------------------- :: log
+    RS ; G |- [ eff ] x : ce [ log ] , Pf pfwf
+
+    CS = comp RS    CS ; G |- [ spec ] ce' ==> tau    CS ; G |- [ spec ] ce <== pred tau    RS ; G |- [ eff ] Pf pfwf
+    --------------------------------------------------------------------------------------------------------------------- :: res
+    RS ; G |- [ eff ] x : ce @ ce' [ res ] , Pf pfwf
+
+
+% -----------------------------------------------------------------------------
+% Refined function type well-formedness
+% -----------------------------------------------------------------------------
+
+  defn RS |- RF rfwf :: :: rf_wf :: 'RFWf_'
+  {{ tex [[RS]] \vdash [[RF]] \;\mathsf{wf} }} by
+
+    RS ; empty |- [ eff ] Pf1 pfwf    G = bind Pf1    RS ; G |- [ eff ] Pf2 pfwf
+    -------------------------------------------------------------------------------- :: rfun
+    RS |- Pf1 -o Pf2 [ eff ] rfwf
+
+
+% -----------------------------------------------------------------------------
+% Refined signature lookup
+% -----------------------------------------------------------------------------
+
+  defn RS |- f : RF :: :: rsig_lookup :: 'RSLk_'
+  {{ tex [[RS]] \vdash [[f]] \mathord{:} [[RF]] }} by
+
+    f : RF in RS
+    -------------------- :: rfun
+    RS |- f : RF
+
+    f : tau -> tau' [ eff ] in RS
+    ------------------------------------------------ :: sig
+    RS |- f : x : tau [ eff ] , pfnil -o y : tau' [ eff ] , pfnil [ eff ]
+
+    f : tau -> tau' [ eff ] = ce in RS
+    ------------------------------------------------ :: def
+    RS |- f : x : tau [ eff ] , pfnil -o y : tau' [ eff ] , pfnil [ eff ]
+
+
+% -----------------------------------------------------------------------------
+% Proof sort erasure
+% -----------------------------------------------------------------------------
+
+  defn AL = pf_types Pf :: :: pf_types :: 'PfTys_'
+  {{ tex [[AL]] = \{[[Pf]]\} }} by
+
+    ----------------------- :: nil
+    alnil = pf_types pfnil
+
+    AL = pf_types Pf
+    ------------------------------------------- :: pure
+    A ,, AL = pf_types x : A [ pure ] , Pf
+
+    AL = pf_types Pf
+    ------------------------------------------- :: spec
+    AL = pf_types x : tau [ spec ] , Pf
+
+    AL = pf_types Pf
+    ------------------------------------------- :: log
+    AL = pf_types x : ce [ log ] , Pf
+
+    AL = pf_types Pf
+    ------------------------------------------- :: res
+    AL = pf_types x : ce @ ce' [ res ] , Pf
+
+
+% -----------------------------------------------------------------------------
+% Refined signature erasure
+% -----------------------------------------------------------------------------
+
+  defn CS = comp RS :: :: rsig_erase :: 'RSErase_'
+  {{ tex [[CS]] = \mathsf{Comp}([[RS]]) }} by
+
+    ----------------------- :: empty
+    noprims = comp norprims
+
+    CS = comp RS
+    ------------------------------------------- :: ext
+    CS , f : F = comp RS , f : F
+
+    CS = comp RS
+    ----------------------------------------------------------------- :: fundef
+    CS , fun f ( x : tau ) -> tau' [ eff ] = ce = comp RS , fun f ( x : tau ) -> tau' [ eff ] = ce
+
+    CS = comp RS    AL1 = pf_types Pf1    A = prod AL1    AL2 = pf_types Pf2    B = prod AL2
+    -------------------------------------------------------------------------------------- :: rfun
+    CS , f : A -> B [ eff ] = comp RS , f : Pf1 -o Pf2 [ eff ]
+
+
+% -----------------------------------------------------------------------------
+% Refined signature well-formedness
+% -----------------------------------------------------------------------------
+
+  defn |- RS rswf :: :: rsig_wf :: 'RSWf_'
+  {{ tex \vdash [[RS]] \;\mathsf{wf} }} by
+
+    ------------- :: empty
+    |- norprims rswf
+
+    |- RS rswf
+    -------------------------- :: ext
+    |- RS , f : F rswf
+
+    |- RS rswf    CS = comp RS    CS ; G , x : tau [ eff ] |- [ eff ] ce <== tau'
+    ------------------------------------------------------------------------------ :: fundef
+    |- RS , fun f ( x : tau ) -> tau' [ eff ] = ce rswf
+
+    |- RS rswf    CS = comp RS    RS |- RF rfwf
+    ------------------------------------------------ :: rfun
+    |- RS , f : RF rswf
+
+
+% -----------------------------------------------------------------------------
+% Logical fact synthesis
+% -----------------------------------------------------------------------------
+
+  defn RS ; Delta |- lpf l==> ce -| Delta' ~~> Ct :: :: lpf_synth :: 'LSyn_'
+  {{ tex [[RS]] ; [[Delta]] \vdash [[lpf]] \Rightarrow [[ce]] \dashv [[Delta']] \leadsto [[Ct]] }} by
+
+    x : ce [ log ] in Delta
+    ---------------------------------------- :: var
+    RS ; Delta |- x l==> ce -| Delta ~~> Top
+
+    CS = comp RS    f : tau -> tau' [ eff ] = ce' in CS    eff <= spec
+    G = erase Delta    CS ; G |- [ spec ] ce <== tau
+    ------------------------------------------------------------------ :: unfold
+    RS ; Delta |- unfold f ( ce ) l==> ( f ce ) == [ ce / x ] ce' -| Delta ~~> Top
+
+    RS ; Delta |- lpf l<== ce -| Delta' ~~> Ct
+    ------------------------------------------------ :: annot
+    RS ; Delta |- lpf : ce l==> ce -| Delta' ~~> Ct
+
+    RS ; Delta |- rpf r==> return ce @ ce' -| Delta' ~~> Ct
+    ----------------------------------------------------------- :: openret
+    RS ; Delta |- open-ret rpf l==> ce == ce' -| Delta' ~~> Ct
+
+
+% -----------------------------------------------------------------------------
+% Logical fact checking
+% -----------------------------------------------------------------------------
+
+  defn RS ; Delta |- lpf l<== ce -| Delta' ~~> Ct :: :: lpf_check :: 'LChk_'
+  {{ tex [[RS]] ; [[Delta]] \vdash [[lpf]] \Leftarrow [[ce]] \dashv [[Delta']] \leadsto [[Ct]] }} by
+
+    -------------------------------------------- :: auto
+    RS ; Delta |- auto l<== ce -| Delta ~~> Ct_ce ce
+
+    RS ; Delta |- lpf l==> ce -| Delta' ~~> Ct
+    ---------------------------------------------------------------- :: sub
+    RS ; Delta |- lpf l<== ce' -| Delta' ~~> Ct cand ( ce cimp ( Ct_ce ce' ) )
+
+
+% -----------------------------------------------------------------------------
+% Resource variable lookup
+% -----------------------------------------------------------------------------
+
+  defn RS ; Delta |- x r: ce @ ce' -| Delta' :: :: res_lookup :: 'RLk_'
+  {{ tex [[RS]] ; [[Delta]] \vdash [[x]] : [[ce]] @ [[ce']] \dashv [[Delta']] }} by
+
+    x != y    RS ; Delta |- x r: ce @ ce' -| Delta'
+    ----------------------------------------------------------------- :: there_eff
+    RS ; Delta , y : tau [ eff ] |- x r: ce @ ce' -| Delta' , y : tau [ eff ]
+
+    x != y    RS ; Delta |- x r: ce @ ce' -| Delta'
+    ----------------------------------------------------------------- :: there_log
+    RS ; Delta , y : ce'' [ log ] |- x r: ce @ ce' -| Delta' , y : ce'' [ log ]
+
+    x != y    RS ; Delta |- x r: ce @ ce' -| Delta'
+    ----------------------------------------------------------------- :: there_res
+    RS ; Delta , y : ce'' @ ce''' [ res ( u ) ] |- x r: ce @ ce' -| Delta' , y : ce'' @ ce''' [ res ( u ) ]
+
+    u in_avail
+    -------------------------------------------------------------------------------------- :: here
+    RS ; Delta , x : ce @ ce' [ res ( u ) ] |- x r: ce @ ce' -| Delta , x : ce @ ce' [ res ( used ) ]
+
+
+% -----------------------------------------------------------------------------
+% Resource fact synthesis
+% -----------------------------------------------------------------------------
+
+  defn RS ; Delta |- rpf r==> ce @ ce' -| Delta' ~~> Ct :: :: rpf_synth :: 'RSyn_'
+  {{ tex [[RS]] ; [[Delta]] \vdash [[rpf]] \Rightarrow [[ce]] @ [[ce']] \dashv [[Delta']] \leadsto [[Ct]] }} by
+
+    RS ; Delta |- x r: ce @ ce' -| Delta'
+    -------------------------------------------------- :: var
+    RS ; Delta |- x r==> ce @ ce' -| Delta' ~~> Top
+
+    RS ; Delta |- rpf r<== ce @ ce' -| Delta' ~~> Ct
+    ------------------------------------------------------ :: annot
+    RS ; Delta |- rpf : ce @ ce' r==> ce @ ce' -| Delta' ~~> Ct
+
+
+% -----------------------------------------------------------------------------
+% Resource fact checking
+% -----------------------------------------------------------------------------
+
+  defn RS ; Delta |- rpf r<== ce @ ce' -| Delta' ~~> Ct :: :: rpf_check :: 'RChk_'
+  {{ tex [[RS]] ; [[Delta]] \vdash [[rpf]] \Leftarrow [[ce]] @ [[ce']] \dashv [[Delta']] \leadsto [[Ct]] }} by
+
+    RS ; Delta |- lpf l<== ce1 == ce2 -| Delta' ~~> Ct
+    ---------------------------------------------------------------- :: makeret
+    RS ; Delta |- make-ret lpf r<== return ce1 @ ce2 -| Delta' ~~> Ct
+
+    RS ; Delta |- [ eff ] crt r<== x : tau [ spec ] , y : ce1 @ x [ res ] , z : ce2 @ ce3 [ res ] , pfnil -| Delta' ~~> Ct
+    ---------------------------------------------------------------- :: maketake
+    RS ; Delta |- make-take crt r<== take x = ce1 ; ce2 @ ce3 -| Delta' ~~> Ct
+
+    RS ; Delta |- rpf r==> ce1 @ ce1' -| Delta' ~~> Ct
+    ---------------------------------------------------------------------- :: sub
+    RS ; Delta |- rpf r<== ce2 @ ce2' -| Delta' ~~> ( Ct cand Ct_ce ( ce1 == ce2 ) ) cand Ct_ce ( ce1' == ce2' )
+
+
+% -----------------------------------------------------------------------------
+% Proof sort equality
+% -----------------------------------------------------------------------------
+
+  defn RS ; Delta |- Pf1 pfeq Pf2 ~~> Ct :: :: pf_eq :: 'PfEq_'
+  {{ tex [[RS]] ; [[Delta]] \vdash [[Pf1]] = [[Pf2]] \leadsto [[Ct]] }} by
+
+    -------------------------------------------- :: nil
+    RS ; Delta |- pfnil pfeq pfnil ~~> Top
+
+    RS ; Delta , x : tau [ eff ] |- Pf1 pfeq [ x / y ] Pf2 ~~> Ct
+    ----------------------------------------------------------------------- :: comp
+    RS ; Delta |- x : tau [ eff ] , Pf1 pfeq y : tau [ eff ] , Pf2 ~~> forall x : tau . Ct
+
+    RS ; Delta |- Pf1 pfeq Pf2 ~~> Ct
+    -------------------------------------------------------------------------- :: log
+    RS ; Delta |- x : ce1 [ log ] , Pf1 pfeq y : ce2 [ log ] , Pf2 ~~> ( Ct_ce ( ce1 == ce2 ) ) cand Ct
+
+    RS ; Delta |- Pf1 pfeq Pf2 ~~> Ct
+    -------------------------------------------------------------------------------------------------- :: res
+    RS ; Delta |- x : ce1 @ ce1' [ res ] , Pf1 pfeq y : ce2 @ ce2' [ res ] , Pf2 ~~> ( ( Ct_ce ( ce1 == ce2 ) ) cand Ct_ce ( ce1' == ce2' ) ) cand Ct
+
+
+% -----------------------------------------------------------------------------
+% Context merge
+% -----------------------------------------------------------------------------
+
+  defn RS |- Delta0 merge Delta1 = Delta :: :: ctx_merge :: 'Merge_'
+  {{ tex [[RS]] \vdash [[Delta0]] \sqcap [[Delta1]] = [[Delta]] }} by
+
+    -------------------------------------- :: empty
+    RS |- rempty merge rempty = rempty
+
+    RS |- Delta0 merge Delta1 = Delta
+    --------------------------------------------------------------------------- :: eff
+    RS |- Delta0 , x : tau [ eff ] merge Delta1 , x : tau [ eff ] = Delta , x : tau [ eff ]
+
+    RS |- Delta0 merge Delta1 = Delta
+    --------------------------------------------------------------------------- :: log
+    RS |- Delta0 , x : ce [ log ] merge Delta1 , x : ce [ log ] = Delta , x : ce [ log ]
+
+    RS |- Delta0 merge Delta1 = Delta    u = u0 meet u1
+    ---------------------------------------------------------------------------------------------- :: res
+    RS |- Delta0 , x : ce @ ce' [ res ( u0 ) ] merge Delta1 , x : ce @ ce' [ res ( u1 ) ] = Delta , x : ce @ ce' [ res ( u ) ]
+
+
+
+% -----------------------------------------------------------------------------
+% Refined pattern matching
+% -----------------------------------------------------------------------------
+
+  defn RS ; G |- q : Pf -| Delta :: :: rpat_match :: 'RPM_'
+  {{ tex [[RS]] ; [[G]] \vdash [[q]] : [[Pf]] \dashv [[Delta]] }} by
+
+    ---------------------------------------- :: empty
+    RS ; G |- rpempty : pfnil -| rempty
+
+    RS ; G , x : tau [ eff ] |- q : [ x / y ] Pf -| Delta
+    ---------------------------------------------------------------------- :: comp
+    RS ; G |- ( x , q ) : y : tau [ eff ] , Pf -| rempty , x : tau [ eff ] , Delta
+
+    RS ; G |- q : [ x / y ] Pf -| Delta
+    ---------------------------------------------------------------------- :: log
+    RS ; G |- ( x , q ) : y : ce [ log ] , Pf -| rempty , x : ce [ log ] , Delta
+
+    RS ; G |- q : [ x / y ] Pf -| Delta
+    ---------------------------------------------------------------------------- :: res
+    RS ; G |- ( x , q ) : y : ce @ ce' [ res ] , Pf -| rempty , x : ce @ ce' [ res ( avail ) ] , Delta
+
+
+% -----------------------------------------------------------------------------
+% Refined term synthesis
+% -----------------------------------------------------------------------------
+
+  defn RS ; Delta |- [ eff ] crt r==> Pf -| Delta' ~~> Ct :: :: rcrt_synth :: 'RCSyn_'
+  {{ tex [[RS]] ; [[Delta]] \vdash_{[[eff]]} [[crt]] \Rightarrow [[Pf]] \dashv [[Delta']] \leadsto [[Ct]] }} by
+
+    G = erase Delta    RS ; G |- [ eff ] Pf pfwf
+    RS ; Delta |- [ eff ] crt r<== Pf -| Delta' ~~> Ct
+    ---------------------------------------------------------- :: annot
+    RS ; Delta |- [ eff ] crt : Pf r==> Pf -| Delta' ~~> Ct
+
+    RS |- f : RF    eff' in_pfeff eff
+    RS ; Delta |- [ eff ] rsp : RF >> Pf -| Delta' ~~> Ct
+    -------------------------------------------------------- :: call
+    RS ; Delta |- [ eff ] f rsp r==> Pf -| Delta' ~~> Ct
+
+    eff' in_pfeff eff
+    RS ; Delta |- [ eff ] rsp : RF >> Pf -| Delta' ~~> Ct
+    -------------------------------------------------------- :: primapp
+    RS ; Delta |- [ eff ] prim rsp r==> Pf -| Delta' ~~> Ct
+
+    RS ; Delta |- rpf r==> take x = ce1 ; ce2 @ ce3 -| Delta' ~~> Ct
+    ------------------------------------------------------------------------------------------------------- :: opentake
+    RS ; Delta |- [ eff ] open-take rpf r==> x : tau [ spec ] , y : ce1 @ x [ res ] , z : ce2 @ ce3 [ res ] , pfnil -| Delta' ~~> Ct
+
+
+% -----------------------------------------------------------------------------
+% Case branch checking
+% -----------------------------------------------------------------------------
+
+  defn RS ; Delta |- [ eff ] y : ce is L x -> crt c<== Pf -| Delta' ~~> Ct :: :: case_branch :: 'CBr_'
+  {{ tex [[RS]] ; [[Delta]] \vdash_{[[eff]]} [[y]] \mathord{:} [[ce]] \;\mathsf{is}\; [[L]]\,[[x]] \to [[crt]] \Leftarrow [[Pf]] \dashv [[Delta']] \leadsto [[Ct]] }} by
+
+    G = erase Delta    CS = comp RS    CS ; G |- [ eff ] ce ==> D ( tau1 , .. , taui )
+    L : tau in D ( tau1 , .. , taui ) in CS
+    RS ; Delta , x : tau [ eff ] , y : ce == L x [ log ] |- [ eff ] crt r<== Pf -| Delta' , x : tau [ eff ] , y : ce == L x [ log ] ~~> Ct
+    ------------------------------------------------------------------------------------------------------------------- :: branch
+    RS ; Delta |- [ eff ] y : ce is L x -> crt c<== Pf -| Delta' ~~> forall x : tau . ce == L x cimp Ct
+
+
+% -----------------------------------------------------------------------------
+% Refined term checking
+% -----------------------------------------------------------------------------
+
+  defn RS ; Delta |- [ eff ] crt r<== Pf -| Delta' ~~> Ct :: :: rcrt_check :: 'RCChk_'
+  {{ tex [[RS]] ; [[Delta]] \vdash_{[[eff]]} [[crt]] \Leftarrow [[Pf]] \dashv [[Delta']] \leadsto [[Ct]] }} by
+
+    RS ; Delta |- [ eff ] crt1 r==> Pf' -| Delta'  ~~> Ct1
+    G = erase Delta'    RS ; G |- q : Pf' -| Delta''
+    RS ; Delta' , Delta'' |- [ eff ] crt2 r<== Pf -| Delta''' , Delta'''' ~~> Ct2
+    len Delta' = len Delta'''
+    len Delta'' = len Delta''''
+    zero Delta''''
+    ----------------------------------------------------------------------------- :: let
+    RS ; Delta |- [ eff ] let q = crt1 ; crt2 r<== Pf -| Delta''' ~~> Ct1 cand Ct2
+
+    eff' = purify eff
+    G = erase Delta    CS = comp RS    CS ; G |- [ eff' ] ce <== bool
+    RS ; Delta , x : ce == true [ log ] |- [ eff' ] crt1 r<== Pf -| Delta1 , x : ce == true [ log ] ~~> Ct1
+    RS ; Delta , x : ce == false [ log ] |- [ eff' ] crt2 r<== Pf -| Delta2 , x : ce == false [ log ] ~~> Ct2
+    RS |- Delta1 merge Delta2 = Delta'
+    ------------------------------------------------------------------------------------------------------------ :: if
+    RS ; Delta |- [ eff ] if [ x ] ce then crt1 else crt2 r<== Pf -| Delta' ~~> ( ce == true cimp Ct1 ) cand ( ce == false cimp Ct2 )
+
+    eff' = purify eff
+    G = erase Delta    CS = comp RS    CS ; G |- [ eff' ] ce ==> D ( tau1 , .. , taui )
+    D ( a1 , .. , ak ) = { L1 : tau'1 | .. | Ln : tau'n } decl_in CS
+    RS ; Delta |- [ eff' ] y : ce is L1 x1 -> crt1 c<== Pf -| Delta1 ~~> Ct1 .. RS ; Delta |- [ eff' ] y : ce is Ln xn -> crtn c<== Pf -| Deltan ~~> Ctn
+    RS |- ( Delta1 ; .. ; Deltan ) nmerge Delta'
+    ------------------------------------------------------------------------------------------------------------------- :: case
+    RS ; Delta |- [ eff ] case [ y ] ce of { L1 x1 -> crt1 | .. | Ln xn -> crtn } r<== Pf -| Delta' ~~> Ct1 cand Ctn
+
+    CS = comp RS    type D ( x , y ) = { Next : a , Done : b } in CS
+    G = erase Delta    CS ; G |- [ spec ] ce ==> pred D ( A , B )
+    RS ; Delta |- [ pure ] crt1 r<== x : A [ pure ] , y : ce @ Next x [ res ] , pfnil -| Delta' ~~> Ct
+    RS ; Delta' , x : A [ pure ] , y : ce @ Next x [ res ( avail ) ] |- [ impure ] crt2 r<== z : D ( A , B ) [ pure ] , y : ce @ z [ res ] , pfnil -| Delta' , x : A [ pure ] , y : ce @ Next x [ res ( avail ) ] ~~> Ct'
+    ------------------------------------------------------------------------------------------------------------------------------------ :: iter
+    RS ; Delta |- [ impure ] iter [ ce ] ( q = crt1 ) { crt2 } r<== z : B [ pure ] , y : ce @ Done z [ res ] , pfnil -| Delta' ~~> Ct cand forall x : A . Ct'
+
+    Delta' = affinize Delta
+    ------------------------------------------- :: exfalso
+    RS ; Delta |- [ eff ] exfalso r<== Pf -| Delta' ~~> Bot
+
+    RS ; Delta |- [ eff ] crt r==> Pf' -| Delta' ~~> Ct
+    RS ; Delta' |- Pf' pfeq Pf ~~> Ct'
+    --------------------------------------------------------- :: sub
+    RS ; Delta |- [ eff ] crt r<== Pf -| Delta' ~~> Ct cand Ct'
+
+
+% -----------------------------------------------------------------------------
+% Spine checking
+% -----------------------------------------------------------------------------
+
+  defn RS ; Delta |- [ eff ] rsp : RF >> Pf -| Delta' ~~> Ct :: :: spine_check :: 'Spine_'
+  {{ tex [[RS]] ; [[Delta]] \vdash_{[[eff]]} [[rsp]] : [[RF]] \gg [[Pf]] \dashv [[Delta']] \leadsto [[Ct]] }} by
+
+    --------------------------------------------------------------- :: nil
+    RS ; Delta |- [ eff ] rspnil : pfnil -o Pf [ eff ] >> Pf -| Delta ~~> Top
+
+    G = erase Delta    CS = comp RS    CS ; G |- [ eff ] ce <== tau
+    RS ; Delta |- [ eff ] rsp : [ ce / x ] Pf1 -o [ ce / x ] Pf2 [ eff ] >> Pf -| Delta' ~~> Ct
+    -------------------------------------------------------------------------- :: core
+    RS ; Delta |- [ eff ] ce , rsp : x : tau [ eff ] , Pf1 -o Pf2 [ eff ] >> Pf -| Delta' ~~> Ct
+
+    RS ; Delta |- lpf l<== ce -| Delta' ~~> Ct
+    RS ; Delta' |- [ eff ] rsp : Pf1 -o Pf2 [ eff ] >> Pf -| Delta'' ~~> Ct'
+    ----------------------------------------------------------------------------- :: log
+    RS ; Delta |- [ eff ] lpf , rsp : x : ce [ log ] , Pf1 -o Pf2 [ eff ] >> Pf -| Delta'' ~~> Ct cand Ct'
+
+    RS ; Delta |- rpf r<== ce1 @ ce2 -| Delta' ~~> Ct
+    RS ; Delta' |- [ eff ] rsp : Pf1 -o Pf2 [ eff ] >> Pf -| Delta'' ~~> Ct'
+    ----------------------------------------------------------------------------- :: res
+    RS ; Delta |- [ eff ] rpf , rsp : x : ce1 @ ce2 [ res ] , Pf1 -o Pf2 [ eff ] >> Pf -| Delta'' ~~> Ct cand Ct'
+
+
+% -----------------------------------------------------------------------------
+% Tuple checking
+% -----------------------------------------------------------------------------
+
+  defn RS ; Delta |- [ eff ] rsp t: Pf -| Delta' ~~> Ct :: :: tuple_check :: 'Tup_'
+  {{ tex [[RS]] ; [[Delta]] \vdash_{[[eff]]} [[rsp]] : [[Pf]] \dashv [[Delta']] \leadsto [[Ct]] }} by
+
+    --------------------------------------------------------------- :: nil
+    RS ; Delta |- [ eff ] rspnil t: pfnil -| Delta ~~> Top
+
+    G = erase Delta    CS = comp RS    CS ; G |- [ eff ] ce <== tau
+    RS ; Delta |- [ eff ] rsp t: [ ce / x ] Pf -| Delta' ~~> Ct
+    --------------------------------------------------------- :: core
+    RS ; Delta |- [ eff ] ce , rsp t: x : tau [ eff ] , Pf -| Delta' ~~> Ct
+
+    RS ; Delta |- lpf l<== ce -| Delta' ~~> Ct
+    RS ; Delta' |- [ eff ] rsp t: Pf -| Delta'' ~~> Ct'
+    --------------------------------------------------------- :: log
+    RS ; Delta |- [ eff ] lpf , rsp t: x : ce [ log ] , Pf -| Delta'' ~~> Ct cand Ct'
+
+    RS ; Delta |- rpf r<== ce @ ce' -| Delta' ~~> Ct
+    RS ; Delta' |- [ eff ] rsp t: Pf -| Delta'' ~~> Ct'
+    ------------------------------------------------------------- :: res
+    RS ; Delta |- [ eff ] rpf , rsp t: x : ce @ ce' [ res ] , Pf -| Delta'' ~~> Ct cand Ct'
+
+
+% -----------------------------------------------------------------------------
+% N-ary context merge
+% -----------------------------------------------------------------------------
+
+  defn RS |- ctxlist nmerge Delta :: :: nary_merge :: 'NMerge_'
+  {{ tex [[RS]] \vdash \sqcap [[ctxlist]] = [[Delta]] }} by
+
+    --------------------------------------- :: base
+    RS |- Delta0 ; clnil nmerge Delta0
+
+    RS |- Delta0 merge Delta1 = Delta'    RS |- ( Delta' ; ctxlist ) nmerge Delta
+    --------------------------------------------------------------------------- :: step
+    RS |- ( Delta0 ; Delta1 ; ctxlist ) nmerge Delta
+
+
+
