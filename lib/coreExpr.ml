@@ -15,7 +15,6 @@ type ('a, 'b) ceF =
   | Eq of 'a * 'a
   | And of 'a * 'a
   | Not of 'a
-  | Own of 'b Sort.t
   | Take of (Var.t * 'b) * 'a * 'a
   | Return of 'a
 
@@ -37,7 +36,6 @@ let map_shape f = function
   | Eq (a, b) -> Eq (f a, f b)
   | And (a, b) -> And (f a, f b)
   | Not a -> Not (f a)
-  | Own s -> Own s
   | Take (x, e1, e2) -> Take (x, f e1, f e2)
   | Return a -> Return (f a)
 
@@ -58,7 +56,6 @@ let map_info f = function
   | Eq (a, b) -> Eq (a, b)
   | And (a, b) -> And (a, b)
   | Not a -> Not a
-  | Own s -> Own (Sort.map f s)
   | Take ((x, b), e1, e2) -> Take ((x, f b), e1, e2)
   | Return a -> Return a
 
@@ -83,7 +80,7 @@ let rec subst (x : Var.t) (s : ce) (e : ce) : ce =
   match shape e with
   | Var v ->
     if Var.compare v x = 0 then s else e
-  | IntLit _ | BoolLit _ | Own _ -> e
+  | IntLit _ | BoolLit _ -> e
   | Let ((v, b), e1, e2) ->
     let e1' = subst x s e1 in
     let e2' = if binds_x v then e2 else subst x s e2 in
@@ -185,7 +182,6 @@ let rec print fmt t =
   | Eq (a, b) -> Format.fprintf fmt "@[<hov 2>%a ==@ %a@]" print a print b
   | And (a, b) -> Format.fprintf fmt "@[<hov 2>%a &&@ %a@]" print a print b
   | Not a -> Format.fprintf fmt "@[<hov 2>not@ %a@]" print a
-  | Own s -> Format.fprintf fmt "@[<hov 2>Own[%a]@]" Sort.print s
   | Take ((x, _), e1, e2) ->
     Format.fprintf fmt "@[<v>@[<hov 2>take %a =@ %a;@]@ %a@]"
       Var.print x print e1 print e2
@@ -222,7 +218,6 @@ let rec json jb t =
     | Eq (a, b) -> ["tag", Json.String "Eq"; "left", json jb a; "right", json jb b]
     | And (a, b) -> ["tag", Json.String "And"; "left", json jb a; "right", json jb b]
     | Not a -> ["tag", Json.String "Not"; "arg", json jb a]
-    | Own s -> ["tag", Json.String "Own"; "sort", Sort.json jb s]
     | Take ((x, b), e1, e2) ->
       ["tag", Json.String "Take"; "var", Var.json x; "var_info", jb b;
        "bound", json jb e1; "body", json jb e2]

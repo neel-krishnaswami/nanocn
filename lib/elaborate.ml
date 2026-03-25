@@ -48,6 +48,9 @@ let prim_signature (p : Prim.t) =
   | Prim.Set a ->
     let sa = Sort.typ_to_sort a in
     (mk (Sort.Record [mk (Sort.Ptr sa); sa]), unit_sort, Effect.Impure)
+  | Prim.Own a ->
+    let sa = Sort.typ_to_sort a in
+    (mk (Sort.Ptr sa), mk (Sort.Pred sa), Effect.Spec)
 
 (** {1 Coverage types} *)
 
@@ -241,9 +244,6 @@ let rec synth sig_ ctx eff0 se =
     let bool_sort = mk_sort pos Sort.Bool in
     let* ce = check sig_ ctx se bool_sort eff0 in
     ElabM.return (mk_ce pos (CoreExpr.Not ce), mk_sort pos Sort.Bool)
-
-  | SurfExpr.Own s ->
-    ElabM.return (mk_ce pos (CoreExpr.Own s), mk_sort pos (Sort.Pred s))
 
   | SurfExpr.App (p, arg) ->
     let* () = match p with

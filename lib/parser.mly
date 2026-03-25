@@ -307,6 +307,7 @@ state_prim:
   | GET { fun ty -> Prim.Get ty }
   | NEW { fun ty -> Prim.New ty }
   | DEL { fun ty -> Prim.Del ty }
+  | OWN { fun ty -> Prim.Own ty }
 
 simple_expr:
   | x = ident_var
@@ -317,8 +318,6 @@ simple_expr:
     { mk_surfexpr $startpos $endpos (SurfExpr.BoolLit true) }
   | FALSE
     { mk_surfexpr $startpos $endpos (SurfExpr.BoolLit false) }
-  | OWN; LBRACKET; s = sort; RBRACKET
-    { mk_surfexpr $startpos $endpos (SurfExpr.Own s) }
   | LPAREN; RPAREN
     { mk_surfexpr $startpos $endpos (SurfExpr.Tuple []) }
   | LPAREN; e = expr; RPAREN

@@ -23,7 +23,6 @@ type ('a, 'b) ceF =
   | Eq of 'a * 'a
   | And of 'a * 'a
   | Not of 'a
-  | Own of 'b Sort.t
   | Take of (Var.t * 'b) * 'a * 'a
   | Return of 'a
 

@@ -22,7 +22,6 @@ type ('a, 'b) seF =
   | Eq of 'a * 'a
   | And of 'a * 'a
   | Not of 'a
-  | Own of 'b Sort.t
   | Take of 'b Pat.t * 'a * 'a
   | Return of 'a
 

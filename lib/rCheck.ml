@@ -102,6 +102,154 @@ let _close delta ct =
     | RCtx.Res _ -> acc)
     (RCtx.entries delta) ct
 
+(* ---------- refined primitive signatures ---------- *)
+
+(* Helper constructors for building proof sorts *)
+let mk_var s = Var.of_string s SourcePos.dummy
+let ce_var s = CoreExpr.mk loc_dummy (CoreExpr.Var (mk_var s))
+let mk_prim_app p args = CoreExpr.mk loc_dummy (CoreExpr.App (p, CoreExpr.mk loc_dummy (CoreExpr.Tuple args)))
+let mk_not ce = CoreExpr.mk loc_dummy (CoreExpr.Not ce)
+
+let int_sort = Sort.mk loc_dummy Sort.Int
+let bool_sort = Sort.mk loc_dummy Sort.Bool
+
+(** Refined function type for a primitive, following the spec in refinement-types.md. *)
+let rprim_signature (p : Prim.t) : CoreExpr.ce RFunType.t =
+  match p with
+  (* Arithmetic: (x:int, y:int) ⊸ (z:int, prop: z == prim(x,y) [log]) [pure] *)
+  | Prim.Add | Prim.Sub | Prim.Mul ->
+    let x = mk_var "x" and y = mk_var "y" in
+    let z = mk_var "z" and prop = mk_var "prop" in
+    let result_expr = mk_prim_app p [ce_var "x"; ce_var "y"] in
+    { domain = [ProofSort.Comp { var = x; sort = int_sort; eff = Effect.Pure };
+                ProofSort.Comp { var = y; sort = int_sort; eff = Effect.Pure }];
+      codomain = [ProofSort.Comp { var = z; sort = int_sort; eff = Effect.Pure };
+                  ProofSort.Log { var = prop; prop = mk_eq (ce_var "z") result_expr }];
+      eff = Effect.Pure }
+
+  (* Div: (x:int, y:int, pre: not(y == 0) [log]) ⊸ (z:int, prop: z == x/y [log]) [pure] *)
+  | Prim.Div ->
+    let x = mk_var "x" and y = mk_var "y" in
+    let pre = mk_var "pre" in
+    let z = mk_var "z" and prop = mk_var "prop" in
+    let zero = CoreExpr.mk loc_dummy (CoreExpr.IntLit 0) in
+    { domain = [ProofSort.Comp { var = x; sort = int_sort; eff = Effect.Pure };
+                ProofSort.Comp { var = y; sort = int_sort; eff = Effect.Pure };
+                ProofSort.Log { var = pre; prop = mk_not (mk_eq (ce_var "y") zero) }];
+      codomain = [ProofSort.Comp { var = z; sort = int_sort; eff = Effect.Pure };
+                  ProofSort.Log { var = prop; prop = mk_eq (ce_var "z") (mk_prim_app Prim.Div [ce_var "x"; ce_var "y"]) }];
+      eff = Effect.Pure }
+
+  (* Comparisons: (x:int, y:int) ⊸ (z:bool, prop: z == x cmp y [log]) [pure] *)
+  | Prim.Lt | Prim.Le | Prim.Gt | Prim.Ge ->
+    let x = mk_var "x" and y = mk_var "y" in
+    let z = mk_var "z" and prop = mk_var "prop" in
+    let result_expr = mk_prim_app p [ce_var "x"; ce_var "y"] in
+    { domain = [ProofSort.Comp { var = x; sort = int_sort; eff = Effect.Pure };
+                ProofSort.Comp { var = y; sort = int_sort; eff = Effect.Pure }];
+      codomain = [ProofSort.Comp { var = z; sort = bool_sort; eff = Effect.Pure };
+                  ProofSort.Log { var = prop; prop = mk_eq (ce_var "z") result_expr }];
+      eff = Effect.Pure }
+
+  (* Logic: same pattern as comparisons *)
+  | Prim.And ->
+    let x = mk_var "x" and y = mk_var "y" in
+    let z = mk_var "z" and prop = mk_var "prop" in
+    { domain = [ProofSort.Comp { var = x; sort = bool_sort; eff = Effect.Pure };
+                ProofSort.Comp { var = y; sort = bool_sort; eff = Effect.Pure }];
+      codomain = [ProofSort.Comp { var = z; sort = bool_sort; eff = Effect.Pure };
+                  ProofSort.Log { var = prop; prop = mk_eq (ce_var "z") (CoreExpr.mk loc_dummy (CoreExpr.And (ce_var "x", ce_var "y"))) }];
+      eff = Effect.Pure }
+
+  | Prim.Or ->
+    let x = mk_var "x" and y = mk_var "y" in
+    let z = mk_var "z" and prop = mk_var "prop" in
+    { domain = [ProofSort.Comp { var = x; sort = bool_sort; eff = Effect.Pure };
+                ProofSort.Comp { var = y; sort = bool_sort; eff = Effect.Pure }];
+      codomain = [ProofSort.Comp { var = z; sort = bool_sort; eff = Effect.Pure };
+                  ProofSort.Log { var = prop; prop = mk_eq (ce_var "z") (mk_prim_app Prim.Or [ce_var "x"; ce_var "y"]) }];
+      eff = Effect.Pure }
+
+  | Prim.Not ->
+    let x = mk_var "x" in
+    let z = mk_var "z" and prop = mk_var "prop" in
+    { domain = [ProofSort.Comp { var = x; sort = bool_sort; eff = Effect.Pure }];
+      codomain = [ProofSort.Comp { var = z; sort = bool_sort; eff = Effect.Pure };
+                  ProofSort.Log { var = prop; prop = mk_eq (ce_var "z") (mk_not (ce_var "x")) }];
+      eff = Effect.Pure }
+
+  (* Eq[A]: (x:A, y:A) ⊸ (z:bool, prop: z == (x == y) [log]) [pure] *)
+  | Prim.Eq ty ->
+    let a_sort = Sort.typ_to_sort ty in
+    let x = mk_var "x" and y = mk_var "y" in
+    let z = mk_var "z" and prop = mk_var "prop" in
+    { domain = [ProofSort.Comp { var = x; sort = a_sort; eff = Effect.Pure };
+                ProofSort.Comp { var = y; sort = a_sort; eff = Effect.Pure }];
+      codomain = [ProofSort.Comp { var = z; sort = bool_sort; eff = Effect.Pure };
+                  ProofSort.Log { var = prop; prop = mk_eq (ce_var "z") (mk_eq (ce_var "x") (ce_var "y")) }];
+      eff = Effect.Pure }
+
+  (* New[A]: (x:A) ⊸ (p:ptr A, r:Own[A](p) @ x [res]) [impure] *)
+  | Prim.New ty ->
+    let a_sort = Sort.typ_to_sort ty in
+    let ptr_sort = Sort.mk loc_dummy (Sort.Ptr a_sort) in
+    let x = mk_var "x" and p = mk_var "p" and r = mk_var "r" in
+    let own_p = CoreExpr.mk loc_dummy (CoreExpr.App (Prim.Own ty, ce_var "p")) in
+    { domain = [ProofSort.Comp { var = x; sort = a_sort; eff = Effect.Pure }];
+      codomain = [ProofSort.Comp { var = p; sort = ptr_sort; eff = Effect.Pure };
+                  ProofSort.Res { var = r; pred = own_p; value = ce_var "x" }];
+      eff = Effect.Impure }
+
+  (* Del[A]: (p:ptr A, x:A [spec], r:Own[A](p) @ x [res]) ⊸ () [impure] *)
+  | Prim.Del ty ->
+    let a_sort = Sort.typ_to_sort ty in
+    let ptr_sort = Sort.mk loc_dummy (Sort.Ptr a_sort) in
+    let p = mk_var "p" and x = mk_var "x" and r = mk_var "r" in
+    let own_p = CoreExpr.mk loc_dummy (CoreExpr.App (Prim.Own ty, ce_var "p")) in
+    { domain = [ProofSort.Comp { var = p; sort = ptr_sort; eff = Effect.Pure };
+                ProofSort.Comp { var = x; sort = a_sort; eff = Effect.Spec };
+                ProofSort.Res { var = r; pred = own_p; value = ce_var "x" }];
+      codomain = [];
+      eff = Effect.Impure }
+
+  (* Get[A]: (p:ptr A, x:A [spec], r:Own[A](p) @ x [res]) ⊸ (v:A, pf: x == v [log]) [impure] *)
+  | Prim.Get ty ->
+    let a_sort = Sort.typ_to_sort ty in
+    let ptr_sort = Sort.mk loc_dummy (Sort.Ptr a_sort) in
+    let p = mk_var "p" and x = mk_var "x" and r = mk_var "r" in
+    let v = mk_var "v" and pf = mk_var "pf" in
+    let own_p = CoreExpr.mk loc_dummy (CoreExpr.App (Prim.Own ty, ce_var "p")) in
+    { domain = [ProofSort.Comp { var = p; sort = ptr_sort; eff = Effect.Pure };
+                ProofSort.Comp { var = x; sort = a_sort; eff = Effect.Spec };
+                ProofSort.Res { var = r; pred = own_p; value = ce_var "x" }];
+      codomain = [ProofSort.Comp { var = v; sort = a_sort; eff = Effect.Pure };
+                  ProofSort.Log { var = pf; prop = mk_eq (ce_var "x") (ce_var "v") }];
+      eff = Effect.Impure }
+
+  (* Set[A]: (p:ptr A, v:A, x:A [spec], r:Own[A](p) @ x [res]) ⊸ (r':Own[A](p) @ v [res]) [impure] *)
+  | Prim.Set ty ->
+    let a_sort = Sort.typ_to_sort ty in
+    let ptr_sort = Sort.mk loc_dummy (Sort.Ptr a_sort) in
+    let p = mk_var "p" and v = mk_var "v" and x = mk_var "x" and r = mk_var "r" in
+    let r' = mk_var "r'" in
+    let own_p = CoreExpr.mk loc_dummy (CoreExpr.App (Prim.Own ty, ce_var "p")) in
+    { domain = [ProofSort.Comp { var = p; sort = ptr_sort; eff = Effect.Pure };
+                ProofSort.Comp { var = v; sort = a_sort; eff = Effect.Pure };
+                ProofSort.Comp { var = x; sort = a_sort; eff = Effect.Spec };
+                ProofSort.Res { var = r; pred = own_p; value = ce_var "x" }];
+      codomain = [ProofSort.Res { var = r'; pred = own_p; value = ce_var "v" }];
+      eff = Effect.Impure }
+
+  (* Own[A]: (p:ptr A) ⊸ (r:pred A) [spec] — same as core signature *)
+  | Prim.Own ty ->
+    let a_sort = Sort.typ_to_sort ty in
+    let ptr_sort = Sort.mk loc_dummy (Sort.Ptr a_sort) in
+    let pred_sort = Sort.mk loc_dummy (Sort.Pred a_sort) in
+    let p = mk_var "p" and r = mk_var "r" in
+    { domain = [ProofSort.Comp { var = p; sort = ptr_sort; eff = Effect.Spec }];
+      codomain = [ProofSort.Comp { var = r; sort = pred_sort; eff = Effect.Spec }];
+      eff = Effect.Spec }
+
 (* ---------- typing judgements ---------- *)
 
 (* Logical fact synthesis: RS; Delta |- lpf => ce -| Delta' ~> Ct *)
@@ -217,15 +365,10 @@ and synth_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr
      | None -> Error (Format.asprintf "function %a not found" Var.print f))
 
   | RefinedExpr.CPrimApp (prim, spine) ->
-    let (arg_sort, ret_sort, prim_eff) = Typecheck.prim_signature prim in
-    if not (in_pfeff prim_eff eff) then
+    let rf = rprim_signature prim in
+    if not (in_pfeff rf.eff eff) then
       Error (Format.asprintf "prim effect mismatch")
     else
-      let rf = {
-        RFunType.domain = [ProofSort.Comp { var = Var.of_string "_a" SourcePos.dummy; sort = arg_sort; eff = prim_eff }];
-        codomain = [ProofSort.Comp { var = Var.of_string "_r" SourcePos.dummy; sort = ret_sort; eff = prim_eff }];
-        eff = prim_eff;
-      } in
       check_spine rs delta eff spine rf
 
   | RefinedExpr.COpenTake rpf ->

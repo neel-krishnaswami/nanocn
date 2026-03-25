@@ -77,6 +77,9 @@ let prim_signature (p : Prim.t) =
   | Set a ->
     let sa = Sort.typ_to_sort a in
     (mk_sort (Sort.Record [mk_sort (Sort.Ptr sa); sa]), unit_sort, Effect.Impure)
+  | Own a ->
+    let sa = Sort.typ_to_sort a in
+    (mk_sort (Sort.Ptr sa), mk_sort (Sort.Pred sa), Effect.Spec)
 
 (** Synthesize: S; G |- [eff0] ce ==> tau *)
 let rec synth sig_ ctx eff0 ce =
@@ -119,10 +122,6 @@ let rec synth sig_ ctx eff0 ce =
     let bool_sort = mk_sort Sort.Bool in
     let* ce' = check sig_ ctx ce bool_sort eff0 in
     Ok (mk ctx pos bool_sort eff0 (CoreExpr.Not ce'))
-
-  | CoreExpr.Own s ->
-    let sort = mk_sort (Sort.Pred s) in
-    Ok (mk ctx pos sort eff0 (CoreExpr.Own (lift_sort s)))
 
   | CoreExpr.App (p, arg) ->
     let* () = match p with

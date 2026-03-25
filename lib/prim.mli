@@ -9,6 +9,7 @@ type t =
   | And | Or | Not
   | Eq of Typ.ty
   | New of Typ.ty | Del of Typ.ty | Get of Typ.ty | Set of Typ.ty
+  | Own of Typ.ty
 
 val compare : t -> t -> int
 val print : Format.formatter -> t -> unit
