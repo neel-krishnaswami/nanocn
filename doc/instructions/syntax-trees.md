@@ -63,3 +63,78 @@
    No transformation on syntax trees should ever lose location information. If you need to invent
    a dummy location, first ask the user. 
 
+5. For mutually-recursive syntax tree types, add additional parameterization. Instead of
+   writing:
+
+   type intexp = 
+      | ILit of int 
+      | Plus of intexp * intexp
+      | Negate of intexp 
+      | Times of intexp 
+      | If of boolexp * intexp * intexp 
+  and boolexp = 
+      | BLit of bool
+      | And of boolexp * boolexp
+      | Not of boolexp * boolexp 
+      | Leq of intexp * intexp 
+
+   Write: 
+
+      type ('int, 'bool) intexpF = 
+         | ILit of int 
+         | Plus of 'int * 'int
+         | Negate of 'int 
+         | Times of 'int 
+         | If of 'bool * 'int * 'int 
+   
+      type ('int, 'bool) boolexpF = 
+         | BLit of bool
+         | And of 'bool * 'bool
+         | Not of 'bool
+         | Leq of 'int * 'int 
+
+     Construct mapping operations for this as follows: 
+   
+       type ('int1, 'int2, 'bool1, 'bool2) mapper = {
+         intexp : 'int1 -> 'int2; 
+         boolexp : 'bool1 -> 'bool2; 
+       }
+   
+     let default : ('a, 'a, 'b, 'b, 'c, 'c) mapper = 
+       let id x = x in
+       {intexp = id; boolexp = id; info = id}
+
+     let map_intexpf map = function 
+       | ILit n -> ILit n 
+       | Plus (i1, i2) -> Plus(map.intexp i1, map.intexp i2)
+       | Negate i -> Negate (map.intexp i)
+       | Times (i1, i2) -> Times(map.intexp i1, map.intexp i2)
+       | If(b, i1, i2) -> If(map.boolexp b, map.intexp i1, map.intexp i2)
+
+     let map_boolexpF map = function
+         | BLit b -> BLit b 
+         | And(b1, b2) -> And(map.boolexp b1, map.boolexp b2)
+         | Not b -> Not (map.boolexp b)
+         | Leq(i1, i2) -> Leq(map.
+
+  Tie the knot with a mutually recursive fixed point: 
+
+    type 'info intexp = In of 'info * ('info intexp, 'info boolexp) intexpF
+    and 'info boolexp = In of 'info * ('info intexp, 'info boolexp) boolexpF
+
+  Now, if we wanted to negate every boolean literal in a program, we could do so as follows: 
+
+  let rec negate_boolexp (In(info, shape)) =
+     let map = {intexp = negate_intexp; boolexp = negate_boolexp} in
+     match shape with 
+     | BLit b -> In(info, BLit (not b))
+     | shape  -> In(info, map_boolexp shape)
+  and negate_intexp (In(info, shape)) = 
+    let map = {intexp = negate_intexp; boolexp = negate_boolexp} in
+    In(info, map_intexp map shape)
+
+
+     
+ 
+
+
