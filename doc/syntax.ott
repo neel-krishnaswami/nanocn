@@ -299,9 +299,6 @@ q :: 'RPat_' ::=                                     {{ com refined patterns }}
   | ( x , q )                       :: :: Cons
 
 crt :: 'CRT_' ::=                                    {{ com core refined terms }}
-  | x                               :: :: Var
-  | lit                              :: :: IntLit      {{ com integer literal }}
-  | blit                             :: :: BoolLit     {{ com boolean literal }}
   | let q = crt1 ; crt2            :: :: Let
   | crt : Pf                        :: :: Annot
   | prim rsp                        :: :: PrimApp

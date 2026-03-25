@@ -1,0 +1,3 @@
+// A trivial refined program: annotated tuple with an int
+main : x : int [pure] [pure] =
+  (42) : x : int [pure]

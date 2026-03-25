@@ -41,6 +41,9 @@ val map : ('b -> 'c) -> 'b t -> 'c t
 (** Concrete located core expression. *)
 type ce = < loc : SourcePos.t > t
 
+val subst : Var.t -> ce -> ce -> ce
+(** [subst x e e'] is [e'/x]e — capture-avoiding substitution. *)
+
 val print : Format.formatter -> _ t -> unit
 val json : ('b -> Json.t) -> 'b t -> Json.t
 

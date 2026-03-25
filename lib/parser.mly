@@ -53,6 +53,7 @@
 %token LBRACKET RBRACKET LPAREN RPAREN LBRACE RBRACE
 %token LESS LESSEQ GREATER GREATEREQ
 %token COMMA SEMICOLON EQUAL COLON ARROW BAR
+%token EXFALSO AUTO UNFOLD OPEN_RET OPEN_TAKE MAKE_RET MAKE_TAKE LOG RES FORALL AT TILDEARROW
 %token EOF
 
 %start <SurfExpr.se> program
@@ -60,6 +61,7 @@
 %start <(SurfExpr.se, SourcePos.t) Prog.t> prog_eof
 %start <(SurfExpr.se, SourcePos.t) Prog.decl> repl_decl
 %start <Var.t * SurfExpr.se> repl_let
+%start <RProg.parsed> rprog_eof
 
 %%
 
@@ -323,3 +325,168 @@ simple_expr:
     { e }
   | LPAREN; e = expr; COMMA; es = separated_nonempty_list(COMMA, expr); RPAREN
     { mk_surfexpr $startpos $endpos (SurfExpr.Tuple (e :: es)) }
+
+(* ===== Refined programs ===== *)
+
+rprog_eof:
+  | ds = list(rdecl); MAIN; COLON; pf = pf_sort; LBRACKET; eff = effect; RBRACKET; EQUAL; e = crt_expr; EOF
+    { RProg.{ decls = ds; main_pf = pf; main_eff = eff; main_body = e;
+              loc = mk_loc $startpos $endpos } }
+
+rdecl:
+  | FUN; f = ident_var; LPAREN; x = ident_var; COLON; a = sort; RPAREN; ARROW; b = sort; LBRACKET; eff = effect; RBRACKET; EQUAL; body = expr
+    { RProg.FunDecl { name = f; param = x; arg_sort = a; ret_sort = b; eff;
+                       body; loc = mk_loc $startpos $endpos } }
+  | FUN; f = ident_var; LPAREN; pf1 = pf_sort; RPAREN; TILDEARROW; pf2 = pf_sort; LBRACKET; eff = effect; RBRACKET; EQUAL; e = crt_expr
+    { RProg.RFunDecl { name = f; domain = pf1; codomain = pf2; eff;
+                        body = e; loc = mk_loc $startpos $endpos } }
+  | SORT; d = IDENT; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
+    { let decl = DsortDecl.({
+        name = dsort d;
+        params = List.map Tvar.of_string params;
+        ctors = cs;
+        loc = mk_loc $startpos $endpos;
+      }) in
+      RProg.SortDecl (DsortDecl.resolve_tvars decl) }
+  | SORT; d = IDENT; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
+    { RProg.SortDecl DsortDecl.({
+        name = dsort d;
+        params = [];
+        ctors = cs;
+        loc = mk_loc $startpos $endpos;
+      }) }
+  | TYPE; d = IDENT; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
+    { let decl = DtypeDecl.({
+        name = dsort d;
+        params = List.map Tvar.of_string params;
+        ctors = cs;
+        loc = mk_loc $startpos $endpos;
+      }) in
+      RProg.TypeDecl (DtypeDecl.resolve_tvars decl) }
+  | TYPE; d = IDENT; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
+    { RProg.TypeDecl DtypeDecl.({
+        name = dsort d;
+        params = [];
+        ctors = cs;
+        loc = mk_loc $startpos $endpos;
+      }) }
+
+(* ===== Proof sorts ===== *)
+
+pf_sort:
+  | entries = separated_list(COMMA, pf_entry)
+    { entries }
+
+pf_entry:
+  | x = ident_var; COLON; s = sort; LBRACKET; eff = effect; RBRACKET
+    { ProofSort.Comp { var = x; sort = s; eff } }
+  | x = ident_var; COLON; e = simple_expr; LBRACKET; LOG; RBRACKET
+    { ProofSort.Log { var = x; prop = e } }
+  | x = ident_var; COLON; e1 = simple_expr; AT; e2 = simple_expr; LBRACKET; RES; RBRACKET
+    { ProofSort.Res { var = x; pred = e1; value = e2 } }
+
+(* ===== Core refined terms ===== *)
+
+crt_expr:
+  | e = crt_seq_expr; COLON; pf = pf_sort
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CAnnot (e, pf)) }
+  | e = crt_seq_expr
+    { e }
+
+crt_seq_expr:
+  | LET; q = rpat; EQUAL; e1 = crt_expr; SEMICOLON; e2 = crt_seq_expr
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CLet (q, e1, e2)) }
+  | ITER; LBRACKET; ce = expr; RBRACKET; LPAREN; q = rpat; EQUAL; e1 = crt_expr; RPAREN; LBRACE; e2 = crt_expr; RBRACE
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CIter (ce, q, e1, e2)) }
+  | IF; LBRACKET; x = ident_var; RBRACKET; ce = expr; THEN; e1 = crt_expr; ELSE; e2 = crt_seq_expr
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CIf (x, ce, e1, e2)) }
+  | CASE; LBRACKET; y = ident_var; RBRACKET; ce = expr; OF; LBRACE; bs = separated_nonempty_list(BAR, crt_case_branch); RBRACE
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CCase (y, ce, bs)) }
+  | EXFALSO
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) RefinedExpr.CExfalso }
+  | OPEN_TAKE; r = rpf_expr
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.COpenTake r) }
+  | e = crt_app_expr
+    { e }
+
+crt_case_branch:
+  | l = LABEL; x = ident_var; ARROW; e = crt_expr
+    { (label l, x, e) }
+
+crt_app_expr:
+  | p = state_prim; LBRACKET; t = typ; RBRACKET; sp = spine_expr
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CPrimApp (p t, sp)) }
+  | f = ident_var; sp = spine_expr
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CCall (f, sp)) }
+  | sp = spine_expr
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CTuple sp) }
+  | e = crt_simple_expr
+    { e }
+
+crt_simple_expr:
+  | LPAREN; RPAREN
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CTuple (RefinedExpr.mk_spine (loc_obj $startpos $endpos) RefinedExpr.SNil)) }
+
+(* ===== Refined patterns ===== *)
+
+rpat:
+  | LPAREN; RPAREN
+    { [] }
+  | LPAREN; xs = separated_nonempty_list(COMMA, ident_var); RPAREN
+    { xs }
+  | x = ident_var
+    { [x] }
+
+(* ===== Spine expressions ===== *)
+
+spine_expr:
+  | LPAREN; args = separated_list(COMMA, spine_arg); RPAREN
+    { let loc = loc_obj $startpos $endpos in
+      List.fold_right (fun arg sp ->
+        match arg with
+        | `Core ce -> RefinedExpr.mk_spine loc (RefinedExpr.SCore (ce, sp))
+        | `Log lpf -> RefinedExpr.mk_spine loc (RefinedExpr.SLog (lpf, sp))
+        | `Res rpf -> RefinedExpr.mk_spine loc (RefinedExpr.SRes (rpf, sp)))
+        args (RefinedExpr.mk_spine loc RefinedExpr.SNil) }
+
+spine_arg:
+  | LOG; l = lpf_expr
+    { `Log l }
+  | RES; r = rpf_expr
+    { `Res r }
+  | e = expr
+    { `Core e }
+
+(* ===== Logical proof facts ===== *)
+
+lpf_expr:
+  | l = lpf_atom_expr; COLON; ce = expr
+    { RefinedExpr.mk_lpf (loc_obj $startpos $endpos) (RefinedExpr.LAnnot (l, ce)) }
+  | l = lpf_atom_expr
+    { l }
+
+lpf_atom_expr:
+  | x = ident_var
+    { RefinedExpr.mk_lpf (loc_obj $startpos $endpos) (RefinedExpr.LVar x) }
+  | AUTO
+    { RefinedExpr.mk_lpf (loc_obj $startpos $endpos) RefinedExpr.LAuto }
+  | UNFOLD; f = ident_var; LPAREN; ce = expr; RPAREN
+    { RefinedExpr.mk_lpf (loc_obj $startpos $endpos) (RefinedExpr.LUnfold (f, ce)) }
+  | OPEN_RET; r = rpf_expr
+    { RefinedExpr.mk_lpf (loc_obj $startpos $endpos) (RefinedExpr.LOpenRet r) }
+
+(* ===== Resource proof facts ===== *)
+
+rpf_expr:
+  | r = rpf_atom_expr; COLON; e1 = simple_expr; AT; e2 = simple_expr
+    { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RAnnot (r, e1, e2)) }
+  | r = rpf_atom_expr
+    { r }
+
+rpf_atom_expr:
+  | x = ident_var
+    { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RVar x) }
+  | MAKE_RET; l = lpf_expr
+    { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RMakeRet l) }
+  | MAKE_TAKE; e = crt_expr
+    { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RMakeTake e) }

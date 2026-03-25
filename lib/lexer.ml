@@ -19,6 +19,7 @@ let digit = [%sedlex.regexp? '0' .. '9']
 let lower = [%sedlex.regexp? 'a' .. 'z']
 let upper = [%sedlex.regexp? 'A' .. 'Z']
 let ident_rest = [%sedlex.regexp? lower | upper | digit | '_' | '\'']
+let hyphenated_ident = [%sedlex.regexp? lower, Star ident_rest, '-', lower, Star ident_rest]
 let ident = [%sedlex.regexp? lower, Star ident_rest]
 let label = [%sedlex.regexp? upper, Plus ident_rest]
 let integer = [%sedlex.regexp? Plus digit]
@@ -50,6 +51,12 @@ let keyword_or_ident s =
   | "pred" -> Parser.PRED
   | "of" -> Parser.OF
   | "type" -> Parser.TYPE
+  | "exfalso" -> Parser.EXFALSO
+  | "auto" -> Parser.AUTO
+  | "unfold" -> Parser.UNFOLD
+  | "log" -> Parser.LOG
+  | "res" -> Parser.RES
+  | "forall" -> Parser.FORALL
   | _ -> Parser.IDENT s
 
 let keyword_or_label s =
@@ -68,6 +75,13 @@ let rec token buf =
   | newline -> token buf
   | "//" , Star (Compl '\n') -> token buf
   | integer -> Parser.INT_LIT (int_of_string (Sedlexing.Utf8.lexeme buf))
+  | hyphenated_ident ->
+    (match Sedlexing.Utf8.lexeme buf with
+     | "open-ret" -> Parser.OPEN_RET
+     | "open-take" -> Parser.OPEN_TAKE
+     | "make-ret" -> Parser.MAKE_RET
+     | "make-take" -> Parser.MAKE_TAKE
+     | s -> failwith (Format.asprintf "unexpected hyphenated identifier '%s' at %a" s SourcePos.print (pos_of_lexbuf buf)))
   | ident -> keyword_or_ident (Sedlexing.Utf8.lexeme buf)
   | label -> keyword_or_label (Sedlexing.Utf8.lexeme buf)
   | '[' -> Parser.LBRACKET
@@ -85,6 +99,7 @@ let rec token buf =
   | "==" -> Parser.EQEQ
   | '=' -> Parser.EQUAL
   | ':' -> Parser.COLON
+  | "~>" -> Parser.TILDEARROW
   | "->" -> Parser.ARROW
   | "||" -> Parser.BARBAR
   | "&&" -> Parser.AMPAMP
@@ -93,5 +108,6 @@ let rec token buf =
   | '-' -> Parser.MINUS
   | '*' -> Parser.STAR
   | '/' -> Parser.SLASH
+  | '@' -> Parser.AT
   | eof -> Parser.EOF
   | _ -> failwith (Format.asprintf "unexpected character at %a" SourcePos.print (pos_of_lexbuf buf))

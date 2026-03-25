@@ -5,11 +5,12 @@ let help () =
     Usage: nanocn <command>@,\
     @,\
     Commands:@,\
-    @   help                   Show this help message@,\
-    @   check <file.cn>        Typecheck a program@,\
-    @   check --toplevel       Start interactive toplevel@,\
-    @   elaborate <file.cn>    Elaborate surface syntax and print core syntax@,\
-    @   json <file.cn>         Typecheck and output core AST as JSON@]@."
+    @   help                       Show this help message@,\
+    @   check <file.cn>            Typecheck a program@,\
+    @   check --toplevel           Start interactive toplevel@,\
+    @   check-refined <file.rcn>   Typecheck a refined program@,\
+    @   elaborate <file.cn>        Elaborate surface syntax and print core syntax@,\
+    @   json <file.cn>             Typecheck and output core AST as JSON@]@."
 
 let usage () =
   Format.eprintf "Usage: nanocn <command> (try 'nanocn help')@.";
@@ -109,12 +110,13 @@ let toplevel () =
        | Error msg ->
          Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
          loop sig_ ctx
-       | Ok (core_e, sort, eff) ->
+       | Ok (core_e, sort) ->
          match Typecheck.synth sig_ ctx Effect.Impure core_e with
          | Error msg ->
            Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
            loop sig_ ctx
          | Ok _te ->
+           let eff = Effect.Impure in
            let ctx' = Context.extend x sort (Effect.purify eff) ctx in
            Format.printf "%a : %a [%a]@." Var.print x Sort.print sort Effect.print eff;
            loop sig_ ctx')
@@ -131,8 +133,8 @@ let toplevel () =
        | Error msg ->
          Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
          loop sig_ ctx
-       | Ok (_core_e, sort, eff) ->
-         Format.printf "_ : %a [%a]@." Sort.print sort Effect.print eff;
+       | Ok (_core_e, sort) ->
+         Format.printf "_ : %a [impure]@." Sort.print sort;
          loop sig_ ctx)
   in
   loop Typecheck.initial_sig Context.empty
@@ -182,11 +184,32 @@ let json_file filename =
       let j = Prog.json_core_prog (CoreExpr.json jb) cprog in
       Format.printf "%a@." Json.print j
 
+let check_refined_file filename =
+  let input =
+    let ic = In_channel.open_text filename in
+    let s = In_channel.input_all ic in
+    In_channel.close ic;
+    s
+  in
+  match Parse.parse_rprog input ~file:filename with
+  | Error msg ->
+    Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
+    exit 1
+  | Ok rprog ->
+    match RCheck.check_rprog rprog with
+    | Ok (_rsig, ct) ->
+      Format.printf "OK@.";
+      Format.printf "@[<v>Constraint:@ %a@]@." Constraint.print ct
+    | Error msg ->
+      Format.eprintf "@[<v>Type error:@ %s@]@." msg;
+      exit 1
+
 let () =
   match Sys.argv with
   | [| _; "help" |] -> help ()
   | [| _; "check"; "--toplevel" |] -> toplevel ()
   | [| _; "check"; file |] -> check_file file
+  | [| _; "check-refined"; file |] -> check_refined_file file
   | [| _; "elaborate"; file |] -> elaborate_file file
   | [| _; "json"; file |] -> json_file file
   | _ -> usage ()

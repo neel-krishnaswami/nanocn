@@ -21,6 +21,16 @@ let qcheck_tests =
     SurfExpr.Test.test;
     ElabM.Test.test;
     Json.Test.test;
+    Usage.Test.test;
+    Constraint.Test.test;
+    RCtx.Test.test;
+    ProofSort.Test.test;
+    RFunType.Test.test;
+    RPat.Test.test;
+    RefinedExpr.Test.test;
+    RSig.Test.test;
+    RProg.Test.test;
+    RCheck.Test.test;
   ]
 
 (** Helper to extract sort from a typed core expr *)
@@ -32,7 +42,7 @@ let ctx_of te = (CoreExpr.info te)#ctx
 let elab_synth sig_ ctx eff se =
   match ElabM.run (Elaborate.synth sig_ ctx eff se) with
   | Error msg -> Error msg
-  | Ok (core_e, _sort, _eff) -> Typecheck.synth sig_ ctx eff core_e
+  | Ok (core_e, _sort) -> Typecheck.synth sig_ ctx eff core_e
 
 (** Helper: elaborate a surface expr then check *)
 let elab_check sig_ ctx se sort eff =
@@ -40,7 +50,7 @@ let elab_check sig_ ctx se sort eff =
   | Error msg -> Error msg
   | Ok core_e ->
     match Typecheck.check sig_ ctx core_e sort eff with
-    | Ok (ce, _eff) -> Ok ce
+    | Ok ce -> Ok ce
     | Error msg -> Error msg
 
 let () =
@@ -962,7 +972,7 @@ let () =
                                        mk (CoreExpr.Var x))) in
          match Typecheck.check sig_ Context.empty ce int_sort Effect.Spec with
          | Error msg -> Alcotest.fail msg
-         | Ok (tce, _eff) ->
+         | Ok tce ->
            (* The outer node has empty context *)
            if Context.lookup x (ctx_of_ tce) <> None then
              Alcotest.fail "outer ctx should not have x";

@@ -14,3 +14,6 @@ val parse_decl : string -> file:string -> ((SurfExpr.se, SourcePos.t) Prog.decl,
 
 val parse_let : string -> file:string -> (Var.t * SurfExpr.se, string) result
 (** [parse_let s ~file] parses a let-binding (without body). *)
+
+val parse_rprog : string -> file:string -> (RProg.parsed, string) result
+(** [parse_rprog s ~file] parses a refined program. *)

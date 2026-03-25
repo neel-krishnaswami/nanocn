@@ -20,3 +20,4 @@ let parse_sort s ~file = parse_with Parser.sort_eof s ~file
 let parse_prog s ~file = parse_with Parser.prog_eof s ~file
 let parse_decl s ~file = parse_with Parser.repl_decl s ~file
 let parse_let s ~file = parse_with Parser.repl_let s ~file
+let parse_rprog s ~file = parse_with Parser.rprog_eof s ~file
