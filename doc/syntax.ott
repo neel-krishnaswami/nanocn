@@ -253,6 +253,7 @@ formula :: 'formula_' ::=
   | f : tau -> tau' [ eff ] = ce in RS   :: :: fundef_in_rs {{ tex [[f]]([[x]] : [[tau]]) \to_{[[eff]]} [[tau']] = [[ce]] \in [[RS]] }}
   | len Delta = len Delta'               :: :: rctx_len_eq {{ tex \mathsf{len}([[Delta]]) = \mathsf{len}([[Delta']]) }}
   | A = prod AL                          :: :: prod         {{ tex [[A]] = \mathsf{Prod}([[AL]]) }}
+  | prim : RF                              :: :: prim_rf      {{ tex [[prim]] \mathord{:} [[RF]] }}
 
 
 % ===== Refinement types grammar =====
