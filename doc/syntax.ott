@@ -84,6 +84,8 @@ RS {{ tex \Sigma_r }} :: 'RSig_' ::=                            {{ com refined s
   | RS , f : F                          :: :: Ext
   | RS , fun f ( x : tau ) -> tau' [ eff ] = ce   :: :: FunDef  {{ tex [[RS]], \mathsf{fun}\;[[f]]([[x]] : [[tau]]) \to_{[[eff]]} [[tau']] = [[ce]] }}
   | RS , f : RF                         :: :: RFun
+  | RS , sort D ( a1 , .. , ai ) = { L1 : tau1 '|' .. '|' Ln : taun }  :: :: Sort  {{ tex [[RS]], \mathsf{sort}\;[[D]](\overline{a}) = \{\overline{L : \tau}\} }}
+  | RS , type D ( a1 , .. , ai ) = { L1 : A1 '|' .. '|' Ln : An }  :: :: Type  {{ tex [[RS]], \mathsf{type}\;[[D]](\overline{a}) = \{\overline{L : A}\} }}
 
 Phi {{ tex \Phi }} :: 'TVCtx_' ::=                             {{ com type variable contexts }}
   | notvs                              :: :: Empty          {{ tex \cdot }}
@@ -169,6 +171,13 @@ cprog :: 'CProg_' ::=                                      {{ com core programs 
   | sort D ( a1 , .. , ai ) = { L1 : tau1 '|' .. '|' Ln : taun } cprog   :: :: SortDecl
   | type D ( a1 , .. , ai ) = { L1 : A1 '|' .. '|' Ln : An } cprog     :: :: TypeDecl
   | main : tau [ eff ] = ce                    :: :: Main   {{ tex \mathsf{main} : [[tau]]_{[[eff]]} = [[ce]] }}
+
+rprog :: 'RProg_' ::=                                      {{ com refined programs }}
+  | sort D ( a1 , .. , ai ) = { L1 : tau1 '|' .. '|' Ln : taun } rprog   :: :: SortDecl
+  | type D ( a1 , .. , ai ) = { L1 : A1 '|' .. '|' Ln : An } rprog     :: :: TypeDecl
+  | fun f ( x : tau ) -> tau' [ eff ] = ce rprog   :: :: FunDecl   {{ tex \mathsf{fun}\;[[f]]([[x]] : [[tau]]) \to_{[[eff]]} [[tau']] = [[ce]] \quad \ottnt{rprog} }}
+  | fun f ( Pf1 ) -> Pf2 [ eff ] = crt rprog   :: :: RFunDecl   {{ tex \mathsf{fun}\;[[f]]([[Pf1]]) \to_{[[eff]]} [[Pf2]] = [[crt]] \quad \ottnt{rprog} }}
+  | main : Pf [ eff ] = crt                    :: :: Main   {{ tex \mathsf{main} : [[Pf]]_{[[eff]]} = [[crt]] }}
 
 
 % ===== Pattern Matching Infrastructure =====
@@ -1200,6 +1209,29 @@ defns Jrefine :: '' ::=
 
 
 % -----------------------------------------------------------------------------
+% Proof sort to context
+% -----------------------------------------------------------------------------
+
+  defn Delta = pf_to_ctx Delta' Pf :: :: pf_to_ctx :: 'PfCtx_'
+  {{ tex [[Delta]] = \mathsf{PfToCtx}([[Delta']]; [[Pf]]) }} by
+
+    ----------------------------------- :: nil
+    Delta = pf_to_ctx Delta pfnil
+
+    Delta = pf_to_ctx Delta' , x : tau [ eff ] Pf
+    --------------------------------------------------- :: comp
+    Delta = pf_to_ctx Delta' x : tau [ eff ] , Pf
+
+    Delta = pf_to_ctx Delta' , x : ce [ log ] Pf
+    --------------------------------------------------- :: log
+    Delta = pf_to_ctx Delta' x : ce [ log ] , Pf
+
+    Delta = pf_to_ctx Delta' , x : ce @ ce' [ res ( avail ) ] Pf
+    ----------------------------------------------------------------- :: res
+    Delta = pf_to_ctx Delta' x : ce @ ce' [ res ] , Pf
+
+
+% -----------------------------------------------------------------------------
 % Refined signature erasure
 % -----------------------------------------------------------------------------
 
@@ -1220,6 +1252,14 @@ defns Jrefine :: '' ::=
     CS = comp RS    AL1 = pf_types Pf1    A = prod AL1    AL2 = pf_types Pf2    B = prod AL2
     -------------------------------------------------------------------------------------- :: rfun
     CS , f : A -> B [ eff ] = comp RS , f : Pf1 -o Pf2 [ eff ]
+
+    CS = comp RS
+    -------------------------------------------------------------------------------------- :: sort
+    CS , sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } = comp RS , sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun }
+
+    CS = comp RS
+    -------------------------------------------------------------------------------------- :: type
+    CS , type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } = comp RS , type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An }
 
 
 % -----------------------------------------------------------------------------
@@ -1555,6 +1595,64 @@ defns Jrefine :: '' ::=
     RS ; Delta' |- [ eff ] rsp t: Pf -| Delta'' ~~> Ct'
     ------------------------------------------------------------- :: res
     RS ; Delta |- [ eff ] rpf , rsp t: x : ce @ ce' [ res ] , Pf -| Delta'' ~~> Ct cand Ct'
+
+
+% -----------------------------------------------------------------------------
+% Refined program typing
+% -----------------------------------------------------------------------------
+
+  defn RS |- rprog -| RS' ~~> Ct :: :: rprog :: 'RProg_'
+  {{ tex [[RS]] \vdash [[rprog]] \dashv [[RS']] \leadsto [[Ct]] }} by
+
+    RS ; rempty |- [ eff ] crt r<== Pf -| Delta' ~~> Ct
+    ------------------------------------------------------- :: main
+    RS |- main : Pf [ eff ] = crt -| RS ~~> Ct
+
+    CS = comp RS    CS |- sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } sort_ok
+    RS , sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } |- rprog -| RS' ~~> Ct
+    -------------------------------------------------------------------------------------- :: sortdecl
+    RS |- sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } rprog -| RS' ~~> Ct
+
+    CS = comp RS    CS |- type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } type_ok
+    RS , type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } |- rprog -| RS' ~~> Ct
+    -------------------------------------------------------------------------------------- :: typedecl
+    RS |- type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } rprog -| RS' ~~> Ct
+
+    CS = comp RS    CS ; empty , x : A [ pure ] |- [ pure ] ce <== B
+    RS , fun f ( x : A ) -> B [ pure ] = ce |- rprog -| RS' ~~> Ct
+    --------------------------------------------------------------------------- :: purefun
+    RS |- fun f ( x : A ) -> B [ pure ] = ce rprog -| RS' ~~> Ct
+
+    CS = comp RS    CS , f : A -> B [ impure ] ; empty , x : A [ pure ] |- [ impure ] ce <== B
+    RS , f : A -> B [ impure ] |- rprog -| RS' ~~> Ct
+    ------------------------------------------------------------------------------------------------- :: impurefun
+    RS |- fun f ( x : A ) -> B [ impure ] = ce rprog -| RS' ~~> Ct
+
+    CS = comp RS    CS , f : tau -> tau' [ spec ] ; empty , x : tau [ spec ] |- [ spec ] ce <== tau'
+    RS , fun f ( x : tau ) -> tau' [ spec ] = ce |- rprog -| RS' ~~> Ct
+    ------------------------------------------------------------------------------------------------- :: specfun
+    RS |- fun f ( x : tau ) -> tau' [ spec ] = ce rprog -| RS' ~~> Ct
+
+    RS |- Pf1 -o Pf2 [ pure ] rfwf
+    Delta = pf_to_ctx rempty Pf1
+    RS ; Delta |- [ pure ] crt r<== Pf2 -| Delta' ~~> Ct
+    RS , f : Pf1 -o Pf2 [ pure ] |- rprog -| RS' ~~> Ct'
+    --------------------------------------------------------------------------- :: purerefined
+    RS |- fun f ( Pf1 ) -> Pf2 [ pure ] = crt rprog -| RS' ~~> Ct cand Ct'
+
+    RS |- Pf1 -o Pf2 [ impure ] rfwf
+    Delta = pf_to_ctx rempty Pf1
+    RS , f : Pf1 -o Pf2 [ impure ] ; Delta |- [ impure ] crt r<== Pf2 -| Delta' ~~> Ct
+    RS , f : Pf1 -o Pf2 [ impure ] |- rprog -| RS' ~~> Ct'
+    --------------------------------------------------------------------------- :: impurerefined
+    RS |- fun f ( Pf1 ) -> Pf2 [ impure ] = crt rprog -| RS' ~~> Ct cand Ct'
+
+    RS |- Pf1 -o Pf2 [ spec ] rfwf
+    Delta = pf_to_ctx rempty Pf1
+    RS , f : Pf1 -o Pf2 [ spec ] ; Delta |- [ spec ] crt r<== Pf2 -| Delta' ~~> Ct
+    RS , f : Pf1 -o Pf2 [ spec ] |- rprog -| RS' ~~> Ct'
+    --------------------------------------------------------------------------- :: specrefined
+    RS |- fun f ( Pf1 ) -> Pf2 [ spec ] = crt rprog -| RS' ~~> Ct cand Ct'
 
 
 % -----------------------------------------------------------------------------

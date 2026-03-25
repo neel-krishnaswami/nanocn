@@ -125,7 +125,9 @@
 \ottfirstprodline{|}{ \cdot }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\Sigma_r  \ottsym{,}  \ottmv{f}  \ottsym{:}  \ottnt{F}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_r , \mathsf{fun}\; \ottmv{f} ( \ottmv{x}  :  \tau ) \to_{ \ottnt{eff} }  \tau'  =  \ottnt{ce} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{\Sigma_r  \ottsym{,}  \ottmv{f}  \ottsym{:}  \ottnt{RF}}{}{}{}{}}
+\ottprodline{|}{\Sigma_r  \ottsym{,}  \ottmv{f}  \ottsym{:}  \ottnt{RF}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \Sigma_r , \mathsf{sort}\; \ottmv{D} (\overline{a}) = \{\overline{L : \tau}\} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \Sigma_r , \mathsf{type}\; \ottmv{D} (\overline{a}) = \{\overline{L : A}\} }{}{}{}{}}
 
 \newcommand{\ottPhi}{
 \ottrulehead{\Phi}{::=}{\ottcom{type variable contexts}}\ottprodnewline
@@ -205,6 +207,14 @@
 \ottprodline{|}{\ottkw{sort} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{i}}}  \ottsym{)}  \ottsym{=}  \ottsym{\{}  \ottmv{L_{{\mathrm{1}}}}  \ottsym{:}  \tau_{{\mathrm{1}}}  \ottsym{\mbox{$\mid$}} \, .. \, \ottsym{\mbox{$\mid$}}  \ottmv{L_{\ottmv{n}}}  \ottsym{:}  \tau_{\ottmv{n}}  \ottsym{\}}  \ottnt{cprog}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{type} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{i}}}  \ottsym{)}  \ottsym{=}  \ottsym{\{}  \ottmv{L_{{\mathrm{1}}}}  \ottsym{:}  \ottnt{A_{{\mathrm{1}}}}  \ottsym{\mbox{$\mid$}} \, .. \, \ottsym{\mbox{$\mid$}}  \ottmv{L_{\ottmv{n}}}  \ottsym{:}  \ottnt{A_{\ottmv{n}}}  \ottsym{\}}  \ottnt{cprog}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{main} :  \tau _{ \ottnt{eff} } =  \ottnt{ce} }{}{}{}{}}
+
+\newcommand{\ottrprog}{
+\ottrulehead{\ottnt{rprog}}{::=}{\ottcom{refined programs}}\ottprodnewline
+\ottfirstprodline{|}{\ottkw{sort} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{i}}}  \ottsym{)}  \ottsym{=}  \ottsym{\{}  \ottmv{L_{{\mathrm{1}}}}  \ottsym{:}  \tau_{{\mathrm{1}}}  \ottsym{\mbox{$\mid$}} \, .. \, \ottsym{\mbox{$\mid$}}  \ottmv{L_{\ottmv{n}}}  \ottsym{:}  \tau_{\ottmv{n}}  \ottsym{\}}  \ottnt{rprog}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottkw{type} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{i}}}  \ottsym{)}  \ottsym{=}  \ottsym{\{}  \ottmv{L_{{\mathrm{1}}}}  \ottsym{:}  \ottnt{A_{{\mathrm{1}}}}  \ottsym{\mbox{$\mid$}} \, .. \, \ottsym{\mbox{$\mid$}}  \ottmv{L_{\ottmv{n}}}  \ottsym{:}  \ottnt{A_{\ottmv{n}}}  \ottsym{\}}  \ottnt{rprog}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{fun}\; \ottmv{f} ( \ottmv{x}  :  \tau ) \to_{ \ottnt{eff} }  \tau'  =  \ottnt{ce}  \quad \ottnt{rprog} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{fun}\; \ottmv{f} ( \ottnt{Pf_{{\mathrm{1}}}} ) \to_{ \ottnt{eff} }  \ottnt{Pf_{{\mathrm{2}}}}  =  \ottnt{crt}  \quad \ottnt{rprog} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{main} :  \ottnt{Pf} _{ \ottnt{eff} } =  \ottnt{crt} }{}{}{}{}}
 
 \newcommand{\ottpat}{
 \ottrulehead{\ottnt{pat}}{::=}{\ottcom{patterns}}\ottprodnewline
@@ -418,6 +428,7 @@
 \ottprodline{|}{ \Sigma_r  \vdash  \ottnt{RF}  \;\mathsf{wf} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_r  \vdash  \ottmv{f}  \mathord{:}  \ottnt{RF} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \overline{A}  = \{ \ottnt{Pf} \} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \Delta  = \mathsf{PfToCtx}( \Delta' ;  \ottnt{Pf} ) }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_c  = \mathsf{Comp}( \Sigma_r ) }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \vdash  \Sigma_r  \;\mathsf{wf} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_r  ;  \Delta  \vdash  \ottnt{lpf}  \Rightarrow  \ottnt{ce}  \dashv  \Delta'  \leadsto  \mathcal{C} }{}{}{}{}\ottprodnewline
@@ -433,6 +444,7 @@
 \ottprodline{|}{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{crt}  \Leftarrow  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :  \ottnt{RF}  \gg  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \Sigma_r  \vdash  \ottnt{rprog}  \dashv  \Sigma_r'  \leadsto  \mathcal{C} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_r  \vdash \sqcap  \overline{\Delta}  =  \Delta }{}{}{}{}}
 
 \newcommand{\ottjudgement}{
@@ -469,6 +481,7 @@
 \ottprodline{|}{\ottnt{se}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{prog}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{cprog}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{rprog}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{pat}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\beta}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\mathcal{E}}{}{}{}{}\ottprodnewline
@@ -505,6 +518,7 @@
 \ottse\ottinterrule
 \ottprog\ottinterrule
 \ottcprog\ottinterrule
+\ottrprog\ottinterrule
 \ottpat\ottinterrule
 \ottbinds\ottinterrule
 \ottE\ottinterrule
@@ -2140,6 +2154,44 @@
 \ottusedrule{\ottdrulePfTysXXres{}}
 \end{ottdefnblock}}
 
+%% defn pf_to_ctx
+\newcommand{\ottdrulePfCtxXXnil}[1]{\ottdrule[#1]{%
+}{
+ \Delta  = \mathsf{PfToCtx}( \Delta ;   \cdot  ) }{%
+{\ottdrulename{PfCtx\_nil}}{}%
+}}
+
+
+\newcommand{\ottdrulePfCtxXXcomp}[1]{\ottdrule[#1]{%
+\ottpremise{ \Delta  = \mathsf{PfToCtx}(  \Delta' ,  \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau  ;  \ottnt{Pf} ) }%
+}{
+ \Delta  = \mathsf{PfToCtx}( \Delta' ;   \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau ,  \ottnt{Pf}  ) }{%
+{\ottdrulename{PfCtx\_comp}}{}%
+}}
+
+
+\newcommand{\ottdrulePfCtxXXlog}[1]{\ottdrule[#1]{%
+\ottpremise{ \Delta  = \mathsf{PfToCtx}(  \Delta' ,  \ottmv{x}  \mathord{:}  \ottnt{ce}  \; [\mathsf{log}]  ;  \ottnt{Pf} ) }%
+}{
+ \Delta  = \mathsf{PfToCtx}( \Delta' ;   \ottmv{x}  \mathord{:}  \ottnt{ce}  \; [\mathsf{log}],  \ottnt{Pf}  ) }{%
+{\ottdrulename{PfCtx\_log}}{}%
+}}
+
+
+\newcommand{\ottdrulePfCtxXXres}[1]{\ottdrule[#1]{%
+\ottpremise{ \Delta  = \mathsf{PfToCtx}(  \Delta' ,  \ottmv{x}  \mathord{:}  \ottnt{ce}  @  \ottnt{ce'}  \; [\mathsf{res}(  1  )]  ;  \ottnt{Pf} ) }%
+}{
+ \Delta  = \mathsf{PfToCtx}( \Delta' ;   \ottmv{x}  \mathord{:}  \ottnt{ce}  @  \ottnt{ce'}  \; [\mathsf{res}],  \ottnt{Pf}  ) }{%
+{\ottdrulename{PfCtx\_res}}{}%
+}}
+
+\newcommand{\ottdefnpfXXtoXXctx}[1]{\begin{ottdefnblock}[#1]{$ \Delta  = \mathsf{PfToCtx}( \Delta' ;  \ottnt{Pf} ) $}{}
+\ottusedrule{\ottdrulePfCtxXXnil{}}
+\ottusedrule{\ottdrulePfCtxXXcomp{}}
+\ottusedrule{\ottdrulePfCtxXXlog{}}
+\ottusedrule{\ottdrulePfCtxXXres{}}
+\end{ottdefnblock}}
+
 %% defn rsig_erase
 \newcommand{\ottdruleRSEraseXXempty}[1]{\ottdrule[#1]{%
 }{
@@ -2171,11 +2223,29 @@
 {\ottdrulename{RSErase\_rfun}}{}%
 }}
 
+
+\newcommand{\ottdruleRSEraseXXsort}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r ) }%
+}{
+  \Sigma_c , \mathsf{sort}\; \ottmv{D} (\overline{a}) = \{\overline{L : \tau}\}   = \mathsf{Comp}(  \Sigma_r , \mathsf{sort}\; \ottmv{D} (\overline{a}) = \{\overline{L : \tau}\}  ) }{%
+{\ottdrulename{RSErase\_sort}}{}%
+}}
+
+
+\newcommand{\ottdruleRSEraseXXtype}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r ) }%
+}{
+  \Sigma_c , \mathsf{type}\; \ottmv{D} (\overline{a}) = \{\overline{L : A}\}   = \mathsf{Comp}(  \Sigma_r , \mathsf{type}\; \ottmv{D} (\overline{a}) = \{\overline{L : A}\}  ) }{%
+{\ottdrulename{RSErase\_type}}{}%
+}}
+
 \newcommand{\ottdefnrsigXXerase}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_c  = \mathsf{Comp}( \Sigma_r ) $}{}
 \ottusedrule{\ottdruleRSEraseXXempty{}}
 \ottusedrule{\ottdruleRSEraseXXext{}}
 \ottusedrule{\ottdruleRSEraseXXfundef{}}
 \ottusedrule{\ottdruleRSEraseXXrfun{}}
+\ottusedrule{\ottdruleRSEraseXXsort{}}
+\ottusedrule{\ottdruleRSEraseXXtype{}}
 \end{ottdefnblock}}
 
 %% defn rsig_wf
@@ -2692,6 +2762,104 @@
 \ottusedrule{\ottdruleTupXXres{}}
 \end{ottdefnblock}}
 
+%% defn rprog
+\newcommand{\ottdruleRProgXXmain}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_r  ;   \cdot   \vdash_{ \ottnt{eff} }  \ottnt{crt}  \Leftarrow  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }%
+}{
+ \Sigma_r  \vdash   \mathsf{main} :  \ottnt{Pf} _{ \ottnt{eff} } =  \ottnt{crt}   \dashv  \Sigma_r  \leadsto  \mathcal{C} }{%
+{\ottdrulename{RProg\_main}}{}%
+}}
+
+
+\newcommand{\ottdruleRProgXXsortdecl}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  \vdash \mathsf{sort}\;  \ottmv{D} (\overline{a}) = \{\overline{L : \tau}\} \;\mathsf{ok} }%
+\ottpremise{  \Sigma_r , \mathsf{sort}\; \ottmv{D} (\overline{a}) = \{\overline{L : \tau}\}   \vdash  \ottnt{rprog}  \dashv  \Sigma_r'  \leadsto  \mathcal{C} }%
+}{
+ \Sigma_r  \vdash  \ottkw{sort} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{i}}}  \ottsym{)}  \ottsym{=}  \ottsym{\{}  \ottmv{L_{{\mathrm{1}}}}  \ottsym{:}  \tau_{{\mathrm{1}}}  \ottsym{\mbox{$\mid$}} \, .. \, \ottsym{\mbox{$\mid$}}  \ottmv{L_{\ottmv{n}}}  \ottsym{:}  \tau_{\ottmv{n}}  \ottsym{\}}  \ottnt{rprog}  \dashv  \Sigma_r'  \leadsto  \mathcal{C} }{%
+{\ottdrulename{RProg\_sortdecl}}{}%
+}}
+
+
+\newcommand{\ottdruleRProgXXtypedecl}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  \vdash \mathsf{type}\;  \ottmv{D} (\overline{a}) = \{\overline{L : A}\} \;\mathsf{ok} }%
+\ottpremise{  \Sigma_r , \mathsf{type}\; \ottmv{D} (\overline{a}) = \{\overline{L : A}\}   \vdash  \ottnt{rprog}  \dashv  \Sigma_r'  \leadsto  \mathcal{C} }%
+}{
+ \Sigma_r  \vdash  \ottkw{type} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{i}}}  \ottsym{)}  \ottsym{=}  \ottsym{\{}  \ottmv{L_{{\mathrm{1}}}}  \ottsym{:}  \ottnt{A_{{\mathrm{1}}}}  \ottsym{\mbox{$\mid$}} \, .. \, \ottsym{\mbox{$\mid$}}  \ottmv{L_{\ottmv{n}}}  \ottsym{:}  \ottnt{A_{\ottmv{n}}}  \ottsym{\}}  \ottnt{rprog}  \dashv  \Sigma_r'  \leadsto  \mathcal{C} }{%
+{\ottdrulename{RProg\_typedecl}}{}%
+}}
+
+
+\newcommand{\ottdruleRProgXXpurefun}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;    \cdot  ,  \ottmv{x}  \mathord{:}_{  \mathbf{0}  }  \ottnt{A}   \vdash_{  \mathbf{0}  }  \ottnt{ce}  \Leftarrow  \ottnt{B} }%
+\ottpremise{  \Sigma_r , \mathsf{fun}\; \ottmv{f} ( \ottmv{x}  :  \ottnt{A} ) \to_{  \mathbf{0}  }  \ottnt{B}  =  \ottnt{ce}   \vdash  \ottnt{rprog}  \dashv  \Sigma_r'  \leadsto  \mathcal{C} }%
+}{
+ \Sigma_r  \vdash   \mathsf{fun}\; \ottmv{f} ( \ottmv{x}  :  \ottnt{A} ) \to_{  \mathbf{0}  }  \ottnt{B}  =  \ottnt{ce}  \quad \ottnt{rprog}   \dashv  \Sigma_r'  \leadsto  \mathcal{C} }{%
+{\ottdrulename{RProg\_purefun}}{}%
+}}
+
+
+\newcommand{\ottdruleRProgXXimpurefun}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  \ottsym{,}  \ottmv{f}  \ottsym{:}   \ottnt{A}  \to_{  \mathbf{1}  }  \ottnt{B}   ;    \cdot  ,  \ottmv{x}  \mathord{:}_{  \mathbf{0}  }  \ottnt{A}   \vdash_{  \mathbf{1}  }  \ottnt{ce}  \Leftarrow  \ottnt{B} }%
+\ottpremise{ \Sigma_r  \ottsym{,}  \ottmv{f}  \ottsym{:}   \ottnt{A}  \to_{  \mathbf{1}  }  \ottnt{B}   \vdash  \ottnt{rprog}  \dashv  \Sigma_r'  \leadsto  \mathcal{C} }%
+}{
+ \Sigma_r  \vdash   \mathsf{fun}\; \ottmv{f} ( \ottmv{x}  :  \ottnt{A} ) \to_{  \mathbf{1}  }  \ottnt{B}  =  \ottnt{ce}  \quad \ottnt{rprog}   \dashv  \Sigma_r'  \leadsto  \mathcal{C} }{%
+{\ottdrulename{RProg\_impurefun}}{}%
+}}
+
+
+\newcommand{\ottdruleRProgXXspecfun}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  \ottsym{,}  \ottmv{f}  \ottsym{:}   \tau  \to_{  \mathbf{S}  }  \tau'   ;    \cdot  ,  \ottmv{x}  \mathord{:}_{  \mathbf{S}  }  \tau   \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow  \tau' }%
+\ottpremise{  \Sigma_r , \mathsf{fun}\; \ottmv{f} ( \ottmv{x}  :  \tau ) \to_{  \mathbf{S}  }  \tau'  =  \ottnt{ce}   \vdash  \ottnt{rprog}  \dashv  \Sigma_r'  \leadsto  \mathcal{C} }%
+}{
+ \Sigma_r  \vdash   \mathsf{fun}\; \ottmv{f} ( \ottmv{x}  :  \tau ) \to_{  \mathbf{S}  }  \tau'  =  \ottnt{ce}  \quad \ottnt{rprog}   \dashv  \Sigma_r'  \leadsto  \mathcal{C} }{%
+{\ottdrulename{RProg\_specfun}}{}%
+}}
+
+
+\newcommand{\ottdruleRProgXXpurerefined}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_r  \vdash   \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \; \lbrack   \mathbf{0}   \rbrack   \;\mathsf{wf} }%
+\ottpremise{ \Delta  = \mathsf{PfToCtx}(  \cdot  ;  \ottnt{Pf_{{\mathrm{1}}}} ) }%
+\ottpremise{ \Sigma_r  ;  \Delta  \vdash_{  \mathbf{0}  }  \ottnt{crt}  \Leftarrow  \ottnt{Pf_{{\mathrm{2}}}}  \dashv  \Delta'  \leadsto  \mathcal{C} }%
+\ottpremise{ \Sigma_r  \ottsym{,}  \ottmv{f}  \ottsym{:}   \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \; \lbrack   \mathbf{0}   \rbrack   \vdash  \ottnt{rprog}  \dashv  \Sigma_r'  \leadsto  \mathcal{C}' }%
+}{
+ \Sigma_r  \vdash   \mathsf{fun}\; \ottmv{f} ( \ottnt{Pf_{{\mathrm{1}}}} ) \to_{  \mathbf{0}  }  \ottnt{Pf_{{\mathrm{2}}}}  =  \ottnt{crt}  \quad \ottnt{rprog}   \dashv  \Sigma_r'  \leadsto   \mathcal{C}  \wedge  \mathcal{C}'  }{%
+{\ottdrulename{RProg\_purerefined}}{}%
+}}
+
+
+\newcommand{\ottdruleRProgXXimpurerefined}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_r  \vdash   \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \; \lbrack   \mathbf{1}   \rbrack   \;\mathsf{wf} }%
+\ottpremise{ \Delta  = \mathsf{PfToCtx}(  \cdot  ;  \ottnt{Pf_{{\mathrm{1}}}} ) }%
+\ottpremise{ \Sigma_r  \ottsym{,}  \ottmv{f}  \ottsym{:}   \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \; \lbrack   \mathbf{1}   \rbrack   ;  \Delta  \vdash_{  \mathbf{1}  }  \ottnt{crt}  \Leftarrow  \ottnt{Pf_{{\mathrm{2}}}}  \dashv  \Delta'  \leadsto  \mathcal{C} }%
+\ottpremise{ \Sigma_r  \ottsym{,}  \ottmv{f}  \ottsym{:}   \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \; \lbrack   \mathbf{1}   \rbrack   \vdash  \ottnt{rprog}  \dashv  \Sigma_r'  \leadsto  \mathcal{C}' }%
+}{
+ \Sigma_r  \vdash   \mathsf{fun}\; \ottmv{f} ( \ottnt{Pf_{{\mathrm{1}}}} ) \to_{  \mathbf{1}  }  \ottnt{Pf_{{\mathrm{2}}}}  =  \ottnt{crt}  \quad \ottnt{rprog}   \dashv  \Sigma_r'  \leadsto   \mathcal{C}  \wedge  \mathcal{C}'  }{%
+{\ottdrulename{RProg\_impurerefined}}{}%
+}}
+
+
+\newcommand{\ottdruleRProgXXspecrefined}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_r  \vdash   \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \; \lbrack   \mathbf{S}   \rbrack   \;\mathsf{wf} }%
+\ottpremise{ \Delta  = \mathsf{PfToCtx}(  \cdot  ;  \ottnt{Pf_{{\mathrm{1}}}} ) }%
+\ottpremise{ \Sigma_r  \ottsym{,}  \ottmv{f}  \ottsym{:}   \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \; \lbrack   \mathbf{S}   \rbrack   ;  \Delta  \vdash_{  \mathbf{S}  }  \ottnt{crt}  \Leftarrow  \ottnt{Pf_{{\mathrm{2}}}}  \dashv  \Delta'  \leadsto  \mathcal{C} }%
+\ottpremise{ \Sigma_r  \ottsym{,}  \ottmv{f}  \ottsym{:}   \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \; \lbrack   \mathbf{S}   \rbrack   \vdash  \ottnt{rprog}  \dashv  \Sigma_r'  \leadsto  \mathcal{C}' }%
+}{
+ \Sigma_r  \vdash   \mathsf{fun}\; \ottmv{f} ( \ottnt{Pf_{{\mathrm{1}}}} ) \to_{  \mathbf{S}  }  \ottnt{Pf_{{\mathrm{2}}}}  =  \ottnt{crt}  \quad \ottnt{rprog}   \dashv  \Sigma_r'  \leadsto   \mathcal{C}  \wedge  \mathcal{C}'  }{%
+{\ottdrulename{RProg\_specrefined}}{}%
+}}
+
+\newcommand{\ottdefnrprog}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_r  \vdash  \ottnt{rprog}  \dashv  \Sigma_r'  \leadsto  \mathcal{C} $}{}
+\ottusedrule{\ottdruleRProgXXmain{}}
+\ottusedrule{\ottdruleRProgXXsortdecl{}}
+\ottusedrule{\ottdruleRProgXXtypedecl{}}
+\ottusedrule{\ottdruleRProgXXpurefun{}}
+\ottusedrule{\ottdruleRProgXXimpurefun{}}
+\ottusedrule{\ottdruleRProgXXspecfun{}}
+\ottusedrule{\ottdruleRProgXXpurerefined{}}
+\ottusedrule{\ottdruleRProgXXimpurerefined{}}
+\ottusedrule{\ottdruleRProgXXspecrefined{}}
+\end{ottdefnblock}}
+
 %% defn nary_merge
 \newcommand{\ottdruleNMergeXXbase}[1]{\ottdrule[#1]{%
 }{
@@ -2714,7 +2882,7 @@
 
 
 \newcommand{\ottdefnsJrefine}{
-\ottdefnrctxXXwf{}\ottdefnctxXXerase{}\ottdefnaffinize{}\ottdefnzero{}\ottdefnctxXXclose{}\ottdefnctXXwf{}\ottdefnpfXXwf{}\ottdefnrfXXwf{}\ottdefnrsigXXlookup{}\ottdefnpfXXtypes{}\ottdefnrsigXXerase{}\ottdefnrsigXXwf{}\ottdefnlpfXXsynth{}\ottdefnlpfXXcheck{}\ottdefnresXXlookup{}\ottdefnrpfXXsynth{}\ottdefnrpfXXcheck{}\ottdefnpfXXeq{}\ottdefnctxXXmerge{}\ottdefnrpatXXmatch{}\ottdefnrcrtXXsynth{}\ottdefncaseXXbranch{}\ottdefnrcrtXXcheck{}\ottdefnspineXXcheck{}\ottdefntupleXXcheck{}\ottdefnnaryXXmerge{}}
+\ottdefnrctxXXwf{}\ottdefnctxXXerase{}\ottdefnaffinize{}\ottdefnzero{}\ottdefnctxXXclose{}\ottdefnctXXwf{}\ottdefnpfXXwf{}\ottdefnrfXXwf{}\ottdefnrsigXXlookup{}\ottdefnpfXXtypes{}\ottdefnpfXXtoXXctx{}\ottdefnrsigXXerase{}\ottdefnrsigXXwf{}\ottdefnlpfXXsynth{}\ottdefnlpfXXcheck{}\ottdefnresXXlookup{}\ottdefnrpfXXsynth{}\ottdefnrpfXXcheck{}\ottdefnpfXXeq{}\ottdefnctxXXmerge{}\ottdefnrpatXXmatch{}\ottdefnrcrtXXsynth{}\ottdefncaseXXbranch{}\ottdefnrcrtXXcheck{}\ottdefnspineXXcheck{}\ottdefntupleXXcheck{}\ottdefnrprog{}\ottdefnnaryXXmerge{}}
 
 \newcommand{\ottdefnss}{
 \ottdefnsJtype
@@ -2732,7 +2900,7 @@
 \ottall
 
 \begin{verbatim}
-Definition rules:        219 good    0 bad
-Definition rule clauses: 473 good    0 bad
+Definition rules:        234 good    0 bad
+Definition rule clauses: 516 good    0 bad
 \end{verbatim}
 \end{document}
