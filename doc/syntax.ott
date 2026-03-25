@@ -1465,13 +1465,13 @@ defns Jrefine :: '' ::=
     ---------------------------------------------------------- :: annot
     RS ; Delta |- [ eff ] crt : Pf r==> Pf -| Delta' ~~> Ct
 
-    RS |- f : Pf1 -o Pf2 [ eff' ]    eff' <= eff
-    RS ; Delta |- [ eff ] rsp : Pf1 -o Pf2 [ eff' ] >> Pf -| Delta' ~~> Ct
+    RS |- f : Pf1 -o Pf2 [ eff' ]    eff' <= eff    eff'' = purify eff
+    RS ; Delta |- [ eff'' ] rsp : Pf1 -o Pf2 [ eff' ] >> Pf -| Delta' ~~> Ct
     -------------------------------------------------------- :: call
     RS ; Delta |- [ eff ] f rsp r==> Pf -| Delta' ~~> Ct
 
-    prim : Pf1 -o Pf2 [ eff' ]    eff' <= eff
-    RS ; Delta |- [ eff ] rsp : Pf1 -o Pf2 [ eff' ] >> Pf -| Delta' ~~> Ct
+    prim : Pf1 -o Pf2 [ eff' ]    eff' <= eff    eff'' = purify eff
+    RS ; Delta |- [ eff'' ] rsp : Pf1 -o Pf2 [ eff' ] >> Pf -| Delta' ~~> Ct
     -------------------------------------------------------- :: primapp
     RS ; Delta |- [ eff ] prim rsp r==> Pf -| Delta' ~~> Ct
 
