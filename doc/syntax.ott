@@ -1466,12 +1466,12 @@ defns Jrefine :: '' ::=
     RS ; Delta |- [ eff ] crt : Pf r==> Pf -| Delta' ~~> Ct
 
     RS |- f : Pf1 -o Pf2 [ eff' ]    eff' <= eff    eff'' = purify eff
-    RS ; Delta |- [ eff'' ] rsp : Pf1 -o Pf2 [ eff' ] >> Pf -| Delta' ~~> Ct
+    RS ; Delta |- [ eff'' ] rsp : Pf1 -o Pf2 >> Pf -| Delta' ~~> Ct
     -------------------------------------------------------- :: call
     RS ; Delta |- [ eff ] f rsp r==> Pf -| Delta' ~~> Ct
 
     prim : Pf1 -o Pf2 [ eff' ]    eff' <= eff    eff'' = purify eff
-    RS ; Delta |- [ eff'' ] rsp : Pf1 -o Pf2 [ eff' ] >> Pf -| Delta' ~~> Ct
+    RS ; Delta |- [ eff'' ] rsp : Pf1 -o Pf2 >> Pf -| Delta' ~~> Ct
     -------------------------------------------------------- :: primapp
     RS ; Delta |- [ eff ] prim rsp r==> Pf -| Delta' ~~> Ct
 
@@ -1547,26 +1547,31 @@ defns Jrefine :: '' ::=
 % Spine checking
 % -----------------------------------------------------------------------------
 
-  defn RS ; Delta |- [ eff ] rsp : RF >> Pf -| Delta' ~~> Ct :: :: spine_check :: 'Spine_'
-  {{ tex [[RS]] ; [[Delta]] \vdash_{[[eff]]} [[rsp]] : [[RF]] \gg [[Pf]] \dashv [[Delta']] \leadsto [[Ct]] }} by
+  defn RS ; Delta |- [ eff ] rsp : Pf1 -o Pf2 >> Pf -| Delta' ~~> Ct :: :: spine_check :: 'Spine_'
+  {{ tex [[RS]] ; [[Delta]] \vdash_{[[eff]]} [[rsp]] : [[Pf1]] \multimap [[Pf2]] \gg [[Pf]] \dashv [[Delta']] \leadsto [[Ct]] }} by
 
     --------------------------------------------------------------- :: nil
-    RS ; Delta |- [ eff ] rspnil : pfnil -o Pf [ eff ] >> Pf -| Delta ~~> Top
+    RS ; Delta |- [ eff ] rspnil : pfnil -o Pf >> Pf -| Delta ~~> Top
 
     G = erase Delta    CS = comp RS    CS ; G |- [ eff ] ce <== tau
-    RS ; Delta |- [ eff ] rsp : [ ce / x ] Pf1 -o [ ce / x ] Pf2 [ eff ] >> Pf -| Delta' ~~> Ct
-    -------------------------------------------------------------------------- :: core
-    RS ; Delta |- [ eff ] ce , rsp : x : tau [ eff ] , Pf1 -o Pf2 [ eff ] >> Pf -| Delta' ~~> Ct
+    RS ; Delta |- [ eff ] rsp : [ ce / x ] Pf1 -o [ ce / x ] Pf2 >> Pf -| Delta' ~~> Ct
+    -------------------------------------------------------------------------- :: pure
+    RS ; Delta |- [ eff ] ce , rsp : x : tau [ pure ] , Pf1 -o Pf2 >> Pf -| Delta' ~~> Ct
+
+    G = erase Delta    CS = comp RS    CS ; G |- [ spec ] ce <== tau
+    RS ; Delta |- [ eff ] rsp : [ ce / x ] Pf1 -o [ ce / x ] Pf2 >> Pf -| Delta' ~~> Ct
+    -------------------------------------------------------------------------- :: spec
+    RS ; Delta |- [ eff ] ce , rsp : x : tau [ spec ] , Pf1 -o Pf2 >> Pf -| Delta' ~~> Ct
 
     RS ; Delta |- lpf l<== ce -| Delta' ~~> Ct
-    RS ; Delta' |- [ eff ] rsp : Pf1 -o Pf2 [ eff ] >> Pf -| Delta'' ~~> Ct'
+    RS ; Delta' |- [ eff ] rsp : Pf1 -o Pf2 >> Pf -| Delta'' ~~> Ct'
     ----------------------------------------------------------------------------- :: log
-    RS ; Delta |- [ eff ] lpf , rsp : x : ce [ log ] , Pf1 -o Pf2 [ eff ] >> Pf -| Delta'' ~~> Ct cand Ct'
+    RS ; Delta |- [ eff ] lpf , rsp : x : ce [ log ] , Pf1 -o Pf2 >> Pf -| Delta'' ~~> Ct cand Ct'
 
     RS ; Delta |- rpf r<== ce1 @ ce2 -| Delta' ~~> Ct
-    RS ; Delta' |- [ eff ] rsp : Pf1 -o Pf2 [ eff ] >> Pf -| Delta'' ~~> Ct'
+    RS ; Delta' |- [ eff ] rsp : Pf1 -o Pf2 >> Pf -| Delta'' ~~> Ct'
     ----------------------------------------------------------------------------- :: res
-    RS ; Delta |- [ eff ] rpf , rsp : x : ce1 @ ce2 [ res ] , Pf1 -o Pf2 [ eff ] >> Pf -| Delta'' ~~> Ct cand Ct'
+    RS ; Delta |- [ eff ] rpf , rsp : x : ce1 @ ce2 [ res ] , Pf1 -o Pf2 >> Pf -| Delta'' ~~> Ct cand Ct'
 
 
 % -----------------------------------------------------------------------------

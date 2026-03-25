@@ -363,7 +363,8 @@ and synth_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr
          Error (Format.asprintf "call %a: effect %a not allowed at %a"
            Var.print f Effect.print rf.eff Effect.print eff)
        else
-         check_spine rs delta eff spine rf
+         let eff'' = Effect.purify eff in
+         check_spine rs delta eff'' spine rf
      | None -> Error (Format.asprintf "function %a not found" Var.print f))
 
   | RefinedExpr.CPrimApp (prim, spine) ->
@@ -372,7 +373,8 @@ and synth_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr
       Error (Format.asprintf "prim %a effect %a not allowed at %a"
         Prim.print prim Effect.print rf.eff Effect.print eff)
     else
-      check_spine rs delta eff spine rf
+      let eff'' = Effect.purify eff in
+      check_spine rs delta eff'' spine rf
 
   | RefinedExpr.COpenTake rpf ->
     let* (ce_pred, ce_val, delta', ct) = synth_rpf rs delta rpf in
@@ -474,30 +476,42 @@ and check_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr
     let* ct' = pf_eq rs delta' pf' pf in
     Ok (delta', Constraint.conj ct ct')
 
-(* Spine checking: RS; Delta |-[eff] rsp : RF >> Pf -| Delta' ~> Ct *)
+(* Spine checking: RS; Delta |-[eff] rsp : Pf1 -o Pf2 >> Pf -| Delta' ~> Ct *)
 and check_spine (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (spine : RefinedExpr.located_spine) (rf : CoreExpr.ce RFunType.t) : (CoreExpr.ce ProofSort.t * RCtx.t * Constraint.t, string) result =
-  check_spine_inner rs delta eff spine rf.domain rf.codomain rf.eff
+  check_spine_inner rs delta eff spine rf.domain rf.codomain
 
-and check_spine_inner rs delta eff spine domain codomain rf_eff =
+and check_spine_inner rs delta eff spine domain codomain =
   match RefinedExpr.spine_shape spine, domain with
   | RefinedExpr.SNil, [] ->
     Ok (codomain, delta, Constraint.top)
 
-  | RefinedExpr.SCore (ce, rest), (ProofSort.Comp { var; sort; eff = _entry_eff } :: pf_rest) ->
+  | RefinedExpr.SCore (ce, rest), (ProofSort.Comp { var; sort; eff = Effect.Pure } :: pf_rest) ->
+    (* Spine_pure: check ce at eff (the purified ambient effect) *)
     let gamma = RCtx.erase delta in
     let* () = tc_check rs gamma ce sort eff in
     let pf_rest' = ProofSort.subst var ce pf_rest in
     let codomain' = ProofSort.subst var ce codomain in
-    check_spine_inner rs delta eff rest pf_rest' codomain' rf_eff
+    check_spine_inner rs delta eff rest pf_rest' codomain'
+
+  | RefinedExpr.SCore (ce, rest), (ProofSort.Comp { var; sort; eff = Effect.Spec } :: pf_rest) ->
+    (* Spine_spec: check ce at spec *)
+    let gamma = RCtx.erase delta in
+    let* () = tc_check rs gamma ce sort Effect.Spec in
+    let pf_rest' = ProofSort.subst var ce pf_rest in
+    let codomain' = ProofSort.subst var ce codomain in
+    check_spine_inner rs delta eff rest pf_rest' codomain'
+
+  | RefinedExpr.SCore (_, _), (ProofSort.Comp { eff = Effect.Impure; _ } :: _) ->
+    Error "spine: impure comp entry not allowed in proof sort"
 
   | RefinedExpr.SLog (lpf, rest), (ProofSort.Log { prop; _ } :: pf_rest) ->
     let* (delta', ct) = check_lpf rs delta lpf prop in
-    let* (result_pf, delta'', ct') = check_spine_inner rs delta' eff rest pf_rest codomain rf_eff in
+    let* (result_pf, delta'', ct') = check_spine_inner rs delta' eff rest pf_rest codomain in
     Ok (result_pf, delta'', Constraint.conj ct ct')
 
   | RefinedExpr.SRes (rpf, rest), (ProofSort.Res { pred; value; _ } :: pf_rest) ->
     let* (delta', ct) = check_rpf rs delta rpf pred value in
-    let* (result_pf, delta'', ct') = check_spine_inner rs delta' eff rest pf_rest codomain rf_eff in
+    let* (result_pf, delta'', ct') = check_spine_inner rs delta' eff rest pf_rest codomain in
     Ok (result_pf, delta'', Constraint.conj ct ct')
 
   | _ -> Error "spine: argument/parameter mismatch"
