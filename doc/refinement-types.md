@@ -18,7 +18,10 @@ have already been used (0), or can optionally be used (?).
 u ::= 0 | 1 | ?
 
 κ ::= eff | log | res(u) 
-X ::= τ | ϕ | ce@ce 
+X ::= τ 
+   | ce          (ce : Bool)
+   | ce@ce'      (ce : Pred τ, ce' : τ)
+
 
 Δ ::= · | Δ, x:X [κ]
 
@@ -171,7 +174,10 @@ Refined terms are terms, augmented with additional clauses for manipulating the 
 
 I give the grammar of proof sorts as follows: 
 
-    Pf ::= (x:ϕ [log]), Pf | (x : ce@ce [res]), Pf | (x:τ [eff]), Pf | · 
+    Pf ::= (x:ϕ [log]), Pf | (x : rs [res]), Pf | (x:τ [eff]), Pf | · 
+    rs ::= ce@ce'
+        |  (x:τ).ce     
+ 
 
 (This is not the same as Δ, since (1) it associates the other way around, and (2) resources
 don't have a flag.)
@@ -184,7 +190,7 @@ The computational erasure of this is
     Prod [A1; ...;An] = (A1, ..., An)
     
     {x:ϕ[log], Pf}    = {Pf}
-    {ce@ce'[res], Pf} = {Pf}
+    {rs[res], Pf}     = {Pf}
     {x:τ[spec], Pf}   = {Pf}
     {x:A[pure], Pf}   = A :: {Pf}
     {·}               = []
@@ -193,19 +199,21 @@ So Comp(Pf) = A means that A is the computational content of the proof sort.
 
 We can also extract the binding content – the logical and computational bindings: 
 
-    Bind(Γ; ·) = Γ
-    Bind(Γ; x:τ[eff], Pf) = Bind(Γ; x:τ[eff], Pf)   
-    Bind(Γ; x:ce[log], Pf) = Bind(Γ; Pf)
-    Bind(Γ; x:ce@ce'[res]), Pf) = Bind(Γ; Pf)
-
+    Bind(Γ; ·)                   = Γ
+    Bind(Γ; x:τ[eff], Pf)        = Bind(Γ; x:τ[eff], Pf)   
+    Bind(Γ; x:ce[log], Pf)       = Bind(Γ; Pf)
+    Bind(Γ; x:ce@ce'[res]), Pf)  = Bind(Γ; Pf)
+    Bind(Γ; x:(y:τ).ce[res], Pf) = Bind(Γ, y:τ; Pf)
+    
 Bind(Γ, Pf) adds the computational and spec variables bound in Pf to Γ. 
 
 Finally, we can append Pf sorts to refined contexts Δ as follows:
 
-PfToCtx(Δ; ·)                 = Δ
-PfToCtx(Δ; x:τ[eff], Pf)      = PfToCtx(Δ, x:τ[eff]; Pf)
-PfToCtx(Δ; x:ce[log], Pf)     = PfToCtx(Δ, x:ce[log]; Pf)
-PfToCtx(Δ; x:ce@ce'[res], Pf) = PfToCtx(Δ, x:ce@ce'[res(1)]; Pf)
+PfToCtx(Δ; ·)                   = Δ
+PfToCtx(Δ; x:τ[eff], Pf)        = PfToCtx(Δ, x:τ[eff]; Pf)
+PfToCtx(Δ; x:ce[log], Pf)       = PfToCtx(Δ, x:ce[log]; Pf)
+PfToCtx(Δ; x:ce@ce'[res], Pf)   = PfToCtx(Δ, x:ce@ce'[res(1)]; Pf)
+PfToCtx(Δ; x:(y:τ).ce[res], Pf) = PfToCtx(Δ, y:τ, x:ce@y[res(1)]; Pf)
 
 The invariant of this is that if Σ ⊢ Δ wf and Σ; |Δ| ⊢ Pf wf, then Σ ⊢ PfToCtx(Δ; Pf) wf.
 
@@ -235,9 +243,14 @@ it mention terms, it also need a well-formedness check.
 Σ; Γ ⊢ x:ce [log], Pf wf
 
 
-Σ; Γ ⊢[spec] ce' ⇒ τ [eff']  Σ; Γ ⊢[spec] ce ⇐ pred τ [eff]   Σ; Γ ⊢[eff0] Pf wf   
-———————————————————————————————————————————————————————————————————————————————————
-Σ; Γ ⊢ x:(ce @ ce') [res], Pf
+Σ; Γ ⊢[spec] ce' ⇒ τ [eff']  Σ; Γ ⊢[spec] ce ⇐ pred τ   Σ; Γ ⊢[eff] Pf wf   
+——————————————————————————————————————————————————————————————————————————————
+Σ; Γ ⊢[eff] x:(ce @ ce') [res], Pf
+
+
+Σ; Γ ⊢[spec] ce ⇐ pred τ [eff]   Σ; Γ, y:τ, x:ce@y ⊢[eff] Pf wf   
+——————————————————————————————————————————————————————————————————————————————
+Σ; Γ ⊢[eff] x:(y:τ).ce [res], Pf
 
 
 Σ; · ⊢[eff] Pf1 wf    Σ; Bind(·; Pf1) ⊢[eff] Pf2 wf   
@@ -254,7 +267,9 @@ arguments. Return types can can also depend upon the bindings of their inputs.
 
 The grammar of core refined patterns is given as follows: 
 
-q ::= (x1, ..., xn)
+qbase ::= x | (x, y)
+
+q ::= (qbase1, ..., qbasen)
 
 We use these to avoid introducing variables of arbitrary proof sort
 in the context.
@@ -453,6 +468,12 @@ succeeds if the usage is 1 or ?, and accessing it sets the usage to 0.
 ↝ (ce1 = ce2 ∧ ce1' = ce2') ∧ C
 
 
+Σ; Δ, c:τ ⊢ [c/a]Pf1 = [c/b]Pf2 ↝ C 
+——————————————————————————————————————————————————————————————————————————————————
+Σ; Δ ⊢ (x:(a:τ).ce [res], Pf1) = (y:(b:τ).ce' [res], Pf2) ↝ (ce = ce') ∧ ∀c:τ.C
+
+
+
 #### Context merge
 
 ———————————————————
@@ -501,12 +522,18 @@ succeeds if the usage is 1 or ?, and accessing it sets the usage to 0.
 
 Σ; Γ ⊢ q : [x/y]Pf ⊣ Δ
 ————————————————————————————————————————————————————
-Σ; Γ ⊢ (x,q) : (y:ce[log], [y/x]Pf) ⊣ x:ce[log], Δ
+Σ; Γ ⊢ (x,q) : (y:ce[log], Pf) ⊣ x:ce[log], Δ
 
 
 Σ; Γ ⊢ q : [x/y]Pf ⊣ Δ
 ————————————————————————————————————————————————————————————————
-Σ; Γ ⊢ (x,q) : (y:ce@ce'[res], [y/x]Pf) ⊣ x:(ce@ce')[res(1)], Δ
+Σ; Γ ⊢ (x,q) : (y:ce@ce'[res], Pf) ⊣ x:(ce@ce')[res(1)], Δ
+
+
+Σ; Γ, x:τ ⊢ q : [x/z]Pf ⊣ Δ
+—————————————————————————————————————————————————————————————————————
+Σ; Γ ⊢ ((x,a),q) : (y:(z:τ).ce[res], Pf) ⊣ x:τ, a:(ce@x)[res(1)], Δ
+
 
 
 #### Typechecking
@@ -524,12 +551,18 @@ zero(Δ'')
 
 
 
-Σ ⊢ f : Pf1 ⊸ Pf2 [eff']   eff' ∈ {⌊eff⌋, spec}    Σ; Δ ⊢[eff] crt : (Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ' ↝ C 
+Σ ⊢ f : Pf1 ⊸ Pf2 [eff']   
+eff' ≤ eff 
+eff'' = ⌊eff⌋
+Σ; Δ ⊢[eff''] crt : (Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ' ↝ C 
 ———————————————————————————————————————————————————————————————————————————————–————————————————
 Σ; Δ ⊢[eff] f crt ==> Pf3 ⊣ Δ' ↝ C
 
 
-prim : Pf1 ⊸ Pf2 [eff']   eff' ≤ eff    Σ; Δ ⊢[eff] crt : (Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ' ↝ C 
+prim : Pf1 ⊸ Pf2 [eff']
+eff' ≤ eff
+eff'' = ⌊eff⌋
+Σ; Δ ⊢[eff''] crt : (Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ' ↝ C 
 ———————————————————————————————————————————————————————————————————————————————–————————————————
 Σ; Δ ⊢[eff] prim crt ==> Pf3 ⊣ Δ' ↝ C
 
@@ -589,11 +622,16 @@ eff' = ⌊eff⌋
 Σ; Δ ⊢[eff] (lpf, spine) : (x:ce[log], Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ'' ↝ C ∧ C'
 
 
-Σ; Δ ⊢ rpf ⇐ (ce1@ce2) ⊣ Δ' ↝ C
+Σ; Δ ⊢ rpf <== (ce1@ce2) ⊣ Δ' ↝ C
 Σ; Δ' ⊢[eff] spine : (Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ'' ↝ C'
 —————————————————————————————————————————————————————————————————————————
 Σ; Δ ⊢[eff] (rpf, spine) : (x:ce1@ce2[res], Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ'' ↝ C ∧ C'
 
+
+Σ; Δ ⊢ rpf ==> (ce@ce') ⊣ Δ' ↝ C
+Σ; Δ' ⊢[eff] spine : ([ce'/y]Pf1 ⊸ [ce'/y]Pf2) >> Pf3 ⊣ Δ'' ↝ C'
+—————————————————————————————————————————————————————————————————————————
+Σ; Δ ⊢[eff] (rpf, spine) : (x:(y:τ).ce[res], Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ'' ↝ C ∧ C'
 
 
 #### Tuple (Σ; Δ ⊢[eff] spine : Pf ⊣ Δ' ↝ C) 
@@ -604,19 +642,30 @@ eff' = ⌊eff⌋
 
 Σ; |Δ| ⊢[eff] ce <== τ    Σ; Δ ⊢ spine : [ce/x]Pf ⊣ Δ' ↝ C 
 —————————————————————————————————————————————————————————
-Σ; Δ ⊢ (ce, spine) : (x:τ[eff], Pf) ⊣ Δ' ↝ C 
+Σ; Δ ⊢ (ce, spine) : (x:τ[pure], Pf) ⊣ Δ' ↝ C 
+
+Σ; |Δ| ⊢[spec] ce <== τ    Σ; Δ ⊢ spine : [ce/x]Pf ⊣ Δ' ↝ C 
+—————————————————————————————————————————————————————————
+Σ; Δ ⊢ (ce, spine) : (x:τ[spec], Pf) ⊣ Δ' ↝ C 
 
 
-Σ; Δ ⊢ lpf ⇐ ce ⊣ Δ' ↝ C 
+Σ; Δ ⊢ lpf <== ce ⊣ Δ' ↝ C 
 Σ; Δ' ⊢ spine : Pf ⊣ Δ'' ↝ C'
 —————————————————————————————————————————————————————————
 Σ; Δ ⊢ (lpf, spine) : (x:ce[log], Pf) ⊣ Δ'' ↝ C ∧ C'
 
 
-Σ; Δ ⊢[eff] rpf ⇐ ce@ce' ⊣ Δ' ↝ C 
+Σ; Δ ⊢[eff] rpf <== ce@ce' ⊣ Δ' ↝ C 
 Σ; Δ' ⊢[eff] spine : Pf ⊣ Δ'' ↝ C'
 ———————————————————————————————————————————————————————————————
 Σ; Δ ⊢[eff] (rpf, spine) : (x:ce@ce'[res], Pf) ⊣ Δ'' ↝ C ∧ C'
+
+
+Σ; Δ ⊢[eff] rpf ==> ce@ce' ⊣ Δ' ↝ C 
+Σ; Δ' ⊢[eff] spine : [ce'/y]Pf ⊣ Δ'' ↝ C'
+———————————————————————————————————————————————————————————————
+Σ; Δ ⊢[eff] (rpf, spine) : (x:(y:τ).ce[res], Pf) ⊣ Δ'' ↝ C ∧ C'
+
 
 
 #### Proof commands
@@ -799,6 +848,4 @@ New[A] : (x:A[pure]) ⊸ (p:Ptr A[pure], r:Own[A] p@x [res]) [impure]
 Del[A] : (p:Ptr A [pure], x:A[spec], r:Own[A]p@x [res]) ⊸ () [impure]
 Get[A] : (p:Ptr A [pure], x:A[spec], r:Own[A]p@x [res]) ⊸ (v:A[pure], pf:x = v, r:Own[A]p@x [res]) [impure]
 Set[A] : (p:Ptr A [pure], v:A[pure], x:A[spec], r:Own[A]p@x [res]) ⊸ (r:Own[A] p@v [res]) [impure]
-
-
 
