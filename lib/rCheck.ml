@@ -81,7 +81,7 @@ let elab_pf (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (pf : SurfExpr.se
   go gamma pf
 
 (* Check eff' in_pfeff eff: eff' in {spec, purify(eff)} *)
-let in_pfeff eff' eff =
+let _in_pfeff eff' eff =
   Effect.compare eff' Effect.Spec = 0 ||
   Effect.compare eff' (Effect.purify eff) = 0
 
@@ -212,18 +212,19 @@ let rprim_signature (p : Prim.t) : CoreExpr.ce RFunType.t =
       codomain = [];
       eff = Effect.Impure }
 
-  (* Get[A]: (p:ptr A, x:A [spec], r:Own[A](p) @ x [res]) ⊸ (v:A, pf: x == v [log]) [impure] *)
+  (* Get[A]: (p:ptr A, x:A [spec], r:Own[A](p) @ x [res]) ⊸ (v:A, pf: x == v [log], r':Own[A](p) @ x [res]) [impure] *)
   | Prim.Get ty ->
     let a_sort = Sort.typ_to_sort ty in
     let ptr_sort = Sort.mk loc_dummy (Sort.Ptr a_sort) in
     let p = mk_var "p" and x = mk_var "x" and r = mk_var "r" in
-    let v = mk_var "v" and pf = mk_var "pf" in
+    let v = mk_var "v" and pf = mk_var "pf" and r' = mk_var "r'" in
     let own_p = CoreExpr.mk loc_dummy (CoreExpr.App (Prim.Own ty, ce_var "p")) in
     { domain = [ProofSort.Comp { var = p; sort = ptr_sort; eff = Effect.Pure };
                 ProofSort.Comp { var = x; sort = a_sort; eff = Effect.Spec };
                 ProofSort.Res { var = r; pred = own_p; value = ce_var "x" }];
       codomain = [ProofSort.Comp { var = v; sort = a_sort; eff = Effect.Pure };
-                  ProofSort.Log { var = pf; prop = mk_eq (ce_var "x") (ce_var "v") }];
+                  ProofSort.Log { var = pf; prop = mk_eq (ce_var "x") (ce_var "v") };
+                  ProofSort.Res { var = r'; pred = own_p; value = ce_var "x" }];
       eff = Effect.Impure }
 
   (* Set[A]: (p:ptr A, v:A, x:A [spec], r:Own[A](p) @ x [res]) ⊸ (r':Own[A](p) @ v [res]) [impure] *)
@@ -358,16 +359,18 @@ and synth_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr
   | RefinedExpr.CCall (f, spine) ->
     (match RSig.lookup_rf f rs with
      | Some rf ->
-       if not (in_pfeff rf.eff eff) then
-         Error (Format.asprintf "call %a: effect mismatch" Var.print f)
+       if not (Effect.sub rf.eff eff) then
+         Error (Format.asprintf "call %a: effect %a not allowed at %a"
+           Var.print f Effect.print rf.eff Effect.print eff)
        else
          check_spine rs delta eff spine rf
      | None -> Error (Format.asprintf "function %a not found" Var.print f))
 
   | RefinedExpr.CPrimApp (prim, spine) ->
     let rf = rprim_signature prim in
-    if not (in_pfeff rf.eff eff) then
-      Error (Format.asprintf "prim effect mismatch")
+    if not (Effect.sub rf.eff eff) then
+      Error (Format.asprintf "prim %a effect %a not allowed at %a"
+        Prim.print prim Effect.print rf.eff Effect.print eff)
     else
       check_spine rs delta eff spine rf
 
@@ -561,6 +564,8 @@ and pf_eq (_rs : RSig.t) (_delta : RCtx.t) (pf1 : CoreExpr.ce ProofSort.t) (pf2 
   let rec go pf1 pf2 =
     match pf1, pf2 with
     | [], [] -> Ok Constraint.top
+    (* Synthesized pf has extra entries the expected pf doesn't need *)
+    | _, [] -> Ok Constraint.top
 
     | ProofSort.Comp { var = x; sort; eff } :: rest1,
       ProofSort.Comp { var = y; sort = sort2; eff = eff2 } :: rest2 ->
@@ -625,7 +630,11 @@ let rec elab_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedE
 
   | RefinedExpr.CLet (pat, e1, e2) ->
     let* e1' = elab_crt rs delta eff e1 in
-    let* e2' = elab_crt rs delta eff e2 in
+    (* Synthesize the proof sort of e1 to extend context for e2 *)
+    let* (pf', delta', _ct) = synth_crt rs delta eff e1' in
+    let delta_pat = rpat_match (RCtx.erase delta') pat pf' in
+    let delta_ext = RCtx.concat delta' delta_pat in
+    let* e2' = elab_crt rs delta_ext eff e2 in
     Ok (RefinedExpr.mk_crt b (RefinedExpr.CLet (pat, e1', e2')))
 
   | RefinedExpr.CAnnot (e, se_pf) ->

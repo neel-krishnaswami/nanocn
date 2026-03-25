@@ -1,0 +1,6 @@
+// Allocate, read back, deallocate.
+// Get[int] returns (v, pf, r'), so we can pass r' to Del.
+main : [impure] =
+  let (p, r) = New[int](42);
+  let (v, pf, r2) = Get[int](p, 42, res r);
+  Del[int](p, 42, res r2)

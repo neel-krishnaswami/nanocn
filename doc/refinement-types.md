@@ -200,6 +200,15 @@ We can also extract the binding content – the logical and computational bindin
 
 Bind(Γ, Pf) adds the computational and spec variables bound in Pf to Γ. 
 
+Finally, we can append Pf sorts to refined contexts Δ as follows:
+
+PfToCtx(Δ; ·)                 = Δ
+PfToCtx(Δ; x:τ[eff], Pf)      = PfToCtx(Δ, x:τ[eff]; Pf)
+PfToCtx(Δ; x:ce[log], Pf)     = PfToCtx(Δ, x:ce[log]; Pf)
+PfToCtx(Δ; x:ce@ce'[res], Pf) = PfToCtx(Δ, x:ce@ce'[res(1)]; Pf)
+
+The invariant of this is that if Σ ⊢ Δ wf and Σ; |Δ| ⊢ Pf wf, then Σ ⊢ PfToCtx(Δ; Pf) wf.
+
 A refined function type has the shape: 
 
     RF ::= Pf1 ⊸ Pf2 [eff]
@@ -520,7 +529,7 @@ zero(Δ'')
 Σ; Δ ⊢[eff] f crt ==> Pf3 ⊣ Δ' ↝ C
 
 
-prim : Pf1 ⊸ Pf2 [eff']   eff' ∈ {⌊eff⌋, spec}    Σ; Δ ⊢[eff] crt : (Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ' ↝ C 
+prim : Pf1 ⊸ Pf2 [eff']   eff' ≤ eff    Σ; Δ ⊢[eff] crt : (Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ' ↝ C 
 ———————————————————————————————————————————————————————————————————————————————–————————————————
 Σ; Δ ⊢[eff] prim crt ==> Pf3 ⊣ Δ' ↝ C
 
@@ -693,6 +702,103 @@ Next, we give signature well-formedness ⊢ Σr wf
 ——————————————————————————
 ⊢ Σr, f : RF wf 
 
+
+#### Refined Programs: 
+
+A refined program consists 
+
+rprog ::= data D(a1, ..., ak) = {L1 : τ1 | ... | τn: τn} rprog
+       |  type D(a1, ..., ak) = {L1 : A1 | ... | τn: An} rprog
+       |  fun f(x : τ) → τ' [eff] = { e } rprog
+       |  fun f(Pf1) → Pf2 [eff] = { crt } rprog
+       |  main : Pf [eff] = crt 
+
+
+We typecheck these programs with the Σr ⊢ rprog ⊣ Σr' ↝ C judgement
+
+
+Σr; · ⊢[eff] crt <== Pf ↝ C
+—————————————————————————————————
+Σr ⊢ main : Pf [eff] = crt ⊣ Σr ↝ C
+
+
+Σc = Comp(Σr)
+Σc ⊢ type D(a1, ..., ak) = {L1 : A1 | ... | τn: An} ok
+Σr, type D(a1, ..., ak) = {L1 : A1 | ... | τn: An} ⊢ rprog ⊣ Σr' ↝ C
+———————————————————————————————————————————————————————————————————————
+Σr ⊢ type D(a1, ..., ak) = {L1 : A1 | ... | τn: An} rprog ⊣ Σr' ↝ C
+
+
+Σc = Comp(Σr)
+Σc ⊢ sort D(a1, ..., ak) = {L1 : τ1 | ... | τn: τn} ok
+Σr, sort D(a1, ..., ak) = {L1 : τ1 | ... | τn: τn} ⊢ rprog ⊣ Σr' ↝ C
+———————————————————————————————————————————————————————————————————————
+Σr ⊢ type D(a1, ..., ak) = {L1 : τ1 | ... | τn: τn} rprog ⊣ Σr' ↝ C
+
+
+Σc = Comp(Σr)
+Σc; x:A ⊢[pure] ce <== B
+Σr, fun f(x:A) → B [pure] = ce ⊢ rprog ⊣ Σr' ↝ C
+————————————————————————————————————————————————————————
+Σr ⊢ fun f(x : A) → B [pure] = { ce } rprog ⊣ Σr' ↝ C
+
+
+Σc = Comp(Σr)
+Σc; x:A ⊢[impure] ce <== B
+Σr, f : A → B [impure] ⊢ rprog ⊣ Σr' ↝ C
+————————————————————————————————————————————————————————
+Σr ⊢ fun f(x : A) → B [impure] = { ce } rprog ⊣ Σr' ↝ C
+
+
+Σc = Comp(Σr)
+Σc, f : τ → τ' [spec]; x:τ ⊢[spec] ce <== τ'
+Σr, fun f(x:A) → B [pure] = ce ⊢ rprog ⊣ Σr' ↝ C
+————————————————————————————————————————————————————————
+Σr ⊢ fun f(x : τ) → τ' [spec] = { ce } rprog ⊣ Σr' ↝ C
+
+
+Σr; · ⊢ Pf1 ⊸ Pf2 [spec] wf 
+PfToCtx(·; Pf1) = Δ
+Σr, f : Pf1 ⊸ Pf2 [spec]; Δ ⊢[spec] crt <== Pf2 ↝ C
+Σr, f:Pf1 ⊸ Pf2 [spec] ⊢ rprog ⊣ Σr' ↝ C'
+——————————————————————————————————————————————————————————————
+Σr ⊢ fun f(Pf1) → Pf2 [spec] = { crt } rprog ⊣ Σr' ↝ C ∧ C'
+
+
+Σr; · ⊢ Pf1 ⊸ Pf2 [impure] wf 
+PfToCtx(·; Pf1) = Δ
+Σr, f : Pf1 ⊸ Pf2 [impure]; Δ ⊢[impure] crt <== Pf2 ↝ C
+Σr, f:Pf1 ⊸ Pf2 [impure] ⊢ rprog ⊣ Σr' ↝ C'
+——————————————————————————————————————————————————————————————
+Σr ⊢ fun f(Pf1) → Pf2 [impure] = { crt } rprog ⊣ Σr' ↝ C ∧ C'
+
+
+Σr; · ⊢ Pf1 ⊸ Pf2 [pure] wf 
+PfToCtx(·; Pf1) = Δ
+Σr; Δ ⊢[pure] crt <== Pf2 ↝ C
+Σr, f:Pf1 ⊸ Pf2 [pure] ⊢ rprog ⊣ Σr' ↝ C'
+——————————————————————————————————————————————————————————————
+Σr ⊢ fun f(Pf1) → Pf2 [pure] = { crt } rprog ⊣ Σr' ↝ C ∧ C'
+
+## Refined primitives
+
+Here are refined types for all of the primitives: 
+
+Add : (x:int[pure], y:int[pure]) ⊸ (z:int[pure], prop:z = x + y) [pure]
+Mul : (x:int[pure], y:int[pure]) ⊸ (z:int[pure], prop:z = x * y) [pure]
+Sub : (x:int[pure], y:int[pure]) ⊸ (z:int[pure], prop:z = x - y) [pure]
+Div : (x:int[pure], y:int[pure], pre:y ≠ 0) ⊸ (z:int[pure], prop:z = x/y) [pure]
+Lt  : (x:int[pure], y:int[pure]) ⊸ (z:bool[pure], prop:z = x < y) [pure]
+Le  : (x:int[pure], y:int[pure]) ⊸ (z:bool[pure], prop:z = x ≤ y) [pure]
+Gt  : (x:int[pure], y:int[pure]) ⊸ (z:bool[pure], prop:z = x > y) [pure]
+Ge  : (x:int[pure], y:int[pure]) ⊸ (z:bool[pure], prop:z = x ≥ y) [pure]
+Eq[A] : (x:A[pure], y:A[pure]) ⊸ (z:bool[pure], prop:z = x = y) [pure]
+
+
+New[A] : (x:A[pure]) ⊸ (p:Ptr A[pure], r:Own[A] p@x [res]) [impure]
+Del[A] : (p:Ptr A [pure], x:A[spec], r:Own[A]p@x [res]) ⊸ () [impure]
+Get[A] : (p:Ptr A [pure], x:A[spec], r:Own[A]p@x [res]) ⊸ (v:A[pure], pf:x = v, r:Own[A]p@x [res]) [impure]
+Set[A] : (p:Ptr A [pure], v:A[pure], x:A[spec], r:Own[A]p@x [res]) ⊸ (r:Own[A] p@v [res]) [impure]
 
 
 

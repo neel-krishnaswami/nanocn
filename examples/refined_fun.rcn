@@ -1,0 +1,12 @@
+// A refined function that increments a heap cell.
+// Takes ownership, reads, writes incremented value, returns ownership.
+fun incr (p : ptr int [pure], x : int [spec], r : Own[int](p) @ x [res])
+  ~> (x' : int [spec], r' : Own[int](p) @ x' [res]) [impure] =
+  let (v, pf) = Get[int](p, x, res r);
+  let (r') = Set[int](p, v + 1, x, res r);
+  (v + 1, res r') : x' : int [spec], r' : Own[int](p) @ x' [res]
+
+main : [impure] =
+  let (p, r) = New[int](0);
+  let (x', r') = incr(p, 0, res r);
+  Del[int](p, x', res r')

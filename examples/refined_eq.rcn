@@ -1,0 +1,4 @@
+// Equality test: Eq[int](1, 1) synthesizes (z:bool, prop: z == (1 == 1) [log])
+// We drop the log by annotating with just the comp part, relying on sub rule.
+main : z : bool [pure] [pure] =
+  Eq[int](1, 1)
