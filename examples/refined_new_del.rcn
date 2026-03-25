@@ -1,6 +1,4 @@
 // Allocate a pointer, then immediately deallocate it.
-// New[int](42) returns (p:ptr int, r:Own[int](p) @ 42 [res])
-// Del[int](p, 42, res r) consumes the resource and returns ()
-main : [impure] =
+main : () [impure] =
   let (p, r) = New[int](42);
   Del[int](p, 42, res r)

@@ -1,6 +1,5 @@
 // Allocate, update, deallocate.
-// Set[int] consumes old resource, returns new resource with updated value.
-main : [impure] =
+main : () [impure] =
   let (p, r) = New[int](0);
   let (r2) = Set[int](p, 42, 0, res r);
   Del[int](p, 42, res r2)

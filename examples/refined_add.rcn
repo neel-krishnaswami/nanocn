@@ -1,4 +1,4 @@
 // Refined program with a function call
 fun add (x : int) -> int [pure] = x
-main : r : int [pure] [pure] =
-  add(42) : r : int [pure]
+main : (r : int) [pure] =
+  add(42) : (r : int)

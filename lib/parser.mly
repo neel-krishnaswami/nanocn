@@ -336,8 +336,13 @@ rdecl:
   | FUN; f = ident_var; LPAREN; x = ident_var; COLON; a = sort; RPAREN; ARROW; b = sort; LBRACKET; eff = effect; RBRACKET; EQUAL; body = expr
     { RProg.FunDecl { name = f; param = x; arg_sort = a; ret_sort = b; eff;
                        body; loc = mk_loc $startpos $endpos } }
-  | FUN; f = ident_var; LPAREN; pf1 = pf_sort; RPAREN; TILDEARROW; pf2 = pf_sort; LBRACKET; eff = effect; RBRACKET; EQUAL; e = crt_expr
+  | FUN; f = ident_var; pf1 = pf_sort; TILDEARROW; pf2 = pf_sort; LBRACKET; eff = effect; RBRACKET; EQUAL; e = crt_expr
     { RProg.RFunDecl { name = f; domain = pf1; codomain = pf2; eff;
+                        body = e; loc = mk_loc $startpos $endpos } }
+  | FUN; f = ident_var; LPAREN; x = ident_var; COLON; a = sort; RPAREN; TILDEARROW; pf2 = pf_sort; LBRACKET; eff = effect; RBRACKET; EQUAL; e = crt_expr
+    { (* Core param with refined return type *)
+      let pf1 = [ProofSort.Comp { var = x; sort = a; eff = Effect.Pure }] in
+      RProg.RFunDecl { name = f; domain = pf1; codomain = pf2; eff;
                         body = e; loc = mk_loc $startpos $endpos } }
   | SORT; d = IDENT; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
     { let decl = DsortDecl.({
@@ -373,15 +378,17 @@ rdecl:
 (* ===== Proof sorts ===== *)
 
 pf_sort:
-  | entries = separated_list(COMMA, pf_entry)
+  | LPAREN; entries = separated_list(COMMA, pf_entry); RPAREN
     { entries }
 
 pf_entry:
-  | x = ident_var; COLON; s = sort; LBRACKET; eff = effect; RBRACKET
+  | x = ident_var; COLON; s = sort
+    { ProofSort.Comp { var = x; sort = s; eff = Effect.Pure } }
+  | LBRACKET; eff = effect; RBRACKET; x = ident_var; COLON; s = sort
     { ProofSort.Comp { var = x; sort = s; eff } }
-  | x = ident_var; COLON; e = simple_expr; LBRACKET; LOG; RBRACKET
+  | LBRACKET; LOG; RBRACKET; x = ident_var; COLON; e = app_expr
     { ProofSort.Log { var = x; prop = e } }
-  | x = ident_var; COLON; e1 = simple_expr; AT; e2 = simple_expr; LBRACKET; RES; RBRACKET
+  | LBRACKET; RES; RBRACKET; x = ident_var; COLON; e1 = app_expr; AT; e2 = app_expr
     { ProofSort.Res { var = x; pred = e1; value = e2 } }
 
 (* ===== Core refined terms ===== *)
