@@ -23,8 +23,8 @@ type branch = {
 (** {1 Elaboration} *)
 
 val synth : _ Sig.t -> Context.t -> Effect.t -> SurfExpr.se ->
-  (CoreExpr.ce * Sort.sort * Effect.t) ElabM.t
-(** [synth sig ctx eff0 se] synthesizes the sort and effect of [se] and
+  (CoreExpr.ce * Sort.sort) ElabM.t
+(** [synth sig ctx eff0 se] synthesizes the sort of [se] and
     elaborates it to a core expression. [eff0] is the ambient effect. *)
 
 val check : _ Sig.t -> Context.t -> SurfExpr.se -> Sort.sort -> Effect.t ->

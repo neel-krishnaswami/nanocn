@@ -43,20 +43,6 @@ let lift_sort (s : Sort.sort) : typed_info Sort.t =
       method eff = Effect.Pure
     end : typed_info)) s
 
-(** Join two effects, producing an error on failure. *)
-let join_or_fail pos e1 e2 =
-  match Effect.join e1 e2 with
-  | Some e -> Ok e
-  | None -> err_at_f pos "cannot join effects %a and %a"
-              Effect.print e1 Effect.print e2
-
-(** Join a list of effects, starting from Pure. *)
-let join_list_or_fail pos effs =
-  List.fold_left (fun acc e ->
-    let* a = acc in
-    join_or_fail pos a e
-  ) (Ok Effect.Pure) effs
-
 (** Signature of a primitive (sort-level). *)
 let prim_signature (p : Prim.t) =
   let int_sort = mk_sort Sort.Int in
@@ -92,7 +78,7 @@ let prim_signature (p : Prim.t) =
     let sa = Sort.typ_to_sort a in
     (mk_sort (Sort.Record [mk_sort (Sort.Ptr sa); sa]), unit_sort, Effect.Impure)
 
-(** Synthesize: S; G |- [eff0] ce ==> tau [eff] *)
+(** Synthesize: S; G |- [eff0] ce ==> tau *)
 let rec synth sig_ ctx eff0 ce =
   let pos = (CoreExpr.info ce)#loc in
   match CoreExpr.shape ce with
@@ -100,46 +86,43 @@ let rec synth sig_ ctx eff0 ce =
     (match Context.lookup x ctx with
      | Some (s, var_eff) ->
        if Effect.sub var_eff eff0 then
-         Ok (mk ctx pos s var_eff (CoreExpr.Var x))
+         Ok (mk ctx pos s eff0 (CoreExpr.Var x))
        else
          err_at_f pos "variable %a has effect %a, not usable at effect %a"
            Var.print x Effect.print var_eff Effect.print eff0
      | None -> err_at_f pos "unbound variable %a" Var.print x)
 
   | CoreExpr.IntLit n ->
-    Ok (mk ctx pos (mk_sort Sort.Int) Effect.Pure (CoreExpr.IntLit n))
+    Ok (mk ctx pos (mk_sort Sort.Int) eff0 (CoreExpr.IntLit n))
 
   | CoreExpr.BoolLit b ->
-    Ok (mk ctx pos (mk_sort Sort.Bool) Effect.Pure (CoreExpr.BoolLit b))
+    Ok (mk ctx pos (mk_sort Sort.Bool) eff0 (CoreExpr.BoolLit b))
 
   | CoreExpr.Eq (ce1, ce2) ->
-    let* ce1' = synth sig_ ctx eff0 ce1 in
+    let eff0' = Effect.purify eff0 in
+    let* ce1' = synth sig_ ctx eff0' ce1 in
     let s1 = (CoreExpr.info ce1')#sort in
-    let eff1 = (CoreExpr.info ce1')#eff in
     if not (Sort.is_spec_type s1) then
       err_at pos "equality requires spec type (no pred)"
     else
-      let eff0' = Effect.purify eff0 in
-      let* (ce2', eff2) = check sig_ ctx ce2 s1 eff0' in
+      let* ce2' = check sig_ ctx ce2 s1 eff0' in
       let bool_sort = mk_sort Sort.Bool in
-      let* eff = join_or_fail pos eff1 eff2 in
-      Ok (mk ctx pos bool_sort eff (CoreExpr.Eq (ce1', ce2')))
+      Ok (mk ctx pos bool_sort eff0 (CoreExpr.Eq (ce1', ce2')))
 
   | CoreExpr.And (ce1, ce2) ->
     let bool_sort = mk_sort Sort.Bool in
-    let* (ce1', eff1) = check sig_ ctx ce1 bool_sort eff0 in
-    let* (ce2', eff2) = check sig_ ctx ce2 bool_sort eff0 in
-    let* eff = join_or_fail pos eff1 eff2 in
-    Ok (mk ctx pos bool_sort eff (CoreExpr.And (ce1', ce2')))
+    let* ce1' = check sig_ ctx ce1 bool_sort eff0 in
+    let* ce2' = check sig_ ctx ce2 bool_sort eff0 in
+    Ok (mk ctx pos bool_sort eff0 (CoreExpr.And (ce1', ce2')))
 
   | CoreExpr.Not ce ->
     let bool_sort = mk_sort Sort.Bool in
-    let* (ce', eff) = check sig_ ctx ce bool_sort eff0 in
-    Ok (mk ctx pos bool_sort eff (CoreExpr.Not ce'))
+    let* ce' = check sig_ ctx ce bool_sort eff0 in
+    Ok (mk ctx pos bool_sort eff0 (CoreExpr.Not ce'))
 
   | CoreExpr.Own s ->
     let sort = mk_sort (Sort.Pred s) in
-    Ok (mk ctx pos sort Effect.Spec (CoreExpr.Own (lift_sort s)))
+    Ok (mk ctx pos sort eff0 (CoreExpr.Own (lift_sort s)))
 
   | CoreExpr.App (p, arg) ->
     let* () = match p with
@@ -154,9 +137,8 @@ let rec synth sig_ ctx eff0 ce =
         Prim.print p Effect.print prim_eff Effect.print eff0
     else
       let eff0' = Effect.purify eff0 in
-      let* (arg', eff1) = check sig_ ctx arg arg_sort eff0' in
-      let* eff = join_or_fail pos prim_eff eff1 in
-      Ok (mk ctx pos ret_sort eff (CoreExpr.App (p, arg')))
+      let* arg' = check sig_ ctx arg arg_sort eff0' in
+      Ok (mk ctx pos ret_sort eff0 (CoreExpr.App (p, arg')))
 
   | CoreExpr.Call (name, arg) ->
     (match Sig.lookup_fun name sig_ with
@@ -166,13 +148,12 @@ let rec synth sig_ ctx eff0 ce =
            Var.print name Effect.print fun_eff Effect.print eff0
        else
          let eff0' = Effect.purify eff0 in
-         let* (arg', eff1) = check sig_ ctx arg arg_sort eff0' in
-         let* eff = join_or_fail pos fun_eff eff1 in
-         Ok (mk ctx pos ret_sort eff (CoreExpr.Call (name, arg')))
+         let* arg' = check sig_ ctx arg arg_sort eff0' in
+         Ok (mk ctx pos ret_sort eff0 (CoreExpr.Call (name, arg')))
      | None -> err_at_f pos "unknown function %a" Var.print name)
 
   | CoreExpr.Annot (ce, s, ann_eff) ->
-    let* (ce', _eff) = check sig_ ctx ce s ann_eff in
+    let* ce' = check sig_ ctx ce s ann_eff in
     Ok (mk ctx pos s ann_eff (CoreExpr.Annot (ce', lift_sort s, ann_eff)))
 
   | CoreExpr.Return _ | CoreExpr.Take _ | CoreExpr.Let _
@@ -180,50 +161,51 @@ let rec synth sig_ ctx eff0 ce =
   | CoreExpr.LetTuple _ | CoreExpr.If _ | CoreExpr.Iter _ ->
     err_at pos "cannot synthesize sort; add a type annotation"
 
-(** Check: S; G |- [eff0] ce <== tau [eff]
-    Returns (typed_ce, result_eff) where result_eff is computed bottom-up. *)
+(** Check: S; G |- [eff0] ce <== tau *)
 and check sig_ ctx ce sort eff0 =
   let pos = (CoreExpr.info ce)#loc in
   match CoreExpr.shape ce with
   | CoreExpr.Return inner ->
+    if not (Effect.sub Effect.Spec eff0) then
+      err_at pos "return requires spec context"
+    else
     (match Sort.shape sort with
      | Sort.Pred tau ->
-       let* (inner', eff) = check sig_ ctx inner tau eff0 in
-       Ok (mk ctx pos sort eff (CoreExpr.Return inner'), eff)
+       let* inner' = check sig_ ctx inner tau eff0 in
+       Ok (mk ctx pos sort eff0 (CoreExpr.Return inner'))
      | _ -> err_at pos "return requires pred sort")
 
   | CoreExpr.Take ((x, _), ce1, ce2) ->
+    if not (Effect.sub Effect.Spec eff0) then
+      err_at pos "take requires spec context"
+    else
     (match Sort.shape sort with
      | Sort.Pred _ ->
        let* ce1' = synth sig_ ctx eff0 ce1 in
        let s1 = (CoreExpr.info ce1')#sort in
-       let eff' = (CoreExpr.info ce1')#eff in
        (match Sort.shape s1 with
         | Sort.Pred tau ->
-          let bind_eff = Effect.purify eff' in
+          let bind_eff = Effect.purify eff0 in
           let ctx' = Context.extend x tau bind_eff ctx in
-          let* (ce2', eff'') = check sig_ ctx' ce2 sort eff0 in
-          let* eff = join_or_fail pos eff' eff'' in
+          let* ce2' = check sig_ ctx' ce2 sort eff0 in
           let xb = (x, mk_bind_info x tau bind_eff ctx') in
-          Ok (mk ctx pos sort eff (CoreExpr.Take (xb, ce1', ce2')), eff)
+          Ok (mk ctx pos sort eff0 (CoreExpr.Take (xb, ce1', ce2')))
         | _ -> err_at pos "take scrutinee must have pred sort")
      | _ -> err_at pos "take requires pred sort as target")
 
   | CoreExpr.Let ((x, _), ce1, ce2) ->
     let* ce1' = synth sig_ ctx eff0 ce1 in
     let tau = (CoreExpr.info ce1')#sort in
-    let eff' = (CoreExpr.info ce1')#eff in
-    let bind_eff = Effect.purify eff' in
+    let bind_eff = Effect.purify eff0 in
     let ctx' = Context.extend x tau bind_eff ctx in
-    let* (ce2', eff'') = check sig_ ctx' ce2 sort eff0 in
-    let* eff = join_or_fail pos eff' eff'' in
+    let* ce2' = check sig_ ctx' ce2 sort eff0 in
     let xb = (x, mk_bind_info x tau bind_eff ctx') in
-    Ok (mk ctx pos sort eff (CoreExpr.Let (xb, ce1', ce2')), eff)
+    Ok (mk ctx pos sort eff0 (CoreExpr.Let (xb, ce1', ce2')))
 
   | CoreExpr.LetTuple (xs, ce1, ce2) ->
-    let* ce1' = synth sig_ ctx eff0 ce1 in
+    let eff0' = Effect.purify eff0 in
+    let* ce1' = synth sig_ ctx eff0' ce1 in
     let s1 = (CoreExpr.info ce1')#sort in
-    let eff' = (CoreExpr.info ce1')#eff in
     (match Sort.shape s1 with
      | Sort.Record ts ->
        let vars = List.map fst xs in
@@ -231,11 +213,10 @@ and check sig_ ctx ce sort eff0 =
          err_at_f pos "let-tuple: expected %d components, got %d"
            (List.length ts) (List.length vars)
        else
-         let bind_eff = Effect.purify eff' in
+         let bind_eff = Effect.purify eff0 in
          let bindings = List.map (fun (x, s) -> (x, s, bind_eff)) (List.combine vars ts) in
          let ctx' = Context.extend_list bindings ctx in
-         let* (ce2', eff'') = check sig_ ctx' ce2 sort eff0 in
-         let* eff = join_or_fail pos eff' eff'' in
+         let* ce2' = check sig_ ctx' ce2 sort eff0 in
          let typed_xs = List.map (fun ((x, _), s) ->
            (x, (object
              method loc = Var.binding_site x
@@ -244,7 +225,7 @@ and check sig_ ctx ce sort eff0 =
              method eff = bind_eff
            end : typed_info))
          ) (List.combine xs ts) in
-         Ok (mk ctx pos sort eff (CoreExpr.LetTuple (typed_xs, ce1', ce2')), eff)
+         Ok (mk ctx pos sort eff0 (CoreExpr.LetTuple (typed_xs, ce1', ce2')))
      | _ -> err_at pos "let-tuple: scrutinee must have record sort")
 
   | CoreExpr.Tuple es ->
@@ -254,9 +235,8 @@ and check sig_ ctx ce sort eff0 =
          err_at_f pos "tuple: expected %d components, got %d"
            (List.length ts) (List.length es)
        else
-         let* (es', effs) = check_list sig_ ctx es ts eff0 in
-         let* eff = join_list_or_fail pos effs in
-         Ok (mk ctx pos sort eff (CoreExpr.Tuple es'), eff)
+         let* es' = check_list sig_ ctx es ts eff0 in
+         Ok (mk ctx pos sort eff0 (CoreExpr.Tuple es'))
      | _ -> err_at pos "tuple: expected record sort")
 
   | CoreExpr.Inject (l, e_inner) ->
@@ -264,8 +244,9 @@ and check sig_ ctx ce sort eff0 =
      | Sort.App (_, args) ->
        (match CtorLookup.lookup sig_ l args with
         | Ok ctor_sort ->
-          let* (e_inner', eff) = check sig_ ctx e_inner ctor_sort eff0 in
-          Ok (mk ctx pos sort eff (CoreExpr.Inject (l, e_inner')), eff)
+          let eff0' = Effect.purify eff0 in
+          let* e_inner' = check sig_ ctx e_inner ctor_sort eff0' in
+          Ok (mk ctx pos sort eff0 (CoreExpr.Inject (l, e_inner')))
         | Error msg -> err_at pos msg)
      | _ -> err_at pos "injection: expected datasort/datatype application")
 
@@ -273,84 +254,76 @@ and check sig_ ctx ce sort eff0 =
     let eff0' = Effect.purify eff0 in
     let* scrut' = synth sig_ ctx eff0' scrut in
     let scrut_sort = (CoreExpr.info scrut')#sort in
-    let scrut_eff = (CoreExpr.info scrut')#eff in
-    let* (branches', branch_effs) =
-      check_case_branches sig_ ctx branches scrut_sort sort eff0 scrut_eff pos in
-    let* eff = join_list_or_fail pos (scrut_eff :: branch_effs) in
-    Ok (mk ctx pos sort eff (CoreExpr.Case (scrut', branches')), eff)
+    let* branches' =
+      check_case_branches sig_ ctx branches scrut_sort sort eff0 eff0' pos in
+    Ok (mk ctx pos sort eff0 (CoreExpr.Case (scrut', branches')))
 
   | CoreExpr.Iter (x, e1, body) ->
-    let* e1' = synth sig_ ctx Effect.Pure e1 in
-    let a = (CoreExpr.info e1')#sort in
-    let init_eff = (CoreExpr.info e1')#eff in
-    if not (Effect.sub init_eff Effect.Pure) then
-      err_at pos "iter: initial expression must be pure"
-    else if not (Effect.sub Effect.Impure eff0) then
+    if not (Effect.sub Effect.Impure eff0) then
       err_at pos "iter requires impure context"
     else
+      let* e1' = synth sig_ ctx Effect.Pure e1 in
+      let a = (CoreExpr.info e1')#sort in
       let step_dsort = match Dsort.of_string "step" with Ok d -> d | Error _ -> failwith "impossible" in
       let iter_sort = mk_sort (Sort.App (step_dsort, [a; sort])) in
       let bind_eff = Effect.purify Effect.Impure in
       let ctx' = Context.extend x a bind_eff ctx in
-      let* (body', _body_eff) = check sig_ ctx' body iter_sort Effect.Impure in
-      Ok (mk ctx pos sort Effect.Impure (CoreExpr.Iter (x, e1', body')), Effect.Impure)
+      let* body' = check sig_ ctx' body iter_sort Effect.Impure in
+      Ok (mk ctx pos sort eff0 (CoreExpr.Iter (x, e1', body')))
 
   | CoreExpr.If (cond, e_then, e_else) ->
     let bool_sort = mk_sort Sort.Bool in
     let eff0' = Effect.purify eff0 in
-    let* (cond', eff1) = check sig_ ctx cond bool_sort eff0' in
-    let* (then', eff2) = check sig_ ctx e_then sort eff0 in
-    let* (else', eff3) = check sig_ ctx e_else sort eff0 in
-    let* eff = join_or_fail pos eff1 eff2 in
-    let* eff = join_or_fail pos eff eff3 in
-    Ok (mk ctx pos sort eff (CoreExpr.If (cond', then', else')), eff)
+    let* cond' = check sig_ ctx cond bool_sort eff0' in
+    let* then' = check sig_ ctx e_then sort eff0 in
+    let* else' = check sig_ ctx e_else sort eff0 in
+    Ok (mk ctx pos sort eff0 (CoreExpr.If (cond', then', else')))
 
   | CoreExpr.Annot (inner, ann_sort, ann_eff) ->
-    let* (inner', _inner_eff) = check sig_ ctx inner ann_sort ann_eff in
+    let* inner' = check sig_ ctx inner ann_sort ann_eff in
     if not (sort_equal ann_sort sort) then
       err_at_f pos "annotation sort %a does not match expected sort %a"
         Sort.print ann_sort Sort.print sort
     else if not (Effect.sub ann_eff eff0) then
       err_at pos "annotation effect exceeds allowed effect"
     else
-      Ok (mk ctx pos sort ann_eff (CoreExpr.Annot (inner', lift_sort ann_sort, ann_eff)), ann_eff)
+      Ok (mk ctx pos sort ann_eff (CoreExpr.Annot (inner', lift_sort ann_sort, ann_eff)))
 
   | _ ->
     let* e' = synth sig_ ctx eff0 ce in
     let syn_sort = (CoreExpr.info e')#sort in
-    let syn_eff = (CoreExpr.info e')#eff in
     if not (sort_equal syn_sort sort) then
       err_at_f pos "expected sort %a, got %a" Sort.print sort Sort.print syn_sort
     else
-      Ok (e', syn_eff)
+      Ok e'
 
 and check_list sig_ ctx es sorts eff0 =
   match es, sorts with
-  | [], [] -> Ok ([], [])
+  | [], [] -> Ok []
   | e :: es', s :: ss' ->
-    let* (e', eff) = check sig_ ctx e s eff0 in
-    let* (rest, rest_effs) = check_list sig_ ctx es' ss' eff0 in
-    Ok (e' :: rest, eff :: rest_effs)
+    let* e' = check sig_ ctx e s eff0 in
+    let* rest = check_list sig_ ctx es' ss' eff0 in
+    Ok (e' :: rest)
   | _ -> Error "tuple length mismatch"
 
-and check_case_branches sig_ ctx branches scrut_sort result_sort eff0 scrut_eff pos =
+and check_case_branches sig_ ctx branches scrut_sort result_sort eff0 bind_eff pos =
   match Sort.shape scrut_sort with
   | Sort.App (_d, args) ->
     let rec go = function
-      | [] -> Ok ([], [])
+      | [] -> Ok []
       | (l, x, body, _) :: rest ->
         (match CtorLookup.lookup sig_ l args with
          | Ok ctor_sort ->
-           let ctx' = Context.extend x ctor_sort scrut_eff ctx in
-           let* (body', body_eff) = check sig_ ctx' body result_sort eff0 in
+           let ctx' = Context.extend x ctor_sort bind_eff ctx in
+           let* body' = check sig_ ctx' body result_sort eff0 in
            let branch_info = (object
              method loc = pos
              method ctx = ctx'
              method sort = ctor_sort
-             method eff = scrut_eff
+             method eff = bind_eff
            end : typed_info) in
-           let* (rest', rest_effs) = go rest in
-           Ok ((l, x, body', branch_info) :: rest', body_eff :: rest_effs)
+           let* rest' = go rest in
+           Ok ((l, x, body', branch_info) :: rest')
          | Error msg -> err_at_f pos "%s" msg)
     in
     go branches
@@ -526,7 +499,7 @@ let elaborate_fun sig_ (d : (SurfExpr.se, _) Prog.decl) =
     let* (y, core_body) = result in
     let bind_eff = Effect.purify d.eff in
     let ctx = Context.extend y d.arg_sort bind_eff Context.empty in
-    let* (typed_body, _result_eff) = check sig_for_body ctx core_body d.ret_sort d.eff in
+    let* typed_body = check sig_for_body ctx core_body d.ret_sort d.eff in
     Ok (Prog.CoreFunDecl { name = d.name; param = y;
                             arg_sort = d.arg_sort; ret_sort = d.ret_sort;
                             eff = d.eff; body = typed_body; loc = d.loc })
@@ -595,7 +568,7 @@ let check_prog (p : (SurfExpr.se, _) Prog.t) : (typed_ce Sig.t * typed_ce Prog.c
     Elaborate.check final_sig Context.empty p.main p.main_sort p.main_eff
   ) in
   let* core_main = result in
-  let* (main', _result_eff) = check final_sig Context.empty core_main p.main_sort p.main_eff in
+  let* main' = check final_sig Context.empty core_main p.main_sort p.main_eff in
   Ok (final_sig,
       { Prog.core_decls = decls'; core_main = main';
         core_main_sort = p.main_sort; core_main_eff = p.main_eff;

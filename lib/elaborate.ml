@@ -210,40 +210,40 @@ let rec synth sig_ ctx eff0 se =
     (match Context.lookup x ctx with
      | Some (s, var_eff) ->
        if Effect.sub var_eff eff0 then
-         ElabM.return (mk_ce pos (CoreExpr.Var x), s, var_eff)
+         ElabM.return (mk_ce pos (CoreExpr.Var x), s)
        else
          fail_at_f pos "variable %a has effect %a, not usable at effect %a"
            Var.print x Effect.print var_eff Effect.print eff0
      | None -> fail_at_f pos "unbound variable %a" Var.print x)
 
   | SurfExpr.IntLit n ->
-    ElabM.return (mk_ce pos (CoreExpr.IntLit n), mk_sort pos Sort.Int, Effect.Pure)
+    ElabM.return (mk_ce pos (CoreExpr.IntLit n), mk_sort pos Sort.Int)
 
   | SurfExpr.BoolLit b ->
-    ElabM.return (mk_ce pos (CoreExpr.BoolLit b), mk_sort pos Sort.Bool, Effect.Pure)
+    ElabM.return (mk_ce pos (CoreExpr.BoolLit b), mk_sort pos Sort.Bool)
 
   | SurfExpr.Eq (se1, se2) ->
-    let* (ce1, s, eff1) = synth sig_ ctx eff0 se1 in
+    let eff0' = Effect.purify eff0 in
+    let* (ce1, s) = synth sig_ ctx eff0' se1 in
     if not (Sort.is_spec_type s) then
       fail_at pos "equality requires spec type (no pred)"
     else
-      let eff0' = Effect.purify eff0 in
       let* ce2 = check sig_ ctx se2 s eff0' in
-      ElabM.return (mk_ce pos (CoreExpr.Eq (ce1, ce2)), mk_sort pos Sort.Bool, eff1)
+      ElabM.return (mk_ce pos (CoreExpr.Eq (ce1, ce2)), mk_sort pos Sort.Bool)
 
   | SurfExpr.And (se1, se2) ->
     let bool_sort = mk_sort pos Sort.Bool in
     let* ce1 = check sig_ ctx se1 bool_sort eff0 in
     let* ce2 = check sig_ ctx se2 bool_sort eff0 in
-    ElabM.return (mk_ce pos (CoreExpr.And (ce1, ce2)), mk_sort pos Sort.Bool, eff0)
+    ElabM.return (mk_ce pos (CoreExpr.And (ce1, ce2)), mk_sort pos Sort.Bool)
 
   | SurfExpr.Not se ->
     let bool_sort = mk_sort pos Sort.Bool in
     let* ce = check sig_ ctx se bool_sort eff0 in
-    ElabM.return (mk_ce pos (CoreExpr.Not ce), mk_sort pos Sort.Bool, eff0)
+    ElabM.return (mk_ce pos (CoreExpr.Not ce), mk_sort pos Sort.Bool)
 
   | SurfExpr.Own s ->
-    ElabM.return (mk_ce pos (CoreExpr.Own s), mk_sort pos (Sort.Pred s), Effect.Spec)
+    ElabM.return (mk_ce pos (CoreExpr.Own s), mk_sort pos (Sort.Pred s))
 
   | SurfExpr.App (p, arg) ->
     let* () = match p with
@@ -259,7 +259,7 @@ let rec synth sig_ ctx eff0 se =
     else
       let eff0' = Effect.purify eff0 in
       let* ce_arg = check sig_ ctx arg arg_sort eff0' in
-      ElabM.return (mk_ce pos (CoreExpr.App (p, ce_arg)), ret_sort, prim_eff)
+      ElabM.return (mk_ce pos (CoreExpr.App (p, ce_arg)), ret_sort)
 
   | SurfExpr.Call (name, arg) ->
     (match Sig.lookup_fun name sig_ with
@@ -270,13 +270,13 @@ let rec synth sig_ ctx eff0 se =
        else
          let eff0' = Effect.purify eff0 in
          let* ce_arg = check sig_ ctx arg arg_sort eff0' in
-         ElabM.return (mk_ce pos (CoreExpr.Call (name, ce_arg)), ret_sort, fun_eff)
+         ElabM.return (mk_ce pos (CoreExpr.Call (name, ce_arg)), ret_sort)
      | None ->
        fail_at_f pos "unknown function %a" Var.print name)
 
   | SurfExpr.Annot (se, s, ann_eff) ->
     let* ce = check sig_ ctx se s ann_eff in
-    ElabM.return (mk_ce pos (CoreExpr.Annot (ce, s, ann_eff)), s, ann_eff)
+    ElabM.return (mk_ce pos (CoreExpr.Annot (ce, s, ann_eff)), s)
 
   | SurfExpr.Return _ | SurfExpr.Take _ | SurfExpr.Let _
   | SurfExpr.Tuple _ | SurfExpr.Inject _ | SurfExpr.Case _
@@ -287,6 +287,9 @@ and check sig_ ctx se sort eff0 =
   let pos = (SurfExpr.info se)#loc in
   match SurfExpr.shape se with
   | SurfExpr.Return inner ->
+    if not (Effect.sub Effect.Spec eff0) then
+      fail_at pos "return requires spec context"
+    else
     (match Sort.shape sort with
      | Sort.Pred tau ->
        let* ce = check sig_ ctx inner tau eff0 in
@@ -294,12 +297,15 @@ and check sig_ ctx se sort eff0 =
      | _ -> fail_at pos "return requires pred sort")
 
   | SurfExpr.Take (pat, se1, se2) ->
+    if not (Effect.sub Effect.Spec eff0) then
+      fail_at pos "take requires spec context"
+    else
     (match Sort.shape sort with
      | Sort.Pred _ ->
-       let* (ce1, s1, eff') = synth sig_ ctx eff0 se1 in
+       let* (ce1, s1) = synth sig_ ctx eff0 se1 in
        (match Sort.shape s1 with
         | Sort.Pred tau ->
-          let eff_b = Effect.purify eff' in
+          let eff_b = Effect.purify eff0 in
           let* y = ElabM.fresh (Pat.info pat)#loc in
           let branch = {
             bindings = [(pat, tau)];
@@ -314,8 +320,8 @@ and check sig_ ctx se sort eff0 =
      | _ -> fail_at pos "take requires pred sort as target")
 
   | SurfExpr.Let (pat, se1, se2) ->
-    let* (ce1, tau, eff') = synth sig_ ctx eff0 se1 in
-    let eff_b = Effect.purify eff' in
+    let* (ce1, tau) = synth sig_ ctx eff0 se1 in
+    let eff_b = Effect.purify eff0 in
     let* y = ElabM.fresh (Pat.info pat)#loc in
     let branch = {
       bindings = [(pat, tau)];
@@ -343,14 +349,15 @@ and check sig_ ctx se sort eff0 =
      | Sort.App (_d, args) ->
        (match CtorLookup.lookup sig_ l args with
         | Ok ctor_sort ->
-          let* ce = check sig_ ctx inner ctor_sort eff0 in
+          let eff0' = Effect.purify eff0 in
+          let* ce = check sig_ ctx inner ctor_sort eff0' in
           ElabM.return (mk_ce pos (CoreExpr.Inject (l, ce)))
         | Error msg -> fail_at_f pos "%s" msg)
      | _ -> fail_at_f pos "constructor %a requires datasort/datatype" Label.print l)
 
   | SurfExpr.Case (scrut, surf_branches) ->
     let eff0' = Effect.purify eff0 in
-    let* (ce_scrut, scrut_sort, scrut_eff) = synth sig_ ctx eff0' scrut in
+    let* (ce_scrut, scrut_sort) = synth sig_ ctx eff0' scrut in
     let* y = ElabM.fresh (SurfExpr.info scrut)#loc in
     let branches = List.map (fun (pat, body, _) ->
       { bindings = [(pat, scrut_sort)];
@@ -358,7 +365,7 @@ and check sig_ ctx se sort eff0 =
         ectx = EvalCtx.Hole;
         body }
     ) surf_branches in
-    let* ce_body = coverage_check sig_ ctx [y] branches scrut_eff sort eff0 in
+    let* ce_body = coverage_check sig_ ctx [y] branches eff0' sort eff0 in
     let yb = (y, object method loc = Var.binding_site y end) in
     ElabM.return (mk_ce pos (CoreExpr.Let (yb, ce_scrut, ce_body)))
 
@@ -366,19 +373,19 @@ and check sig_ ctx se sort eff0 =
     if not (Effect.sub Effect.Impure eff0) then
       fail_at pos "iter requires impure context"
     else
-      let* (ce1, init_sort, _init_eff) = synth sig_ ctx Effect.Pure se1 in
-      let step_dsort = match Dsort.of_string "step" with Ok d -> d | Error _ -> failwith "impossible" in
-      let iter_sort = mk_sort pos (Sort.App (step_dsort, [init_sort; sort])) in
-      let* y = ElabM.fresh (Pat.info pat)#loc in
-      let bind_eff = Effect.purify Effect.Impure in
-      let branch = {
-        bindings = [(pat, init_sort)];
-        ctx_bindings = [];
-        ectx = EvalCtx.Hole;
-        body = se2;
-      } in
-      let* ce_body = coverage_check sig_ ctx [y] [branch] bind_eff iter_sort Effect.Impure in
-      ElabM.return (mk_ce pos (CoreExpr.Iter (y, ce1, ce_body)))
+    let* (ce1, init_sort) = synth sig_ ctx Effect.Pure se1 in
+    let step_dsort = match Dsort.of_string "step" with Ok d -> d | Error _ -> failwith "impossible" in
+    let iter_sort = mk_sort pos (Sort.App (step_dsort, [init_sort; sort])) in
+    let* y = ElabM.fresh (Pat.info pat)#loc in
+    let bind_eff = Effect.purify Effect.Impure in
+    let branch = {
+      bindings = [(pat, init_sort)];
+      ctx_bindings = [];
+      ectx = EvalCtx.Hole;
+      body = se2;
+    } in
+    let* ce_body = coverage_check sig_ ctx [y] [branch] bind_eff iter_sort Effect.Impure in
+    ElabM.return (mk_ce pos (CoreExpr.Iter (y, ce1, ce_body)))
 
   | SurfExpr.If (se1, se2, se3) ->
     let bool_sort = mk_sort pos Sort.Bool in
@@ -389,11 +396,9 @@ and check sig_ ctx se sort eff0 =
     ElabM.return (mk_ce pos (CoreExpr.If (ce1, ce2, ce3)))
 
   | _ ->
-    let* (ce, syn_sort, syn_eff) = synth sig_ ctx eff0 se in
+    let* (ce, syn_sort) = synth sig_ ctx eff0 se in
     if not (sort_equal syn_sort sort) then
       fail_at_f pos "expected sort %a, got %a" Sort.print sort Sort.print syn_sort
-    else if not (Effect.sub syn_eff eff0) then
-      fail_at pos "effect mismatch"
     else ElabM.return ce
 
 and check_list sig_ ctx ses sorts eff0 =
@@ -408,8 +413,7 @@ and check_list sig_ ctx ses sorts eff0 =
 (** {1 Coverage}
 
     The [eff_b] parameter is the binding effect for scrutinee variables —
-    per the spec, this is the scrutinee's inferred effect (for case) or
-    [purify eff'] (for let/take). *)
+    per the spec, this is [purify eff0] (the purification of the ambient effect). *)
 
 and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 =
   match scrutinees, branches with
