@@ -5,32 +5,32 @@
     via [RSig.comp] and [RCtx.erase]. *)
 
 val synth_crt :
-  RSig.t -> RCtx.t -> Effect.t -> RefinedExpr.located_crt ->
+  RSig.t -> RCtx.t -> Effect.t -> RefinedExpr.parsed_crt ->
   (CoreExpr.ce ProofSort.t * RCtx.t * Constraint.t, string) result
 
 val check_crt :
-  RSig.t -> RCtx.t -> Effect.t -> RefinedExpr.located_crt ->
+  RSig.t -> RCtx.t -> Effect.t -> RefinedExpr.parsed_crt ->
   CoreExpr.ce ProofSort.t ->
   (RCtx.t * Constraint.t, string) result
 
 val synth_lpf :
-  RSig.t -> RCtx.t -> RefinedExpr.located_lpf ->
+  RSig.t -> RCtx.t -> RefinedExpr.parsed_lpf ->
   (CoreExpr.ce * RCtx.t * Constraint.t, string) result
 
 val check_lpf :
-  RSig.t -> RCtx.t -> RefinedExpr.located_lpf -> CoreExpr.ce ->
+  RSig.t -> RCtx.t -> RefinedExpr.parsed_lpf -> CoreExpr.ce ->
   (RCtx.t * Constraint.t, string) result
 
 val synth_rpf :
-  RSig.t -> RCtx.t -> RefinedExpr.located_rpf ->
+  RSig.t -> RCtx.t -> RefinedExpr.parsed_rpf ->
   (CoreExpr.ce * CoreExpr.ce * RCtx.t * Constraint.t, string) result
 
 val check_rpf :
-  RSig.t -> RCtx.t -> RefinedExpr.located_rpf -> CoreExpr.ce -> CoreExpr.ce ->
+  RSig.t -> RCtx.t -> RefinedExpr.parsed_rpf -> CoreExpr.ce -> CoreExpr.ce ->
   (RCtx.t * Constraint.t, string) result
 
 val check_spine :
-  RSig.t -> RCtx.t -> Effect.t -> RefinedExpr.located_spine ->
+  RSig.t -> RCtx.t -> Effect.t -> RefinedExpr.parsed_spine ->
   CoreExpr.ce RFunType.t ->
   (CoreExpr.ce ProofSort.t * RCtx.t * Constraint.t, string) result
 
