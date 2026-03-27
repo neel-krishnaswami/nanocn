@@ -1,45 +1,42 @@
 (* Refined typechecker — implements all refined typing judgements.
-   Delegates core expression checking to Typecheck via RSig.comp and RCtx.erase.
-   Elaboration of SurfExpr.se to CoreExpr.ce is done inline during typechecking,
-   so each surface expression is elaborated with full context available. *)
+   Elaboration of SurfExpr.se to CoreExpr.typed_ce is done inline during
+   typechecking via Elaborate.synth/check, preserving sort/ctx/eff info
+   from elaboration throughout the entire refinement pipeline. *)
 
 (* ---------- helpers ---------- *)
 
-let loc_dummy = object method loc = SourcePos.dummy end
-
-(* Strip typed info down to located info *)
-let strip_info (te : Typecheck.typed_ce) : CoreExpr.ce =
-  CoreExpr.map (fun (b : Typecheck.typed_info) ->
-    object method loc = b#loc end) te
-
 open ElabM
 
-(* Elaborate a surface expression to core, synthesizing its sort *)
-let elab_se (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (se : SurfExpr.se) : (CoreExpr.ce * Sort.sort) ElabM.t =
-  let cs = RSig.comp rs in
-  let* (ce, _sort) = Elaborate.synth cs gamma eff se in
-  let* te = lift (Typecheck.synth cs gamma eff ce) in
-  return (strip_info te, (CoreExpr.info te)#sort)
+let loc_dummy = object method loc = SourcePos.dummy end
 
-(* Elaborate a surface expression to core, checking against a sort *)
-let elab_se_check (rs : RSig.t) (gamma : Context.t) (se : SurfExpr.se) (sort : Sort.sort) (eff : Effect.t) : CoreExpr.ce ElabM.t =
-  let cs = RSig.comp rs in
-  let* ce = Elaborate.check cs gamma se sort eff in
-  let* te = lift (Typecheck.check cs gamma ce sort eff) in
-  return (strip_info te)
+let int_sort = Sort.mk loc_dummy Sort.Int
+let bool_sort = Sort.mk loc_dummy Sort.Bool
 
-(* Elaborate a surface expression to core using a refined context *)
+(* Typed info constructor for manually-built expressions *)
+let mk_info sort =
+  (object method loc = SourcePos.dummy method ctx = Context.empty
+          method sort = sort method eff = Effect.Spec end : CoreExpr.typed_info)
+
+(* Elaborate a surface expression to typed core, synthesizing its sort *)
+let elab_se (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (se : SurfExpr.se) : (CoreExpr.typed_ce * Sort.sort) ElabM.t =
+  let cs = RSig.comp rs in
+  Elaborate.synth cs gamma eff se
+
+(* Elaborate a surface expression to typed core, checking against a sort *)
+let elab_se_check (rs : RSig.t) (gamma : Context.t) (se : SurfExpr.se) (sort : Sort.sort) (eff : Effect.t) : CoreExpr.typed_ce ElabM.t =
+  let cs = RSig.comp rs in
+  Elaborate.check cs gamma se sort eff
+
+(* Elaborate a surface expression to typed core using a refined context *)
 let elab_and_synth rs delta eff se =
   let gamma = RCtx.erase delta in
   elab_se rs gamma eff se
 
-(* Elaborate a ProofSort from parsed (SurfExpr.se) to checked (CoreExpr.ce) *)
-let elab_pf_entry (rs : RSig.t) (gamma : Context.t) (_eff : Effect.t) (entry : (SurfExpr.se, Var.t) ProofSort.entry) : (CoreExpr.ce, Var.t) ProofSort.entry ElabM.t =
+(* Elaborate a ProofSort from parsed (SurfExpr.se) to checked (CoreExpr.typed_ce) *)
+let elab_pf_entry (rs : RSig.t) (gamma : Context.t) (_eff : Effect.t) (entry : (SurfExpr.se, Var.t) ProofSort.entry) : (CoreExpr.typed_ce, Var.t) ProofSort.entry ElabM.t =
   match entry with
   | ProofSort.Comp c -> return (ProofSort.Comp c)
   | ProofSort.Log { var; prop } ->
-    let loc = object method loc = SourcePos.dummy end in
-    let bool_sort = Sort.mk loc Sort.Bool in
     let* ce = elab_se_check rs gamma prop bool_sort Effect.Spec in
     return (ProofSort.Log { var; prop = ce })
   | ProofSort.Res { var; pred; value } ->
@@ -56,7 +53,7 @@ let elab_pf_entry (rs : RSig.t) (gamma : Context.t) (_eff : Effect.t) (entry : (
        return (ProofSort.DepRes { var; bound_var; pred = ce_pred })
      | _ -> fail "dep-res: must have pred sort")
 
-let elab_pf (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (pf : (SurfExpr.se, Var.t) ProofSort.t) : (CoreExpr.ce, Var.t) ProofSort.t ElabM.t =
+let elab_pf (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (pf : (SurfExpr.se, Var.t) ProofSort.t) : (CoreExpr.typed_ce, Var.t) ProofSort.t ElabM.t =
   let rec go gamma = function
     | [] -> return []
     | entry :: rest ->
@@ -64,11 +61,9 @@ let elab_pf (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (pf : (SurfExpr.s
       let* gamma' = match entry' with
         | ProofSort.Comp { var; sort; eff } -> return (Context.extend var sort eff gamma)
         | ProofSort.Log _ | ProofSort.Res _ -> return gamma
-        | ProofSort.DepRes { bound_var; pred; _ } ->
-          let cs = RSig.comp rs in
-          let* te = lift (Typecheck.synth cs gamma Effect.Spec pred) in
-          let sort = (CoreExpr.info te)#sort in
-          (match Sort.shape sort with
+        | ProofSort.DepRes { pred; bound_var; _ } ->
+          let pred_sort = (CoreExpr.info pred)#sort in
+          (match Sort.shape pred_sort with
            | Sort.Pred inner -> return (Context.extend bound_var inner Effect.Spec gamma)
            | _ -> fail "dep-res: expected pred sort in elab_pf")
       in
@@ -77,23 +72,22 @@ let elab_pf (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (pf : (SurfExpr.s
   in
   go gamma pf
 
-(* Make a core bool literal *)
-let mk_bool b = CoreExpr.mk loc_dummy (CoreExpr.BoolLit b)
+(* Make a typed core bool literal *)
+let mk_bool b = CoreExpr.mk (mk_info bool_sort) (CoreExpr.BoolLit b)
 let mk_true = mk_bool true
 let mk_false = mk_bool false
 
-(* Make ce1 == ce2 as a core expression *)
-let mk_eq ce1 ce2 = CoreExpr.mk loc_dummy (CoreExpr.Eq (ce1, ce2))
+(* Make ce1 == ce2 as a typed core expression *)
+let mk_eq ce1 ce2 = CoreExpr.mk (mk_info bool_sort) (CoreExpr.Eq (ce1, ce2))
 
 (* ---------- refined primitive signatures ---------- *)
 
 (* Helper constructors for building proof sorts *)
-let ce_of_var v = CoreExpr.mk loc_dummy (CoreExpr.Var v)
-let mk_prim_app p args = CoreExpr.mk loc_dummy (CoreExpr.App (p, CoreExpr.mk loc_dummy (CoreExpr.Tuple args)))
-let mk_not ce = CoreExpr.mk loc_dummy (CoreExpr.Not ce)
-
-let int_sort = Sort.mk loc_dummy Sort.Int
-let bool_sort = Sort.mk loc_dummy Sort.Bool
+let ce_of_var v sort = CoreExpr.mk (mk_info sort) (CoreExpr.Var v)
+let mk_prim_app p args =
+  let (arg_sort, ret_sort, _eff) = Typecheck.prim_signature p in
+  CoreExpr.mk (mk_info ret_sort) (CoreExpr.App (p, CoreExpr.mk (mk_info arg_sort) (CoreExpr.Tuple args)))
+let mk_not ce = CoreExpr.mk (mk_info bool_sort) (CoreExpr.Not ce)
 
 (* Lift a plain FunSig/FunDef to an RF, creating fresh variables *)
 let lift_to_rf arg ret eff =
@@ -106,7 +100,7 @@ let lift_to_rf arg ret eff =
   }
 
 (* Monadic lookup for refined function types, lifting plain entries *)
-let lookup_rf_m (rs : RSig.t) (f : string) : (CoreExpr.ce, Var.t) RFunType.t option ElabM.t =
+let lookup_rf_m (rs : RSig.t) (f : string) : (CoreExpr.typed_ce, Var.t) RFunType.t option ElabM.t =
   match RSig.lookup_rf f rs with
   | Some rf -> return (Some rf)
   | None ->
@@ -117,7 +111,7 @@ let lookup_rf_m (rs : RSig.t) (f : string) : (CoreExpr.ce, Var.t) RFunType.t opt
     | None -> return None
 
 (** Refined function type for a primitive, following the spec in refinement-types.md. *)
-let rprim_signature (p : Prim.t) : (CoreExpr.ce, Var.t) RFunType.t ElabM.t =
+let rprim_signature (p : Prim.t) : (CoreExpr.typed_ce, Var.t) RFunType.t ElabM.t =
   match p with
   (* Arithmetic: (x:int, y:int) ⊸ (z:int, prop: z == prim(x,y) [log]) [pure] *)
   | Prim.Add | Prim.Sub | Prim.Mul ->
@@ -125,11 +119,11 @@ let rprim_signature (p : Prim.t) : (CoreExpr.ce, Var.t) RFunType.t ElabM.t =
     let* y = fresh SourcePos.dummy in
     let* z = fresh SourcePos.dummy in
     let* prop = fresh SourcePos.dummy in
-    let result_expr = mk_prim_app p [ce_of_var x; ce_of_var y] in
+    let result_expr = mk_prim_app p [ce_of_var x int_sort; ce_of_var y int_sort] in
     return RFunType.{ domain = [ProofSort.Comp { var = x; sort = int_sort; eff = Effect.Pure };
                 ProofSort.Comp { var = y; sort = int_sort; eff = Effect.Pure }];
       codomain = [ProofSort.Comp { var = z; sort = int_sort; eff = Effect.Pure };
-                  ProofSort.Log { var = prop; prop = mk_eq (ce_of_var z) result_expr }];
+                  ProofSort.Log { var = prop; prop = mk_eq (ce_of_var z int_sort) result_expr }];
       eff = Effect.Pure }
 
   (* Div: (x:int, y:int, pre: not(y == 0) [log]) ⊸ (z:int, prop: z == x/y [log]) [pure] *)
@@ -139,12 +133,12 @@ let rprim_signature (p : Prim.t) : (CoreExpr.ce, Var.t) RFunType.t ElabM.t =
     let* pre = fresh SourcePos.dummy in
     let* z = fresh SourcePos.dummy in
     let* prop = fresh SourcePos.dummy in
-    let zero = CoreExpr.mk loc_dummy (CoreExpr.IntLit 0) in
+    let zero = CoreExpr.mk (mk_info int_sort) (CoreExpr.IntLit 0) in
     return RFunType.{ domain = [ProofSort.Comp { var = x; sort = int_sort; eff = Effect.Pure };
                 ProofSort.Comp { var = y; sort = int_sort; eff = Effect.Pure };
-                ProofSort.Log { var = pre; prop = mk_not (mk_eq (ce_of_var y) zero) }];
+                ProofSort.Log { var = pre; prop = mk_not (mk_eq (ce_of_var y int_sort) zero) }];
       codomain = [ProofSort.Comp { var = z; sort = int_sort; eff = Effect.Pure };
-                  ProofSort.Log { var = prop; prop = mk_eq (ce_of_var z) (mk_prim_app Prim.Div [ce_of_var x; ce_of_var y]) }];
+                  ProofSort.Log { var = prop; prop = mk_eq (ce_of_var z int_sort) (mk_prim_app Prim.Div [ce_of_var x int_sort; ce_of_var y int_sort]) }];
       eff = Effect.Pure }
 
   (* Comparisons: (x:int, y:int) ⊸ (z:bool, prop: z == x cmp y [log]) [pure] *)
@@ -153,11 +147,11 @@ let rprim_signature (p : Prim.t) : (CoreExpr.ce, Var.t) RFunType.t ElabM.t =
     let* y = fresh SourcePos.dummy in
     let* z = fresh SourcePos.dummy in
     let* prop = fresh SourcePos.dummy in
-    let result_expr = mk_prim_app p [ce_of_var x; ce_of_var y] in
+    let result_expr = mk_prim_app p [ce_of_var x int_sort; ce_of_var y int_sort] in
     return RFunType.{ domain = [ProofSort.Comp { var = x; sort = int_sort; eff = Effect.Pure };
                 ProofSort.Comp { var = y; sort = int_sort; eff = Effect.Pure }];
       codomain = [ProofSort.Comp { var = z; sort = bool_sort; eff = Effect.Pure };
-                  ProofSort.Log { var = prop; prop = mk_eq (ce_of_var z) result_expr }];
+                  ProofSort.Log { var = prop; prop = mk_eq (ce_of_var z bool_sort) result_expr }];
       eff = Effect.Pure }
 
   (* Logic: same pattern as comparisons *)
@@ -169,7 +163,7 @@ let rprim_signature (p : Prim.t) : (CoreExpr.ce, Var.t) RFunType.t ElabM.t =
     return RFunType.{ domain = [ProofSort.Comp { var = x; sort = bool_sort; eff = Effect.Pure };
                 ProofSort.Comp { var = y; sort = bool_sort; eff = Effect.Pure }];
       codomain = [ProofSort.Comp { var = z; sort = bool_sort; eff = Effect.Pure };
-                  ProofSort.Log { var = prop; prop = mk_eq (ce_of_var z) (CoreExpr.mk loc_dummy (CoreExpr.And (ce_of_var x, ce_of_var y))) }];
+                  ProofSort.Log { var = prop; prop = mk_eq (ce_of_var z bool_sort) (CoreExpr.mk (mk_info bool_sort) (CoreExpr.And (ce_of_var x bool_sort, ce_of_var y bool_sort))) }];
       eff = Effect.Pure }
 
   | Prim.Or ->
@@ -180,7 +174,7 @@ let rprim_signature (p : Prim.t) : (CoreExpr.ce, Var.t) RFunType.t ElabM.t =
     return RFunType.{ domain = [ProofSort.Comp { var = x; sort = bool_sort; eff = Effect.Pure };
                 ProofSort.Comp { var = y; sort = bool_sort; eff = Effect.Pure }];
       codomain = [ProofSort.Comp { var = z; sort = bool_sort; eff = Effect.Pure };
-                  ProofSort.Log { var = prop; prop = mk_eq (ce_of_var z) (mk_prim_app Prim.Or [ce_of_var x; ce_of_var y]) }];
+                  ProofSort.Log { var = prop; prop = mk_eq (ce_of_var z bool_sort) (mk_prim_app Prim.Or [ce_of_var x bool_sort; ce_of_var y bool_sort]) }];
       eff = Effect.Pure }
 
   | Prim.Not ->
@@ -189,7 +183,7 @@ let rprim_signature (p : Prim.t) : (CoreExpr.ce, Var.t) RFunType.t ElabM.t =
     let* prop = fresh SourcePos.dummy in
     return RFunType.{ domain = [ProofSort.Comp { var = x; sort = bool_sort; eff = Effect.Pure }];
       codomain = [ProofSort.Comp { var = z; sort = bool_sort; eff = Effect.Pure };
-                  ProofSort.Log { var = prop; prop = mk_eq (ce_of_var z) (mk_not (ce_of_var x)) }];
+                  ProofSort.Log { var = prop; prop = mk_eq (ce_of_var z bool_sort) (mk_not (ce_of_var x bool_sort)) }];
       eff = Effect.Pure }
 
   (* Eq[A]: (x:A, y:A) ⊸ (z:bool, prop: z == (x == y) [log]) [pure] *)
@@ -202,33 +196,35 @@ let rprim_signature (p : Prim.t) : (CoreExpr.ce, Var.t) RFunType.t ElabM.t =
     return RFunType.{ domain = [ProofSort.Comp { var = x; sort = a_sort; eff = Effect.Pure };
                 ProofSort.Comp { var = y; sort = a_sort; eff = Effect.Pure }];
       codomain = [ProofSort.Comp { var = z; sort = bool_sort; eff = Effect.Pure };
-                  ProofSort.Log { var = prop; prop = mk_eq (ce_of_var z) (mk_eq (ce_of_var x) (ce_of_var y)) }];
+                  ProofSort.Log { var = prop; prop = mk_eq (ce_of_var z bool_sort) (mk_eq (ce_of_var x a_sort) (ce_of_var y a_sort)) }];
       eff = Effect.Pure }
 
   (* New[A]: (x:A) ⊸ (p:ptr A, r:Own[A](p) @ x [res]) [impure] *)
   | Prim.New ty ->
     let a_sort = Sort.typ_to_sort ty in
     let ptr_sort = Sort.mk loc_dummy (Sort.Ptr a_sort) in
+    let pred_sort = Sort.mk loc_dummy (Sort.Pred a_sort) in
     let* x = fresh SourcePos.dummy in
     let* p = fresh SourcePos.dummy in
     let* r = fresh SourcePos.dummy in
-    let own_p = CoreExpr.mk loc_dummy (CoreExpr.App (Prim.Own ty, ce_of_var p)) in
+    let own_p = CoreExpr.mk (mk_info pred_sort) (CoreExpr.App (Prim.Own ty, ce_of_var p ptr_sort)) in
     return RFunType.{ domain = [ProofSort.Comp { var = x; sort = a_sort; eff = Effect.Pure }];
       codomain = [ProofSort.Comp { var = p; sort = ptr_sort; eff = Effect.Pure };
-                  ProofSort.Res { var = r; pred = own_p; value = ce_of_var x }];
+                  ProofSort.Res { var = r; pred = own_p; value = ce_of_var x a_sort }];
       eff = Effect.Impure }
 
   (* Del[A]: (p:ptr A, x:A [spec], r:Own[A](p) @ x [res]) ⊸ () [impure] *)
   | Prim.Del ty ->
     let a_sort = Sort.typ_to_sort ty in
     let ptr_sort = Sort.mk loc_dummy (Sort.Ptr a_sort) in
+    let pred_sort = Sort.mk loc_dummy (Sort.Pred a_sort) in
     let* p = fresh SourcePos.dummy in
     let* x = fresh SourcePos.dummy in
     let* r = fresh SourcePos.dummy in
-    let own_p = CoreExpr.mk loc_dummy (CoreExpr.App (Prim.Own ty, ce_of_var p)) in
+    let own_p = CoreExpr.mk (mk_info pred_sort) (CoreExpr.App (Prim.Own ty, ce_of_var p ptr_sort)) in
     return RFunType.{ domain = [ProofSort.Comp { var = p; sort = ptr_sort; eff = Effect.Pure };
                 ProofSort.Comp { var = x; sort = a_sort; eff = Effect.Spec };
-                ProofSort.Res { var = r; pred = own_p; value = ce_of_var x }];
+                ProofSort.Res { var = r; pred = own_p; value = ce_of_var x a_sort }];
       codomain = [];
       eff = Effect.Impure }
 
@@ -236,34 +232,36 @@ let rprim_signature (p : Prim.t) : (CoreExpr.ce, Var.t) RFunType.t ElabM.t =
   | Prim.Get ty ->
     let a_sort = Sort.typ_to_sort ty in
     let ptr_sort = Sort.mk loc_dummy (Sort.Ptr a_sort) in
+    let pred_sort = Sort.mk loc_dummy (Sort.Pred a_sort) in
     let* p = fresh SourcePos.dummy in
     let* x = fresh SourcePos.dummy in
     let* r = fresh SourcePos.dummy in
     let* v = fresh SourcePos.dummy in
     let* pf = fresh SourcePos.dummy in
     let* r' = fresh SourcePos.dummy in
-    let own_p = CoreExpr.mk loc_dummy (CoreExpr.App (Prim.Own ty, ce_of_var p)) in
+    let own_p = CoreExpr.mk (mk_info pred_sort) (CoreExpr.App (Prim.Own ty, ce_of_var p ptr_sort)) in
     return RFunType.{ domain = [ProofSort.Comp { var = p; sort = ptr_sort; eff = Effect.Pure };
                 ProofSort.DepRes { var = r; bound_var = x; pred = own_p }];
       codomain = [ProofSort.Comp { var = v; sort = a_sort; eff = Effect.Pure };
-                  ProofSort.Log { var = pf; prop = mk_eq (ce_of_var v) (ce_of_var x) };
-                  ProofSort.Res { var = r'; pred = own_p; value = ce_of_var x }];
+                  ProofSort.Log { var = pf; prop = mk_eq (ce_of_var v a_sort) (ce_of_var x a_sort) };
+                  ProofSort.Res { var = r'; pred = own_p; value = ce_of_var x a_sort }];
       eff = Effect.Impure }
 
   (* Set[A]: (p:ptr A, v:A, r:(x:A).Own[A](p) [res]) ⊸ (r':Own[A](p) @ v [res]) [impure] *)
   | Prim.Set ty ->
     let a_sort = Sort.typ_to_sort ty in
     let ptr_sort = Sort.mk loc_dummy (Sort.Ptr a_sort) in
+    let pred_sort = Sort.mk loc_dummy (Sort.Pred a_sort) in
     let* p = fresh SourcePos.dummy in
     let* v = fresh SourcePos.dummy in
     let* r = fresh SourcePos.dummy in
     let* x = fresh SourcePos.dummy in
     let* r' = fresh SourcePos.dummy in
-    let own_p = CoreExpr.mk loc_dummy (CoreExpr.App (Prim.Own ty, ce_of_var p)) in
+    let own_p = CoreExpr.mk (mk_info pred_sort) (CoreExpr.App (Prim.Own ty, ce_of_var p ptr_sort)) in
     return RFunType.{ domain = [ProofSort.Comp { var = p; sort = ptr_sort; eff = Effect.Pure };
                 ProofSort.Comp { var = v; sort = a_sort; eff = Effect.Pure };
                 ProofSort.DepRes { var = r; bound_var = x; pred = own_p }];
-      codomain = [ProofSort.Res { var = r'; pred = own_p; value = ce_of_var v }];
+      codomain = [ProofSort.Res { var = r'; pred = own_p; value = ce_of_var v a_sort }];
       eff = Effect.Impure }
 
   (* Own[A]: (p:ptr A) ⊸ (r:pred A) [spec] — same as core signature *)
@@ -300,7 +298,7 @@ let assert_delta_below delta delta' =
 (* ---------- typing judgements ---------- *)
 
 (* Logical fact synthesis: RS; Delta |- lpf => ce -| Delta' ~> Ct *)
-let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) : (CoreExpr.ce * RCtx.t * Constraint.ct) ElabM.t =
+let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) : (CoreExpr.typed_ce * RCtx.t * Constraint.typed_ct) ElabM.t =
   let pos = (RefinedExpr.lpf_info lpf)#loc in
   match RefinedExpr.lpf_shape lpf with
   | RefinedExpr.LVar x ->
@@ -315,11 +313,11 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
     let* (ce_arg, _sort) = elab_and_synth rs delta Effect.Spec se_arg in
     let cs = RSig.comp rs in
     (match Sig.lookup_fundef f cs with
-     | Some (param, _arg_sort, _ret_sort, eff, body) ->
+     | Some (param, _arg_sort, ret_sort, eff, body) ->
        if not (Effect.sub eff Effect.Spec) then
          fail (Format.asprintf "unfold: function %s must be spec" f)
        else
-         let call_result = CoreExpr.mk loc_dummy (CoreExpr.Call (f, ce_arg)) in
+         let call_result = CoreExpr.mk (mk_info ret_sort) (CoreExpr.Call (f, ce_arg)) in
          let subst_body = CoreExpr.subst param ce_arg body in
          let prop = mk_eq call_result subst_body in
          return (prop, delta, Constraint.top pos)
@@ -327,8 +325,6 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
 
   | RefinedExpr.LAnnot (lpf', se) ->
     let gamma = RCtx.erase delta in
-    let loc = object method loc = SourcePos.dummy end in
-    let bool_sort = Sort.mk loc Sort.Bool in
     let* ce = elab_se_check rs gamma se bool_sort Effect.Spec in
     let* (delta', ct) = check_lpf rs delta lpf' ce in
     return (ce, delta', ct)
@@ -341,7 +337,7 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
      | _ -> fail "open-ret: synthesized predicate is not a return")
 
 (* Logical fact checking: RS; Delta |- lpf <= ce -| Delta' ~> Ct *)
-and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce : CoreExpr.ce) : (RCtx.t * Constraint.ct) ElabM.t =
+and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce : CoreExpr.typed_ce) : (RCtx.t * Constraint.typed_ct) ElabM.t =
   let pos = (RefinedExpr.lpf_info lpf)#loc in
   match RefinedExpr.lpf_shape lpf with
   | RefinedExpr.LAuto ->
@@ -352,7 +348,7 @@ and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce 
     return (delta', Constraint.conj pos ct (Constraint.impl pos ce_synth (Constraint.atom pos ce)))
 
 (* Resource fact synthesis: RS; Delta |- rpf => ce @ ce' -| Delta' ~> Ct *)
-and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (CoreExpr.ce * CoreExpr.ce * RCtx.t * Constraint.ct) ElabM.t =
+and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (CoreExpr.typed_ce * CoreExpr.typed_ce * RCtx.t * Constraint.typed_ct) ElabM.t =
   let pos = (RefinedExpr.rpf_info rpf)#loc in
   match RefinedExpr.rpf_shape rpf with
   | RefinedExpr.RVar x ->
@@ -370,7 +366,7 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (C
     fail "make-ret/make-take cannot synthesize; use in checking mode"
 
 (* Resource fact checking: RS; Delta |- rpf <= ce @ ce' -| Delta' ~> Ct *)
-and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1 : CoreExpr.ce) (ce2 : CoreExpr.ce) : (RCtx.t * Constraint.ct) ElabM.t =
+and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1 : CoreExpr.typed_ce) (ce2 : CoreExpr.typed_ce) : (RCtx.t * Constraint.typed_ct) ElabM.t =
   let pos = (RefinedExpr.rpf_info rpf)#loc in
   match RefinedExpr.rpf_shape rpf with
   | RefinedExpr.RMakeRet lpf' ->
@@ -382,18 +378,14 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
   | RefinedExpr.RMakeTake crt ->
     (match CoreExpr.shape ce1 with
      | CoreExpr.Take ((x, _), pred_expr, pred_body) ->
-       let loc = object method loc = SourcePos.dummy end in
-       let gamma = RCtx.erase delta in
-       let cs = RSig.comp rs in
-       let* te = lift (Typecheck.synth cs gamma Effect.Spec pred_expr) in
-       let pred_sort = (CoreExpr.info te)#sort in
+       let pred_sort = (CoreExpr.info pred_expr)#sort in
        (match Sort.shape pred_sort with
         | Sort.Pred inner_sort ->
           let* r1 = fresh SourcePos.dummy in
           let* r2 = fresh SourcePos.dummy in
           let pf = [
             ProofSort.Comp { var = x; sort = inner_sort; eff = Effect.Spec };
-            ProofSort.Res { var = r1; pred = pred_expr; value = CoreExpr.mk loc (CoreExpr.Var x) };
+            ProofSort.Res { var = r1; pred = pred_expr; value = ce_of_var x inner_sort };
             ProofSort.Res { var = r2; pred = pred_body; value = ce2 };
           ] in
           let eff = Effect.Spec in
@@ -408,12 +400,12 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
     return (delta', Constraint.conj pos ct eq_ct)
 
 (* Core refined term synthesis: RS; Delta |-[eff] crt => Pf -| Delta' ~> Ct *)
-and synth_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : ((CoreExpr.ce, Var.t) ProofSort.t * RCtx.t * Constraint.ct) ElabM.t =
+and synth_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : ((CoreExpr.typed_ce, Var.t) ProofSort.t * RCtx.t * Constraint.typed_ct) ElabM.t =
   let* (pf, delta', ct) = synth_crt_impl rs delta eff crt in
   let* () = assert_delta_below delta delta' in
   return (pf, delta', ct)
 
-and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : ((CoreExpr.ce, Var.t) ProofSort.t * RCtx.t * Constraint.ct) ElabM.t =
+and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : ((CoreExpr.typed_ce, Var.t) ProofSort.t * RCtx.t * Constraint.typed_ct) ElabM.t =
   match RefinedExpr.crt_shape crt with
   | RefinedExpr.CAnnot (crt', se_pf) ->
     let gamma = RCtx.erase delta in
@@ -446,18 +438,14 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let* (ce_pred, ce_val, delta', ct) = synth_rpf rs delta rpf in
     (match CoreExpr.shape ce_pred with
      | CoreExpr.Take ((x, _), ce1, ce2) ->
-       let loc = object method loc = SourcePos.dummy end in
-       let gamma = RCtx.erase delta' in
-       let cs = RSig.comp rs in
-       let* te = lift (Typecheck.synth cs gamma Effect.Spec ce1) in
-       let pred_sort = (CoreExpr.info te)#sort in
+       let pred_sort = (CoreExpr.info ce1)#sort in
        (match Sort.shape pred_sort with
         | Sort.Pred inner_sort ->
           let* r1 = fresh SourcePos.dummy in
           let* r2 = fresh SourcePos.dummy in
           let pf = [
             ProofSort.Comp { var = x; sort = inner_sort; eff = Effect.Spec };
-            ProofSort.Res { var = r1; pred = ce1; value = CoreExpr.mk loc (CoreExpr.Var x) };
+            ProofSort.Res { var = r1; pred = ce1; value = ce_of_var x inner_sort };
             ProofSort.Res { var = r2; pred = ce2; value = ce_val };
           ] in
           return (pf, delta', ct)
@@ -485,8 +473,8 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           (* Build init proof sort: x:A [pure], y:ce @ Next(x) [res], pfnil *)
           let* x_var = fresh SourcePos.dummy in
           let* y_var = fresh SourcePos.dummy in
-          let ce_x = CoreExpr.mk loc_dummy (CoreExpr.Var x_var) in
-          let ce_next_x = CoreExpr.mk loc_dummy (CoreExpr.Inject (next_label, ce_x)) in
+          let ce_x = ce_of_var x_var a_sort in
+          let ce_next_x = CoreExpr.mk (mk_info step_sort) (CoreExpr.Inject (next_label, ce_x)) in
           let init_pf = [
             ProofSort.Comp { var = x_var; sort = a_sort; eff = Effect.Pure };
             ProofSort.Res { var = y_var; pred = ce_pred; value = ce_next_x };
@@ -500,7 +488,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           (* Build body proof sort: z:D(A,B) [pure], y2:ce @ z [res], pfnil *)
           let* z_var = fresh SourcePos.dummy in
           let* y2_var = fresh SourcePos.dummy in
-          let ce_z = CoreExpr.mk loc_dummy (CoreExpr.Var z_var) in
+          let ce_z = ce_of_var z_var step_sort in
           let body_pf = [
             ProofSort.Comp { var = z_var; sort = step_sort; eff = Effect.Pure };
             ProofSort.Res { var = y2_var; pred = ce_pred; value = ce_z };
@@ -516,8 +504,8 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           (* Build result proof sort: z:B [pure], y:ce @ Done(z) [res], pfnil *)
           let* zr_var = fresh SourcePos.dummy in
           let* yr_var = fresh SourcePos.dummy in
-          let ce_zr = CoreExpr.mk loc_dummy (CoreExpr.Var zr_var) in
-          let ce_done_z = CoreExpr.mk loc_dummy (CoreExpr.Inject (done_label, ce_zr)) in
+          let ce_zr = ce_of_var zr_var b_sort in
+          let ce_done_z = CoreExpr.mk (mk_info step_sort) (CoreExpr.Inject (done_label, ce_zr)) in
           let result_pf = [
             ProofSort.Comp { var = zr_var; sort = b_sort; eff = Effect.Pure };
             ProofSort.Res { var = yr_var; pred = ce_pred; value = ce_done_z };
@@ -540,12 +528,12 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
   | _ -> fail "cannot synthesize sort for this refined term"
 
 (* Core refined term checking: RS; Delta |-[eff] crt <= Pf -| Delta' ~> Ct *)
-and check_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : (CoreExpr.ce, Var.t) ProofSort.t) : (RCtx.t * Constraint.ct) ElabM.t =
+and check_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : (CoreExpr.typed_ce, Var.t) ProofSort.t) : (RCtx.t * Constraint.typed_ct) ElabM.t =
   let* (delta', ct) = check_crt_impl rs delta eff crt pf in
   let* () = assert_delta_below delta delta' in
   return (delta', ct)
 
-and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : (CoreExpr.ce, Var.t) ProofSort.t) : (RCtx.t * Constraint.ct) ElabM.t =
+and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : (CoreExpr.typed_ce, Var.t) ProofSort.t) : (RCtx.t * Constraint.typed_ct) ElabM.t =
   let pos = (RefinedExpr.crt_info crt)#loc in
   match RefinedExpr.crt_shape crt with
   | RefinedExpr.CLet (pat, crt1, crt2) ->
@@ -567,8 +555,6 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
   | RefinedExpr.CIf (_x, se, crt1, crt2) ->
     let eff' = Effect.purify eff in
     let gamma = RCtx.erase delta in
-    let loc = object method loc = SourcePos.dummy end in
-    let bool_sort = Sort.mk loc Sort.Bool in
     let* ce = elab_se_check rs gamma se bool_sort eff' in
     let* x_true = fresh SourcePos.dummy in
     let* x_false = fresh SourcePos.dummy in
@@ -619,7 +605,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     return (delta', Constraint.conj pos ct ct')
 
 (* Spine checking: RS; Delta |-[eff] rsp : Pf1 -o Pf2 >> Pf -| Delta' ~> Ct *)
-and check_spine (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (spine : RefinedExpr.parsed_spine) (rf : (CoreExpr.ce, Var.t) RFunType.t) : ((CoreExpr.ce, Var.t) ProofSort.t * RCtx.t * Constraint.ct) ElabM.t =
+and check_spine (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (spine : RefinedExpr.parsed_spine) (rf : (CoreExpr.typed_ce, Var.t) RFunType.t) : ((CoreExpr.typed_ce, Var.t) ProofSort.t * RCtx.t * Constraint.typed_ct) ElabM.t =
   check_spine_inner rs delta eff spine rf.domain rf.codomain
 
 and check_spine_inner rs delta eff spine domain codomain =
@@ -700,14 +686,13 @@ and _check_tuple rs delta eff spine pf =
 
 (* Case branch checking *)
 and check_case_branches pos rs delta eff ce ce_sort ctors branches pf =
-  let cs = RSig.comp rs in
-  let* branch_results = check_branches_list pos rs delta eff ce ce_sort ctors branches pf cs in
+  let* branch_results = check_branches_list pos rs delta eff ce ce_sort ctors branches pf in
   let (deltas, cts) = List.split branch_results in
   let* delta_merged = lift (RCtx.merge_n deltas) in
   let ct = List.fold_left (Constraint.conj pos) (Constraint.top pos) cts in
   return (delta_merged, ct)
 
-and check_branches_list pos rs delta eff ce _ce_sort ctors branches pf cs =
+and check_branches_list pos rs delta eff ce _ce_sort ctors branches pf =
   let rec go = function
     | [] -> return []
     | (label, ctor_sort) :: rest_ctors ->
@@ -716,9 +701,8 @@ and check_branches_list pos rs delta eff ce _ce_sort ctors branches pf cs =
        | None -> fail (Format.asprintf "case: missing branch for %a" Label.print label)
        | Some (_, x, body) ->
          let ctor_sort' = ctor_sort in
-         let _ = cs in
          let* x_log = fresh SourcePos.dummy in
-         let eq_prop = mk_eq ce (CoreExpr.mk loc_dummy (CoreExpr.Inject (label, CoreExpr.mk loc_dummy (CoreExpr.Var x)))) in
+         let eq_prop = mk_eq ce (CoreExpr.mk (mk_info (CoreExpr.info ce)#sort) (CoreExpr.Inject (label, ce_of_var x ctor_sort'))) in
          let delta_ext = RCtx.extend_comp x ctor_sort' eff
                            (RCtx.extend_log x_log eq_prop delta) in
          let* (delta_out, ct) = check_crt rs delta_ext eff body pf in
@@ -731,9 +715,9 @@ and check_branches_list pos rs delta eff ce _ce_sort ctors branches pf cs =
   go ctors
 
 (* Proof sort equality: RS; Delta |- Pf1 = Pf2 ~> Ct *)
-and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ce, Var.t) ProofSort.t) (pf2 : (CoreExpr.ce, Var.t) ProofSort.t) : Constraint.ct ElabM.t =
-  let cs = RSig.comp rs in
-  let gamma = RCtx.erase delta in
+and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.typed_ce, Var.t) ProofSort.t) (pf2 : (CoreExpr.typed_ce, Var.t) ProofSort.t) : Constraint.typed_ct ElabM.t =
+  let _cs = RSig.comp rs in
+  let _gamma = RCtx.erase delta in
   let rec go pf1 pf2 =
     match pf1, pf2 with
     | [], [] -> return (Constraint.top pos)
@@ -745,7 +729,7 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ce
       else if Effect.compare eff eff2 <> 0 then
         fail "pf_eq: effect mismatch"
       else
-        let rest2' = ProofSort.subst y (CoreExpr.mk loc_dummy (CoreExpr.Var x)) rest2 in
+        let rest2' = ProofSort.subst y (ce_of_var x sort) rest2 in
         let* ct = go rest1 rest2' in
         return (Constraint.forall_ pos x sort ct)
 
@@ -763,12 +747,11 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ce
 
     | ProofSort.DepRes { bound_var = y1; pred = ce1; _ } :: rest1,
       ProofSort.DepRes { bound_var = y2; pred = ce2; _ } :: rest2 ->
-      let* te = lift (Typecheck.synth cs gamma Effect.Spec ce1) in
-      let pred_sort = (CoreExpr.info te)#sort in
+      let pred_sort = (CoreExpr.info ce1)#sort in
       (match Sort.shape pred_sort with
        | Sort.Pred inner_sort ->
          let* z = fresh SourcePos.dummy in
-         let ce_z = CoreExpr.mk loc_dummy (CoreExpr.Var z) in
+         let ce_z = ce_of_var z inner_sort in
          let rest1' = ProofSort.subst y1 ce_z rest1 in
          let rest2' = ProofSort.subst y2 ce_z rest2 in
          let* ct = go rest1' rest2' in
@@ -781,35 +764,39 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ce
   go pf1 pf2
 
 (* Refined pattern matching: RS; Gamma |- q : Pf -| Delta *)
-and rpat_match (cs : _ Sig.t) (gamma : Context.t) (pat : Var.t RPat.t) (pf : (CoreExpr.ce, Var.t) ProofSort.t) : (RCtx.t, string) result =
+and rpat_match (_cs : _ Sig.t) (_gamma : Context.t) (pat : Var.t RPat.t) (pf : (CoreExpr.typed_ce, Var.t) ProofSort.t) : (RCtx.t, string) result =
   let ( let* ) = Result.bind in
   let rec go elems entries =
     match elems, entries with
     | [], [] -> Ok RCtx.empty
     | RPat.Single x :: rest_elems, ProofSort.Comp { var = y; sort; eff } :: rest_pf ->
-      let ce_x = CoreExpr.mk loc_dummy (CoreExpr.Var x) in
+      let ce_x = ce_of_var x sort in
       let rest_pf' = ProofSort.subst y ce_x rest_pf in
       let* delta = go rest_elems rest_pf' in
       Ok (RCtx.extend_comp x sort eff delta)
     | RPat.Single x :: rest_elems, ProofSort.Log { var = y; prop } :: rest_pf ->
-      let ce_x = CoreExpr.mk loc_dummy (CoreExpr.Var x) in
+      let ce_x = ce_of_var x bool_sort in
       let prop' = CoreExpr.subst y ce_x prop in
       let rest_pf' = ProofSort.subst y ce_x rest_pf in
       let* delta = go rest_elems rest_pf' in
       Ok (RCtx.extend_log x prop' delta)
     | RPat.Single x :: rest_elems, ProofSort.Res { var = y; pred; value } :: rest_pf ->
-      let ce_x = CoreExpr.mk loc_dummy (CoreExpr.Var x) in
+      let pred_sort = (CoreExpr.info pred)#sort in
+      let inner_sort = match Sort.shape pred_sort with
+        | Sort.Pred inner -> inner
+        | _ -> pred_sort
+      in
+      let ce_x = ce_of_var x inner_sort in
       let pred' = CoreExpr.subst y ce_x pred in
       let value' = CoreExpr.subst y ce_x value in
       let rest_pf' = ProofSort.subst y ce_x rest_pf in
       let* delta = go rest_elems rest_pf' in
       Ok (RCtx.extend_res x pred' value' Usage.Avail delta)
     | RPat.Pair (x, w) :: rest_elems, ProofSort.DepRes { var = y; bound_var = z; pred } :: rest_pf ->
-      let* te = Typecheck.synth cs gamma Effect.Spec pred in
-      let pred_sort = (CoreExpr.info te)#sort in
+      let pred_sort = (CoreExpr.info pred)#sort in
       (match Sort.shape pred_sort with
        | Sort.Pred inner_sort ->
-         let ce_x = CoreExpr.mk loc_dummy (CoreExpr.Var x) in
+         let ce_x = ce_of_var x inner_sort in
          let pred' = CoreExpr.subst z ce_x pred in
          let rest_pf' = ProofSort.subst y ce_x (ProofSort.subst z ce_x rest_pf) in
          let* delta = go rest_elems rest_pf' in
@@ -825,11 +812,9 @@ and rpat_match (cs : _ Sig.t) (gamma : Context.t) (pat : Var.t RPat.t) (pf : (Co
 let elab_fundecl_body rs param arg_sort ret_sort eff body_se =
   let cs = RSig.comp rs in
   let gamma = Context.extend param arg_sort (Effect.purify eff) Context.empty in
-  let* ce = Elaborate.check cs gamma body_se ret_sort eff in
-  let* te = lift (Typecheck.check cs gamma ce ret_sort eff) in
-  return (strip_info te)
+  Elaborate.check cs gamma body_se ret_sort eff
 
-let check_rprog (prog : RProg.parsed) : (RSig.t * Constraint.ct) ElabM.t =
+let check_rprog (prog : RProg.parsed) : (RSig.t * Constraint.typed_ct) ElabM.t =
   let rec check_rprog_decls rs ct_acc = function
     | [] -> return (rs, ct_acc)
     | decl :: rest ->
@@ -857,12 +842,11 @@ let check_rprog (prog : RProg.parsed) : (RSig.t * Constraint.ct) ElabM.t =
       return (RSig.extend name entry rs, ct_acc)
     | RProg.RFunDecl { name; domain = se_domain; codomain = se_codomain; eff; body; loc } ->
       let gamma = Context.empty in
-      let cs = RSig.comp rs in
       let* domain = elab_pf rs gamma eff se_domain in
-      let* gamma' = lift (ProofSort.bind cs gamma domain) in
+      let* gamma' = lift (ProofSort.bind gamma domain) in
       let* codomain = elab_pf rs gamma' eff se_codomain in
       let rf = RFunType.{ domain; codomain; eff } in
-      let* delta = lift (ProofSort.pf_to_ctx cs RCtx.empty domain) in
+      let* delta = lift (ProofSort.pf_to_ctx RCtx.empty domain) in
       let rs' = match eff with
         | Effect.Pure -> rs
         | _ -> RSig.extend name (RSig.RFunSig rf) rs

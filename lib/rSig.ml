@@ -1,7 +1,7 @@
 type entry =
   | FunSig of { arg : Sort.sort; ret : Sort.sort; eff : Effect.t }
-  | FunDef of { param : Var.t; arg : Sort.sort; ret : Sort.sort; eff : Effect.t; body : CoreExpr.ce }
-  | RFunSig of (CoreExpr.ce, Var.t) RFunType.t
+  | FunDef of { param : Var.t; arg : Sort.sort; ret : Sort.sort; eff : Effect.t; body : CoreExpr.typed_ce }
+  | RFunSig of (CoreExpr.typed_ce, Var.t) RFunType.t
   | SortDecl of DsortDecl.t
   | TypeDecl of DtypeDecl.t
 

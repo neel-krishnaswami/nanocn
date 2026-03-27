@@ -29,24 +29,24 @@ val pf_types : ('e, 'var) t -> Sort.sort list
 val comp : ('e, 'var) t -> Sort.sort
 (** [comp pf] is the product of [pf_types pf] (erasure to a single sort). *)
 
-val bind : _ Sig.t -> Context.t -> (CoreExpr.ce, Var.t) t -> (Context.t, string) result
-(** [bind cs Γ pf] extends Γ with comp/spec variable bindings from [pf].
-    For DepRes entries, synthesizes the pred to recover the bound sort. *)
+val bind : Context.t -> (CoreExpr.typed_ce, Var.t) t -> (Context.t, string) result
+(** [bind Γ pf] extends Γ with comp/spec variable bindings from [pf].
+    For DepRes entries, reads the sort directly from the typed info. *)
 
-val pf_to_ctx : _ Sig.t -> RCtx.t -> (CoreExpr.ce, Var.t) t -> (RCtx.t, string) result
-(** [pf_to_ctx cs Δ pf] appends proof sort entries to Δ;
+val pf_to_ctx : RCtx.t -> (CoreExpr.typed_ce, Var.t) t -> (RCtx.t, string) result
+(** [pf_to_ctx Δ pf] appends proof sort entries to Δ;
     resource entries get [Avail] usage.
-    For DepRes entries, synthesizes the pred to recover the bound sort. *)
+    For DepRes entries, reads the sort directly from the typed info. *)
 
-val subst : Var.t -> CoreExpr.ce -> (CoreExpr.ce, Var.t) t -> (CoreExpr.ce, Var.t) t
+val subst : Var.t -> CoreExpr.typed_ce -> (CoreExpr.typed_ce, Var.t) t -> (CoreExpr.typed_ce, Var.t) t
 (** [subst x e pf] is [[e/x]pf]. *)
 
 val print_gen : (Format.formatter -> Var.t -> unit) -> (Format.formatter -> 'e -> unit) -> Format.formatter -> ('e, Var.t) t -> unit
 val print : (Format.formatter -> 'e -> unit) -> Format.formatter -> ('e, Var.t) t -> unit
-val print_ce : Format.formatter -> (CoreExpr.ce, Var.t) t -> unit
+val print_ce : Format.formatter -> (CoreExpr.typed_ce, Var.t) t -> unit
 
 val to_string : (Format.formatter -> 'e -> unit) -> ('e, Var.t) t -> string
-val to_string_ce : (CoreExpr.ce, Var.t) t -> string
+val to_string_ce : (CoreExpr.typed_ce, Var.t) t -> string
 
 module Test : sig
   val test : QCheck.Test.t list

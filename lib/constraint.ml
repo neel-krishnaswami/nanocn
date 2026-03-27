@@ -24,6 +24,7 @@ let rec map f (In (b, s)) =
   In (f b, map_shape (map f) s)
 
 type ct = (CoreExpr.ce, < loc : SourcePos.t >) t
+type typed_ct = (CoreExpr.typed_ce, < loc : SourcePos.t >) t
 
 let loc pos = object method loc = pos end
 

@@ -40,15 +40,13 @@ let comp pf =
   | [s] -> s
   | ss -> Sort.mk loc (Sort.Record ss)
 
-let synth_bound_sort cs gamma pred =
-  let ( let* ) = Result.bind in
-  let* te = Typecheck.synth cs gamma Effect.Spec pred in
-  let sort = (CoreExpr.info te)#sort in
+let synth_bound_sort pred =
+  let sort = (CoreExpr.info pred)#sort in
   match Sort.shape sort with
   | Sort.Pred inner -> Ok inner
   | _ -> Error "dep-res: expected pred sort"
 
-let bind cs gamma pf =
+let bind gamma pf =
   let ( let* ) = Result.bind in
   List.fold_left (fun acc_result entry ->
     let* acc = acc_result in
@@ -56,11 +54,15 @@ let bind cs gamma pf =
     | Comp { var; sort; eff } -> Ok (Context.extend var sort eff acc)
     | Log _ | Res _ -> Ok acc
     | DepRes { bound_var; pred; _ } ->
-      let* inner = synth_bound_sort cs acc pred in
+      let* inner = synth_bound_sort pred in
       Ok (Context.extend bound_var inner Effect.Spec acc))
     (Ok gamma) pf
 
-let pf_to_ctx cs delta pf =
+let mk_info sort =
+  (object method loc = SourcePos.dummy method ctx = Context.empty
+          method sort = sort method eff = Effect.Spec end : CoreExpr.typed_info)
+
+let pf_to_ctx delta pf =
   let ( let* ) = Result.bind in
   List.fold_left (fun acc_result entry ->
     let* acc = acc_result in
@@ -69,9 +71,8 @@ let pf_to_ctx cs delta pf =
     | Log { var; prop } -> Ok (RCtx.extend_log var prop acc)
     | Res { var; pred; value } -> Ok (RCtx.extend_res var pred value Usage.Avail acc)
     | DepRes { var; bound_var; pred } ->
-      let gamma = RCtx.erase acc in
-      let* inner = synth_bound_sort cs gamma pred in
-      let ce_y = CoreExpr.mk (object method loc = SourcePos.dummy end) (CoreExpr.Var bound_var) in
+      let* inner = synth_bound_sort pred in
+      let ce_y = CoreExpr.mk (mk_info inner) (CoreExpr.Var bound_var) in
       let acc = RCtx.extend_comp bound_var inner Effect.Spec acc in
       Ok (RCtx.extend_res var pred ce_y Usage.Avail acc))
     (Ok delta) pf

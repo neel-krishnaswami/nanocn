@@ -1,7 +1,7 @@
 type entry =
   | Comp of { var : Var.t; sort : Sort.sort; eff : Effect.t }
-  | Log of { var : Var.t; prop : CoreExpr.ce }
-  | Res of { var : Var.t; pred : CoreExpr.ce; value : CoreExpr.ce; usage : Usage.t }
+  | Log of { var : Var.t; prop : CoreExpr.typed_ce }
+  | Res of { var : Var.t; pred : CoreExpr.typed_ce; value : CoreExpr.typed_ce; usage : Usage.t }
 
 type t = entry list
 
@@ -153,13 +153,19 @@ let print fmt ctx = print_gen Var.print fmt ctx
 let to_string ctx = Format.asprintf "%a" (print_gen Var.print_unique) ctx
 
 module Test = struct
+  let mk_info sort =
+    (object method loc = SourcePos.dummy method ctx = Context.empty
+            method sort = sort method eff = Effect.Spec end : CoreExpr.typed_info)
+
+  let bool_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Bool
+
   let test =
     [ QCheck.Test.make ~name:"rctx erase drops log entries"
         ~count:1
         QCheck.unit
         (fun () ->
            let (x, _supply) = Var.mk "x" SourcePos.dummy Var.empty_supply in
-           let p = CoreExpr.mk (object method loc = SourcePos.dummy end) (CoreExpr.BoolLit true) in
+           let p = CoreExpr.mk (mk_info bool_sort) (CoreExpr.BoolLit true) in
            let ctx = extend_log x p empty in
            match Context.lookup x (erase ctx) with
            | None -> true

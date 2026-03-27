@@ -70,11 +70,13 @@ let rec map f (In (b, sf)) =
 
 type ce = < loc : SourcePos.t > t
 
+type typed_info = < loc : SourcePos.t; ctx : Context.t; sort : Sort.sort; eff : Effect.t >
+type typed_ce = typed_info t
+
 (* Capture-avoiding substitution [s/x]e.
-   Since ce uses located nodes, we propagate the location from the
-   original node. Binding forms (Let, LetTuple, Take, Case, Iter)
-   stop substitution when they shadow x. *)
-let rec subst (x : Var.t) (s : ce) (e : ce) : ce =
+   Polymorphic in the info type. Binding forms (Let, LetTuple, Take,
+   Case, Iter) stop substitution when they shadow x. *)
+let rec subst_gen : 'b. Var.t -> 'b t -> 'b t -> 'b t = fun (x : Var.t) (s : 'b t) (e : 'b t) : 'b t ->
   let loc = info e in
   let binds_x v = Var.compare x v = 0 in
   match shape e with
@@ -82,47 +84,49 @@ let rec subst (x : Var.t) (s : ce) (e : ce) : ce =
     if Var.compare v x = 0 then s else e
   | IntLit _ | BoolLit _ -> e
   | Let ((v, b), e1, e2) ->
-    let e1' = subst x s e1 in
-    let e2' = if binds_x v then e2 else subst x s e2 in
+    let e1' = subst_gen x s e1 in
+    let e2' = if binds_x v then e2 else subst_gen x s e2 in
     mk loc (Let ((v, b), e1', e2'))
   | Tuple es ->
-    mk loc (Tuple (List.map (subst x s) es))
+    mk loc (Tuple (List.map (subst_gen x s) es))
   | LetTuple (vs, e1, e2) ->
-    let e1' = subst x s e1 in
+    let e1' = subst_gen x s e1 in
     let shadowed = List.exists (fun (v, _) -> binds_x v) vs in
-    let e2' = if shadowed then e2 else subst x s e2 in
+    let e2' = if shadowed then e2 else subst_gen x s e2 in
     mk loc (LetTuple (vs, e1', e2'))
   | Inject (l, e1) ->
-    mk loc (Inject (l, subst x s e1))
+    mk loc (Inject (l, subst_gen x s e1))
   | Case (scrut, branches) ->
-    mk loc (Case (subst x s scrut,
+    mk loc (Case (subst_gen x s scrut,
       List.map (fun (l, v, body, b) ->
-        let body' = if binds_x v then body else subst x s body in
+        let body' = if binds_x v then body else subst_gen x s body in
         (l, v, body', b)) branches))
   | Iter (v, e1, e2) ->
-    let e1' = subst x s e1 in
-    let e2' = if binds_x v then e2 else subst x s e2 in
+    let e1' = subst_gen x s e1 in
+    let e2' = if binds_x v then e2 else subst_gen x s e2 in
     mk loc (Iter (v, e1', e2'))
   | App (p, e1) ->
-    mk loc (App (p, subst x s e1))
+    mk loc (App (p, subst_gen x s e1))
   | Call (f, e1) ->
-    mk loc (Call (f, subst x s e1))
+    mk loc (Call (f, subst_gen x s e1))
   | If (e1, e2, e3) ->
-    mk loc (If (subst x s e1, subst x s e2, subst x s e3))
+    mk loc (If (subst_gen x s e1, subst_gen x s e2, subst_gen x s e3))
   | Annot (e1, sort) ->
-    mk loc (Annot (subst x s e1, sort))
+    mk loc (Annot (subst_gen x s e1, sort))
   | Eq (e1, e2) ->
-    mk loc (Eq (subst x s e1, subst x s e2))
+    mk loc (Eq (subst_gen x s e1, subst_gen x s e2))
   | And (e1, e2) ->
-    mk loc (And (subst x s e1, subst x s e2))
+    mk loc (And (subst_gen x s e1, subst_gen x s e2))
   | Not e1 ->
-    mk loc (Not (subst x s e1))
+    mk loc (Not (subst_gen x s e1))
   | Take ((v, b), e1, e2) ->
-    let e1' = subst x s e1 in
-    let e2' = if binds_x v then e2 else subst x s e2 in
+    let e1' = subst_gen x s e1 in
+    let e2' = if binds_x v then e2 else subst_gen x s e2 in
     mk loc (Take ((v, b), e1', e2'))
   | Return e1 ->
-    mk loc (Return (subst x s e1))
+    mk loc (Return (subst_gen x s e1))
+
+let subst = subst_gen
 
 let infix_op_string = function
   | Prim.Add -> "+" | Prim.Sub -> "-"

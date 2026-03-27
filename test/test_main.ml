@@ -48,16 +48,13 @@ let run_m m =
 let elab_synth ?(supply = Var.empty_supply) sig_ ctx eff se =
   match ElabM.run supply (Elaborate.synth sig_ ctx eff se) with
   | Error msg -> Error msg
-  | Ok ((core_e, _sort), _supply) -> Typecheck.synth sig_ ctx eff core_e
+  | Ok ((typed_e, _sort), _supply) -> Ok typed_e
 
 (** Helper: elaborate a surface expr then check (for pre-parsed exprs) *)
 let elab_check ?(supply = Var.empty_supply) sig_ ctx se sort eff =
   match ElabM.run supply (Elaborate.check sig_ ctx se sort eff) with
   | Error msg -> Error msg
-  | Ok (core_e, _supply) ->
-    match Typecheck.check sig_ ctx core_e sort eff with
-    | Ok ce -> Ok ce
-    | Error msg -> Error msg
+  | Ok (typed_e, _supply) -> Ok typed_e
 
 let () =
   let suite =
@@ -1067,11 +1064,14 @@ let () =
 
       (* Fix 4: pf_eq rejects mismatched lengths *)
       Alcotest.test_case "pf_eq rejects extra entries" `Quick (fun () ->
-        let loc = object method loc = SourcePos.dummy end in
-        let int_sort = Sort.mk loc Sort.Int in
+        let int_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Int in
+        let bool_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Bool in
+        let mk_info sort =
+          (object method loc = SourcePos.dummy method ctx = Context.empty
+                  method sort = sort method eff = Effect.Spec end : CoreExpr.typed_info) in
         let (x, s0) = Var.mk "x" SourcePos.dummy Var.empty_supply in
         let (y, _s1) = Var.mk "y" SourcePos.dummy s0 in
-        let ce = CoreExpr.mk loc (CoreExpr.IntLit 0) in
+        let ce = CoreExpr.mk (mk_info bool_sort) (CoreExpr.IntLit 0) in
         let pf1 = [
           ProofSort.Comp { var = x; sort = int_sort; eff = Effect.Pure };
           ProofSort.Log { var = y; prop = ce };

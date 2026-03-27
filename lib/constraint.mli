@@ -25,26 +25,27 @@ val info : ('e, 'b) t -> 'b
 val shape : ('e, 'b) t -> (('e, 'b) t, 'e) ctF
 val map : ('b -> 'c) -> ('e, 'b) t -> ('e, 'c) t
 
-(** {1 Concrete type} *)
+(** {1 Concrete types} *)
 
 type ct = (CoreExpr.ce, < loc : SourcePos.t >) t
+type typed_ct = (CoreExpr.typed_ce, < loc : SourcePos.t >) t
 
 (** {1 Smart constructors}
 
     Each takes a [SourcePos.t] and simplifies trivial cases ([Top ∧ C = C]). *)
 
-val top : SourcePos.t -> ct
-val bot : SourcePos.t -> ct
-val conj : SourcePos.t -> ct -> ct -> ct
-val impl : SourcePos.t -> CoreExpr.ce -> ct -> ct
-val forall_ : SourcePos.t -> Var.t -> Sort.sort -> ct -> ct
-val atom : SourcePos.t -> CoreExpr.ce -> ct
+val top : SourcePos.t -> ('e, < loc : SourcePos.t >) t
+val bot : SourcePos.t -> ('e, < loc : SourcePos.t >) t
+val conj : SourcePos.t -> ('e, < loc : SourcePos.t >) t -> ('e, < loc : SourcePos.t >) t -> ('e, < loc : SourcePos.t >) t
+val impl : SourcePos.t -> 'e -> ('e, < loc : SourcePos.t >) t -> ('e, < loc : SourcePos.t >) t
+val forall_ : SourcePos.t -> Var.t -> Sort.sort -> ('e, < loc : SourcePos.t >) t -> ('e, < loc : SourcePos.t >) t
+val atom : SourcePos.t -> 'e -> ('e, < loc : SourcePos.t >) t
 
 (** {1 Printing} *)
 
-val print_gen : (Format.formatter -> Var.t -> unit) -> Format.formatter -> (CoreExpr.ce, _) t -> unit
-val print : Format.formatter -> (CoreExpr.ce, _) t -> unit
-val to_string : (CoreExpr.ce, _) t -> string
+val print_gen : (Format.formatter -> Var.t -> unit) -> Format.formatter -> (_ CoreExpr.t, _) t -> unit
+val print : Format.formatter -> (_ CoreExpr.t, _) t -> unit
+val to_string : (_ CoreExpr.t, _) t -> string
 
 module Test : sig
   val test : QCheck.Test.t list

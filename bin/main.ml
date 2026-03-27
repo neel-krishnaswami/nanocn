@@ -101,22 +101,17 @@ let toplevel () =
     match ElabM.run supply (
       let open ElabM in
       let* (x, se) = Parse.parse_let line ~file:"<toplevel>" in
-      let* (core_e, sort) = Elaborate.synth sig_ ctx Effect.Impure se in
-      return (x, core_e, sort)
+      let* (_typed_e, sort) = Elaborate.synth sig_ ctx Effect.Impure se in
+      return (x, sort)
     ) with
     | Error msg ->
       Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
       loop supply sig_ ctx
-    | Ok ((x, core_e, sort), supply') ->
-      (match Typecheck.synth sig_ ctx Effect.Impure core_e with
-       | Error msg ->
-         Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
-         loop supply sig_ ctx
-       | Ok _te ->
-         let eff = Effect.Impure in
-         let ctx' = Context.extend x sort (Effect.purify eff) ctx in
-         Format.printf "%a : %a [%a]@." Var.print x Sort.print sort Effect.print eff;
-         loop supply' sig_ ctx')
+    | Ok ((x, sort), supply') ->
+      let eff = Effect.Impure in
+      let ctx' = Context.extend x sort (Effect.purify eff) ctx in
+      Format.printf "%a : %a [%a]@." Var.print x Sort.print sort Effect.print eff;
+      loop supply' sig_ ctx'
   and handle_expr supply sig_ ctx line =
     match ElabM.run supply (
       let open ElabM in

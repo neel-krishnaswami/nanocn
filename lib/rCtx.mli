@@ -5,24 +5,24 @@
 
 type entry =
   | Comp of { var : Var.t; sort : Sort.sort; eff : Effect.t }
-  | Log of { var : Var.t; prop : CoreExpr.ce }
-  | Res of { var : Var.t; pred : CoreExpr.ce; value : CoreExpr.ce; usage : Usage.t }
+  | Log of { var : Var.t; prop : CoreExpr.typed_ce }
+  | Res of { var : Var.t; pred : CoreExpr.typed_ce; value : CoreExpr.typed_ce; usage : Usage.t }
 
 type t
 
 val empty : t
 val extend_comp : Var.t -> Sort.sort -> Effect.t -> t -> t
-val extend_log : Var.t -> CoreExpr.ce -> t -> t
-val extend_res : Var.t -> CoreExpr.ce -> CoreExpr.ce -> Usage.t -> t -> t
+val extend_log : Var.t -> CoreExpr.typed_ce -> t -> t
+val extend_res : Var.t -> CoreExpr.typed_ce -> CoreExpr.typed_ce -> Usage.t -> t -> t
 val concat : t -> t -> t
 
 val lookup_comp : Var.t -> t -> (Sort.sort * Effect.t) option
 (** [lookup_comp x ctx] returns sort and effect for computational binding [x]. *)
 
-val lookup_log : Var.t -> t -> CoreExpr.ce option
+val lookup_log : Var.t -> t -> CoreExpr.typed_ce option
 (** [lookup_log x ctx] returns the proposition for logical binding [x]. *)
 
-val use_resource : Var.t -> t -> (CoreExpr.ce * CoreExpr.ce * t, string) result
+val use_resource : Var.t -> t -> (CoreExpr.typed_ce * CoreExpr.typed_ce * t, string) result
 (** [use_resource x ctx] checks [x] is available, sets it to used,
     and returns [(pred, value, ctx')]. *)
 
