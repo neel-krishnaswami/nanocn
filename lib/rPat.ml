@@ -8,18 +8,21 @@ let map_var_elem f = function
 
 let map_var f = List.map (map_var_elem f)
 
-let print_elem fmt = function
-  | Single x -> Var.print fmt x
+let print_gen_elem pp_var fmt = function
+  | Single x -> pp_var fmt x
   | Pair (x, y) ->
-    Format.fprintf fmt "(%a, %a)" Var.print x Var.print y
+    Format.fprintf fmt "(%a, %a)" pp_var x pp_var y
 
-let print fmt = function
+let print_gen pp_var fmt = function
   | [] -> Format.fprintf fmt "()"
-  | [e] -> Format.fprintf fmt "(%a,)" print_elem e
+  | [e] -> Format.fprintf fmt "(%a,)" (print_gen_elem pp_var) e
   | es ->
     Format.fprintf fmt "(%a)"
-      (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ") print_elem)
+      (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ") (print_gen_elem pp_var))
       es
+
+let print fmt t = print_gen Var.print fmt t
+let to_string t = Format.asprintf "%a" (print_gen Var.print_unique) t
 
 module Test = struct
   let test = []

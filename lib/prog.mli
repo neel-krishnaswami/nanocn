@@ -50,7 +50,9 @@ type 'a core_prog = {
   core_loc : SourcePos.t;
 }
 
+val print_gen_core_prog : (Format.formatter -> Var.t -> unit) -> (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a core_prog -> unit
 val print_core_prog : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a core_prog -> unit
+val to_string_core_prog : (Format.formatter -> 'a -> unit) -> 'a core_prog -> string
 val json_core_decl : ('a -> Json.t) -> 'a core_decl -> Json.t
 val json_core_prog : ('a -> Json.t) -> 'a core_prog -> Json.t
 

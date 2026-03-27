@@ -91,16 +91,22 @@ let comp sig_ =
       Sig.extend_type acc d)
     sig_ Sig.empty
 
-let print fmt sig_ =
+let print_gen pp_var fmt sig_ =
+  let pp_ce = CoreExpr.print_gen pp_var in
+  let pp_pf = ProofSort.print_gen pp_var pp_ce in
+  let pp_rf fmt rf =
+    Format.fprintf fmt "@[<hov 2>%a ⊸@ %a [%a]@]"
+      pp_pf rf.RFunType.domain pp_pf rf.RFunType.codomain Effect.print rf.RFunType.eff
+  in
   let pp_entry fmt = function
     | Named (name, FunSig { arg; ret; eff }) ->
       Format.fprintf fmt "@[%s : %a -> %a [%a]@]"
         name Sort.print arg Sort.print ret Effect.print eff
     | Named (name, FunDef { param; arg; ret; eff; body = _ }) ->
       Format.fprintf fmt "@[<hov 2>fun %s (%a : %a) -> %a [%a] = <body>@]"
-        name Var.print param Sort.print arg Sort.print ret Effect.print eff
+        name pp_var param Sort.print arg Sort.print ret Effect.print eff
     | Named (name, RFunSig rf) ->
-      Format.fprintf fmt "@[%s : %a@]" name RFunType.print_ce rf
+      Format.fprintf fmt "@[%s : %a@]" name pp_rf rf
     | Named (_, SortDecl d) | Sort d ->
       DsortDecl.print fmt d
     | Named (_, TypeDecl d) | Type d ->
@@ -111,6 +117,9 @@ let print fmt sig_ =
   | _ ->
     Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ")
       pp_entry fmt sig_
+
+let print fmt sig_ = print_gen Var.print fmt sig_
+let to_string sig_ = Format.asprintf "%a" (print_gen Var.print_unique) sig_
 
 module Test = struct
   let test = []

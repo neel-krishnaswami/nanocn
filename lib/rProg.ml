@@ -31,23 +31,27 @@ type raw_parsed = (SurfExpr.parsed_se, string) t
 type parsed = (SurfExpr.se, Var.t) t
 type checked = (CoreExpr.ce, Var.t) t
 
-let print pp_e fmt prog =
+let print_gen pp_var pp_e fmt prog =
+  let pp_pf = ProofSort.print_gen pp_var pp_e in
   let pp_decl fmt = function
     | SortDecl d -> DsortDecl.print fmt d
     | TypeDecl d -> DtypeDecl.print fmt d
     | FunDecl { name; param; arg_sort; ret_sort; eff; _ } ->
       Format.fprintf fmt "@[<hov 2>fun %s (%a : %a) -> %a [%a] = <body>@]"
-        name Var.print param Sort.print arg_sort Sort.print ret_sort Effect.print eff
+        name pp_var param Sort.print arg_sort Sort.print ret_sort Effect.print eff
     | RFunDecl { name; domain; codomain; eff; _ } ->
       Format.fprintf fmt "@[<hov 2>fun %s (%a) ~> %a [%a] = <body>@]"
-        name (ProofSort.print pp_e) domain (ProofSort.print pp_e) codomain Effect.print eff
+        name pp_pf domain pp_pf codomain Effect.print eff
   in
   Format.fprintf fmt "@[<v>%a@ main : %a [%a] = %a@]"
     (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt "@ ") pp_decl)
     prog.decls
-    (ProofSort.print pp_e) prog.main_pf
+    pp_pf prog.main_pf
     Effect.print prog.main_eff
-    (RefinedExpr.print_crt pp_e) prog.main_body
+    (RefinedExpr.print_gen_crt pp_var pp_e) prog.main_body
+
+let print pp_e fmt prog = print_gen Var.print pp_e fmt prog
+let to_string pp_e prog = Format.asprintf "%a" (print_gen Var.print_unique pp_e) prog
 
 module Test = struct
   let test = []

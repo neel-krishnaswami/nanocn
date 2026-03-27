@@ -43,7 +43,9 @@ type ce = < loc : SourcePos.t > t
 val subst : Var.t -> ce -> ce -> ce
 (** [subst x e e'] is [e'/x]e — capture-avoiding substitution. *)
 
+val print_gen : (Format.formatter -> Var.t -> unit) -> Format.formatter -> _ t -> unit
 val print : Format.formatter -> _ t -> unit
+val to_string : _ t -> string
 val json : ('b -> Json.t) -> 'b t -> Json.t
 
 module Test : sig

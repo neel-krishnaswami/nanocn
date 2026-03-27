@@ -56,7 +56,9 @@ val split : int -> t -> t * t
 val entries : t -> entry list
 (** [entries Δ] returns the underlying entry list. *)
 
+val print_gen : (Format.formatter -> Var.t -> unit) -> Format.formatter -> t -> unit
 val print : Format.formatter -> t -> unit
+val to_string : t -> string
 
 module Test : sig
   val test : QCheck.Test.t list

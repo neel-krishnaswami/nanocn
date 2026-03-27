@@ -93,18 +93,18 @@ let subst x e pf =
       else DepRes { var; bound_var; pred = CoreExpr.subst x e pred })
     pf
 
-let print pp_e fmt pf =
+let print_gen pp_var pp_e fmt pf =
   let pp_entry fmt = function
     | Comp { var; sort; eff } ->
-      Format.fprintf fmt "@[%a : %a [%a]@]" Var.print var Sort.print sort Effect.print eff
+      Format.fprintf fmt "@[%a : %a [%a]@]" pp_var var Sort.print sort Effect.print eff
     | Log { var; prop } ->
-      Format.fprintf fmt "@[%a : %a [log]@]" Var.print var pp_e prop
+      Format.fprintf fmt "@[%a : %a [log]@]" pp_var var pp_e prop
     | Res { var; pred; value } ->
       Format.fprintf fmt "@[%a : %a @ %a [res]@]"
-        Var.print var pp_e pred pp_e value
+        pp_var var pp_e pred pp_e value
     | DepRes { var; bound_var; pred } ->
       Format.fprintf fmt "@[[res] %a : (take %a = %a)@]"
-        Var.print var Var.print bound_var pp_e pred
+        pp_var var pp_var bound_var pp_e pred
   in
   match pf with
   | [] -> Format.fprintf fmt "·"
@@ -113,7 +113,11 @@ let print pp_e fmt pf =
       (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") pp_entry)
       pf
 
+let print pp_e fmt pf = print_gen Var.print pp_e fmt pf
 let print_ce = print CoreExpr.print
+
+let to_string pp_e pf = Format.asprintf "%a" (print_gen Var.print_unique pp_e) pf
+let to_string_ce pf = to_string (CoreExpr.print_gen Var.print_unique) pf
 
 module Test = struct
   let test =

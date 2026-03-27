@@ -16,7 +16,9 @@ val lookup : Var.t -> t -> (Sort.sort * Effect.t) option
 val extend_list : (Var.t * Sort.sort * Effect.t) list -> t -> t
 (** [extend_list bindings ctx] extends [ctx] with multiple bindings. *)
 
+val print_gen : (Format.formatter -> Var.t -> unit) -> Format.formatter -> t -> unit
 val print : Format.formatter -> t -> unit
+val to_string : t -> string
 
 module Test : sig
   val gen : t QCheck.Gen.t

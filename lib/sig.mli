@@ -29,7 +29,9 @@ val lookup_type : Dsort.t -> 'a t -> DtypeDecl.t option
 val lookup_type_ctor : Label.t -> 'a t -> (Dsort.t * DtypeDecl.t) option
 val extend_type : 'a t -> DtypeDecl.t -> 'a t
 
+val print_gen : (Format.formatter -> Var.t -> unit) -> (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
+val to_string : (Format.formatter -> 'a -> unit) -> 'a t -> string
 
 module Test : sig
   val test : QCheck.Test.t list

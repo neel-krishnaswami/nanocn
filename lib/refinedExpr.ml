@@ -141,72 +141,82 @@ type located_spine = (CoreExpr.ce, < loc : SourcePos.t >, Var.t) spine
 
 (* ===== Printing ===== *)
 
-let rec print_crt pp_e fmt t =
+let rec print_gen_crt pp_var pp_e fmt t =
   match crt_shape t with
   | CLet (q, e1, e2) ->
     Format.fprintf fmt "@[<v>@[<hov 2>let %a =@ %a;@]@ %a@]"
-      RPat.print q (print_crt pp_e) e1 (print_crt pp_e) e2
+      (RPat.print_gen pp_var) q (print_gen_crt pp_var pp_e) e1 (print_gen_crt pp_var pp_e) e2
   | CAnnot (e, pf) ->
-    Format.fprintf fmt "@[<hov 2>%a :@ %a@]" (print_crt pp_e) e (ProofSort.print pp_e) pf
+    Format.fprintf fmt "@[<hov 2>%a :@ %a@]" (print_gen_crt pp_var pp_e) e (ProofSort.print_gen pp_var pp_e) pf
   | CPrimApp (p, sp) ->
-    Format.fprintf fmt "@[<hov 2>%a@ %a@]" Prim.print p (print_spine pp_e) sp
+    Format.fprintf fmt "@[<hov 2>%a@ %a@]" Prim.print p (print_gen_spine pp_var pp_e) sp
   | CCall (f, sp) ->
-    Format.fprintf fmt "@[<hov 2>%s@ %a@]" f (print_spine pp_e) sp
+    Format.fprintf fmt "@[<hov 2>%s@ %a@]" f (print_gen_spine pp_var pp_e) sp
   | CTuple sp ->
-    Format.fprintf fmt "@[<hov 2>(%a)@]" (print_spine pp_e) sp
+    Format.fprintf fmt "@[<hov 2>(%a)@]" (print_gen_spine pp_var pp_e) sp
   | CIter (ce, q, e1, e2) ->
     Format.fprintf fmt "@[<v>@[<hov 2>iter[%a](%a = %a) {@ %a@]@ }@]"
-      pp_e ce RPat.print q (print_crt pp_e) e1 (print_crt pp_e) e2
+      pp_e ce (RPat.print_gen pp_var) q (print_gen_crt pp_var pp_e) e1 (print_gen_crt pp_var pp_e) e2
   | CIf (x, ce, e1, e2) ->
     Format.fprintf fmt "@[<v>@[<hov 2>if[%a] %a@ then %a@]@ @[<hov 2>else %a@]@]"
-      Var.print x pp_e ce (print_crt pp_e) e1 (print_crt pp_e) e2
+      pp_var x pp_e ce (print_gen_crt pp_var pp_e) e1 (print_gen_crt pp_var pp_e) e2
   | CCase (y, ce, branches) ->
     Format.fprintf fmt "@[<v>@[<hov 2>case[%a] %a {@ %a@]@ }@]"
-      Var.print y pp_e ce
+      pp_var y pp_e ce
       (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt "@ | ")
          (fun fmt (l, x, body) ->
-            Format.fprintf fmt "@[<hov 2>%a %a ->@ %a@]" Label.print l Var.print x (print_crt pp_e) body))
+            Format.fprintf fmt "@[<hov 2>%a %a ->@ %a@]" Label.print l pp_var x (print_gen_crt pp_var pp_e) body))
       branches
   | CExfalso -> Format.fprintf fmt "exfalso"
   | COpenTake rpf ->
-    Format.fprintf fmt "@[<hov 2>open-take@ %a@]" (print_rpf pp_e) rpf
+    Format.fprintf fmt "@[<hov 2>open-take@ %a@]" (print_gen_rpf pp_var pp_e) rpf
 
-and print_lpf pp_e fmt t =
+and print_gen_lpf pp_var pp_e fmt t =
   match lpf_shape t with
-  | LVar x -> Var.print fmt x
+  | LVar x -> pp_var fmt x
   | LAuto -> Format.fprintf fmt "auto"
   | LUnfold (f, ce) ->
     Format.fprintf fmt "@[<hov 2>unfold %s(%a)@]" f pp_e ce
   | LOpenRet rpf ->
-    Format.fprintf fmt "@[<hov 2>open-ret@ %a@]" (print_rpf pp_e) rpf
+    Format.fprintf fmt "@[<hov 2>open-ret@ %a@]" (print_gen_rpf pp_var pp_e) rpf
   | LAnnot (lpf, ce) ->
-    Format.fprintf fmt "@[<hov 2>%a :@ %a@]" (print_lpf pp_e) lpf pp_e ce
+    Format.fprintf fmt "@[<hov 2>%a :@ %a@]" (print_gen_lpf pp_var pp_e) lpf pp_e ce
 
-and print_rpf pp_e fmt t =
+and print_gen_rpf pp_var pp_e fmt t =
   match rpf_shape t with
-  | RVar x -> Var.print fmt x
+  | RVar x -> pp_var fmt x
   | RMakeRet lpf ->
-    Format.fprintf fmt "@[<hov 2>make-ret@ %a@]" (print_lpf pp_e) lpf
+    Format.fprintf fmt "@[<hov 2>make-ret@ %a@]" (print_gen_lpf pp_var pp_e) lpf
   | RMakeTake crt ->
-    Format.fprintf fmt "@[<hov 2>make-take@ %a@]" (print_crt pp_e) crt
+    Format.fprintf fmt "@[<hov 2>make-take@ %a@]" (print_gen_crt pp_var pp_e) crt
   | RAnnot (rpf, ce1, ce2) ->
-    Format.fprintf fmt "@[<hov 2>%a :@ %a @ %a@]" (print_rpf pp_e) rpf pp_e ce1 pp_e ce2
+    Format.fprintf fmt "@[<hov 2>%a :@ %a @ %a@]" (print_gen_rpf pp_var pp_e) rpf pp_e ce1 pp_e ce2
 
-and print_spine pp_e fmt t =
+and print_gen_spine pp_var pp_e fmt t =
   match spine_shape t with
   | SNil -> ()
   | SCore (ce, rest) ->
     (match spine_shape rest with
      | SNil -> pp_e fmt ce
-     | _ -> Format.fprintf fmt "%a,@ %a" pp_e ce (print_spine pp_e) rest)
+     | _ -> Format.fprintf fmt "%a,@ %a" pp_e ce (print_gen_spine pp_var pp_e) rest)
   | SLog (lpf, rest) ->
     (match spine_shape rest with
-     | SNil -> Format.fprintf fmt "log %a" (print_lpf pp_e) lpf
-     | _ -> Format.fprintf fmt "log %a,@ %a" (print_lpf pp_e) lpf (print_spine pp_e) rest)
+     | SNil -> Format.fprintf fmt "log %a" (print_gen_lpf pp_var pp_e) lpf
+     | _ -> Format.fprintf fmt "log %a,@ %a" (print_gen_lpf pp_var pp_e) lpf (print_gen_spine pp_var pp_e) rest)
   | SRes (rpf, rest) ->
     (match spine_shape rest with
-     | SNil -> Format.fprintf fmt "res %a" (print_rpf pp_e) rpf
-     | _ -> Format.fprintf fmt "res %a,@ %a" (print_rpf pp_e) rpf (print_spine pp_e) rest)
+     | SNil -> Format.fprintf fmt "res %a" (print_gen_rpf pp_var pp_e) rpf
+     | _ -> Format.fprintf fmt "res %a,@ %a" (print_gen_rpf pp_var pp_e) rpf (print_gen_spine pp_var pp_e) rest)
+
+let print_crt pp_e = print_gen_crt Var.print pp_e
+let print_lpf pp_e = print_gen_lpf Var.print pp_e
+let print_rpf pp_e = print_gen_rpf Var.print pp_e
+let print_spine pp_e = print_gen_spine Var.print pp_e
+
+let to_string_crt pp_e t = Format.asprintf "%a" (print_gen_crt Var.print_unique pp_e) t
+let to_string_lpf pp_e t = Format.asprintf "%a" (print_gen_lpf Var.print_unique pp_e) t
+let to_string_rpf pp_e t = Format.asprintf "%a" (print_gen_rpf Var.print_unique pp_e) t
+let to_string_spine pp_e t = Format.asprintf "%a" (print_gen_spine Var.print_unique pp_e) t
 
 module Test = struct
   let test = []

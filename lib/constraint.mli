@@ -20,7 +20,9 @@ val impl : CoreExpr.ce -> t -> t
 val forall_ : Var.t -> Sort.sort -> t -> t
 val atom : CoreExpr.ce -> t
 
+val print_gen : (Format.formatter -> Var.t -> unit) -> Format.formatter -> t -> unit
 val print : Format.formatter -> t -> unit
+val to_string : t -> string
 
 module Test : sig
   val test : QCheck.Test.t list

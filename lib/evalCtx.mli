@@ -14,4 +14,6 @@ val fill : 'b t -> 'b CoreExpr.t -> 'b CoreExpr.t
 val extend : 'b t -> Var.t -> 'b -> 'b CoreExpr.t -> 'b t
 (** [extend ctx x info e] appends [let (x,info) = e] at the innermost position. *)
 
+val print_gen : (Format.formatter -> Var.t -> unit) -> _ t -> Format.formatter -> unit
 val print : _ t -> Format.formatter -> unit
+val to_string : _ t -> string

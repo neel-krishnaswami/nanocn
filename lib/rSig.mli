@@ -35,7 +35,9 @@ val comp : t -> CoreExpr.ce Sig.t
 (** [comp rs] erases refined entries to core signature.
     RFunSig entries become FunSig with product sorts. *)
 
+val print_gen : (Format.formatter -> Var.t -> unit) -> Format.formatter -> t -> unit
 val print : Format.formatter -> t -> unit
+val to_string : t -> string
 
 module Test : sig
   val test : QCheck.Test.t list

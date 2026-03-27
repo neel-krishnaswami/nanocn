@@ -18,18 +18,21 @@ let impl ce ct = Impl (ce, ct)
 let forall_ x sort ct = Forall (x, sort, ct)
 let atom ce = Atom ce
 
-let rec print fmt = function
+let rec print_gen pp_var fmt = function
   | Top -> Format.fprintf fmt "⊤"
   | Bot -> Format.fprintf fmt "⊥"
   | And (c1, c2) ->
-    Format.fprintf fmt "@[<hov 2>%a ∧@ %a@]" print c1 print c2
+    Format.fprintf fmt "@[<hov 2>%a ∧@ %a@]" (print_gen pp_var) c1 (print_gen pp_var) c2
   | Forall (x, s, c) ->
     Format.fprintf fmt "@[<hov 2>∀%a : %a.@ %a@]"
-      Var.print x Sort.print s print c
+      pp_var x Sort.print s (print_gen pp_var) c
   | Impl (ce, c) ->
-    Format.fprintf fmt "@[<hov 2>%a ⇒@ %a@]" CoreExpr.print ce print c
+    Format.fprintf fmt "@[<hov 2>%a ⇒@ %a@]" (CoreExpr.print_gen pp_var) ce (print_gen pp_var) c
   | Atom ce ->
-    CoreExpr.print fmt ce
+    CoreExpr.print_gen pp_var fmt ce
+
+let print fmt t = print_gen Var.print fmt t
+let to_string t = Format.asprintf "%a" (print_gen Var.print_unique) t
 
 module Test = struct
   let test =

@@ -46,6 +46,7 @@ type se = (< loc : SourcePos.t >, Var.t) t
 type parsed_se = (< loc : SourcePos.t >, string) t
 
 val print : Format.formatter -> (_, Var.t) t -> unit
+val to_string : (_, Var.t) t -> string
 val json : ('b -> Json.t) -> ('b, Var.t) t -> Json.t
 
 module Test : sig

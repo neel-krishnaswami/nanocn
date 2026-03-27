@@ -14,9 +14,12 @@ let rec extend ctx x info e =
   | Hole -> Let ((x, info), e, Hole)
   | Let (yb, e', rest) -> Let (yb, e', extend rest x info e)
 
-let rec print ctx fmt =
+let rec print_gen pp_var ctx fmt =
   match ctx with
   | Hole -> Format.fprintf fmt "[-]"
   | Let ((x, _), e, rest) ->
     Format.fprintf fmt "@[<v>@[<hov 2>let %a =@ %a;@]@ %a@]"
-      Var.print x CoreExpr.print e (fun fmt c -> print c fmt) rest
+      pp_var x (CoreExpr.print_gen pp_var) e (fun fmt c -> print_gen pp_var c fmt) rest
+
+let print ctx fmt = print_gen Var.print ctx fmt
+let to_string ctx = Format.asprintf "%a" (fun fmt c -> print_gen Var.print_unique c fmt) ctx

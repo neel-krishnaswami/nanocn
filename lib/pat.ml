@@ -59,16 +59,19 @@ and compare_list ps1 ps2 =
 
 let compare = compare_pat
 
-let rec print fmt t =
+let rec print_gen pp_var fmt t =
   match shape t with
-  | Var x -> Var.print fmt x
-  | Con (l, p) -> Format.fprintf fmt "@[<hov 2>%a@ %a@]" Label.print l print p
+  | Var x -> pp_var fmt x
+  | Con (l, p) -> Format.fprintf fmt "@[<hov 2>%a@ %a@]" Label.print l (print_gen pp_var) p
   | Tuple [] -> Format.fprintf fmt "()"
-  | Tuple [p] -> Format.fprintf fmt "(%a,)" print p
+  | Tuple [p] -> Format.fprintf fmt "(%a,)" (print_gen pp_var) p
   | Tuple ps ->
     Format.fprintf fmt "@[<hov 2>(%a)@]"
-      (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") print)
+      (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") (print_gen pp_var))
       ps
+
+let print fmt t = print_gen Var.print fmt t
+let to_string t = Format.asprintf "%a" (print_gen Var.print_unique) t
 
 let rec json jb t =
   let fields = ["info", jb (info t)] in

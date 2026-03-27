@@ -15,13 +15,16 @@ let rec lookup x = function
 let extend_list bindings ctx =
   List.fold_left (fun acc (x, s, eff) -> (x, s, eff) :: acc) ctx (List.rev bindings)
 
-let print fmt ctx =
+let print_gen pp_var fmt ctx =
   let pp_entry fmt (x, s, eff) =
-    Format.fprintf fmt "@[%a : %a [%a]@]" Var.print x Sort.print s Effect.print eff
+    Format.fprintf fmt "@[%a : %a [%a]@]" pp_var x Sort.print s Effect.print eff
   in
   Format.fprintf fmt "@[<v>%a@]"
     (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") pp_entry)
     ctx
+
+let print fmt ctx = print_gen Var.print fmt ctx
+let to_string ctx = Format.asprintf "%a" (print_gen Var.print_unique) ctx
 
 module Test = struct
   let gen =

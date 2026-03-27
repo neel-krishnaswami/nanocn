@@ -115,10 +115,20 @@ type located_spine = (CoreExpr.ce, < loc : SourcePos.t >, Var.t) spine
 
 (** {1 Printing} *)
 
+val print_gen_crt : (Format.formatter -> Var.t -> unit) -> (Format.formatter -> 'e -> unit) -> Format.formatter -> ('e, _, Var.t) crt -> unit
+val print_gen_lpf : (Format.formatter -> Var.t -> unit) -> (Format.formatter -> 'e -> unit) -> Format.formatter -> ('e, _, Var.t) lpf -> unit
+val print_gen_rpf : (Format.formatter -> Var.t -> unit) -> (Format.formatter -> 'e -> unit) -> Format.formatter -> ('e, _, Var.t) rpf -> unit
+val print_gen_spine : (Format.formatter -> Var.t -> unit) -> (Format.formatter -> 'e -> unit) -> Format.formatter -> ('e, _, Var.t) spine -> unit
+
 val print_crt : (Format.formatter -> 'e -> unit) -> Format.formatter -> ('e, _, Var.t) crt -> unit
 val print_lpf : (Format.formatter -> 'e -> unit) -> Format.formatter -> ('e, _, Var.t) lpf -> unit
 val print_rpf : (Format.formatter -> 'e -> unit) -> Format.formatter -> ('e, _, Var.t) rpf -> unit
 val print_spine : (Format.formatter -> 'e -> unit) -> Format.formatter -> ('e, _, Var.t) spine -> unit
+
+val to_string_crt : (Format.formatter -> 'e -> unit) -> ('e, _, Var.t) crt -> string
+val to_string_lpf : (Format.formatter -> 'e -> unit) -> ('e, _, Var.t) lpf -> string
+val to_string_rpf : (Format.formatter -> 'e -> unit) -> ('e, _, Var.t) rpf -> string
+val to_string_spine : (Format.formatter -> 'e -> unit) -> ('e, _, Var.t) spine -> string
 
 module Test : sig
   val test : QCheck.Test.t list

@@ -11,15 +11,17 @@ type supply = int
 
 let empty_supply = 0
 
-let of_string s pos =
-  { name = User (s, -1); binding_site = pos }
-
 let mk s pos supply =
   ({ name = User (s, supply); binding_site = pos }, supply + 1)
 
-let to_string v =
+let name v =
   match v.name with
   | User (s, _) -> s
+  | Generated n -> "_v" ^ string_of_int n
+
+let to_string v =
+  match v.name with
+  | User (s, n) -> s ^ "_" ^ string_of_int n
   | Generated n -> "_v" ^ string_of_int n
 
 let id_of v =
@@ -30,7 +32,8 @@ let id_of v =
 let compare a b =
   Int.compare (id_of a) (id_of b)
 
-let print fmt v = Format.fprintf fmt "%s" (to_string v)
+let print fmt v = Format.fprintf fmt "%s" (name v)
+let print_unique fmt v = Format.fprintf fmt "%s" (to_string v)
 
 let json v =
   Json.Object [
@@ -69,12 +72,12 @@ module Test = struct
     pure { name = User (s, id); binding_site = SourcePos.dummy }
 
   let test =
-    [ QCheck.Test.make ~name:"variable roundtrip"
+    [ QCheck.Test.make ~name:"variable name roundtrip"
         ~count:100
         (QCheck.make gen)
         (fun v ->
-           let s = to_string v in
-           let v' = of_string s SourcePos.dummy in
-           String.compare s (to_string v') = 0)
+           let s = name v in
+           let (v', _) = mk s SourcePos.dummy empty_supply in
+           String.equal s (name v'))
     ]
 end

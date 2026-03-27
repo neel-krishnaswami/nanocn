@@ -83,13 +83,13 @@ type 'a core_prog = {
   core_loc : SourcePos.t;
 }
 
-let print_core_prog pp fmt p =
+let print_gen_core_prog pp_var pp fmt p =
   List.iter (fun d ->
     match d with
     | CoreFunDecl d ->
       Format.fprintf fmt "@[<v>@[<hov 2>fun %s (%a : %a) : %a [%a] =@ %a@]@]@.@."
         d.name
-        Var.print d.param
+        pp_var d.param
         Sort.print d.arg_sort
         Sort.print d.ret_sort
         Effect.print d.eff
@@ -101,6 +101,9 @@ let print_core_prog pp fmt p =
   ) p.core_decls;
   Format.fprintf fmt "@[<hov 2>main : %a [%a] =@ %a@]"
     Sort.print p.core_main_sort Effect.print p.core_main_eff pp p.core_main
+
+let print_core_prog pp fmt p = print_gen_core_prog Var.print pp fmt p
+let to_string_core_prog pp p = Format.asprintf "%a" (print_gen_core_prog Var.print_unique pp) p
 
 let json_core_decl ja = function
   | CoreFunDecl d ->

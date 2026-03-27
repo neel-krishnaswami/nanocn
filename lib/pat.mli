@@ -32,7 +32,9 @@ type pat = (< loc : SourcePos.t >, Var.t) t
 type parsed_pat = (< loc : SourcePos.t >, string) t
 
 val compare : pat -> pat -> int
+val print_gen : (Format.formatter -> 'var -> unit) -> Format.formatter -> (_, 'var) t -> unit
 val print : Format.formatter -> (_, Var.t) t -> unit
+val to_string : (_, Var.t) t -> string
 val json : ('b -> Json.t) -> ('b, Var.t) t -> Json.t
 
 val linear_check : pat -> (unit, string) result

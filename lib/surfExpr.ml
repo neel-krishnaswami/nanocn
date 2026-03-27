@@ -76,53 +76,58 @@ let infix_op_string = function
   | Prim.Gt -> ">" | Prim.Ge -> ">="
   | _ -> assert false
 
-let rec print fmt t =
+let rec print_gen pp_var fmt t =
+  let pr = print_gen pp_var in
+  let pp = Pat.print_gen pp_var in
   match shape t with
-  | Var x -> Var.print fmt x
+  | Var x -> pp_var fmt x
   | IntLit n -> Format.fprintf fmt "%d" n
   | BoolLit b -> Format.fprintf fmt "%s" (if b then "true" else "false")
   | Let (p, e1, e2) ->
     Format.fprintf fmt "@[<v>@[<hov 2>let %a =@ %a;@]@ %a@]"
-      Pat.print p print e1 print e2
+      pp p pr e1 pr e2
   | Tuple [] -> Format.fprintf fmt "()"
-  | Tuple [e] -> Format.fprintf fmt "(%a,)" print e
+  | Tuple [e] -> Format.fprintf fmt "(%a,)" pr e
   | Tuple es ->
     Format.fprintf fmt "@[<hov 2>(%a)@]"
-      (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") print)
+      (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") pr)
       es
-  | Inject (l, e) -> Format.fprintf fmt "@[<hov 2>%a@ %a@]" Label.print l print e
+  | Inject (l, e) -> Format.fprintf fmt "@[<hov 2>%a@ %a@]" Label.print l pr e
   | Case (scrut, branches) ->
     Format.fprintf fmt "@[<v>@[<hov 2>case %a of {@ %a@]@ }@]"
-      print scrut
+      pr scrut
       (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt "@ | ")
          (fun fmt (p, body, _) ->
-            Format.fprintf fmt "@[<hov 2>%a ->@ %a@]" Pat.print p print body))
+            Format.fprintf fmt "@[<hov 2>%a ->@ %a@]" pp p pr body))
       branches
   | Iter (p, e1, e2) ->
     Format.fprintf fmt "@[<v>@[<hov 2>iter (%a = %a) {@ %a@]@ }@]"
-      Pat.print p print e1 print e2
+      pp p pr e1 pr e2
   | App ((Prim.Add | Prim.Sub | Prim.Mul | Prim.Div | Prim.Lt | Prim.Le | Prim.Gt | Prim.Ge) as p, arg) ->
     (match shape arg with
      | Tuple [e1; e2] ->
-       Format.fprintf fmt "@[<hov 2>%a %s@ %a@]" print e1 (infix_op_string p) print e2
+       Format.fprintf fmt "@[<hov 2>%a %s@ %a@]" pr e1 (infix_op_string p) pr e2
      | _ ->
-       Format.fprintf fmt "@[<hov 2>%a@ %a@]" Prim.print p print arg)
+       Format.fprintf fmt "@[<hov 2>%a@ %a@]" Prim.print p pr arg)
   | App (Prim.Not, e) ->
-    Format.fprintf fmt "@[<hov 2>not@ %a@]" print e
-  | App (p, e) -> Format.fprintf fmt "@[<hov 2>%a@ %a@]" Prim.print p print e
-  | Call (name, e) -> Format.fprintf fmt "@[<hov 2>%s@ %a@]" name print e
+    Format.fprintf fmt "@[<hov 2>not@ %a@]" pr e
+  | App (p, e) -> Format.fprintf fmt "@[<hov 2>%a@ %a@]" Prim.print p pr e
+  | Call (name, e) -> Format.fprintf fmt "@[<hov 2>%s@ %a@]" name pr e
   | If (e1, e2, e3) ->
     Format.fprintf fmt "@[<v>@[<hov 2>if %a@ then %a@]@ @[<hov 2>else %a@]@]"
-      print e1 print e2 print e3
+      pr e1 pr e2 pr e3
   | Annot (e, s) ->
-    Format.fprintf fmt "@[<hov 2>%a :@ %a@]" print e Sort.print s
-  | Eq (a, b) -> Format.fprintf fmt "@[<hov 2>%a ==@ %a@]" print a print b
-  | And (a, b) -> Format.fprintf fmt "@[<hov 2>%a &&@ %a@]" print a print b
-  | Not a -> Format.fprintf fmt "@[<hov 2>not@ %a@]" print a
+    Format.fprintf fmt "@[<hov 2>%a :@ %a@]" pr e Sort.print s
+  | Eq (a, b) -> Format.fprintf fmt "@[<hov 2>%a ==@ %a@]" pr a pr b
+  | And (a, b) -> Format.fprintf fmt "@[<hov 2>%a &&@ %a@]" pr a pr b
+  | Not a -> Format.fprintf fmt "@[<hov 2>not@ %a@]" pr a
   | Take (p, e1, e2) ->
     Format.fprintf fmt "@[<v>@[<hov 2>take %a =@ %a;@]@ %a@]"
-      Pat.print p print e1 print e2
-  | Return a -> Format.fprintf fmt "@[<hov 2>return@ %a@]" print a
+      pp p pr e1 pr e2
+  | Return a -> Format.fprintf fmt "@[<hov 2>return@ %a@]" pr a
+
+let print fmt t = print_gen Var.print fmt t
+let to_string t = Format.asprintf "%a" (print_gen Var.print_unique) t
 
 let rec json jb t =
   let node_info = ["info", jb (info t)] in

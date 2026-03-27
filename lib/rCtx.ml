@@ -134,19 +134,23 @@ let split n ctx =
 
 let entries ctx = ctx
 
-let print fmt ctx =
+let print_gen pp_var fmt ctx =
+  let pp_ce = CoreExpr.print_gen pp_var in
   let pp_entry fmt = function
     | Comp { var; sort; eff } ->
-      Format.fprintf fmt "@[%a : %a [%a]@]" Var.print var Sort.print sort Effect.print eff
+      Format.fprintf fmt "@[%a : %a [%a]@]" pp_var var Sort.print sort Effect.print eff
     | Log { var; prop } ->
-      Format.fprintf fmt "@[%a : %a [log]@]" Var.print var CoreExpr.print prop
+      Format.fprintf fmt "@[%a : %a [log]@]" pp_var var pp_ce prop
     | Res { var; pred; value; usage } ->
       Format.fprintf fmt "@[%a : %a @ %a [res(%a)]@]"
-        Var.print var CoreExpr.print pred CoreExpr.print value Usage.print usage
+        pp_var var pp_ce pred pp_ce value Usage.print usage
   in
   Format.fprintf fmt "@[<v>%a@]"
     (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") pp_entry)
     ctx
+
+let print fmt ctx = print_gen Var.print fmt ctx
+let to_string ctx = Format.asprintf "%a" (print_gen Var.print_unique) ctx
 
 module Test = struct
   let test =
