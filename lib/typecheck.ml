@@ -482,21 +482,19 @@ let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
         | [] -> d.loc
       in
       let* y = fresh param_pos in
+      let bind_eff = Effect.purify d.eff in
+      let ctx = Context.extend y d.arg_sort bind_eff Context.empty in
       let branches = List.map (fun (pat, body, _) ->
         Elaborate.({ bindings = [(pat, d.arg_sort)];
-                     ctx_bindings = [];
-                     ectx = EvalCtx.Hole;
+                     let_bindings = [];
                      body })
       ) d.branches in
       let param_eff_b = Effect.purify d.eff in
-      let* core_body = Elaborate.coverage_check sig_for_body Context.empty
+      let* typed_body = Elaborate.coverage_check sig_for_body ctx
         [y] branches param_eff_b d.ret_sort d.eff in
-      return (y, core_body)
+      return (y, typed_body)
     ) in
-    let* ((y, core_body), supply') = result in
-    let bind_eff = Effect.purify d.eff in
-    let ctx = Context.extend y d.arg_sort bind_eff Context.empty in
-    let* typed_body = check sig_for_body ctx core_body d.ret_sort d.eff in
+    let* ((y, typed_body), supply') = result in
     Ok (supply', Prog.CoreFunDecl { name = d.name; param = y;
                             arg_sort = d.arg_sort; ret_sort = d.ret_sort;
                             eff = d.eff; body = typed_body; loc = d.loc })
@@ -560,12 +558,11 @@ let check_prog supply (p : (SurfExpr.se, _, Var.t) Prog.t) : (typed_ce Sig.t * t
       Ok (supply'', final_sig, d' :: rest')
   in
   let* (supply', final_sig, decls') = check_decls supply initial_sig p.decls in
-  (* Elaborate main *)
+  (* Elaborate main — produces typed_ce directly *)
   let result = ElabM.run supply' (
     Elaborate.check final_sig Context.empty p.main p.main_sort p.main_eff
   ) in
-  let* (core_main, _supply'') = result in
-  let* main' = check final_sig Context.empty core_main p.main_sort p.main_eff in
+  let* (main', _supply'') = result in
   Ok (final_sig,
       { Prog.core_decls = decls'; core_main = main';
         core_main_sort = p.main_sort; core_main_eff = p.main_eff;
