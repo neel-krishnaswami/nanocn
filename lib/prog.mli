@@ -1,38 +1,37 @@
-(** Program structure: declarations followed by a main expression. *)
+(** Program structure: declarations followed by a main expression.
+    Parameterized by ['var] for variable names. *)
 
 (** {1 Surface programs} *)
 
-type ('a, 'b) decl =
+type ('a, 'b, 'var) decl =
   | FunDecl of {
-      name : Var.t;
+      name : string;
       arg_sort : Sort.sort;
       ret_sort : Sort.sort;
       eff : Effect.t;
-      branches : (Pat.pat * 'a * 'b) list;
+      branches : ((< loc : SourcePos.t >, 'var) Pat.t * 'a * 'b) list;
       loc : SourcePos.t;
     }
   | SortDecl of DsortDecl.t
   | TypeDecl of DtypeDecl.t
 
-type ('a, 'b) t = {
-  decls : ('a, 'b) decl list;
+type ('a, 'b, 'var) t = {
+  decls : ('a, 'b, 'var) decl list;
   main : 'a;
   main_sort : Sort.sort;
   main_eff : Effect.t;
   loc : SourcePos.t;
 }
 
-val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> ('a, _) t -> unit
-val json_decl : ('a -> Json.t) -> ('b -> Json.t) -> ('a, 'b) decl -> Json.t
-val json : ('a -> Json.t) -> ('b -> Json.t) -> ('a, 'b) t -> Json.t
+val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> ('a, _, _) t -> unit
+val json_decl : ('a -> Json.t) -> ('b -> Json.t) -> ('a, 'b, Var.t) decl -> Json.t
+val json : ('a -> Json.t) -> ('b -> Json.t) -> ('a, 'b, Var.t) t -> Json.t
 
 (** {1 Core programs} *)
 
-(** Print a core program. The first argument prints a core expression. *)
-
 type 'a core_decl =
   | CoreFunDecl of {
-      name : Var.t;
+      name : string;
       param : Var.t;
       arg_sort : Sort.sort;
       ret_sort : Sort.sort;

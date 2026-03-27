@@ -34,9 +34,6 @@
     | Ok d -> d
     | Error _ -> failwith ("invalid datasort name: " ^ s)
 
-  let mk_var startpos endpos s =
-    Var.of_string s (mk_loc startpos endpos)
-
 %}
 
 %token <int> INT_LIT
@@ -56,18 +53,18 @@
 %token EXFALSO AUTO UNFOLD OPEN_RET OPEN_TAKE MAKE_RET MAKE_TAKE LOG RES FORALL AT TILDEARROW
 %token EOF
 
-%start <SurfExpr.se> program
+%start <SurfExpr.parsed_se> program
 %start <Sort.sort> sort_eof
-%start <(SurfExpr.se, SourcePos.t) Prog.t> prog_eof
-%start <(SurfExpr.se, SourcePos.t) Prog.decl> repl_decl
-%start <Var.t * SurfExpr.se> repl_let
-%start <RProg.parsed> rprog_eof
+%start <(SurfExpr.parsed_se, SourcePos.t, string) Prog.t> prog_eof
+%start <(SurfExpr.parsed_se, SourcePos.t, string) Prog.decl> repl_decl
+%start <(string * SourcePos.t * SurfExpr.parsed_se)> repl_let
+%start <RProg.raw_parsed> rprog_eof
 
 %%
 
-(* A variable occurrence with its source position. *)
+(* A variable occurrence — just the string name. *)
 %inline ident_var:
-  | x = IDENT { mk_var $startpos $endpos x }
+  | x = IDENT { x }
 
 program:
   | e = expr; EOF { e }
@@ -84,7 +81,8 @@ repl_decl:
   | d = decl; EOF { d }
 
 repl_let:
-  | LET; x = ident_var; EQUAL; e = expr; EOF { (x, e) }
+  | LET; x = ident_var; EQUAL; e = expr; EOF
+    { (x, mk_loc $startpos(x) $endpos(x), e) }
 
 (* ===== Declarations ===== *)
 
@@ -93,13 +91,12 @@ decl:
     { Prog.FunDecl { name = f; arg_sort = a; ret_sort = b; eff;
         branches = bs; loc = mk_loc $startpos $endpos } }
   | SORT; d = IDENT; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
-    { let decl = DsortDecl.({
+    { Prog.SortDecl (DsortDecl.resolve_tvars DsortDecl.({
         name = dsort d;
         params = List.map Tvar.of_string params;
         ctors = cs;
         loc = mk_loc $startpos $endpos;
-      }) in
-      Prog.SortDecl (DsortDecl.resolve_tvars decl) }
+      })) }
   | SORT; d = IDENT; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
     { Prog.SortDecl DsortDecl.({
         name = dsort d;
@@ -108,13 +105,12 @@ decl:
         loc = mk_loc $startpos $endpos;
       }) }
   | TYPE; d = IDENT; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
-    { let decl = DtypeDecl.({
+    { Prog.TypeDecl (DtypeDecl.resolve_tvars DtypeDecl.({
         name = dsort d;
         params = List.map Tvar.of_string params;
         ctors = cs;
         loc = mk_loc $startpos $endpos;
-      }) in
-      Prog.TypeDecl (DtypeDecl.resolve_tvars decl) }
+      })) }
   | TYPE; d = IDENT; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
     { Prog.TypeDecl DtypeDecl.({
         name = dsort d;
@@ -209,14 +205,20 @@ atomic_pat:
 (* ===== Unified expressions ===== *)
 
 expr:
-  | e = seq_expr; COLON; s = sort; LBRACKET; eff = effect; RBRACKET
-    { mk_surfexpr $startpos $endpos (SurfExpr.Annot (e, s, eff)) }
+  | e = seq_expr; COLON; s = sort
+    { mk_surfexpr $startpos $endpos (SurfExpr.Annot (e, s)) }
   | e = seq_expr
     { e }
 
 seq_expr:
+  | LET; p = pat; COLON; s = sort; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
+    { let annot_e1 = mk_surfexpr $startpos $endpos (SurfExpr.Annot (e1, s)) in
+      mk_surfexpr $startpos $endpos (SurfExpr.Let (p, annot_e1, e2)) }
   | LET; p = pat; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
     { mk_surfexpr $startpos $endpos (SurfExpr.Let (p, e1, e2)) }
+  | TAKE; p = pat; COLON; s = sort; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
+    { let annot_e1 = mk_surfexpr $startpos $endpos (SurfExpr.Annot (e1, s)) in
+      mk_surfexpr $startpos $endpos (SurfExpr.Take (p, annot_e1, e2)) }
   | TAKE; p = pat; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
     { mk_surfexpr $startpos $endpos (SurfExpr.Take (p, e1, e2)) }
   | RETURN; e = app_expr
@@ -340,18 +342,16 @@ rdecl:
     { RProg.RFunDecl { name = f; domain = pf1; codomain = pf2; eff;
                         body = e; loc = mk_loc $startpos $endpos } }
   | FUN; f = ident_var; LPAREN; x = ident_var; COLON; a = sort; RPAREN; TILDEARROW; pf2 = pf_sort; LBRACKET; eff = effect; RBRACKET; EQUAL; e = crt_expr
-    { (* Core param with refined return type *)
-      let pf1 = [ProofSort.Comp { var = x; sort = a; eff = Effect.Pure }] in
+    { let pf1 = [ProofSort.Comp { var = x; sort = a; eff = Effect.Pure }] in
       RProg.RFunDecl { name = f; domain = pf1; codomain = pf2; eff;
                         body = e; loc = mk_loc $startpos $endpos } }
   | SORT; d = IDENT; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
-    { let decl = DsortDecl.({
+    { RProg.SortDecl (DsortDecl.resolve_tvars DsortDecl.({
         name = dsort d;
         params = List.map Tvar.of_string params;
         ctors = cs;
         loc = mk_loc $startpos $endpos;
-      }) in
-      RProg.SortDecl (DsortDecl.resolve_tvars decl) }
+      })) }
   | SORT; d = IDENT; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
     { RProg.SortDecl DsortDecl.({
         name = dsort d;
@@ -360,13 +360,12 @@ rdecl:
         loc = mk_loc $startpos $endpos;
       }) }
   | TYPE; d = IDENT; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
-    { let decl = DtypeDecl.({
+    { RProg.TypeDecl (DtypeDecl.resolve_tvars DtypeDecl.({
         name = dsort d;
         params = List.map Tvar.of_string params;
         ctors = cs;
         loc = mk_loc $startpos $endpos;
-      }) in
-      RProg.TypeDecl (DtypeDecl.resolve_tvars decl) }
+      })) }
   | TYPE; d = IDENT; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
     { RProg.TypeDecl DtypeDecl.({
         name = dsort d;
@@ -390,6 +389,14 @@ pf_entry:
     { ProofSort.Log { var = x; prop = e } }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON; e1 = app_expr; AT; e2 = app_expr
     { ProofSort.Res { var = x; pred = e1; value = e2 } }
+  | LBRACKET; RES; RBRACKET; x = ident_var; COLON;
+    LPAREN; TAKE; y = ident_var; COLON; s = sort; EQUAL; e = app_expr; RPAREN
+    { let pred_sort = mk_sort $startpos $endpos (Sort.Pred s) in
+      let annot_e = mk_surfexpr $startpos $endpos (SurfExpr.Annot (e, pred_sort)) in
+      ProofSort.DepRes { var = x; bound_var = y; pred = annot_e } }
+  | LBRACKET; RES; RBRACKET; x = ident_var; COLON;
+    LPAREN; TAKE; y = ident_var; EQUAL; e = app_expr; RPAREN
+    { ProofSort.DepRes { var = x; bound_var = y; pred = e } }
 
 (* ===== Core refined terms ===== *)
 
@@ -435,13 +442,19 @@ crt_simple_expr:
 
 (* ===== Refined patterns ===== *)
 
+rpat_elem:
+  | x = ident_var
+    { RPat.Single x }
+  | LPAREN; x = ident_var; COMMA; y = ident_var; RPAREN
+    { RPat.Pair (x, y) }
+
 rpat:
   | LPAREN; RPAREN
     { [] }
-  | LPAREN; xs = separated_nonempty_list(COMMA, ident_var); RPAREN
+  | LPAREN; xs = separated_nonempty_list(COMMA, rpat_elem); RPAREN
     { xs }
   | x = ident_var
-    { [x] }
+    { [RPat.Single x] }
 
 (* ===== Spine expressions ===== *)
 

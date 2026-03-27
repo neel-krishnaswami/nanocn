@@ -265,18 +265,18 @@ let rec synth sig_ ctx eff0 se =
     (match Sig.lookup_fun name sig_ with
      | Some (arg_sort, ret_sort, fun_eff) ->
        if not (Effect.sub fun_eff eff0) then
-         fail_at_f pos "function %a has effect %a, not usable at effect %a"
-           Var.print name Effect.print fun_eff Effect.print eff0
+         fail_at_f pos "function %s has effect %a, not usable at effect %a"
+           name Effect.print fun_eff Effect.print eff0
        else
          let eff0' = Effect.purify eff0 in
          let* ce_arg = check sig_ ctx arg arg_sort eff0' in
          ElabM.return (mk_ce pos (CoreExpr.Call (name, ce_arg)), ret_sort)
      | None ->
-       fail_at_f pos "unknown function %a" Var.print name)
+       fail_at_f pos "unknown function %s" name)
 
-  | SurfExpr.Annot (se, s, ann_eff) ->
-    let* ce = check sig_ ctx se s ann_eff in
-    ElabM.return (mk_ce pos (CoreExpr.Annot (ce, s, ann_eff)), s)
+  | SurfExpr.Annot (se, s) ->
+    let* ce = check sig_ ctx se s eff0 in
+    ElabM.return (mk_ce pos (CoreExpr.Annot (ce, s)), s)
 
   | SurfExpr.Return _ | SurfExpr.Take _ | SurfExpr.Let _
   | SurfExpr.Tuple _ | SurfExpr.Inject _ | SurfExpr.Case _

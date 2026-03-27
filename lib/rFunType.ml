@@ -1,6 +1,6 @@
-type 'e t = {
-  domain : 'e ProofSort.t;
-  codomain : 'e ProofSort.t;
+type ('e, 'var) t = {
+  domain : ('e, 'var) ProofSort.t;
+  codomain : ('e, 'var) ProofSort.t;
   eff : Effect.t;
 }
 

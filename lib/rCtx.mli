@@ -41,6 +41,14 @@ val merge : t -> t -> (t, string) result
 val merge_n : t list -> (t, string) result
 (** [merge_n [Δ₁; ...; Δₙ]] folds [merge] left-to-right. *)
 
+val lattice_merge : t -> t -> (t, string) result
+(** [lattice_merge Δ₁ Δ₂] merges using [Usage.lattice_meet] (total order
+    [Used ≤ Opt ≤ Avail]). Never fails due to usage incompatibility. *)
+
+val usage_equal : t -> t -> bool
+(** [usage_equal Δ₁ Δ₂] checks that the two contexts have the same
+    length and matching usage flags on every resource entry. *)
+
 val length : t -> int
 val split : int -> t -> t * t
 (** [split n Δ] returns [(Δ₁, Δ₂)] where [Δ₁] has [n] entries. *)

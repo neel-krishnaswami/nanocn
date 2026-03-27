@@ -4,42 +4,16 @@
     Delegates core expression checking to [Typecheck.synth]/[Typecheck.check]
     via [RSig.comp] and [RCtx.erase]. *)
 
-val synth_crt :
-  RSig.t -> RCtx.t -> Effect.t -> RefinedExpr.parsed_crt ->
-  (CoreExpr.ce ProofSort.t * RCtx.t * Constraint.t, string) result
-
-val check_crt :
-  RSig.t -> RCtx.t -> Effect.t -> RefinedExpr.parsed_crt ->
-  CoreExpr.ce ProofSort.t ->
-  (RCtx.t * Constraint.t, string) result
-
-val synth_lpf :
-  RSig.t -> RCtx.t -> RefinedExpr.parsed_lpf ->
-  (CoreExpr.ce * RCtx.t * Constraint.t, string) result
-
-val check_lpf :
-  RSig.t -> RCtx.t -> RefinedExpr.parsed_lpf -> CoreExpr.ce ->
-  (RCtx.t * Constraint.t, string) result
-
-val synth_rpf :
-  RSig.t -> RCtx.t -> RefinedExpr.parsed_rpf ->
-  (CoreExpr.ce * CoreExpr.ce * RCtx.t * Constraint.t, string) result
-
-val check_rpf :
-  RSig.t -> RCtx.t -> RefinedExpr.parsed_rpf -> CoreExpr.ce -> CoreExpr.ce ->
-  (RCtx.t * Constraint.t, string) result
-
-val check_spine :
-  RSig.t -> RCtx.t -> Effect.t -> RefinedExpr.parsed_spine ->
-  CoreExpr.ce RFunType.t ->
-  (CoreExpr.ce ProofSort.t * RCtx.t * Constraint.t, string) result
-
 val check_rprog :
   RProg.parsed ->
-  (RSig.t * Constraint.t, string) result
+  (RSig.t * Constraint.t) ElabM.t
 (** [check_rprog prog] typechecks a refined program,
     returning the final signature and constraint tree. *)
 
 module Test : sig
   val test : QCheck.Test.t list
+  val pf_eq : RSig.t -> RCtx.t -> (CoreExpr.ce, Var.t) ProofSort.t -> (CoreExpr.ce, Var.t) ProofSort.t -> Constraint.t ElabM.t
+  val with_delta_check : (unit -> 'a) -> 'a
+  (** [with_delta_check f] runs [f] with the Delta ⊓ Delta' = Delta'
+      monotonicity assertion enabled in [check_crt] and [synth_crt]. *)
 end

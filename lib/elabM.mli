@@ -9,11 +9,24 @@ val return : 'a -> 'a t
 val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
 val fail : string -> 'a t
 
+val lift : ('a, string) result -> 'a t
+(** [lift r] promotes a plain result into the monad. *)
+
+val from_supply : (Var.supply -> ('a * Var.supply, string) result) -> 'a t
+(** [from_supply f] creates a monadic computation from a supply-threading function. *)
+
 val fresh : SourcePos.t -> Var.t t
 (** [fresh pos] generates a fresh variable with binding site [pos]. *)
 
-val run : 'a t -> ('a, string) result
-(** [run m] executes [m] starting from an empty supply. *)
+val mk_var : string -> SourcePos.t -> Var.t t
+(** [mk_var name pos] creates a user variable with a unique id from the supply. *)
+
+val sequence : 'a t list -> 'a list t
+(** [sequence ms] runs each computation in order, collecting results. *)
+
+val run : Var.supply -> 'a t -> ('a * Var.supply, string) result
+(** [run supply m] executes [m] starting from [supply],
+    returning the result and the final supply. *)
 
 module Test : sig
   val test : QCheck.Test.t list

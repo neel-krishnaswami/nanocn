@@ -17,9 +17,9 @@ type ('a, 'b) ceF =
   | Case of 'a * (Label.t * Var.t * 'a * 'b) list
   | Iter of Var.t * 'a * 'a
   | App of Prim.t * 'a
-  | Call of Var.t * 'a
+  | Call of string * 'a
   | If of 'a * 'a * 'a
-  | Annot of 'a * 'b Sort.t * Effect.t
+  | Annot of 'a * 'b Sort.t
   | Eq of 'a * 'a
   | And of 'a * 'a
   | Not of 'a

@@ -143,17 +143,17 @@ let rec synth sig_ ctx eff0 ce =
     (match Sig.lookup_fun name sig_ with
      | Some (arg_sort, ret_sort, fun_eff) ->
        if not (Effect.sub fun_eff eff0) then
-         err_at_f pos "function %a has effect %a, not usable at %a"
-           Var.print name Effect.print fun_eff Effect.print eff0
+         err_at_f pos "function %s has effect %a, not usable at %a"
+           name Effect.print fun_eff Effect.print eff0
        else
          let eff0' = Effect.purify eff0 in
          let* arg' = check sig_ ctx arg arg_sort eff0' in
          Ok (mk ctx pos ret_sort eff0 (CoreExpr.Call (name, arg')))
-     | None -> err_at_f pos "unknown function %a" Var.print name)
+     | None -> err_at_f pos "unknown function %s" name)
 
-  | CoreExpr.Annot (ce, s, ann_eff) ->
-    let* ce' = check sig_ ctx ce s ann_eff in
-    Ok (mk ctx pos s ann_eff (CoreExpr.Annot (ce', lift_sort s, ann_eff)))
+  | CoreExpr.Annot (ce, s) ->
+    let* ce' = check sig_ ctx ce s eff0 in
+    Ok (mk ctx pos s eff0 (CoreExpr.Annot (ce', lift_sort s)))
 
   | CoreExpr.Return _ | CoreExpr.Take _ | CoreExpr.Let _
   | CoreExpr.Inject _ | CoreExpr.Case _ | CoreExpr.Tuple _
@@ -278,15 +278,13 @@ and check sig_ ctx ce sort eff0 =
     let* else' = check sig_ ctx e_else sort eff0 in
     Ok (mk ctx pos sort eff0 (CoreExpr.If (cond', then', else')))
 
-  | CoreExpr.Annot (inner, ann_sort, ann_eff) ->
-    let* inner' = check sig_ ctx inner ann_sort ann_eff in
+  | CoreExpr.Annot (inner, ann_sort) ->
+    let* inner' = check sig_ ctx inner ann_sort eff0 in
     if not (sort_equal ann_sort sort) then
       err_at_f pos "annotation sort %a does not match expected sort %a"
         Sort.print ann_sort Sort.print sort
-    else if not (Effect.sub ann_eff eff0) then
-      err_at pos "annotation effect exceeds allowed effect"
     else
-      Ok (mk ctx pos sort ann_eff (CoreExpr.Annot (inner', lift_sort ann_sort, ann_eff)))
+      Ok (mk ctx pos sort eff0 (CoreExpr.Annot (inner', lift_sort ann_sort)))
 
   | _ ->
     let* e' = synth sig_ ctx eff0 ce in
@@ -468,7 +466,7 @@ let validate_type_decl sig_ (d : DtypeDecl.t) =
     type_guarded_list sig_with_self d.params d.name (List.map snd ctor_sorts)
 
 (** Elaborate and typecheck a FunDecl *)
-let elaborate_fun sig_ (d : (SurfExpr.se, _) Prog.decl) =
+let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
   match d with
   | Prog.FunDecl d ->
     let entry = Sig.FunSig { arg = d.arg_sort; ret = d.ret_sort; eff = d.eff } in
@@ -477,7 +475,7 @@ let elaborate_fun sig_ (d : (SurfExpr.se, _) Prog.decl) =
       | Effect.Pure -> sig_
       | Effect.Impure | Effect.Spec -> Sig.extend d.name entry sig_
     in
-    let result = ElabM.run (
+    let result = ElabM.run supply (
       let open ElabM in
       let param_pos = match d.branches with
         | (pat, _, _) :: _ -> (Pat.info pat)#loc
@@ -495,32 +493,32 @@ let elaborate_fun sig_ (d : (SurfExpr.se, _) Prog.decl) =
         [y] branches param_eff_b d.ret_sort d.eff in
       return (y, core_body)
     ) in
-    let* (y, core_body) = result in
+    let* ((y, core_body), supply') = result in
     let bind_eff = Effect.purify d.eff in
     let ctx = Context.extend y d.arg_sort bind_eff Context.empty in
     let* typed_body = check sig_for_body ctx core_body d.ret_sort d.eff in
-    Ok (Prog.CoreFunDecl { name = d.name; param = y;
+    Ok (supply', Prog.CoreFunDecl { name = d.name; param = y;
                             arg_sort = d.arg_sort; ret_sort = d.ret_sort;
                             eff = d.eff; body = typed_body; loc = d.loc })
   | _ -> Error "elaborate_fun: not a FunDecl"
 
-let check_decl sig_ (d : (SurfExpr.se, _) Prog.decl) =
+let check_decl supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
   match d with
-  | Prog.FunDecl _ -> elaborate_fun sig_ d
+  | Prog.FunDecl _ -> elaborate_fun supply sig_ d
   | Prog.SortDecl dd ->
     let* () = validate_sort_decl sig_ dd in
-    Ok (Prog.CoreSortDecl dd)
+    Ok (supply, Prog.CoreSortDecl dd)
   | Prog.TypeDecl dd ->
     let* () = validate_type_decl sig_ dd in
-    Ok (Prog.CoreTypeDecl dd)
+    Ok (supply, Prog.CoreTypeDecl dd)
 
-let check_spec_decl sig_ (d : (SurfExpr.se, _) Prog.decl) =
-  let* d' = check_decl sig_ d in
+let check_spec_decl supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
+  let* (supply', d') = check_decl supply sig_ d in
   match d, d' with
   | Prog.SortDecl dd, _ ->
-    Ok (Sig.extend_sort sig_ dd)
+    Ok (supply', Sig.extend_sort sig_ dd)
   | Prog.TypeDecl dd, _ ->
-    Ok (Sig.extend_type sig_ dd)
+    Ok (supply', Sig.extend_type sig_ dd)
   | Prog.FunDecl dd, Prog.CoreFunDecl cd ->
     let entry = match dd.eff with
       | Effect.Impure ->
@@ -529,13 +527,13 @@ let check_spec_decl sig_ (d : (SurfExpr.se, _) Prog.decl) =
         Sig.FunDef { param = cd.param; arg = dd.arg_sort; ret = dd.ret_sort;
                      eff = dd.eff; body = cd.body }
     in
-    Ok (Sig.extend dd.name entry sig_)
+    Ok (supply', Sig.extend dd.name entry sig_)
   | _, _ -> Error "check_spec_decl: unexpected declaration combination"
 
 (** Extend the core signature after elaborating a declaration.
     Pure/spec functions store their full definition ([FunDef]);
     impure functions store only a prototype ([FunSig]). *)
-let extend_sig_with_decl sig_ (d : (SurfExpr.se, _) Prog.decl) (d' : typed_ce Prog.core_decl) =
+let extend_sig_with_decl sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) (d' : typed_ce Prog.core_decl) =
   match d, d' with
   | Prog.FunDecl fd, Prog.CoreFunDecl cd ->
     let entry = match fd.eff with
@@ -552,21 +550,21 @@ let extend_sig_with_decl sig_ (d : (SurfExpr.se, _) Prog.decl) (d' : typed_ce Pr
     Sig.extend_type sig_ dd
   | _, _ -> sig_
 
-let check_prog (p : (SurfExpr.se, _) Prog.t) : (typed_ce Sig.t * typed_ce Prog.core_prog, string) result =
-  let rec check_decls sig_ = function
-    | [] -> Ok (sig_, [])
+let check_prog supply (p : (SurfExpr.se, _, Var.t) Prog.t) : (typed_ce Sig.t * typed_ce Prog.core_prog, string) result =
+  let rec check_decls supply sig_ = function
+    | [] -> Ok (supply, sig_, [])
     | d :: rest ->
-      let* d' = check_decl sig_ d in
+      let* (supply', d') = check_decl supply sig_ d in
       let sig' = extend_sig_with_decl sig_ d d' in
-      let* (final_sig, rest') = check_decls sig' rest in
-      Ok (final_sig, d' :: rest')
+      let* (supply'', final_sig, rest') = check_decls supply' sig' rest in
+      Ok (supply'', final_sig, d' :: rest')
   in
-  let* (final_sig, decls') = check_decls initial_sig p.decls in
+  let* (supply', final_sig, decls') = check_decls supply initial_sig p.decls in
   (* Elaborate main *)
-  let result = ElabM.run (
+  let result = ElabM.run supply' (
     Elaborate.check final_sig Context.empty p.main p.main_sort p.main_eff
   ) in
-  let* core_main = result in
+  let* (core_main, _supply'') = result in
   let* main' = check final_sig Context.empty core_main p.main_sort p.main_eff in
   Ok (final_sig,
       { Prog.core_decls = decls'; core_main = main';

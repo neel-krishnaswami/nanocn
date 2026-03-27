@@ -17,16 +17,16 @@ val check : _ Sig.t -> Context.t -> CoreExpr.ce -> Sort.sort -> Effect.t -> (typ
 val prim_signature : Prim.t -> Sort.sort * Sort.sort * Effect.t
 (** [prim_signature p] returns [(arg_sort, ret_sort, effect)] for primitive [p]. *)
 
-val check_prog : (SurfExpr.se, _) Prog.t -> (typed_ce Sig.t * typed_ce Prog.core_prog, string) result
+val check_prog : Var.supply -> (SurfExpr.se, _, Var.t) Prog.t -> (typed_ce Sig.t * typed_ce Prog.core_prog, string) result
 (** Typecheck a complete program (elaborate + typecheck).
     Returns both the final core signature and the typed core program. *)
 
-val check_decl : _ Sig.t -> (SurfExpr.se, _) Prog.decl -> (typed_ce Prog.core_decl, string) result
+val check_decl : Var.supply -> _ Sig.t -> (SurfExpr.se, _, Var.t) Prog.decl -> (Var.supply * typed_ce Prog.core_decl, string) result
 (** Typecheck a single declaration against a signature. *)
 
 val initial_sig : typed_ce Sig.t
 (** The initial signature with built-in types (step). *)
 
-val check_spec_decl : typed_ce Sig.t -> (SurfExpr.se, _) Prog.decl -> (typed_ce Sig.t, string) result
-(** [check_spec_decl sig d] validates a declaration,
-    returning the updated signature. *)
+val check_spec_decl : Var.supply -> typed_ce Sig.t -> (SurfExpr.se, _, Var.t) Prog.decl -> (Var.supply * typed_ce Sig.t, string) result
+(** [check_spec_decl supply sig d] validates a declaration,
+    returning the updated supply and signature. *)

@@ -1,20 +1,20 @@
-type ('a, 'b) seF =
-  | Var of Var.t
+type ('a, 'b, 'var) seF =
+  | Var of 'var
   | IntLit of int
   | BoolLit of bool
-  | Let of 'b Pat.t * 'a * 'a
+  | Let of ('b, 'var) Pat.t * 'a * 'a
   | Tuple of 'a list
   | Inject of Label.t * 'a
-  | Case of 'a * ('b Pat.t * 'a * 'b) list
-  | Iter of 'b Pat.t * 'a * 'a
+  | Case of 'a * (('b, 'var) Pat.t * 'a * 'b) list
+  | Iter of ('b, 'var) Pat.t * 'a * 'a
   | App of Prim.t * 'a
-  | Call of Var.t * 'a
+  | Call of string * 'a
   | If of 'a * 'a * 'a
-  | Annot of 'a * 'b Sort.t * Effect.t
+  | Annot of 'a * 'b Sort.t
   | Eq of 'a * 'a
   | And of 'a * 'a
   | Not of 'a
-  | Take of 'b Pat.t * 'a * 'a
+  | Take of ('b, 'var) Pat.t * 'a * 'a
   | Return of 'a
 
 let map_shape f = function
@@ -30,7 +30,7 @@ let map_shape f = function
   | App (p, e) -> App (p, f e)
   | Call (name, e) -> Call (name, f e)
   | If (e1, e2, e3) -> If (f e1, f e2, f e3)
-  | Annot (e, s, eff) -> Annot (f e, s, eff)
+  | Annot (e, s) -> Annot (f e, s)
   | Eq (a, b) -> Eq (f a, f b)
   | And (a, b) -> And (f a, f b)
   | Not a -> Not (f a)
@@ -50,14 +50,14 @@ let map_info f = function
   | App (p, e) -> App (p, e)
   | Call (name, e) -> Call (name, e)
   | If (e1, e2, e3) -> If (e1, e2, e3)
-  | Annot (e, s, eff) -> Annot (e, Sort.map f s, eff)
+  | Annot (e, s) -> Annot (e, Sort.map f s)
   | Eq (a, b) -> Eq (a, b)
   | And (a, b) -> And (a, b)
   | Not a -> Not a
   | Take (p, e1, e2) -> Take (Pat.map f p, e1, e2)
   | Return a -> Return a
 
-type 'b t = In of 'b * ('b t, 'b) seF
+type ('b, 'var) t = In of 'b * (('b, 'var) t, 'b, 'var) seF
 
 let mk b sf = In (b, sf)
 let info (In (b, _)) = b
@@ -66,7 +66,8 @@ let shape (In (_, sf)) = sf
 let rec map f (In (b, sf)) =
   In (f b, map_info f (map_shape (map f) sf))
 
-type se = < loc : SourcePos.t > t
+type se = (< loc : SourcePos.t >, Var.t) t
+type parsed_se = (< loc : SourcePos.t >, string) t
 
 let infix_op_string = function
   | Prim.Add -> "+" | Prim.Sub -> "-"
@@ -109,12 +110,12 @@ let rec print fmt t =
   | App (Prim.Not, e) ->
     Format.fprintf fmt "@[<hov 2>not@ %a@]" print e
   | App (p, e) -> Format.fprintf fmt "@[<hov 2>%a@ %a@]" Prim.print p print e
-  | Call (name, e) -> Format.fprintf fmt "@[<hov 2>%a@ %a@]" Var.print name print e
+  | Call (name, e) -> Format.fprintf fmt "@[<hov 2>%s@ %a@]" name print e
   | If (e1, e2, e3) ->
     Format.fprintf fmt "@[<v>@[<hov 2>if %a@ then %a@]@ @[<hov 2>else %a@]@]"
       print e1 print e2 print e3
-  | Annot (e, s, eff) ->
-    Format.fprintf fmt "@[<hov 2>%a :@ %a [%a]@]" print e Sort.print s Effect.print eff
+  | Annot (e, s) ->
+    Format.fprintf fmt "@[<hov 2>%a :@ %a@]" print e Sort.print s
   | Eq (a, b) -> Format.fprintf fmt "@[<hov 2>%a ==@ %a@]" print a print b
   | And (a, b) -> Format.fprintf fmt "@[<hov 2>%a &&@ %a@]" print a print b
   | Not a -> Format.fprintf fmt "@[<hov 2>not@ %a@]" print a
@@ -141,11 +142,11 @@ let rec json jb t =
     | Iter (p, e1, e2) ->
       ["tag", Json.String "Iter"; "pat", Pat.json jb p; "init", json jb e1; "body", json jb e2]
     | App (p, e) -> ["tag", Json.String "App"; "prim", Prim.json p; "arg", json jb e]
-    | Call (name, e) -> ["tag", Json.String "Call"; "name", Var.json name; "arg", json jb e]
+    | Call (name, e) -> ["tag", Json.String "Call"; "name", Json.String name; "arg", json jb e]
     | If (e1, e2, e3) ->
       ["tag", Json.String "If"; "cond", json jb e1; "then", json jb e2; "else", json jb e3]
-    | Annot (e, s, eff) ->
-      ["tag", Json.String "Annot"; "expr", json jb e; "sort", Sort.json jb s; "effect", Effect.json eff]
+    | Annot (e, s) ->
+      ["tag", Json.String "Annot"; "expr", json jb e; "sort", Sort.json jb s]
     | Eq (a, b) -> ["tag", Json.String "Eq"; "left", json jb a; "right", json jb b]
     | And (a, b) -> ["tag", Json.String "And"; "left", json jb a; "right", json jb b]
     | Not a -> ["tag", Json.String "Not"; "arg", json jb a]

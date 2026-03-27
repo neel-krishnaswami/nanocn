@@ -5,7 +5,7 @@ type 'a entry =
   | TypeDecl of DtypeDecl.t
 
 type 'a named_entry =
-  | Named of Var.t * 'a entry
+  | Named of string * 'a entry
   | Sort of DsortDecl.t
   | Type of DtypeDecl.t
 
@@ -17,15 +17,15 @@ let extend name entry sig_ = Named (name, entry) :: sig_
 
 let rec lookup_fun name = function
   | [] -> None
-  | Named (n, FunSig { arg; ret; eff }) :: _ when Var.compare name n = 0 ->
+  | Named (n, FunSig { arg; ret; eff }) :: _ when String.equal name n ->
     Some (arg, ret, eff)
-  | Named (n, FunDef { arg; ret; eff; _ }) :: _ when Var.compare name n = 0 ->
+  | Named (n, FunDef { arg; ret; eff; _ }) :: _ when String.equal name n ->
     Some (arg, ret, eff)
   | _ :: rest -> lookup_fun name rest
 
 let rec lookup_fundef name = function
   | [] -> None
-  | Named (n, FunDef { param; arg; ret; eff; body }) :: _ when Var.compare name n = 0 ->
+  | Named (n, FunDef { param; arg; ret; eff; body }) :: _ when String.equal name n ->
     Some (param, arg, ret, eff, body)
   | _ :: rest -> lookup_fundef name rest
 
@@ -76,11 +76,11 @@ let extend_type sig_ (d : DtypeDecl.t) = Type d :: sig_
 let print pp_body fmt sig_ =
   let pp_entry fmt = function
     | Named (name, FunSig { arg; ret; eff }) ->
-      Format.fprintf fmt "@[%a : %a -> %a [%a]@]"
-        Var.print name Sort.print arg Sort.print ret Effect.print eff
+      Format.fprintf fmt "@[%s : %a -> %a [%a]@]"
+        name Sort.print arg Sort.print ret Effect.print eff
     | Named (name, FunDef { param; arg; ret; eff; body }) ->
-      Format.fprintf fmt "@[<hov 2>fun %a (%a : %a) -> %a [%a] =@ %a@]"
-        Var.print name Var.print param Sort.print arg Sort.print ret
+      Format.fprintf fmt "@[<hov 2>fun %s (%a : %a) -> %a [%a] =@ %a@]"
+        name Var.print param Sort.print arg Sort.print ret
         Effect.print eff pp_body body
     | Named (_, SortDecl d) ->
       DsortDecl.print fmt d
@@ -98,10 +98,18 @@ let print pp_body fmt sig_ =
       pp_entry fmt sig_
 
 module Test = struct
+  let gen_name =
+    let open QCheck.Gen in
+    let lower = map Char.chr (97 -- 122) in
+    let* first = lower in
+    let* rest = list_size (0 -- 5) lower in
+    pure (String.init (1 + List.length rest) (fun i ->
+      if i = 0 then first else List.nth rest (i - 1)))
+
   let test =
     [ QCheck.Test.make ~name:"sig lookup_fun finds extended entry"
         ~count:100
-        QCheck.(pair (make Var.Test.gen) (make Sort.Test.gen))
+        QCheck.(pair (make gen_name) (make Sort.Test.gen))
         (fun (name, sort) ->
            let entry = FunSig { arg = sort; ret = sort; eff = Effect.Pure } in
            let s = extend name entry empty in
@@ -111,9 +119,9 @@ module Test = struct
 
       QCheck.Test.make ~name:"sig lookup_fun finds FunDef entry"
         ~count:100
-        QCheck.(pair (make Var.Test.gen) (make Sort.Test.gen))
+        QCheck.(pair (make gen_name) (make Sort.Test.gen))
         (fun (name, sort) ->
-           let param = name in
+           let (param, _) = Var.mk "p" SourcePos.dummy Var.empty_supply in
            let entry = FunDef { param; arg = sort; ret = sort; eff = Effect.Pure; body = () } in
            let s = extend name entry empty in
            match lookup_fun name s with
@@ -122,9 +130,9 @@ module Test = struct
 
       QCheck.Test.make ~name:"sig lookup_fundef finds FunDef entry"
         ~count:100
-        QCheck.(pair (make Var.Test.gen) (make Sort.Test.gen))
+        QCheck.(pair (make gen_name) (make Sort.Test.gen))
         (fun (name, sort) ->
-           let param = name in
+           let (param, _) = Var.mk "p" SourcePos.dummy Var.empty_supply in
            let entry = FunDef { param; arg = sort; ret = sort; eff = Effect.Pure; body = () } in
            let s = extend name entry empty in
            match lookup_fundef name s with
@@ -133,7 +141,7 @@ module Test = struct
 
       QCheck.Test.make ~name:"sig lookup_fundef returns None for FunSig"
         ~count:100
-        QCheck.(pair (make Var.Test.gen) (make Sort.Test.gen))
+        QCheck.(pair (make gen_name) (make Sort.Test.gen))
         (fun (name, sort) ->
            let entry = FunSig { arg = sort; ret = sort; eff = Effect.Pure } in
            let s = extend name entry empty in

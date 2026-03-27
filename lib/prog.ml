@@ -1,17 +1,17 @@
-type ('a, 'b) decl =
+type ('a, 'b, 'var) decl =
   | FunDecl of {
-      name : Var.t;
+      name : string;
       arg_sort : Sort.sort;
       ret_sort : Sort.sort;
       eff : Effect.t;
-      branches : (Pat.pat * 'a * 'b) list;
+      branches : ((< loc : SourcePos.t >, 'var) Pat.t * 'a * 'b) list;
       loc : SourcePos.t;
     }
   | SortDecl of DsortDecl.t
   | TypeDecl of DtypeDecl.t
 
-type ('a, 'b) t = {
-  decls : ('a, 'b) decl list;
+type ('a, 'b, 'var) t = {
+  decls : ('a, 'b, 'var) decl list;
   main : 'a;
   main_sort : Sort.sort;
   main_eff : Effect.t;
@@ -22,8 +22,8 @@ let print pp fmt p =
   List.iter (fun d ->
     match d with
     | FunDecl d ->
-      Format.fprintf fmt "@[<v>@[<hov 2>fun %a :@ %a -> %a [%a] = { ... }@]@]@.@."
-        Var.print d.name
+      Format.fprintf fmt "@[<v>@[<hov 2>fun %s :@ %a -> %a [%a] = { ... }@]@]@.@."
+        d.name
         Sort.print d.arg_sort
         Sort.print d.ret_sort
         Effect.print d.eff
@@ -42,7 +42,7 @@ let json_decl ja jb = function
   | FunDecl d ->
     Json.Object [
       "tag", Json.String "FunDecl";
-      "name", Var.json d.name;
+      "name", Json.String d.name;
       "arg_sort", json_sort_loc d.arg_sort;
       "ret_sort", json_sort_loc d.ret_sort;
       "effect", Effect.json d.eff;
@@ -64,7 +64,7 @@ let json ja jb p =
 
 type 'a core_decl =
   | CoreFunDecl of {
-      name : Var.t;
+      name : string;
       param : Var.t;
       arg_sort : Sort.sort;
       ret_sort : Sort.sort;
@@ -87,8 +87,8 @@ let print_core_prog pp fmt p =
   List.iter (fun d ->
     match d with
     | CoreFunDecl d ->
-      Format.fprintf fmt "@[<v>@[<hov 2>fun %a (%a : %a) : %a [%a] =@ %a@]@]@.@."
-        Var.print d.name
+      Format.fprintf fmt "@[<v>@[<hov 2>fun %s (%a : %a) : %a [%a] =@ %a@]@]@.@."
+        d.name
         Var.print d.param
         Sort.print d.arg_sort
         Sort.print d.ret_sort
@@ -106,7 +106,7 @@ let json_core_decl ja = function
   | CoreFunDecl d ->
     Json.Object [
       "tag", Json.String "CoreFunDecl";
-      "name", Var.json d.name;
+      "name", Json.String d.name;
       "param", Var.json d.param;
       "arg_sort", json_sort_loc d.arg_sort;
       "ret_sort", json_sort_loc d.ret_sort;

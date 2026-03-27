@@ -1,9 +1,9 @@
-type 'e decl =
+type ('e, 'var) decl =
   | SortDecl of DsortDecl.t
   | TypeDecl of DtypeDecl.t
   | FunDecl of {
-      name : Var.t;
-      param : Var.t;
+      name : string;
+      param : 'var;
       arg_sort : Sort.sort;
       ret_sort : Sort.sort;
       eff : Effect.t;
@@ -11,35 +11,36 @@ type 'e decl =
       loc : SourcePos.t;
     }
   | RFunDecl of {
-      name : Var.t;
-      domain : 'e ProofSort.t;
-      codomain : 'e ProofSort.t;
+      name : string;
+      domain : ('e, 'var) ProofSort.t;
+      codomain : ('e, 'var) ProofSort.t;
       eff : Effect.t;
-      body : ('e, < loc : SourcePos.t >) RefinedExpr.crt;
+      body : ('e, < loc : SourcePos.t >, 'var) RefinedExpr.crt;
       loc : SourcePos.t;
     }
 
-type 'e t = {
-  decls : 'e decl list;
-  main_pf : 'e ProofSort.t;
+type ('e, 'var) t = {
+  decls : ('e, 'var) decl list;
+  main_pf : ('e, 'var) ProofSort.t;
   main_eff : Effect.t;
-  main_body : ('e, < loc : SourcePos.t >) RefinedExpr.crt;
+  main_body : ('e, < loc : SourcePos.t >, 'var) RefinedExpr.crt;
   loc : SourcePos.t;
 }
 
-type parsed = SurfExpr.se t
-type checked = CoreExpr.ce t
+type raw_parsed = (SurfExpr.parsed_se, string) t
+type parsed = (SurfExpr.se, Var.t) t
+type checked = (CoreExpr.ce, Var.t) t
 
 let print pp_e fmt prog =
   let pp_decl fmt = function
     | SortDecl d -> DsortDecl.print fmt d
     | TypeDecl d -> DtypeDecl.print fmt d
     | FunDecl { name; param; arg_sort; ret_sort; eff; _ } ->
-      Format.fprintf fmt "@[<hov 2>fun %a (%a : %a) -> %a [%a] = <body>@]"
-        Var.print name Var.print param Sort.print arg_sort Sort.print ret_sort Effect.print eff
+      Format.fprintf fmt "@[<hov 2>fun %s (%a : %a) -> %a [%a] = <body>@]"
+        name Var.print param Sort.print arg_sort Sort.print ret_sort Effect.print eff
     | RFunDecl { name; domain; codomain; eff; _ } ->
-      Format.fprintf fmt "@[<hov 2>fun %a (%a) ~> %a [%a] = <body>@]"
-        Var.print name (ProofSort.print pp_e) domain (ProofSort.print pp_e) codomain Effect.print eff
+      Format.fprintf fmt "@[<hov 2>fun %s (%a) ~> %a [%a] = <body>@]"
+        name (ProofSort.print pp_e) domain (ProofSort.print pp_e) codomain Effect.print eff
   in
   Format.fprintf fmt "@[<v>%a@ main : %a [%a] = %a@]"
     (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt "@ ") pp_decl)

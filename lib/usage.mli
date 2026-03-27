@@ -7,6 +7,10 @@ type t = Used | Avail | Opt
 val meet : t -> t -> t option
 (** [meet u1 u2] is the greatest lower bound, or [None] for 1 ⊓ 0. *)
 
+val lattice_meet : t -> t -> t
+(** [lattice_meet u1 u2] is the greatest lower bound in the total order
+    [Used ≤ Opt ≤ Avail]. Unlike [meet], this is always defined. *)
+
 val is_avail : t -> bool
 (** [is_avail u] is true when [u] is [Avail] or [Opt]. *)
 

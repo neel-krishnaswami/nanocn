@@ -1,5 +1,5 @@
-type ('a, 'b) patF =
-  | Var of Var.t
+type ('a, 'b, 'var) patF =
+  | Var of 'var
   | Con of Label.t * 'a
   | Tuple of 'a list
 
@@ -13,7 +13,7 @@ let map_info _ = function
   | Con (l, p) -> Con (l, p)
   | Tuple ps -> Tuple ps
 
-type 'b t = In of 'b * ('b t, 'b) patF
+type ('b, 'var) t = In of 'b * (('b, 'var) t, 'b, 'var) patF
 
 let mk b sf = In (b, sf)
 let info (In (b, _)) = b
@@ -22,7 +22,16 @@ let shape (In (_, sf)) = sf
 let rec map f (In (b, sf)) =
   In (f b, map_shape (map f) sf)
 
-type pat = < loc : SourcePos.t > t
+let rec map_var f (In (b, sf)) =
+  let sf' = match sf with
+    | Var x -> Var (f x)
+    | Con (l, p) -> Con (l, map_var f p)
+    | Tuple ps -> Tuple (List.map (map_var f) ps)
+  in
+  In (b, sf')
+
+type pat = (< loc : SourcePos.t >, Var.t) t
+type parsed_pat = (< loc : SourcePos.t >, string) t
 
 let rec compare_pat p1 p2 =
   compare_patF (shape p1) (shape p2)
@@ -75,6 +84,12 @@ let rec vars p =
   | Var x -> [x]
   | Con (_, p) -> vars p
   | Tuple ps -> List.concat_map vars ps
+
+let rec parsed_vars p =
+  match shape p with
+  | Var x -> [x]
+  | Con (_, p) -> parsed_vars p
+  | Tuple ps -> List.concat_map parsed_vars ps
 
 let linear_check p =
   let vs = vars p in

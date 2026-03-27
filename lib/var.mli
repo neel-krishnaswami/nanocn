@@ -5,12 +5,20 @@
     the variable appears in source. Generated variables carry the position
     of the subpattern they originate from.
 
-    Comparison is by name only, ignoring source positions. *)
+    Comparison is by unique ID only, ignoring names and source positions. *)
 
 type t
 
 val of_string : string -> SourcePos.t -> t
-(** [of_string s pos] creates a user variable with name [s] at position [pos]. *)
+(** [of_string s pos] creates a user variable with name [s] at position [pos].
+    Uses a sentinel ID (-1); for unique IDs, use [mk] with a supply instead.
+    Only for backward compatibility in tests. *)
+
+type supply
+(** A purely functional supply of fresh generated variables. *)
+
+val mk : string -> SourcePos.t -> supply -> t * supply
+(** [mk name pos supply] creates a user variable with a unique ID from [supply]. *)
 
 val to_string : t -> string
 val compare : t -> t -> int
@@ -22,9 +30,6 @@ val is_generated : t -> bool
 
 val binding_site : t -> SourcePos.t
 (** [binding_site v] returns the source position associated with [v]. *)
-
-type supply
-(** A purely functional supply of fresh generated variables. *)
 
 val empty_supply : supply
 val fresh : SourcePos.t -> supply -> t * supply

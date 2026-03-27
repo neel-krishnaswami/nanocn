@@ -23,12 +23,12 @@ let check_file filename =
     In_channel.close ic;
     s
   in
-  match Parse.parse_prog input ~file:filename with
+  match ElabM.run Var.empty_supply (Parse.parse_prog input ~file:filename) with
   | Error msg ->
     Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
     exit 1
-  | Ok prog ->
-    match Typecheck.check_prog prog with
+  | Ok (prog, supply) ->
+    match Typecheck.check_prog supply prog with
     | Ok (_sig, _cprog) ->
       Format.printf "OK@."
     | Error msg ->
@@ -40,47 +40,47 @@ let starts_with_prefix s prefix =
   String.length s >= n && String.sub s 0 n = prefix
 
 let print_fun_sig name arg_sort ret_sort eff =
-  Format.printf "%a : %a -> %a [%a]@."
-    Var.print name
+  Format.printf "%s : %a -> %a [%a]@."
+    name
     Sort.print arg_sort
     Sort.print ret_sort
     Effect.print eff
 
 let toplevel () =
-  let rec loop sig_ ctx =
+  let rec loop supply sig_ ctx =
     match LNoise.linenoise ">>> " with
     | None -> ()
     | Some line ->
       let line = String.trim line in
-      if line = "" then loop sig_ ctx
+      if line = "" then loop supply sig_ ctx
       else begin
         LNoise.history_add line |> ignore;
         if starts_with_prefix line "fun " then
-          handle_decl sig_ ctx line
+          handle_decl supply sig_ ctx line
         else if starts_with_prefix line "sort " then
-          handle_decl sig_ ctx line
+          handle_decl supply sig_ ctx line
         else if starts_with_prefix line "type " then
-          handle_decl sig_ ctx line
+          handle_decl supply sig_ ctx line
         else if starts_with_prefix line "let " then
-          handle_let sig_ ctx line
+          handle_let supply sig_ ctx line
         else
-          handle_expr sig_ ctx line
+          handle_expr supply sig_ ctx line
       end
-  and handle_decl sig_ ctx line =
-    match Parse.parse_decl line ~file:"<toplevel>" with
+  and handle_decl supply sig_ ctx line =
+    match ElabM.run supply (Parse.parse_decl line ~file:"<toplevel>") with
     | Error msg ->
       Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
-      loop sig_ ctx
-    | Ok d ->
-      match Typecheck.check_spec_decl sig_ d with
+      loop supply sig_ ctx
+    | Ok (d, parse_supply) ->
+      match Typecheck.check_spec_decl parse_supply sig_ d with
       | Error msg ->
         Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
-        loop sig_ ctx
-      | Ok sig' ->
+        loop supply sig_ ctx
+      | Ok (supply', sig') ->
         (match d with
          | Prog.FunDecl dd ->
            print_fun_sig dd.name dd.arg_sort dd.ret_sort dd.eff;
-           loop sig' ctx
+           loop supply' sig' ctx
          | Prog.SortDecl dd ->
            if dd.DsortDecl.params = [] then
              Format.printf "sort %a@." Dsort.print dd.name
@@ -88,7 +88,7 @@ let toplevel () =
              Format.printf "sort %a(%a)@." Dsort.print dd.name
                (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ")
                   Tvar.print) dd.DsortDecl.params;
-           loop sig' ctx
+           loop supply' sig' ctx
          | Prog.TypeDecl dd ->
            if dd.DtypeDecl.params = [] then
              Format.printf "type %a@." Dsort.print dd.name
@@ -96,48 +96,41 @@ let toplevel () =
              Format.printf "type %a(%a)@." Dsort.print dd.name
                (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ")
                   Tvar.print) dd.DtypeDecl.params;
-           loop sig' ctx)
-  and handle_let sig_ ctx line =
-    match Parse.parse_let line ~file:"<toplevel>" with
+           loop supply' sig' ctx)
+  and handle_let supply sig_ ctx line =
+    match ElabM.run supply (
+      let open ElabM in
+      let* (x, se) = Parse.parse_let line ~file:"<toplevel>" in
+      let* (core_e, sort) = Elaborate.synth sig_ ctx Effect.Impure se in
+      return (x, core_e, sort)
+    ) with
     | Error msg ->
-      Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
-      loop sig_ ctx
-    | Ok (x, se) ->
-      let result = ElabM.run (
-        Elaborate.synth sig_ ctx Effect.Impure se
-      ) in
-      (match result with
+      Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
+      loop supply sig_ ctx
+    | Ok ((x, core_e, sort), supply') ->
+      (match Typecheck.synth sig_ ctx Effect.Impure core_e with
        | Error msg ->
          Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
-         loop sig_ ctx
-       | Ok (core_e, sort) ->
-         match Typecheck.synth sig_ ctx Effect.Impure core_e with
-         | Error msg ->
-           Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
-           loop sig_ ctx
-         | Ok _te ->
-           let eff = Effect.Impure in
-           let ctx' = Context.extend x sort (Effect.purify eff) ctx in
-           Format.printf "%a : %a [%a]@." Var.print x Sort.print sort Effect.print eff;
-           loop sig_ ctx')
-  and handle_expr sig_ ctx line =
-    match Parse.parse_expr line ~file:"<toplevel>" with
+         loop supply sig_ ctx
+       | Ok _te ->
+         let eff = Effect.Impure in
+         let ctx' = Context.extend x sort (Effect.purify eff) ctx in
+         Format.printf "%a : %a [%a]@." Var.print x Sort.print sort Effect.print eff;
+         loop supply' sig_ ctx')
+  and handle_expr supply sig_ ctx line =
+    match ElabM.run supply (
+      let open ElabM in
+      let* se = Parse.parse_expr line ~file:"<toplevel>" in
+      Elaborate.synth sig_ ctx Effect.Impure se
+    ) with
     | Error msg ->
-      Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
-      loop sig_ ctx
-    | Ok se ->
-      let result = ElabM.run (
-        Elaborate.synth sig_ ctx Effect.Impure se
-      ) in
-      (match result with
-       | Error msg ->
-         Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
-         loop sig_ ctx
-       | Ok (_core_e, sort) ->
-         Format.printf "_ : %a [impure]@." Sort.print sort;
-         loop sig_ ctx)
+      Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
+      loop supply sig_ ctx
+    | Ok ((_core_e, sort), supply') ->
+      Format.printf "_ : %a [impure]@." Sort.print sort;
+      loop supply' sig_ ctx
   in
-  loop Typecheck.initial_sig Context.empty
+  loop Var.empty_supply Typecheck.initial_sig Context.empty
 
 let elaborate_file filename =
   let input =
@@ -146,12 +139,12 @@ let elaborate_file filename =
     In_channel.close ic;
     s
   in
-  match Parse.parse_prog input ~file:filename with
+  match ElabM.run Var.empty_supply (Parse.parse_prog input ~file:filename) with
   | Error msg ->
     Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
     exit 1
-  | Ok prog ->
-    match Typecheck.check_prog prog with
+  | Ok (prog, supply) ->
+    match Typecheck.check_prog supply prog with
     | Error msg ->
       Format.eprintf "@[<v>Type error:@ %s@]@." msg;
       exit 1
@@ -165,12 +158,12 @@ let json_file filename =
     In_channel.close ic;
     s
   in
-  match Parse.parse_prog input ~file:filename with
+  match ElabM.run Var.empty_supply (Parse.parse_prog input ~file:filename) with
   | Error msg ->
     Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
     exit 1
-  | Ok prog ->
-    match Typecheck.check_prog prog with
+  | Ok (prog, supply) ->
+    match Typecheck.check_prog supply prog with
     | Error msg ->
       Format.eprintf "@[<v>Type error:@ %s@]@." msg;
       exit 1
@@ -191,18 +184,17 @@ let check_refined_file filename =
     In_channel.close ic;
     s
   in
-  match Parse.parse_rprog input ~file:filename with
+  match ElabM.run Var.empty_supply (
+    let open ElabM in
+    let* rprog = Parse.parse_rprog input ~file:filename in
+    RCheck.check_rprog rprog
+  ) with
+  | Ok ((_rsig, ct), _supply) ->
+    Format.printf "OK@.";
+    Format.printf "@[<v>Constraint:@ %a@]@." Constraint.print ct
   | Error msg ->
-    Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
+    Format.eprintf "@[<v>Error:@ %s@]@." msg;
     exit 1
-  | Ok rprog ->
-    match RCheck.check_rprog rprog with
-    | Ok (_rsig, ct) ->
-      Format.printf "OK@.";
-      Format.printf "@[<v>Constraint:@ %a@]@." Constraint.print ct
-    | Error msg ->
-      Format.eprintf "@[<v>Type error:@ %s@]@." msg;
-      exit 1
 
 let () =
   match Sys.argv with

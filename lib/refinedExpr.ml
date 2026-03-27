@@ -1,26 +1,26 @@
 (* ===== Shape functors ===== *)
 
-type ('crt, 'lpf, 'rpf, 'spine, 'e) crtF =
-  | CLet of RPat.t * 'crt * 'crt
-  | CAnnot of 'crt * 'e ProofSort.t
+type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) crtF =
+  | CLet of 'var RPat.t * 'crt * 'crt
+  | CAnnot of 'crt * ('e, 'var) ProofSort.t
   | CPrimApp of Prim.t * 'spine
-  | CCall of Var.t * 'spine
+  | CCall of string * 'spine
   | CTuple of 'spine
-  | CIter of 'e * RPat.t * 'crt * 'crt
-  | CIf of Var.t * 'e * 'crt * 'crt
-  | CCase of Var.t * 'e * (Label.t * Var.t * 'crt) list
+  | CIter of 'e * 'var RPat.t * 'crt * 'crt
+  | CIf of 'var * 'e * 'crt * 'crt
+  | CCase of 'var * 'e * (Label.t * 'var * 'crt) list
   | CExfalso
   | COpenTake of 'rpf
 
-type ('crt, 'lpf, 'rpf, 'spine, 'e) lpfF =
-  | LVar of Var.t
+type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) lpfF =
+  | LVar of 'var
   | LAuto
-  | LUnfold of Var.t * 'e
+  | LUnfold of string * 'e
   | LOpenRet of 'rpf
   | LAnnot of 'lpf * 'e
 
-type ('crt, 'lpf, 'rpf, 'spine, 'e) rpfF =
-  | RVar of Var.t
+type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) rpfF =
+  | RVar of 'var
   | RMakeRet of 'lpf
   | RMakeTake of 'crt
   | RAnnot of 'rpf * 'e * 'e
@@ -33,37 +33,38 @@ type ('crt, 'lpf, 'rpf, 'spine, 'e) spineF =
 
 (* ===== Mapper ===== *)
 
-type ('c1, 'c2, 'l1, 'l2, 'r1, 'r2, 's1, 's2, 'e1, 'e2) mapper = {
+type ('c1, 'c2, 'l1, 'l2, 'r1, 'r2, 's1, 's2, 'e1, 'e2, 'v1, 'v2) mapper = {
   crt : 'c1 -> 'c2;
   lpf : 'l1 -> 'l2;
   rpf : 'r1 -> 'r2;
   spine : 's1 -> 's2;
   expr : 'e1 -> 'e2;
+  var : 'v1 -> 'v2;
 }
 
 (* ===== Shape mapping ===== *)
 
 let map_crtF m = function
-  | CLet (q, c1, c2) -> CLet (q, m.crt c1, m.crt c2)
-  | CAnnot (c, pf) -> CAnnot (m.crt c, ProofSort.map m.expr pf)
+  | CLet (q, c1, c2) -> CLet (RPat.map_var m.var q, m.crt c1, m.crt c2)
+  | CAnnot (c, pf) -> CAnnot (m.crt c, ProofSort.map m.expr (ProofSort.map_var m.var pf))
   | CPrimApp (p, s) -> CPrimApp (p, m.spine s)
   | CCall (f, s) -> CCall (f, m.spine s)
   | CTuple s -> CTuple (m.spine s)
-  | CIter (e, q, c1, c2) -> CIter (m.expr e, q, m.crt c1, m.crt c2)
-  | CIf (x, e, c1, c2) -> CIf (x, m.expr e, m.crt c1, m.crt c2)
-  | CCase (y, e, bs) -> CCase (y, m.expr e, List.map (fun (l, x, c) -> (l, x, m.crt c)) bs)
+  | CIter (e, q, c1, c2) -> CIter (m.expr e, RPat.map_var m.var q, m.crt c1, m.crt c2)
+  | CIf (x, e, c1, c2) -> CIf (m.var x, m.expr e, m.crt c1, m.crt c2)
+  | CCase (y, e, bs) -> CCase (m.var y, m.expr e, List.map (fun (l, x, c) -> (l, m.var x, m.crt c)) bs)
   | CExfalso -> CExfalso
   | COpenTake r -> COpenTake (m.rpf r)
 
 let map_lpfF m = function
-  | LVar x -> LVar x
+  | LVar x -> LVar (m.var x)
   | LAuto -> LAuto
   | LUnfold (f, e) -> LUnfold (f, m.expr e)
   | LOpenRet r -> LOpenRet (m.rpf r)
   | LAnnot (l, e) -> LAnnot (m.lpf l, m.expr e)
 
 let map_rpfF m = function
-  | RVar x -> RVar x
+  | RVar x -> RVar (m.var x)
   | RMakeRet l -> RMakeRet (m.lpf l)
   | RMakeTake c -> RMakeTake (m.crt c)
   | RAnnot (r, e1, e2) -> RAnnot (m.rpf r, m.expr e1, m.expr e2)
@@ -76,10 +77,10 @@ let map_spineF m = function
 
 (* ===== Knot-tied types ===== *)
 
-type ('e, 'b) crt = CIn of 'b * (('e, 'b) crt, ('e, 'b) lpf, ('e, 'b) rpf, ('e, 'b) spine, 'e) crtF
-and ('e, 'b) lpf = LIn of 'b * (('e, 'b) crt, ('e, 'b) lpf, ('e, 'b) rpf, ('e, 'b) spine, 'e) lpfF
-and ('e, 'b) rpf = RIn of 'b * (('e, 'b) crt, ('e, 'b) lpf, ('e, 'b) rpf, ('e, 'b) spine, 'e) rpfF
-and ('e, 'b) spine = SIn of 'b * (('e, 'b) crt, ('e, 'b) lpf, ('e, 'b) rpf, ('e, 'b) spine, 'e) spineF
+type ('e, 'b, 'var) crt = CIn of 'b * (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e, 'var) crtF
+and ('e, 'b, 'var) lpf = LIn of 'b * (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e, 'var) lpfF
+and ('e, 'b, 'var) rpf = RIn of 'b * (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e, 'var) rpfF
+and ('e, 'b, 'var) spine = SIn of 'b * (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e) spineF
 
 let mk_crt b s = CIn (b, s)
 let mk_lpf b s = LIn (b, s)
@@ -99,44 +100,44 @@ let spine_shape (SIn (_, s)) = s
 (* ===== Whole-tree mapping: info ===== *)
 
 let rec map_crt f (CIn (b, shape)) =
-  let m = { crt = map_crt f; lpf = map_lpf f; rpf = map_rpf f; spine = map_spine f; expr = Fun.id } in
+  let m = { crt = map_crt f; lpf = map_lpf f; rpf = map_rpf f; spine = map_spine f; expr = Fun.id; var = Fun.id } in
   CIn (f b, map_crtF m shape)
 and map_lpf f (LIn (b, shape)) =
-  let m = { crt = map_crt f; lpf = map_lpf f; rpf = map_rpf f; spine = map_spine f; expr = Fun.id } in
+  let m = { crt = map_crt f; lpf = map_lpf f; rpf = map_rpf f; spine = map_spine f; expr = Fun.id; var = Fun.id } in
   LIn (f b, map_lpfF m shape)
 and map_rpf f (RIn (b, shape)) =
-  let m = { crt = map_crt f; lpf = map_lpf f; rpf = map_rpf f; spine = map_spine f; expr = Fun.id } in
+  let m = { crt = map_crt f; lpf = map_lpf f; rpf = map_rpf f; spine = map_spine f; expr = Fun.id; var = Fun.id } in
   RIn (f b, map_rpfF m shape)
 and map_spine f (SIn (b, shape)) =
-  let m = { crt = map_crt f; lpf = map_lpf f; rpf = map_rpf f; spine = map_spine f; expr = Fun.id } in
+  let m = { crt = map_crt f; lpf = map_lpf f; rpf = map_rpf f; spine = map_spine f; expr = Fun.id; var = Fun.id } in
   SIn (f b, map_spineF m shape)
 
 (* ===== Whole-tree mapping: expression type ===== *)
 
 let rec map_crt_expr f (CIn (b, shape)) =
-  let m = { crt = map_crt_expr f; lpf = map_lpf_expr f; rpf = map_rpf_expr f; spine = map_spine_expr f; expr = f } in
+  let m = { crt = map_crt_expr f; lpf = map_lpf_expr f; rpf = map_rpf_expr f; spine = map_spine_expr f; expr = f; var = Fun.id } in
   CIn (b, map_crtF m shape)
 and map_lpf_expr f (LIn (b, shape)) =
-  let m = { crt = map_crt_expr f; lpf = map_lpf_expr f; rpf = map_rpf_expr f; spine = map_spine_expr f; expr = f } in
+  let m = { crt = map_crt_expr f; lpf = map_lpf_expr f; rpf = map_rpf_expr f; spine = map_spine_expr f; expr = f; var = Fun.id } in
   LIn (b, map_lpfF m shape)
 and map_rpf_expr f (RIn (b, shape)) =
-  let m = { crt = map_crt_expr f; lpf = map_lpf_expr f; rpf = map_rpf_expr f; spine = map_spine_expr f; expr = f } in
+  let m = { crt = map_crt_expr f; lpf = map_lpf_expr f; rpf = map_rpf_expr f; spine = map_spine_expr f; expr = f; var = Fun.id } in
   RIn (b, map_rpfF m shape)
 and map_spine_expr f (SIn (b, shape)) =
-  let m = { crt = map_crt_expr f; lpf = map_lpf_expr f; rpf = map_rpf_expr f; spine = map_spine_expr f; expr = f } in
+  let m = { crt = map_crt_expr f; lpf = map_lpf_expr f; rpf = map_rpf_expr f; spine = map_spine_expr f; expr = f; var = Fun.id } in
   SIn (b, map_spineF m shape)
 
 (* ===== Concrete types ===== *)
 
-type parsed_crt = (SurfExpr.se, < loc : SourcePos.t >) crt
-type parsed_lpf = (SurfExpr.se, < loc : SourcePos.t >) lpf
-type parsed_rpf = (SurfExpr.se, < loc : SourcePos.t >) rpf
-type parsed_spine = (SurfExpr.se, < loc : SourcePos.t >) spine
+type parsed_crt = (SurfExpr.se, < loc : SourcePos.t >, Var.t) crt
+type parsed_lpf = (SurfExpr.se, < loc : SourcePos.t >, Var.t) lpf
+type parsed_rpf = (SurfExpr.se, < loc : SourcePos.t >, Var.t) rpf
+type parsed_spine = (SurfExpr.se, < loc : SourcePos.t >, Var.t) spine
 
-type located_crt = (CoreExpr.ce, < loc : SourcePos.t >) crt
-type located_lpf = (CoreExpr.ce, < loc : SourcePos.t >) lpf
-type located_rpf = (CoreExpr.ce, < loc : SourcePos.t >) rpf
-type located_spine = (CoreExpr.ce, < loc : SourcePos.t >) spine
+type located_crt = (CoreExpr.ce, < loc : SourcePos.t >, Var.t) crt
+type located_lpf = (CoreExpr.ce, < loc : SourcePos.t >, Var.t) lpf
+type located_rpf = (CoreExpr.ce, < loc : SourcePos.t >, Var.t) rpf
+type located_spine = (CoreExpr.ce, < loc : SourcePos.t >, Var.t) spine
 
 (* ===== Printing ===== *)
 
@@ -150,7 +151,7 @@ let rec print_crt pp_e fmt t =
   | CPrimApp (p, sp) ->
     Format.fprintf fmt "@[<hov 2>%a@ %a@]" Prim.print p (print_spine pp_e) sp
   | CCall (f, sp) ->
-    Format.fprintf fmt "@[<hov 2>%a@ %a@]" Var.print f (print_spine pp_e) sp
+    Format.fprintf fmt "@[<hov 2>%s@ %a@]" f (print_spine pp_e) sp
   | CTuple sp ->
     Format.fprintf fmt "@[<hov 2>(%a)@]" (print_spine pp_e) sp
   | CIter (ce, q, e1, e2) ->
@@ -175,7 +176,7 @@ and print_lpf pp_e fmt t =
   | LVar x -> Var.print fmt x
   | LAuto -> Format.fprintf fmt "auto"
   | LUnfold (f, ce) ->
-    Format.fprintf fmt "@[<hov 2>unfold %a(%a)@]" Var.print f pp_e ce
+    Format.fprintf fmt "@[<hov 2>unfold %s(%a)@]" f pp_e ce
   | LOpenRet rpf ->
     Format.fprintf fmt "@[<hov 2>open-ret@ %a@]" (print_rpf pp_e) rpf
   | LAnnot (lpf, ce) ->

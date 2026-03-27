@@ -83,6 +83,35 @@ let merge ctx1 ctx2 =
     in
     go [] ctx1 ctx2
 
+let lattice_merge ctx1 ctx2 =
+  if List.length ctx1 <> List.length ctx2 then
+    Error "lattice_merge: contexts have different lengths"
+  else
+    let rec go acc l1 l2 =
+      match l1, l2 with
+      | [], [] -> Ok (List.rev acc)
+      | Comp c1 :: r1, Comp _ :: r2 ->
+        go (Comp c1 :: acc) r1 r2
+      | Log l :: r1, Log _ :: r2 ->
+        go (Log l :: acc) r1 r2
+      | Res r1 :: rest1, Res r2 :: rest2 ->
+        let u = Usage.lattice_meet r1.usage r2.usage in
+        go (Res { r1 with usage = u } :: acc) rest1 rest2
+      | _ ->
+        Error "lattice_merge: entry type mismatch"
+    in
+    go [] ctx1 ctx2
+
+let usage_equal ctx1 ctx2 =
+  List.length ctx1 = List.length ctx2 &&
+  List.for_all2 (fun e1 e2 ->
+    match e1, e2 with
+    | Comp _, Comp _ -> true
+    | Log _, Log _ -> true
+    | Res r1, Res r2 -> Usage.compare r1.usage r2.usage = 0
+    | _ -> false)
+    ctx1 ctx2
+
 let merge_n = function
   | [] -> Error "merge_n: empty list"
   | [ctx] -> Ok ctx
@@ -125,7 +154,7 @@ module Test = struct
         ~count:1
         QCheck.unit
         (fun () ->
-           let x = Var.of_string "x" SourcePos.dummy in
+           let (x, _supply) = Var.mk "x" SourcePos.dummy Var.empty_supply in
            let p = CoreExpr.mk (object method loc = SourcePos.dummy end) (CoreExpr.BoolLit true) in
            let ctx = extend_log x p empty in
            match Context.lookup x (erase ctx) with
@@ -136,7 +165,7 @@ module Test = struct
         ~count:1
         QCheck.unit
         (fun () ->
-           let x = Var.of_string "x" SourcePos.dummy in
+           let (x, _supply) = Var.mk "x" SourcePos.dummy Var.empty_supply in
            let s = Sort.mk (object method loc = SourcePos.dummy end) Sort.Int in
            let ctx = extend_comp x s Effect.Pure empty in
            match Context.lookup x (erase ctx) with

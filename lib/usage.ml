@@ -9,6 +9,11 @@ let meet u1 u2 =
   | Avail, Opt | Opt, Avail -> Some Opt
   | Used, Avail | Avail, Used -> None
 
+let lattice_meet u1 u2 =
+  let to_ord = function Used -> 0 | Opt -> 1 | Avail -> 2 in
+  let of_ord = function 0 -> Used | 1 -> Opt | _ -> Avail in
+  of_ord (min (to_ord u1) (to_ord u2))
+
 let is_avail = function
   | Avail | Opt -> true
   | Used -> false

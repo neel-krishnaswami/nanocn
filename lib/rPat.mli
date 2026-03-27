@@ -1,8 +1,12 @@
-(** Refined patterns (q): flat variable tuples. *)
+(** Refined patterns (q): variable tuples with optional pair elements.
+    Parameterized by ['var] — [string] at parse time, [Var.t] after resolution. *)
 
-type t = Var.t list
+type 'var pat_elem = Single of 'var | Pair of 'var * 'var
 
-val print : Format.formatter -> t -> unit
+type 'var t = 'var pat_elem list
+
+val map_var : ('v -> 'w) -> 'v t -> 'w t
+val print : Format.formatter -> Var.t t -> unit
 
 module Test : sig
   val test : QCheck.Test.t list

@@ -1,12 +1,12 @@
 type entry =
   | FunSig of { arg : Sort.sort; ret : Sort.sort; eff : Effect.t }
   | FunDef of { param : Var.t; arg : Sort.sort; ret : Sort.sort; eff : Effect.t; body : CoreExpr.ce }
-  | RFunSig of CoreExpr.ce RFunType.t
+  | RFunSig of (CoreExpr.ce, Var.t) RFunType.t
   | SortDecl of DsortDecl.t
   | TypeDecl of DtypeDecl.t
 
 type named_entry =
-  | Named of Var.t * entry
+  | Named of string * entry
   | Sort of DsortDecl.t
   | Type of DtypeDecl.t
 
@@ -17,37 +17,24 @@ let extend name entry sig_ = Named (name, entry) :: sig_
 let extend_sort sig_ d = Sort d :: sig_
 let extend_type sig_ d = Type d :: sig_
 
-let lift_to_rf arg ret eff =
-  let x = Var.of_string "_arg" SourcePos.dummy in
-  let y = Var.of_string "_ret" SourcePos.dummy in
-  RFunType.{
-    domain = [ProofSort.Comp { var = x; sort = arg; eff }];
-    codomain = [ProofSort.Comp { var = y; sort = ret; eff }];
-    eff;
-  }
-
 let rec lookup_rf name = function
   | [] -> None
-  | Named (n, RFunSig rf) :: _ when Var.compare name n = 0 -> Some rf
-  | Named (n, FunSig { arg; ret; eff }) :: _ when Var.compare name n = 0 ->
-    Some (lift_to_rf arg ret eff)
-  | Named (n, FunDef { arg; ret; eff; _ }) :: _ when Var.compare name n = 0 ->
-    Some (lift_to_rf arg ret eff)
+  | Named (n, RFunSig rf) :: _ when String.equal name n -> Some rf
   | _ :: rest -> lookup_rf name rest
 
 let rec lookup_fun name = function
   | [] -> None
-  | Named (n, FunSig { arg; ret; eff }) :: _ when Var.compare name n = 0 ->
+  | Named (n, FunSig { arg; ret; eff }) :: _ when String.equal name n ->
     Some (arg, ret, eff)
-  | Named (n, FunDef { arg; ret; eff; _ }) :: _ when Var.compare name n = 0 ->
+  | Named (n, FunDef { arg; ret; eff; _ }) :: _ when String.equal name n ->
     Some (arg, ret, eff)
-  | Named (n, RFunSig rf) :: _ when Var.compare name n = 0 ->
+  | Named (n, RFunSig rf) :: _ when String.equal name n ->
     Some (ProofSort.comp rf.domain, ProofSort.comp rf.codomain, rf.eff)
   | _ :: rest -> lookup_fun name rest
 
 let rec lookup_fundef name = function
   | [] -> None
-  | Named (n, FunDef { param; arg; ret; eff; body }) :: _ when Var.compare name n = 0 ->
+  | Named (n, FunDef { param; arg; ret; eff; body }) :: _ when String.equal name n ->
     Some (param, arg, ret, eff, body)
   | _ :: rest -> lookup_fundef name rest
 
@@ -107,13 +94,13 @@ let comp sig_ =
 let print fmt sig_ =
   let pp_entry fmt = function
     | Named (name, FunSig { arg; ret; eff }) ->
-      Format.fprintf fmt "@[%a : %a -> %a [%a]@]"
-        Var.print name Sort.print arg Sort.print ret Effect.print eff
+      Format.fprintf fmt "@[%s : %a -> %a [%a]@]"
+        name Sort.print arg Sort.print ret Effect.print eff
     | Named (name, FunDef { param; arg; ret; eff; body = _ }) ->
-      Format.fprintf fmt "@[<hov 2>fun %a (%a : %a) -> %a [%a] = <body>@]"
-        Var.print name Var.print param Sort.print arg Sort.print ret Effect.print eff
+      Format.fprintf fmt "@[<hov 2>fun %s (%a : %a) -> %a [%a] = <body>@]"
+        name Var.print param Sort.print arg Sort.print ret Effect.print eff
     | Named (name, RFunSig rf) ->
-      Format.fprintf fmt "@[%a : %a@]" Var.print name RFunType.print_ce rf
+      Format.fprintf fmt "@[%s : %a@]" name RFunType.print_ce rf
     | Named (_, SortDecl d) | Sort d ->
       DsortDecl.print fmt d
     | Named (_, TypeDecl d) | Type d ->
