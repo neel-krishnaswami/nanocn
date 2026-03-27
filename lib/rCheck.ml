@@ -300,11 +300,12 @@ let assert_delta_below delta delta' =
 (* ---------- typing judgements ---------- *)
 
 (* Logical fact synthesis: RS; Delta |- lpf => ce -| Delta' ~> Ct *)
-let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) : (CoreExpr.ce * RCtx.t * Constraint.t) ElabM.t =
+let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) : (CoreExpr.ce * RCtx.t * Constraint.ct) ElabM.t =
+  let pos = (RefinedExpr.lpf_info lpf)#loc in
   match RefinedExpr.lpf_shape lpf with
   | RefinedExpr.LVar x ->
     (match RCtx.lookup_log x delta with
-     | Some ce -> return (ce, delta, Constraint.top)
+     | Some ce -> return (ce, delta, Constraint.top pos)
      | None -> fail (Format.asprintf "logical variable %a not found" Var.print x))
 
   | RefinedExpr.LAuto ->
@@ -321,7 +322,7 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
          let call_result = CoreExpr.mk loc_dummy (CoreExpr.Call (f, ce_arg)) in
          let subst_body = CoreExpr.subst param ce_arg body in
          let prop = mk_eq call_result subst_body in
-         return (prop, delta, Constraint.top)
+         return (prop, delta, Constraint.top pos)
      | None -> fail (Format.asprintf "unfold: function %s not found or not a FunDef" f))
 
   | RefinedExpr.LAnnot (lpf', se) ->
@@ -340,21 +341,23 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
      | _ -> fail "open-ret: synthesized predicate is not a return")
 
 (* Logical fact checking: RS; Delta |- lpf <= ce -| Delta' ~> Ct *)
-and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce : CoreExpr.ce) : (RCtx.t * Constraint.t) ElabM.t =
+and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce : CoreExpr.ce) : (RCtx.t * Constraint.ct) ElabM.t =
+  let pos = (RefinedExpr.lpf_info lpf)#loc in
   match RefinedExpr.lpf_shape lpf with
   | RefinedExpr.LAuto ->
-    return (delta, Constraint.atom ce)
+    return (delta, Constraint.atom pos ce)
 
   | _ ->
     let* (ce_synth, delta', ct) = synth_lpf rs delta lpf in
-    return (delta', Constraint.conj ct (Constraint.impl ce_synth (Constraint.atom ce)))
+    return (delta', Constraint.conj pos ct (Constraint.impl pos ce_synth (Constraint.atom pos ce)))
 
 (* Resource fact synthesis: RS; Delta |- rpf => ce @ ce' -| Delta' ~> Ct *)
-and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (CoreExpr.ce * CoreExpr.ce * RCtx.t * Constraint.t) ElabM.t =
+and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (CoreExpr.ce * CoreExpr.ce * RCtx.t * Constraint.ct) ElabM.t =
+  let pos = (RefinedExpr.rpf_info rpf)#loc in
   match RefinedExpr.rpf_shape rpf with
   | RefinedExpr.RVar x ->
     let* (pred, value, delta') = lift (RCtx.use_resource x delta) in
-    return (pred, value, delta', Constraint.top)
+    return (pred, value, delta', Constraint.top pos)
 
   | RefinedExpr.RAnnot (rpf', se1, se2) ->
     let gamma = RCtx.erase delta in
@@ -367,7 +370,8 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (C
     fail "make-ret/make-take cannot synthesize; use in checking mode"
 
 (* Resource fact checking: RS; Delta |- rpf <= ce @ ce' -| Delta' ~> Ct *)
-and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1 : CoreExpr.ce) (ce2 : CoreExpr.ce) : (RCtx.t * Constraint.t) ElabM.t =
+and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1 : CoreExpr.ce) (ce2 : CoreExpr.ce) : (RCtx.t * Constraint.ct) ElabM.t =
+  let pos = (RefinedExpr.rpf_info rpf)#loc in
   match RefinedExpr.rpf_shape rpf with
   | RefinedExpr.RMakeRet lpf' ->
     (match CoreExpr.shape ce1 with
@@ -399,17 +403,17 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
 
   | _ ->
     let* (ce1_synth, ce2_synth, delta', ct) = synth_rpf rs delta rpf in
-    let eq_ct = Constraint.conj (Constraint.atom (mk_eq ce1_synth ce1))
-                                (Constraint.atom (mk_eq ce2_synth ce2)) in
-    return (delta', Constraint.conj ct eq_ct)
+    let eq_ct = Constraint.conj pos (Constraint.atom pos (mk_eq ce1_synth ce1))
+                                    (Constraint.atom pos (mk_eq ce2_synth ce2)) in
+    return (delta', Constraint.conj pos ct eq_ct)
 
 (* Core refined term synthesis: RS; Delta |-[eff] crt => Pf -| Delta' ~> Ct *)
-and synth_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : ((CoreExpr.ce, Var.t) ProofSort.t * RCtx.t * Constraint.t) ElabM.t =
+and synth_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : ((CoreExpr.ce, Var.t) ProofSort.t * RCtx.t * Constraint.ct) ElabM.t =
   let* (pf, delta', ct) = synth_crt_impl rs delta eff crt in
   let* () = assert_delta_below delta delta' in
   return (pf, delta', ct)
 
-and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : ((CoreExpr.ce, Var.t) ProofSort.t * RCtx.t * Constraint.t) ElabM.t =
+and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : ((CoreExpr.ce, Var.t) ProofSort.t * RCtx.t * Constraint.ct) ElabM.t =
   match RefinedExpr.crt_shape crt with
   | RefinedExpr.CAnnot (crt', se_pf) ->
     let gamma = RCtx.erase delta in
@@ -522,7 +526,8 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           (* x is the comp var bound by the pattern *)
           (match pat with
            | RPat.Single x_pat :: _ ->
-             let result_ct = Constraint.conj ct (Constraint.forall_ x_pat a_sort ct') in
+             let pos = (RefinedExpr.crt_info crt)#loc in
+             let result_ct = Constraint.conj pos ct (Constraint.forall_ pos x_pat a_sort ct') in
              return (result_pf, delta', result_ct)
            | _ -> fail "iter: pattern must start with a single variable")
         | _ -> fail "iter: predicate argument must be a datasort application")
@@ -535,12 +540,13 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
   | _ -> fail "cannot synthesize sort for this refined term"
 
 (* Core refined term checking: RS; Delta |-[eff] crt <= Pf -| Delta' ~> Ct *)
-and check_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : (CoreExpr.ce, Var.t) ProofSort.t) : (RCtx.t * Constraint.t) ElabM.t =
+and check_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : (CoreExpr.ce, Var.t) ProofSort.t) : (RCtx.t * Constraint.ct) ElabM.t =
   let* (delta', ct) = check_crt_impl rs delta eff crt pf in
   let* () = assert_delta_below delta delta' in
   return (delta', ct)
 
-and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : (CoreExpr.ce, Var.t) ProofSort.t) : (RCtx.t * Constraint.t) ElabM.t =
+and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : (CoreExpr.ce, Var.t) ProofSort.t) : (RCtx.t * Constraint.ct) ElabM.t =
+  let pos = (RefinedExpr.crt_info crt)#loc in
   match RefinedExpr.crt_shape crt with
   | RefinedExpr.CLet (pat, crt1, crt2) ->
     let* (pf', delta', ct1) = synth_crt rs delta eff crt1 in
@@ -556,7 +562,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     if not (RCtx.zero delta_pat_out) then
       fail "let: pattern resources not fully consumed"
     else
-      return (delta_out, Constraint.conj ct1 ct2)
+      return (delta_out, Constraint.conj pos ct1 ct2)
 
   | RefinedExpr.CIf (_x, se, crt1, crt2) ->
     let eff' = Effect.purify eff in
@@ -574,9 +580,9 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let (delta1, _) = RCtx.split n delta1_ext in
     let (delta2, _) = RCtx.split n delta2_ext in
     let* delta_merged = lift (RCtx.merge delta1 delta2) in
-    let ct = Constraint.conj
-      (Constraint.impl (mk_eq ce mk_true) ct1)
-      (Constraint.impl (mk_eq ce mk_false) ct2) in
+    let ct = Constraint.conj pos
+      (Constraint.impl pos (mk_eq ce mk_true) ct1)
+      (Constraint.impl pos (mk_eq ce mk_false) ct2) in
     return (delta_merged, ct)
 
   | RefinedExpr.CCase (_y, se, branches) ->
@@ -591,10 +597,10 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
        (match decl_opt, type_decl_opt with
         | Some decl, _ ->
           let ctors = decl.DsortDecl.ctors in
-          check_case_branches rs delta eff' ce ce_sort ctors branches pf
+          check_case_branches pos rs delta eff' ce ce_sort ctors branches pf
         | _, Some decl ->
           let ctors = List.map (fun (l, ty) -> (l, Sort.typ_to_sort ty)) decl.DtypeDecl.ctors in
-          check_case_branches rs delta eff' ce ce_sort ctors branches pf
+          check_case_branches pos rs delta eff' ce ce_sort ctors branches pf
         | None, None ->
           fail (Format.asprintf "case: type %a not found" Dsort.print dsort_name))
      | _ -> fail "case: scrutinee must have datasort type")
@@ -605,21 +611,22 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
 
   | RefinedExpr.CExfalso ->
     let delta' = RCtx.affinize delta in
-    return (delta', Constraint.bot)
+    return (delta', Constraint.bot pos)
 
   | _ ->
     let* (pf', delta', ct) = synth_crt rs delta eff crt in
-    let* ct' = pf_eq rs delta' pf' pf in
-    return (delta', Constraint.conj ct ct')
+    let* ct' = pf_eq pos rs delta' pf' pf in
+    return (delta', Constraint.conj pos ct ct')
 
 (* Spine checking: RS; Delta |-[eff] rsp : Pf1 -o Pf2 >> Pf -| Delta' ~> Ct *)
-and check_spine (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (spine : RefinedExpr.parsed_spine) (rf : (CoreExpr.ce, Var.t) RFunType.t) : ((CoreExpr.ce, Var.t) ProofSort.t * RCtx.t * Constraint.t) ElabM.t =
+and check_spine (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (spine : RefinedExpr.parsed_spine) (rf : (CoreExpr.ce, Var.t) RFunType.t) : ((CoreExpr.ce, Var.t) ProofSort.t * RCtx.t * Constraint.ct) ElabM.t =
   check_spine_inner rs delta eff spine rf.domain rf.codomain
 
 and check_spine_inner rs delta eff spine domain codomain =
+  let pos = (RefinedExpr.spine_info spine)#loc in
   match RefinedExpr.spine_shape spine, domain with
   | RefinedExpr.SNil, [] ->
-    return (codomain, delta, Constraint.top)
+    return (codomain, delta, Constraint.top pos)
 
   | RefinedExpr.SCore (se, rest), (ProofSort.Comp { var; sort; eff = Effect.Pure } :: pf_rest) ->
     let gamma = RCtx.erase delta in
@@ -641,28 +648,29 @@ and check_spine_inner rs delta eff spine domain codomain =
   | RefinedExpr.SLog (lpf, rest), (ProofSort.Log { prop; _ } :: pf_rest) ->
     let* (delta', ct) = check_lpf rs delta lpf prop in
     let* (result_pf, delta'', ct') = check_spine_inner rs delta' eff rest pf_rest codomain in
-    return (result_pf, delta'', Constraint.conj ct ct')
+    return (result_pf, delta'', Constraint.conj pos ct ct')
 
   | RefinedExpr.SRes (rpf, rest), (ProofSort.Res { pred; value; _ } :: pf_rest) ->
     let* (delta', ct) = check_rpf rs delta rpf pred value in
     let* (result_pf, delta'', ct') = check_spine_inner rs delta' eff rest pf_rest codomain in
-    return (result_pf, delta'', Constraint.conj ct ct')
+    return (result_pf, delta'', Constraint.conj pos ct ct')
 
   | RefinedExpr.SRes (rpf, rest), (ProofSort.DepRes { bound_var; pred; _ } :: pf_rest) ->
     let* (ce_pred_synth, ce_value, delta', ct) = synth_rpf rs delta rpf in
-    let eq_ct = Constraint.atom (mk_eq pred ce_pred_synth) in
+    let eq_ct = Constraint.atom pos (mk_eq pred ce_pred_synth) in
     let pf_rest' = ProofSort.subst bound_var ce_value pf_rest in
     let codomain' = ProofSort.subst bound_var ce_value codomain in
     let* (result_pf, delta'', ct') = check_spine_inner rs delta' eff rest pf_rest' codomain' in
-    return (result_pf, delta'', Constraint.conj (Constraint.conj ct eq_ct) ct')
+    return (result_pf, delta'', Constraint.conj pos (Constraint.conj pos ct eq_ct) ct')
 
   | _ -> fail "spine: argument/parameter mismatch"
 
 (* Tuple checking: RS; Delta |-[eff] rsp : Pf -| Delta' ~> Ct *)
 and _check_tuple rs delta eff spine pf =
+  let pos = (RefinedExpr.spine_info spine)#loc in
   match RefinedExpr.spine_shape spine, pf with
   | RefinedExpr.SNil, [] ->
-    return (delta, Constraint.top)
+    return (delta, Constraint.top pos)
 
   | RefinedExpr.SCore (se, rest), (ProofSort.Comp { var; sort; eff = entry_eff } :: pf_rest) ->
     let gamma = RCtx.erase delta in
@@ -674,32 +682,32 @@ and _check_tuple rs delta eff spine pf =
   | RefinedExpr.SLog (lpf, rest), (ProofSort.Log { prop; _ } :: pf_rest) ->
     let* (delta', ct) = check_lpf rs delta lpf prop in
     let* (delta'', ct') = _check_tuple rs delta' eff rest pf_rest in
-    return (delta'', Constraint.conj ct ct')
+    return (delta'', Constraint.conj pos ct ct')
 
   | RefinedExpr.SRes (rpf, rest), (ProofSort.Res { pred; value; _ } :: pf_rest) ->
     let* (delta', ct) = check_rpf rs delta rpf pred value in
     let* (delta'', ct') = _check_tuple rs delta' eff rest pf_rest in
-    return (delta'', Constraint.conj ct ct')
+    return (delta'', Constraint.conj pos ct ct')
 
   | RefinedExpr.SRes (rpf, rest), (ProofSort.DepRes { bound_var; pred; _ } :: pf_rest) ->
     let* (ce_pred_synth, ce_value, delta', ct) = synth_rpf rs delta rpf in
-    let eq_ct = Constraint.atom (mk_eq pred ce_pred_synth) in
+    let eq_ct = Constraint.atom pos (mk_eq pred ce_pred_synth) in
     let pf_rest' = ProofSort.subst bound_var ce_value pf_rest in
     let* (delta'', ct') = _check_tuple rs delta' eff rest pf_rest' in
-    return (delta'', Constraint.conj (Constraint.conj ct eq_ct) ct')
+    return (delta'', Constraint.conj pos (Constraint.conj pos ct eq_ct) ct')
 
   | _ -> fail "tuple: argument/entry mismatch"
 
 (* Case branch checking *)
-and check_case_branches rs delta eff ce ce_sort ctors branches pf =
+and check_case_branches pos rs delta eff ce ce_sort ctors branches pf =
   let cs = RSig.comp rs in
-  let* branch_results = check_branches_list rs delta eff ce ce_sort ctors branches pf cs in
+  let* branch_results = check_branches_list pos rs delta eff ce ce_sort ctors branches pf cs in
   let (deltas, cts) = List.split branch_results in
   let* delta_merged = lift (RCtx.merge_n deltas) in
-  let ct = List.fold_left Constraint.conj Constraint.top cts in
+  let ct = List.fold_left (Constraint.conj pos) (Constraint.top pos) cts in
   return (delta_merged, ct)
 
-and check_branches_list rs delta eff ce _ce_sort ctors branches pf cs =
+and check_branches_list pos rs delta eff ce _ce_sort ctors branches pf cs =
   let rec go = function
     | [] -> return []
     | (label, ctor_sort) :: rest_ctors ->
@@ -716,19 +724,19 @@ and check_branches_list rs delta eff ce _ce_sort ctors branches pf cs =
          let* (delta_out, ct) = check_crt rs delta_ext eff body pf in
          let n = RCtx.length delta in
          let (delta_base, _) = RCtx.split n delta_out in
-         let ct' = Constraint.forall_ x ctor_sort' (Constraint.impl eq_prop ct) in
+         let ct' = Constraint.forall_ pos x ctor_sort' (Constraint.impl pos eq_prop ct) in
          let* rest = go rest_ctors in
          return ((delta_base, ct') :: rest))
   in
   go ctors
 
 (* Proof sort equality: RS; Delta |- Pf1 = Pf2 ~> Ct *)
-and pf_eq (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ce, Var.t) ProofSort.t) (pf2 : (CoreExpr.ce, Var.t) ProofSort.t) : Constraint.t ElabM.t =
+and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ce, Var.t) ProofSort.t) (pf2 : (CoreExpr.ce, Var.t) ProofSort.t) : Constraint.ct ElabM.t =
   let cs = RSig.comp rs in
   let gamma = RCtx.erase delta in
   let rec go pf1 pf2 =
     match pf1, pf2 with
-    | [], [] -> return Constraint.top
+    | [], [] -> return (Constraint.top pos)
 
     | ProofSort.Comp { var = x; sort; eff } :: rest1,
       ProofSort.Comp { var = y; sort = sort2; eff = eff2 } :: rest2 ->
@@ -739,19 +747,19 @@ and pf_eq (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ce, Var.t) ProofSort.t
       else
         let rest2' = ProofSort.subst y (CoreExpr.mk loc_dummy (CoreExpr.Var x)) rest2 in
         let* ct = go rest1 rest2' in
-        return (Constraint.forall_ x sort ct)
+        return (Constraint.forall_ pos x sort ct)
 
     | ProofSort.Log { prop = ce1; _ } :: rest1,
       ProofSort.Log { prop = ce2; _ } :: rest2 ->
       let* ct = go rest1 rest2 in
-      return (Constraint.conj (Constraint.atom (mk_eq ce1 ce2)) ct)
+      return (Constraint.conj pos (Constraint.atom pos (mk_eq ce1 ce2)) ct)
 
     | ProofSort.Res { pred = p1; value = v1; _ } :: rest1,
       ProofSort.Res { pred = p2; value = v2; _ } :: rest2 ->
       let* ct = go rest1 rest2 in
-      let eq_ct = Constraint.conj (Constraint.atom (mk_eq p1 p2))
-                                  (Constraint.atom (mk_eq v1 v2)) in
-      return (Constraint.conj eq_ct ct)
+      let eq_ct = Constraint.conj pos (Constraint.atom pos (mk_eq p1 p2))
+                                      (Constraint.atom pos (mk_eq v1 v2)) in
+      return (Constraint.conj pos eq_ct ct)
 
     | ProofSort.DepRes { bound_var = y1; pred = ce1; _ } :: rest1,
       ProofSort.DepRes { bound_var = y2; pred = ce2; _ } :: rest2 ->
@@ -764,8 +772,8 @@ and pf_eq (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ce, Var.t) ProofSort.t
          let rest1' = ProofSort.subst y1 ce_z rest1 in
          let rest2' = ProofSort.subst y2 ce_z rest2 in
          let* ct = go rest1' rest2' in
-         return (Constraint.conj (Constraint.atom (mk_eq ce1 ce2))
-                                 (Constraint.forall_ z inner_sort ct))
+         return (Constraint.conj pos (Constraint.atom pos (mk_eq ce1 ce2))
+                                     (Constraint.forall_ pos z inner_sort ct))
        | _ -> fail "pf_eq: dep-res pred must have pred sort")
 
     | _ -> fail "pf_eq: proof sort structure mismatch"
@@ -821,7 +829,7 @@ let elab_fundecl_body rs param arg_sort ret_sort eff body_se =
   let* te = lift (Typecheck.check cs gamma ce ret_sort eff) in
   return (strip_info te)
 
-let check_rprog (prog : RProg.parsed) : (RSig.t * Constraint.t) ElabM.t =
+let check_rprog (prog : RProg.parsed) : (RSig.t * Constraint.ct) ElabM.t =
   let rec check_rprog_decls rs ct_acc = function
     | [] -> return (rs, ct_acc)
     | decl :: rest ->
@@ -847,7 +855,7 @@ let check_rprog (prog : RProg.parsed) : (RSig.t * Constraint.t) ElabM.t =
           RSig.FunSig { arg = arg_sort; ret = ret_sort; eff }
       in
       return (RSig.extend name entry rs, ct_acc)
-    | RProg.RFunDecl { name; domain = se_domain; codomain = se_codomain; eff; body; _ } ->
+    | RProg.RFunDecl { name; domain = se_domain; codomain = se_codomain; eff; body; loc } ->
       let gamma = Context.empty in
       let cs = RSig.comp rs in
       let* domain = elab_pf rs gamma eff se_domain in
@@ -861,14 +869,14 @@ let check_rprog (prog : RProg.parsed) : (RSig.t * Constraint.t) ElabM.t =
       in
       let* (_delta', ct) = check_crt rs' delta eff body codomain in
       let entry = RSig.RFunSig rf in
-      return (RSig.extend name entry rs, Constraint.conj ct_acc ct)
+      return (RSig.extend name entry rs, Constraint.conj loc ct_acc ct)
   in
 
-  let* (rs, ct_decls) = check_rprog_decls RSig.empty Constraint.top prog.decls in
+  let* (rs, ct_decls) = check_rprog_decls RSig.empty (Constraint.top prog.loc) prog.decls in
   let gamma = Context.empty in
   let* main_pf = elab_pf rs gamma prog.main_eff prog.main_pf in
   let* (_delta, ct_main) = check_crt rs RCtx.empty prog.main_eff prog.main_body main_pf in
-  return (rs, Constraint.conj ct_decls ct_main)
+  return (rs, Constraint.conj prog.loc ct_decls ct_main)
 
 module Test = struct
   let with_delta_check f =

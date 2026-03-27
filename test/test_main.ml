@@ -1039,7 +1039,7 @@ let () =
           | Ok (_rs, ct) ->
             (* The constraint must not be trivially Top — it should contain
                conjuncts from incr's body (the Get/Set pred equalities) *)
-            match ct with
+            match Constraint.shape ct with
             | Constraint.Top ->
               Alcotest.fail "expected non-trivial constraint from function body"
             | _ -> ());
@@ -1092,7 +1092,7 @@ let () =
           | Ok (rs, _) ->
             let rsig = rs in
             let result = ElabM.run Var.empty_supply (
-              RCheck.Test.pf_eq rsig RCtx.empty pf1 pf2
+              RCheck.Test.pf_eq SourcePos.dummy rsig RCtx.empty pf1 pf2
             ) in
             match result with
             | Ok _ -> Alcotest.fail "should reject mismatched proof sort lengths"

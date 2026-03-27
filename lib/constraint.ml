@@ -1,24 +1,47 @@
-type t =
+type ('a, 'e) ctF =
   | Top
   | Bot
-  | And of t * t
-  | Forall of Var.t * Sort.sort * t
-  | Impl of CoreExpr.ce * t
-  | Atom of CoreExpr.ce
+  | And of 'a * 'a
+  | Forall of Var.t * Sort.sort * 'a
+  | Impl of 'e * 'a
+  | Atom of 'e
 
-let top = Top
-let bot = Bot
+let map_shape f = function
+  | Top -> Top
+  | Bot -> Bot
+  | And (a, b) -> And (f a, f b)
+  | Forall (x, s, a) -> Forall (x, s, f a)
+  | Impl (e, a) -> Impl (e, f a)
+  | Atom e -> Atom e
 
-let conj c1 c2 =
-  match c1, c2 with
-  | Top, c | c, Top -> c
-  | _ -> And (c1, c2)
+type ('e, 'b) t = In of 'b * (('e, 'b) t, 'e) ctF
 
-let impl ce ct = Impl (ce, ct)
-let forall_ x sort ct = Forall (x, sort, ct)
-let atom ce = Atom ce
+let mk b s = In (b, s)
+let info (In (b, _)) = b
+let shape (In (_, s)) = s
 
-let rec print_gen pp_var fmt = function
+let rec map f (In (b, s)) =
+  In (f b, map_shape (map f) s)
+
+type ct = (CoreExpr.ce, < loc : SourcePos.t >) t
+
+let loc pos = object method loc = pos end
+
+let top pos = In (loc pos, Top)
+let bot pos = In (loc pos, Bot)
+
+let conj pos c1 c2 =
+  match shape c1, shape c2 with
+  | Top, _ -> c2
+  | _, Top -> c1
+  | _ -> In (loc pos, And (c1, c2))
+
+let impl pos ce ct = In (loc pos, Impl (ce, ct))
+let forall_ pos x sort ct = In (loc pos, Forall (x, sort, ct))
+let atom pos ce = In (loc pos, Atom ce)
+
+let rec print_gen pp_var fmt ct =
+  match shape ct with
   | Top -> Format.fprintf fmt "⊤"
   | Bot -> Format.fprintf fmt "⊥"
   | And (c1, c2) ->
@@ -40,7 +63,8 @@ module Test = struct
         ~count:1
         QCheck.unit
         (fun () ->
-           match conj Top (Atom (CoreExpr.mk (object method loc = SourcePos.dummy end) (CoreExpr.BoolLit true))) with
+           let d = SourcePos.dummy in
+           match shape (conj d (top d) (atom d (CoreExpr.mk (object method loc = d end) (CoreExpr.BoolLit true)))) with
            | Atom _ -> true
            | _ -> false);
     ]
