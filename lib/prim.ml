@@ -2,9 +2,9 @@ type t =
   | Add | Mul | Sub | Div
   | Lt | Le | Gt | Ge
   | And | Or | Not
-  | Eq of Typ.ty
-  | New of Typ.ty | Del of Typ.ty | Get of Typ.ty | Set of Typ.ty
-  | Own of Typ.ty
+  | Eq of Sort.sort
+  | New of Sort.sort | Del of Sort.sort | Get of Sort.sort | Set of Sort.sort
+  | Own of Sort.sort
 
 let tag = function
   | Add -> 0 | Mul -> 1 | Sub -> 2 | Div -> 3
@@ -22,7 +22,7 @@ let compare a b =
   let c = Int.compare (tag a) (tag b) in
   if c <> 0 then c
   else match typ_of a, typ_of b with
-  | Some t1, Some t2 -> Typ.compare t1 t2
+  | Some t1, Some t2 -> Sort.compare t1 t2
   | _ -> 0
 
 let print fmt = function
@@ -37,12 +37,12 @@ let print fmt = function
   | And -> Format.fprintf fmt "And"
   | Or -> Format.fprintf fmt "Or"
   | Not -> Format.fprintf fmt "Not"
-  | Eq ty -> Format.fprintf fmt "Eq[%a]" Typ.print ty
-  | New ty -> Format.fprintf fmt "New[%a]" Typ.print ty
-  | Del ty -> Format.fprintf fmt "Del[%a]" Typ.print ty
-  | Get ty -> Format.fprintf fmt "Get[%a]" Typ.print ty
-  | Set ty -> Format.fprintf fmt "Set[%a]" Typ.print ty
-  | Own ty -> Format.fprintf fmt "Own[%a]" Typ.print ty
+  | Eq ty -> Format.fprintf fmt "Eq[%a]" Sort.print ty
+  | New ty -> Format.fprintf fmt "New[%a]" Sort.print ty
+  | Del ty -> Format.fprintf fmt "Del[%a]" Sort.print ty
+  | Get ty -> Format.fprintf fmt "Get[%a]" Sort.print ty
+  | Set ty -> Format.fprintf fmt "Set[%a]" Sort.print ty
+  | Own ty -> Format.fprintf fmt "Own[%a]" Sort.print ty
 
 let json_tag = function
   | Add -> "Add" | Mul -> "Mul" | Sub -> "Sub" | Div -> "Div"
@@ -56,15 +56,15 @@ let json p =
   | None -> Json.String (json_tag p)
   | Some ty -> Json.Object [
       "tag", Json.String (json_tag p);
-      "type", Typ.json ty;
+      "type", Sort.json (fun b -> SourcePos.json b#loc) ty;
     ]
 
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let dummy = object method loc = SourcePos.dummy end in
-    let int_ty = Typ.mk dummy Typ.Int in
-    oneofl [ Add; Mul; Sub; Div; Lt; Le; Gt; Ge; And; Or; Not; Eq int_ty; New int_ty; Del int_ty; Get int_ty; Set int_ty; Own int_ty ]
+    let dummy_info = object method loc = SourcePos.dummy end in
+    let int_sort = Sort.mk dummy_info Sort.Int in
+    oneofl [ Add; Mul; Sub; Div; Lt; Le; Gt; Ge; And; Or; Not; Eq int_sort; New int_sort; Del int_sort; Get int_sort; Set int_sort; Own int_sort ]
 
   let test = []
 end

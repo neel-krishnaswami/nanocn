@@ -63,23 +63,17 @@ let prim_signature (p : Prim.t) =
   | Or -> (pair_bool, bool_sort, Effect.Pure)
   | Not -> (bool_sort, bool_sort, Effect.Pure)
   | Eq a ->
-    let sa = Sort.typ_to_sort a in
-    (mk_sort (Sort.Record [sa; sa]), bool_sort, Effect.Pure)
+    (mk_sort (Sort.Record [a; a]), bool_sort, Effect.Pure)
   | New a ->
-    let sa = Sort.typ_to_sort a in
-    (sa, mk_sort (Sort.Ptr sa), Effect.Impure)
+    (a, mk_sort (Sort.Ptr a), Effect.Impure)
   | Del a ->
-    let sa = Sort.typ_to_sort a in
-    (mk_sort (Sort.Ptr sa), unit_sort, Effect.Impure)
+    (mk_sort (Sort.Ptr a), unit_sort, Effect.Impure)
   | Get a ->
-    let sa = Sort.typ_to_sort a in
-    (mk_sort (Sort.Ptr sa), sa, Effect.Impure)
+    (mk_sort (Sort.Ptr a), a, Effect.Impure)
   | Set a ->
-    let sa = Sort.typ_to_sort a in
-    (mk_sort (Sort.Record [mk_sort (Sort.Ptr sa); sa]), unit_sort, Effect.Impure)
+    (mk_sort (Sort.Record [mk_sort (Sort.Ptr a); a]), unit_sort, Effect.Impure)
   | Own a ->
-    let sa = Sort.typ_to_sort a in
-    (mk_sort (Sort.Ptr sa), mk_sort (Sort.Pred sa), Effect.Spec)
+    (mk_sort (Sort.Ptr a), mk_sort (Sort.Pred a), Effect.Spec)
 
 (** Synthesize: S; G |- [eff0] ce ==> tau *)
 let rec synth sig_ ctx eff0 ce =
@@ -126,8 +120,8 @@ let rec synth sig_ ctx eff0 ce =
   | CoreExpr.App (p, arg) ->
     let* () = match p with
       | Prim.Eq a ->
-        if Typ.is_eqtype a then Ok ()
-        else err_at_f pos "Eq requires an equality type, got %a" Typ.print a
+        if Sort.is_eqtype a then Ok ()
+        else err_at_f pos "Eq requires an equality type, got %a" Sort.print a
       | _ -> Ok ()
     in
     let (arg_sort, ret_sort, prim_eff) = prim_signature p in
@@ -328,7 +322,7 @@ and check_case_branches sig_ ctx branches scrut_sort result_sort eff0 bind_eff p
 
 (** Built-in step datatype: step(a, b) = { Next : a | Done : b } *)
 let step_decl =
-  let mk_ty s = Typ.mk dummy_info s in
+  let mk_sort s = Sort.mk dummy_info s in
   let next_label = match Label.of_string "Next" with Ok l -> l | Error _ -> failwith "impossible" in
   let done_label = match Label.of_string "Done" with Ok l -> l | Error _ -> failwith "impossible" in
   let a = Tvar.of_string "a" in
@@ -338,8 +332,8 @@ let step_decl =
     name = step_dsort;
     params = [a; b];
     ctors = [
-      (next_label, mk_ty (Typ.TVar a));
-      (done_label, mk_ty (Typ.TVar b));
+      (next_label, mk_sort (Sort.TVar a));
+      (done_label, mk_sort (Sort.TVar b));
     ];
     loc = SourcePos.dummy;
   }
@@ -347,18 +341,28 @@ let step_decl =
 let initial_sig : typed_ce Sig.t =
   Sig.extend_type Sig.empty step_decl
 
-(** Check sort well-formedness: S ; Phi |- tau wf *)
-let rec sort_wf sig_ params s =
+(** Check kind well-formedness: CS ; G |- tau : kind *)
+let rec kind_wf sig_ ctx s kind =
   let pos = (Sort.info s)#loc in
   match Sort.shape s with
   | Sort.Int | Sort.Bool -> Ok ()
   | Sort.TVar a ->
-    if List.exists (fun p -> Tvar.compare a p = 0) params then Ok ()
-    else Error (Format.asprintf "%a: unbound type variable %a"
-                  SourcePos.print pos Tvar.print a)
-  | Sort.Ptr t -> sort_wf sig_ params t
-  | Sort.Pred t -> sort_wf sig_ params t
-  | Sort.Record ts -> sort_wf_list sig_ params ts
+    (match Context.lookup_tvar a ctx with
+     | Some k ->
+       if Kind.subkind k kind then Ok ()
+       else Error (Format.asprintf "%a: type variable %a has kind %a, expected %a"
+                     SourcePos.print pos Tvar.print a Kind.print k Kind.print kind)
+     | None ->
+       Error (Format.asprintf "%a: unbound type variable %a"
+                SourcePos.print pos Tvar.print a))
+  | Sort.Ptr t -> kind_wf sig_ ctx t Kind.Type
+  | Sort.Pred t ->
+    if Kind.compare kind Kind.Sort <> 0 then
+      Error (Format.asprintf "%a: pred only allowed at kind sort"
+               SourcePos.print pos)
+    else
+      kind_wf sig_ ctx t Kind.Sort
+  | Sort.Record ts -> kind_wf_list sig_ ctx ts kind
   | Sort.App (d, args) ->
     (match Sig.lookup_sort d sig_ with
      | Some decl ->
@@ -367,9 +371,8 @@ let rec sort_wf sig_ params s =
                   SourcePos.print pos Dsort.print d
                   (List.length decl.DsortDecl.params) (List.length args))
        else
-         sort_wf_list sig_ params args
+         kind_wf_list sig_ ctx args Kind.Sort
      | None ->
-       (* Also check type declarations *)
        match Sig.lookup_type d sig_ with
        | Some decl ->
          if List.compare_lengths args decl.DtypeDecl.params <> 0 then
@@ -377,16 +380,17 @@ let rec sort_wf sig_ params s =
                     SourcePos.print pos Dsort.print d
                     (List.length decl.DtypeDecl.params) (List.length args))
          else
-           sort_wf_list sig_ params args
+           kind_wf_list sig_ ctx args Kind.Type
        | None ->
          Error (Format.asprintf "%a: unknown sort/type %a"
                   SourcePos.print pos Dsort.print d))
 
-and sort_wf_list sig_ params = function
+and kind_wf_list sig_ ctx ss kind =
+  match ss with
   | [] -> Ok ()
   | s :: rest ->
-    let* () = sort_wf sig_ params s in
-    sort_wf_list sig_ params rest
+    let* () = kind_wf sig_ ctx s kind in
+    kind_wf_list sig_ ctx rest kind
 
 (** Validate a datasort declaration *)
 let validate_sort_decl sig_ (d : DsortDecl.t) =
@@ -403,24 +407,35 @@ let validate_sort_decl sig_ (d : DsortDecl.t) =
         else check_dups rest
     in
     let* () = check_dups labels in
-    let sig_with_self = Sig.extend_sort sig_ d in
-    sort_wf_list sig_with_self d.params
-      (List.map snd d.ctors)
+    (* Add D with empty ctors to sig (spec: SDWf_Ok) *)
+    let empty_decl = DsortDecl.{ name = d.name; params = d.params; ctors = []; loc = d.loc } in
+    let sig_with_self = Sig.extend_sort sig_ empty_decl in
+    (* Build context with type vars at kind sort *)
+    let ctx = List.fold_left (fun acc a -> Context.extend_tvar a Kind.Sort acc)
+                Context.empty d.params in
+    kind_wf_list sig_with_self ctx (List.map snd d.ctors) Kind.Sort
 
-(** Check guarded well-formedness for datatype declarations *)
-let rec type_guarded sig_ params guard s =
+(** Check guarded well-formedness for datatype declarations:
+    CS ; G ; D'(a1,...,an) |- tau guarded *)
+let rec type_guarded sig_ ctx guard s =
   let pos = (Sort.info s)#loc in
   match Sort.shape s with
   | Sort.Int | Sort.Bool -> Ok ()
   | Sort.TVar a ->
-    if List.exists (fun p -> Tvar.compare a p = 0) params then Ok ()
-    else Error (Format.asprintf "%a: unbound type variable %a"
-                  SourcePos.print pos Tvar.print a)
-  | Sort.Ptr t -> sort_wf sig_ params t
+    (match Context.lookup_tvar a ctx with
+     | Some _ -> Ok ()
+     | None ->
+       Error (Format.asprintf "%a: unbound type variable %a"
+                SourcePos.print pos Tvar.print a))
+  | Sort.Ptr t ->
+    (* Re-add D with empty ctors to allow recursive reference under Ptr *)
+    let empty_decl = DtypeDecl.{ name = guard; params = []; ctors = []; loc = SourcePos.dummy } in
+    let sig_with_guard = Sig.extend_type sig_ empty_decl in
+    kind_wf sig_with_guard ctx t Kind.Type
   | Sort.Pred _ ->
     Error (Format.asprintf "%a: pred not allowed in type declarations"
              SourcePos.print pos)
-  | Sort.Record ts -> type_guarded_list sig_ params guard ts
+  | Sort.Record ts -> type_guarded_list sig_ ctx guard ts
   | Sort.App (d, args) ->
     if Dsort.compare d guard = 0 then
       Error (Format.asprintf
@@ -437,13 +452,13 @@ let rec type_guarded sig_ params guard s =
                     SourcePos.print pos Dsort.print d
                     (List.length decl.DtypeDecl.params) (List.length args))
          else
-           sort_wf_list sig_ params args)
+           kind_wf_list sig_ ctx args Kind.Type)
 
-and type_guarded_list sig_ params guard = function
+and type_guarded_list sig_ ctx guard = function
   | [] -> Ok ()
   | t :: rest ->
-    let* () = type_guarded sig_ params guard t in
-    type_guarded_list sig_ params guard rest
+    let* () = type_guarded sig_ ctx guard t in
+    type_guarded_list sig_ ctx guard rest
 
 (** Validate a datatype declaration *)
 let validate_type_decl sig_ (d : DtypeDecl.t) =
@@ -460,10 +475,12 @@ let validate_type_decl sig_ (d : DtypeDecl.t) =
         else check_dups rest
     in
     let* () = check_dups labels in
-    let sig_with_self = Sig.extend_type sig_ d in
-    (* Convert type constructors to sorts for guardedness check *)
-    let ctor_sorts = List.map (fun (l, ty) -> (l, Sort.typ_to_sort ty)) d.ctors in
-    type_guarded_list sig_with_self d.params d.name (List.map snd ctor_sorts)
+    (* Do NOT add D to sig (spec: TDWf_Ok) — guardedness handles recursive refs *)
+    (* Build context with type vars at kind type *)
+    let ctx = List.fold_left (fun acc a -> Context.extend_tvar a Kind.Type acc)
+                Context.empty d.params in
+    (* Check guardedness of constructor sorts *)
+    type_guarded_list sig_ ctx d.name (List.map snd d.ctors)
 
 (** Elaborate and typecheck a FunDecl *)
 let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =

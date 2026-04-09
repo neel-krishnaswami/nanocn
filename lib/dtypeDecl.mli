@@ -6,11 +6,11 @@
 type t = {
   name : Dsort.t;
   params : Tvar.t list;
-  ctors : (Label.t * Typ.ty) list;
+  ctors : (Label.t * Sort.sort) list;
   loc : SourcePos.t;
 }
 
-val lookup_ctor : Label.t -> t -> Typ.ty option
+val lookup_ctor : Label.t -> t -> Sort.sort option
 (** [lookup_ctor l d] returns the type associated with constructor [l]
     in declaration [d], or [None] if not found. *)
 

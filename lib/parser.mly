@@ -12,9 +12,6 @@
     let loc = mk_loc startpos endpos in
     object method loc = loc end
 
-  let mk_typ startpos endpos s =
-    Typ.mk (loc_obj startpos endpos) s
-
   let mk_surfexpr startpos endpos s =
     SurfExpr.mk (loc_obj startpos endpos) s
 
@@ -127,33 +124,7 @@ ctor_decl:
   | l = LABEL; COLON; s = sort { (label l, s) }
 
 type_ctor_decl:
-  | l = LABEL; COLON; t = typ { (label l, t) }
-
-(* ===== Computational types (for primitive type arguments only) ===== *)
-
-typ:
-  | PTR; t = atomic_typ
-    { mk_typ $startpos $endpos (Typ.Ptr t) }
-  | t = atomic_typ
-    { t }
-
-atomic_typ:
-  | LPAREN; RPAREN
-    { mk_typ $startpos $endpos (Typ.Record []) }
-  | LPAREN; t = typ; RPAREN
-    { t }
-  | LPAREN; t = typ; STAR; ts = separated_nonempty_list(STAR, typ); RPAREN
-    { mk_typ $startpos $endpos (Typ.Record (t :: ts)) }
-  | INT_KW
-    { mk_typ $startpos $endpos Typ.Int }
-  | BOOL_KW
-    { mk_typ $startpos $endpos Typ.Bool }
-  | d = LABEL; LPAREN; ts = separated_nonempty_list(COMMA, typ); RPAREN
-    { mk_typ $startpos $endpos (Typ.App (dsort d, ts)) }
-  | d = LABEL
-    { mk_typ $startpos $endpos (Typ.App (dsort d, [])) }
-  | a = IDENT
-    { mk_typ $startpos $endpos (Typ.TVar (Tvar.of_string a)) }
+  | l = LABEL; COLON; s = sort { (label l, s) }
 
 eff_level:
   | PURE   { Effect.Pure }
@@ -298,7 +269,7 @@ mul_expr:
 app_expr:
   | l = LABEL; e = app_expr
     { mk_surfexpr $startpos $endpos (SurfExpr.Inject (label l, e)) }
-  | p = state_prim; LBRACKET; t = typ; RBRACKET; e = simple_expr
+  | p = state_prim; LBRACKET; t = sort; RBRACKET; e = simple_expr
     { mk_surfexpr $startpos $endpos (SurfExpr.App (p t, e)) }
   | NOT_KW; e = simple_expr
     { mk_surfexpr $startpos $endpos (SurfExpr.Not e) }
@@ -431,7 +402,7 @@ crt_case_branch:
     { (label l, x, e) }
 
 crt_app_expr:
-  | p = state_prim; LBRACKET; t = typ; RBRACKET; sp = spine_expr
+  | p = state_prim; LBRACKET; t = sort; RBRACKET; sp = spine_expr
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CPrimApp (p t, sp)) }
   | f = ident_var; sp = spine_expr
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CCall (f, sp)) }

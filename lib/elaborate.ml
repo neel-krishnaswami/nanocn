@@ -63,23 +63,17 @@ let prim_signature (p : Prim.t) =
   | Prim.Or -> (pair_bool, bool_sort, Effect.Pure)
   | Prim.Not -> (bool_sort, bool_sort, Effect.Pure)
   | Prim.Eq a ->
-    let sa = Sort.typ_to_sort a in
-    (mk (Sort.Record [sa; sa]), bool_sort, Effect.Pure)
+    (mk (Sort.Record [a; a]), bool_sort, Effect.Pure)
   | Prim.New a ->
-    let sa = Sort.typ_to_sort a in
-    (sa, mk (Sort.Ptr sa), Effect.Impure)
+    (a, mk (Sort.Ptr a), Effect.Impure)
   | Prim.Del a ->
-    let sa = Sort.typ_to_sort a in
-    (mk (Sort.Ptr sa), unit_sort, Effect.Impure)
+    (mk (Sort.Ptr a), unit_sort, Effect.Impure)
   | Prim.Get a ->
-    let sa = Sort.typ_to_sort a in
-    (mk (Sort.Ptr sa), sa, Effect.Impure)
+    (mk (Sort.Ptr a), a, Effect.Impure)
   | Prim.Set a ->
-    let sa = Sort.typ_to_sort a in
-    (mk (Sort.Record [mk (Sort.Ptr sa); sa]), unit_sort, Effect.Impure)
+    (mk (Sort.Record [mk (Sort.Ptr a); a]), unit_sort, Effect.Impure)
   | Prim.Own a ->
-    let sa = Sort.typ_to_sort a in
-    (mk (Sort.Ptr sa), mk (Sort.Pred sa), Effect.Spec)
+    (mk (Sort.Ptr a), mk (Sort.Pred a), Effect.Spec)
 
 (** {1 Coverage types} *)
 
@@ -297,8 +291,8 @@ let rec synth sig_ ctx eff0 se =
   | SurfExpr.App (p, arg) ->
     let* () = match p with
       | Prim.Eq a ->
-        if Typ.is_eqtype a then ElabM.return ()
-        else fail_at_f pos "Eq requires an equality type, got %a" Typ.print a
+        if Sort.is_eqtype a then ElabM.return ()
+        else fail_at_f pos "Eq requires an equality type, got %a" Sort.print a
       | _ -> ElabM.return ()
     in
     let (arg_sort, ret_sort, prim_eff) = prim_signature p in
@@ -561,17 +555,10 @@ and build_type_con_branches sig_ ctx y scrs branches eff_b sort eff0 labels args
   | [] -> ElabM.return []
   | label :: rest_labels ->
     let ctor_sort = match DtypeDecl.lookup_ctor label decl with
-      | Some raw_ty ->
-        (* Convert sort args to type args, substitute, convert back *)
-        let ty_args = List.filter_map (fun s ->
-          match Sort.sort_to_typ s with Ok t -> Some t | Error _ -> None
-        ) args in
-        let result_ty =
-          match TypSubst.of_lists decl.DtypeDecl.params ty_args with
-          | Ok sub -> TypSubst.apply sub raw_ty
-          | Error _ -> raw_ty
-        in
-        Sort.typ_to_sort result_ty
+      | Some raw_sort ->
+        (match Subst.of_lists decl.DtypeDecl.params args with
+         | Ok sub -> Subst.apply sub raw_sort
+         | Error _ -> raw_sort)
       | None -> failwith "impossible: label from ctor_labels not found"
     in
     let* filtered = spec_con label ctor_sort y eff_b branches in

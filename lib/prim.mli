@@ -7,9 +7,9 @@ type t =
   | Add | Mul | Sub | Div
   | Lt | Le | Gt | Ge
   | And | Or | Not
-  | Eq of Typ.ty
-  | New of Typ.ty | Del of Typ.ty | Get of Typ.ty | Set of Typ.ty
-  | Own of Typ.ty
+  | Eq of Sort.sort
+  | New of Sort.sort | Del of Sort.sort | Get of Sort.sort | Set of Sort.sort
+  | Own of Sort.sort
 
 val compare : t -> t -> int
 val print : Format.formatter -> t -> unit

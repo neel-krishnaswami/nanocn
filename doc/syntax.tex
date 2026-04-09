@@ -255,11 +255,9 @@
 \ottprodline{|}{ \ottnt{A}  \;\mathsf{eqtype} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{sort} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{i}}}  \ottsym{)} \, \ottkw{in} \, \Sigma_c}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottmv{L}  \mathord{:}  \tau  \in \mathrm{ctors}( \ottmv{D} ) \in  \Sigma_c }{}{}{}{}\ottprodnewline
-\ottprodline{|}{\tau  \ottsym{=} \, \ottkw{subst} \, \tau_{{\mathrm{1}}}  \ottsym{/}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{i}}  \ottsym{/}  \ottmv{a_{\ottmv{i}}} \, \ottkw{in} \, \tau'}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{sort} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{k}}}  \ottsym{)}  \ottsym{=}  \ottsym{\{}  \ottmv{L_{{\mathrm{1}}}}  \ottsym{:}  \tau_{{\mathrm{1}}}  \ottsym{\mbox{$\mid$}} \, .. \, \ottsym{\mbox{$\mid$}}  \ottmv{L_{\ottmv{n}}}  \ottsym{:}  \tau_{\ottmv{n}}  \ottsym{\}} \, \ottkw{in} \, \Sigma_c}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{type} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{i}}}  \ottsym{)} \, \ottkw{in} \, \Sigma_c}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottmv{L}  \mathord{:}  \ottnt{A}  \in \mathsf{tyctors}( \ottmv{D} ) \in  \Sigma_c }{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{A}  \ottsym{=} \, \ottkw{subst} \, \ottnt{A_{{\mathrm{1}}}}  \ottsym{/}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{A_{\ottmv{i}}}  \ottsym{/}  \ottmv{a_{\ottmv{i}}} \, \ottkw{in} \, \ottnt{A'}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{type} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{k}}}  \ottsym{)}  \ottsym{=}  \ottsym{\{}  \ottmv{L_{{\mathrm{1}}}}  \ottsym{:}  \ottnt{A_{{\mathrm{1}}}}  \ottsym{\mbox{$\mid$}} \, .. \, \ottsym{\mbox{$\mid$}}  \ottmv{L_{\ottmv{n}}}  \ottsym{:}  \ottnt{A_{\ottmv{n}}}  \ottsym{\}} \, \ottkw{in} \, \Sigma_c}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{type}\;  \ottmv{D} (  \ottmv{a} ,  \ottmv{b} ) = \{ \mathsf{Next}\mathord{:} \ottmv{a}  \mid \mathsf{Done}\mathord{:} \ottmv{b}  \} \in  \Sigma_c }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottmv{a}  \mathord{:}  \ottnt{kind}  \in  \Gamma }{}{}{}{}\ottprodnewline
@@ -1650,7 +1648,7 @@
 % defns Jcore
 %% defn ctor_lookup
 \newcommand{\ottdruleCtorXXsort}[1]{\ottdrule[#1]{%
-\ottpremise{\ottkw{sort} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{i}}}  \ottsym{)} \, \ottkw{in} \, \Sigma_c \quad  \ottmv{L}  \mathord{:}  \tau'  \in \mathrm{ctors}( \ottmv{D} ) \in  \Sigma_c  \quad \tau  \ottsym{=} \, \ottkw{subst} \, \tau_{{\mathrm{1}}}  \ottsym{/}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{i}}  \ottsym{/}  \ottmv{a_{\ottmv{i}}} \, \ottkw{in} \, \tau'}%
+\ottpremise{\ottkw{sort} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{i}}}  \ottsym{)} \, \ottkw{in} \, \Sigma_c \quad  \ottmv{L}  \mathord{:}  \tau'  \in \mathrm{ctors}( \ottmv{D} ) \in  \Sigma_c  \quad  \tau  = \lbrack   \cdot   \ottsym{,}  \tau_{{\mathrm{1}}}  \ottsym{/}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{i}}  \ottsym{/}  \ottmv{a_{\ottmv{i}}}  \rbrack  \tau' }%
 }{
 \ottmv{L}  \ottsym{:}  \tau \, \ottkw{in} \, \ottmv{D}  \ottsym{(}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{i}}  \ottsym{)} \, \ottkw{in} \, \Sigma_c}{%
 {\ottdrulename{Ctor\_sort}}{}%
@@ -1658,7 +1656,7 @@
 
 
 \newcommand{\ottdruleCtorXXtype}[1]{\ottdrule[#1]{%
-\ottpremise{\ottkw{type} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{i}}}  \ottsym{)} \, \ottkw{in} \, \Sigma_c \quad  \ottmv{L}  \mathord{:}  \ottnt{A'}  \in \mathsf{tyctors}( \ottmv{D} ) \in  \Sigma_c  \quad \ottnt{A}  \ottsym{=} \, \ottkw{subst} \, \ottnt{A_{{\mathrm{1}}}}  \ottsym{/}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{A_{\ottmv{i}}}  \ottsym{/}  \ottmv{a_{\ottmv{i}}} \, \ottkw{in} \, \ottnt{A'}}%
+\ottpremise{\ottkw{type} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{i}}}  \ottsym{)} \, \ottkw{in} \, \Sigma_c \quad  \ottmv{L}  \mathord{:}  \ottnt{A'}  \in \mathsf{tyctors}( \ottmv{D} ) \in  \Sigma_c  \quad  \ottnt{A}  = \lbrack   \cdot   \ottsym{,}  \ottnt{A_{{\mathrm{1}}}}  \ottsym{/}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{A_{\ottmv{i}}}  \ottsym{/}  \ottmv{a_{\ottmv{i}}}  \rbrack  \ottnt{A'} }%
 }{
 \ottmv{L}  \ottsym{:}  \ottnt{A} \, \ottkw{in} \, \ottmv{D}  \ottsym{(}  \ottnt{A_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{A_{\ottmv{i}}}  \ottsym{)} \, \ottkw{in} \, \Sigma_c}{%
 {\ottdrulename{Ctor\_type}}{}%

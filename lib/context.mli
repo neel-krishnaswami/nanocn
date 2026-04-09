@@ -1,20 +1,26 @@
-(** Typing contexts mapping variables to sorts and effects.
+(** Typing contexts with term variables and type variables.
 
-    All bindings carry [Sort.sort * Effect.t]. The effect is [purify eff]
-    of the ambient effect where the variable was bound. *)
+    Term bindings carry [Sort.sort * Effect.t].
+    Type variable bindings carry [Kind.t]. *)
 
 type t
 
 val empty : t
 
 val extend : Var.t -> Sort.sort -> Effect.t -> t -> t
-(** [extend x sort eff ctx] adds a binding for [x]. *)
+(** [extend x sort eff ctx] adds a term variable binding. *)
 
 val lookup : Var.t -> t -> (Sort.sort * Effect.t) option
-(** [lookup x ctx] returns the sort and effect for [x]. *)
+(** [lookup x ctx] returns the sort and effect for term variable [x]. *)
+
+val extend_tvar : Tvar.t -> Kind.t -> t -> t
+(** [extend_tvar a kind ctx] adds a type variable binding. *)
+
+val lookup_tvar : Tvar.t -> t -> Kind.t option
+(** [lookup_tvar a ctx] returns the kind for type variable [a]. *)
 
 val extend_list : (Var.t * Sort.sort * Effect.t) list -> t -> t
-(** [extend_list bindings ctx] extends [ctx] with multiple bindings. *)
+(** [extend_list bindings ctx] extends [ctx] with multiple term bindings. *)
 
 val print_gen : (Format.formatter -> Var.t -> unit) -> Format.formatter -> t -> unit
 val print : Format.formatter -> t -> unit

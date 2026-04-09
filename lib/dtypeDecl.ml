@@ -1,15 +1,15 @@
 type t = {
   name : Dsort.t;
   params : Tvar.t list;
-  ctors : (Label.t * Typ.ty) list;
+  ctors : (Label.t * Sort.sort) list;
   loc : SourcePos.t;
 }
 
 let lookup_ctor l d =
   let rec go = function
     | [] -> None
-    | (l', ty) :: rest ->
-      if Label.compare l l' = 0 then Some ty else go rest
+    | (l', s) :: rest ->
+      if Label.compare l l' = 0 then Some s else go rest
   in
   go d.ctors
 
@@ -40,7 +40,7 @@ let compare d1 d2 =
           let c = Label.compare l1 l2 in
           if c <> 0 then c
           else
-            let c = Typ.compare t1 t2 in
+            let c = Sort.compare t1 t2 in
             if c <> 0 then c else compare_ctors rest1 rest2
       in
       compare_ctors d1.ctors d2.ctors
@@ -49,15 +49,15 @@ let json d =
   Json.Object [
     "name", Dsort.json d.name;
     "params", Json.Array (List.map Tvar.json d.params);
-    "ctors", Json.Array (List.map (fun (l, ty) ->
-      Json.Object ["label", Label.json l; "type", Typ.json ty]) d.ctors);
+    "ctors", Json.Array (List.map (fun (l, s) ->
+      Json.Object ["label", Label.json l; "type", Sort.json (fun b -> SourcePos.json b#loc) s]) d.ctors);
     "loc", SourcePos.json d.loc;
   ]
 
 let print fmt d =
   let pp_param fmt tv = Tvar.print fmt tv in
-  let pp_ctor fmt (l, ty) =
-    Format.fprintf fmt "@[<hov 2>%a :@ %a@]" Label.print l Typ.print ty
+  let pp_ctor fmt (l, s) =
+    Format.fprintf fmt "@[<hov 2>%a :@ %a@]" Label.print l Sort.print s
   in
   match d.params with
   | [] ->
@@ -76,10 +76,10 @@ let print fmt d =
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let mk_ty s = Typ.mk (object method loc = SourcePos.dummy end) s in
-    let simple_ty = oneof [
-      pure (mk_ty Typ.Int);
-      pure (mk_ty Typ.Bool);
+    let mk_sort s = Sort.mk (object method loc = SourcePos.dummy end) s in
+    let simple_sort = oneof [
+      pure (mk_sort Sort.Int);
+      pure (mk_sort Sort.Bool);
     ] in
     let* name = Dsort.Test.gen in
     let* n_params = 0 -- 2 in
@@ -87,8 +87,8 @@ module Test = struct
     let* n_ctors = 1 -- 3 in
     let* ctors = list_repeat n_ctors (
       let* l = Label.Test.gen in
-      let* ty = simple_ty in
-      pure (l, ty)
+      let* s = simple_sort in
+      pure (l, s)
     ) in
     pure { name; params; ctors; loc = SourcePos.dummy }
 
@@ -102,9 +102,9 @@ module Test = struct
         ~count:100
         (QCheck.make gen)
         (fun d ->
-           List.for_all (fun (l, ty) ->
+           List.for_all (fun (l, s) ->
              match lookup_ctor l d with
-             | Some ty' -> Typ.compare ty ty' = 0
+             | Some s' -> Sort.compare s s' = 0
              | None -> false)
              d.ctors);
 

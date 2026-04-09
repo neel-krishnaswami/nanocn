@@ -115,47 +115,10 @@ let rec is_spec_type s =
   | Pred _ -> false
   | TVar _ -> true
 
-let rec typ_to_sort ty =
-  let b = Typ.info ty in
-  let sf = match Typ.shape ty with
-    | Typ.Int -> Int
-    | Typ.Bool -> Bool
-    | Typ.Ptr t -> Ptr (typ_to_sort t)
-    | Typ.Record ts -> Record (List.map typ_to_sort ts)
-    | Typ.App (d, ts) -> App (d, List.map typ_to_sort ts)
-    | Typ.TVar a -> TVar a
-  in
-  mk b sf
-
-let rec sort_to_typ s =
-  let b = info s in
+let is_eqtype s =
   match shape s with
-  | Int -> Ok (Typ.mk b Typ.Int)
-  | Bool -> Ok (Typ.mk b Typ.Bool)
-  | Ptr t ->
-    (match sort_to_typ t with
-     | Ok t' -> Ok (Typ.mk b (Typ.Ptr t'))
-     | Error _ as e -> e)
-  | Record ts ->
-    (match sort_to_typ_list ts with
-     | Ok ts' -> Ok (Typ.mk b (Typ.Record ts'))
-     | Error _ as e -> e)
-  | App (d, ts) ->
-    (match sort_to_typ_list ts with
-     | Ok ts' -> Ok (Typ.mk b (Typ.App (d, ts')))
-     | Error _ as e -> e)
-  | TVar a -> Ok (Typ.mk b (Typ.TVar a))
-  | Pred _ -> Error "sort contains pred, cannot convert to type"
-
-and sort_to_typ_list = function
-  | [] -> Ok []
-  | s :: rest ->
-    match sort_to_typ s with
-    | Error _ as e -> e
-    | Ok t ->
-      match sort_to_typ_list rest with
-      | Error _ as e -> e
-      | Ok rest' -> Ok (t :: rest')
+  | Int | Bool | Ptr _ -> true
+  | Record _ | App _ | TVar _ | Pred _ -> false
 
 module Test = struct
   let gen =

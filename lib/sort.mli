@@ -36,12 +36,8 @@ val is_spec_type : sort -> bool
 (** [is_spec_type s] is [true] if [s] contains no [Pred] anywhere.
     Enforces the σ ⊂ τ subrule: equality is only defined on spec types. *)
 
-val typ_to_sort : Typ.ty -> sort
-(** [typ_to_sort ty] converts a type to the corresponding sort.
-    Types are a subset of sorts (no Pred). *)
-
-val sort_to_typ : sort -> (Typ.ty, string) result
-(** [sort_to_typ s] converts a sort to a type, failing if [s] contains Pred. *)
+val is_eqtype : sort -> bool
+(** [is_eqtype s] returns [true] if [s] is [Int], [Bool], or [Ptr _]. *)
 
 module Test : sig
   val gen : sort QCheck.Gen.t

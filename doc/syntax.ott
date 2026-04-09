@@ -216,11 +216,9 @@ formula :: 'formula_' ::=
   | A eqtype                           :: :: eqtype      {{ tex [[A]] \;\mathsf{eqtype} }}
   | sort D ( a1 , .. , ai ) in CS      :: :: sort_decl
   | L : tau rawctor D in CS            :: :: raw_ctor   {{ tex [[L]] \mathord{:} [[tau]] \in \mathrm{ctors}([[D]]) \in [[CS]] }}
-  | tau = subst tau1 / a1 , .. , taui / ai in tau'   :: :: subst_eq
   | sort D ( a1 , .. , ak ) = { L1 : tau1 | .. | Ln : taun } in CS   :: :: sort_lookup
   | type D ( a1 , .. , ai ) in CS      :: :: type_decl
   | L : A rawtypector D in CS          :: :: rawtypector   {{ tex [[L]] \mathord{:} [[A]] \in \mathsf{tyctors}([[D]]) \in [[CS]] }}
-  | A = subst A1 / a1 , .. , Ai / ai in A'   :: :: type_subst_eq
   | type D ( a1 , .. , ak ) = { L1 : A1 | .. | Ln : An } in CS   :: :: type_lookup
   | type D ( x , y ) = { Next : a , Done : b } in CS   :: :: step_lookup   {{ tex \mathsf{type}\; [[D]]( [[a]], [[b]]) = \{ \mathsf{Next}\mathord{:}[[a]] \mid \mathsf{Done}\mathord{:}[[b]] \} \in [[CS]] }}
   | a : kind in G                       :: :: tvar_in     {{ tex [[a]] \mathord{:} [[kind]] \in [[G]] }}
@@ -874,12 +872,12 @@ defns Jcore :: '' ::=
 
   defn L : tau in D ( tau1 , .. , taui ) in CS :: :: ctor_lookup :: 'Ctor_' by
 
-    sort D ( a1 , .. , ai ) in CS    L : tau' rawctor D in CS    tau = subst tau1 / a1 , .. , taui / ai in tau'
-    ---------------------------------------------------------------------------------------------------------- :: sort
+    sort D ( a1 , .. , ai ) in CS    L : tau' rawctor D in CS    tau = app_s nosub , tau1 / a1 , .. , taui / ai tau'
+    ---------------------------------------------------------------------------------------------------------------- :: sort
     L : tau in D ( tau1 , .. , taui ) in CS
 
-    type D ( a1 , .. , ai ) in CS    L : A' rawtypector D in CS    A = subst A1 / a1 , .. , Ai / ai in A'
-    ------------------------------------------------------------------------------------------------------ :: type
+    type D ( a1 , .. , ai ) in CS    L : A' rawtypector D in CS    A = app_s nosub , A1 / a1 , .. , Ai / ai A'
+    ------------------------------------------------------------------------------------------------------------ :: type
     L : A in D ( A1 , .. , Ai ) in CS
 
   defn D ( a1 , .. , ak ) = { L1 : tau1 '|' .. '|' Ln : taun } decl_in CS :: :: decl_lookup :: 'DL_'

@@ -188,7 +188,7 @@ let rprim_signature (p : Prim.t) : (CoreExpr.typed_ce, Var.t) RFunType.t ElabM.t
 
   (* Eq[A]: (x:A, y:A) ⊸ (z:bool, prop: z == (x == y) [log]) [pure] *)
   | Prim.Eq ty ->
-    let a_sort = Sort.typ_to_sort ty in
+    let a_sort = ty in
     let* x = fresh SourcePos.dummy in
     let* y = fresh SourcePos.dummy in
     let* z = fresh SourcePos.dummy in
@@ -201,7 +201,7 @@ let rprim_signature (p : Prim.t) : (CoreExpr.typed_ce, Var.t) RFunType.t ElabM.t
 
   (* New[A]: (x:A) ⊸ (p:ptr A, r:Own[A](p) @ x [res]) [impure] *)
   | Prim.New ty ->
-    let a_sort = Sort.typ_to_sort ty in
+    let a_sort = ty in
     let ptr_sort = Sort.mk loc_dummy (Sort.Ptr a_sort) in
     let pred_sort = Sort.mk loc_dummy (Sort.Pred a_sort) in
     let* x = fresh SourcePos.dummy in
@@ -215,7 +215,7 @@ let rprim_signature (p : Prim.t) : (CoreExpr.typed_ce, Var.t) RFunType.t ElabM.t
 
   (* Del[A]: (p:ptr A, x:A [spec], r:Own[A](p) @ x [res]) ⊸ () [impure] *)
   | Prim.Del ty ->
-    let a_sort = Sort.typ_to_sort ty in
+    let a_sort = ty in
     let ptr_sort = Sort.mk loc_dummy (Sort.Ptr a_sort) in
     let pred_sort = Sort.mk loc_dummy (Sort.Pred a_sort) in
     let* p = fresh SourcePos.dummy in
@@ -230,7 +230,7 @@ let rprim_signature (p : Prim.t) : (CoreExpr.typed_ce, Var.t) RFunType.t ElabM.t
 
   (* Get[A]: (p:ptr A, r:(x:A).Own[A](p) [res]) ⊸ (v:A, pf: v = x [log], r':Own[A](p) @ x [res]) [impure] *)
   | Prim.Get ty ->
-    let a_sort = Sort.typ_to_sort ty in
+    let a_sort = ty in
     let ptr_sort = Sort.mk loc_dummy (Sort.Ptr a_sort) in
     let pred_sort = Sort.mk loc_dummy (Sort.Pred a_sort) in
     let* p = fresh SourcePos.dummy in
@@ -249,7 +249,7 @@ let rprim_signature (p : Prim.t) : (CoreExpr.typed_ce, Var.t) RFunType.t ElabM.t
 
   (* Set[A]: (p:ptr A, v:A, r:(x:A).Own[A](p) [res]) ⊸ (r':Own[A](p) @ v [res]) [impure] *)
   | Prim.Set ty ->
-    let a_sort = Sort.typ_to_sort ty in
+    let a_sort = ty in
     let ptr_sort = Sort.mk loc_dummy (Sort.Ptr a_sort) in
     let pred_sort = Sort.mk loc_dummy (Sort.Pred a_sort) in
     let* p = fresh SourcePos.dummy in
@@ -266,7 +266,7 @@ let rprim_signature (p : Prim.t) : (CoreExpr.typed_ce, Var.t) RFunType.t ElabM.t
 
   (* Own[A]: (p:ptr A) ⊸ (r:pred A) [spec] — same as core signature *)
   | Prim.Own ty ->
-    let a_sort = Sort.typ_to_sort ty in
+    let a_sort = ty in
     let ptr_sort = Sort.mk loc_dummy (Sort.Ptr a_sort) in
     let pred_sort = Sort.mk loc_dummy (Sort.Pred a_sort) in
     let* p = fresh SourcePos.dummy in
@@ -622,7 +622,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CCase (_y, ce, checked_branches)) in
           return (checked, delta', ct)
         | _, Some decl ->
-          let ctors = List.map (fun (l, ty) -> (l, Sort.typ_to_sort ty)) decl.DtypeDecl.ctors in
+          let ctors = decl.DtypeDecl.ctors in
           let* (checked_branches, delta', ct) = check_case_branches pos rs delta eff' ce ce_sort ctors branches pf in
           let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CCase (_y, ce, checked_branches)) in
           return (checked, delta', ct)

@@ -5,7 +5,6 @@ let qcheck_tests =
     Var.Test.test;
     Effect.Test.test;
     Prim.Test.test;
-    Typ.Test.test;
     Context.Test.test;
     Sig.Test.test;
     Prog.Test.test;
@@ -15,7 +14,7 @@ let qcheck_tests =
     DsortDecl.Test.test;
     DtypeDecl.Test.test;
     Subst.Test.test;
-    TypSubst.Test.test;
+    Kind.Test.test;
     Pat.Test.test;
     CoreExpr.Test.test;
     SurfExpr.Test.test;
@@ -161,9 +160,9 @@ let () =
         match Parse.parse_expr_raw "New[Int] x" ~file:"test" with
         | Ok e ->
           (match SurfExpr.shape e with
-           | SurfExpr.App (Prim.New ty, _) ->
-             (match Typ.shape ty with
-              | Typ.Int -> ()
+           | SurfExpr.App (Prim.New s, _) ->
+             (match Sort.shape s with
+              | Sort.Int -> ()
               | _ -> Alcotest.fail "expected Int type param")
            | _ -> Alcotest.fail "expected App New")
         | Error msg -> Alcotest.fail msg);
