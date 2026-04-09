@@ -77,22 +77,27 @@ let pf_to_ctx delta pf =
       Ok (RCtx.extend_res var pred ce_y Usage.Avail acc))
     (Ok delta) pf
 
-let subst x e pf =
+(* Proof sort substitution per explicit-substitutions.md:
+   - Comp: apply to sort, extend with x/x for tail
+   - Log/Res: apply to exprs, do NOT extend (x not in |Delta|)
+   - DepRes: extend with y/y for pred, do NOT extend x for tail *)
+let apply_subst sub pf =
   List.map (fun entry ->
     match entry with
-    | Comp c ->
-      if Var.compare x c.var = 0 then entry
-      else Comp c
+    | Comp { var; sort; eff } ->
+      Comp { var; sort = Subst.apply sub sort; eff }
     | Log { var; prop } ->
-      if Var.compare x var = 0 then entry
-      else Log { var; prop = CoreExpr.subst x e prop }
+      Log { var; prop = Subst.apply_ce sub prop }
     | Res { var; pred; value } ->
-      if Var.compare x var = 0 then entry
-      else Res { var; pred = CoreExpr.subst x e pred; value = CoreExpr.subst x e value }
+      Res { var; pred = Subst.apply_ce sub pred; value = Subst.apply_ce sub value }
     | DepRes { var; bound_var; pred } ->
-      if Var.compare x var = 0 || Var.compare x bound_var = 0 then entry
-      else DepRes { var; bound_var; pred = CoreExpr.subst x e pred })
+      let sub' = Subst.extend_var bound_var
+        (CoreExpr.mk (CoreExpr.info pred) (CoreExpr.Var bound_var)) sub in
+      DepRes { var; bound_var; pred = Subst.apply_ce sub' pred })
     pf
+
+let subst x e pf =
+  apply_subst (Subst.extend_var x e Subst.empty) pf
 
 let print_gen pp_var pp_e fmt pf =
   let pp_entry fmt = function

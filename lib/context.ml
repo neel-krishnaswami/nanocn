@@ -24,6 +24,8 @@ let rec lookup_tvar a = function
     else lookup_tvar a rest
   | Term _ :: rest -> lookup_tvar a rest
 
+let to_list ctx = ctx
+
 let extend_list bindings ctx =
   List.fold_left (fun acc (x, s, eff) -> Term (x, s, eff) :: acc) ctx (List.rev bindings)
 

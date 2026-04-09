@@ -22,6 +22,13 @@ val lookup_tvar : Tvar.t -> t -> Kind.t option
 val extend_list : (Var.t * Sort.sort * Effect.t) list -> t -> t
 (** [extend_list bindings ctx] extends [ctx] with multiple term bindings. *)
 
+type binding =
+  | Term of Var.t * Sort.sort * Effect.t
+  | TVar of Tvar.t * Kind.t
+
+val to_list : t -> binding list
+(** [to_list ctx] returns the bindings as a list. *)
+
 val print_gen : (Format.formatter -> Var.t -> unit) -> Format.formatter -> t -> unit
 val print : Format.formatter -> t -> unit
 val to_string : t -> string

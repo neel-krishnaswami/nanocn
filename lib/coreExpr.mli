@@ -44,11 +44,6 @@ type ce = < loc : SourcePos.t > t
 type typed_info = < loc : SourcePos.t; ctx : Context.t; sort : Sort.sort; eff : Effect.t >
 type typed_ce = typed_info t
 
-val subst_gen : Var.t -> 'b t -> 'b t -> 'b t
-(** [subst_gen x s e] is [s/x]e — polymorphic capture-avoiding substitution. *)
-
-val subst : Var.t -> 'b t -> 'b t -> 'b t
-(** Alias for [subst_gen]. *)
 
 val print_gen : (Format.formatter -> Var.t -> unit) -> Format.formatter -> _ t -> unit
 val print : Format.formatter -> _ t -> unit

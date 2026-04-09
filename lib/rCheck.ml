@@ -328,7 +328,7 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
          fail (Format.asprintf "unfold: function %s must be spec" f)
        else
          let call_result = CoreExpr.mk (mk_info ret_sort) (CoreExpr.Call (f, ce_arg)) in
-         let subst_body = CoreExpr.subst param ce_arg body in
+         let subst_body = Subst.apply_ce (Subst.extend_var param ce_arg Subst.empty) body in
          let prop = mk_eq call_result subst_body in
          let checked = RefinedExpr.mk_lpf binfo (RefinedExpr.LUnfold (f, ce_arg)) in
          return (checked, prop, delta, Constraint.top pos)
@@ -833,7 +833,8 @@ and rpat_match (_cs : _ Sig.t) (_gamma : Context.t) (pat : Var.t RPat.t) (pf : (
       Ok (RCtx.extend_comp x sort eff delta)
     | RPat.Single x :: rest_elems, ProofSort.Log { var = y; prop } :: rest_pf ->
       let ce_x = ce_of_var x bool_sort in
-      let prop' = CoreExpr.subst y ce_x prop in
+      let sub = Subst.extend_var y ce_x Subst.empty in
+      let prop' = Subst.apply_ce sub prop in
       let rest_pf' = ProofSort.subst y ce_x rest_pf in
       let* delta = go rest_elems rest_pf' in
       Ok (RCtx.extend_log x prop' delta)
@@ -844,8 +845,9 @@ and rpat_match (_cs : _ Sig.t) (_gamma : Context.t) (pat : Var.t RPat.t) (pf : (
         | _ -> pred_sort
       in
       let ce_x = ce_of_var x inner_sort in
-      let pred' = CoreExpr.subst y ce_x pred in
-      let value' = CoreExpr.subst y ce_x value in
+      let sub = Subst.extend_var y ce_x Subst.empty in
+      let pred' = Subst.apply_ce sub pred in
+      let value' = Subst.apply_ce sub value in
       let rest_pf' = ProofSort.subst y ce_x rest_pf in
       let* delta = go rest_elems rest_pf' in
       Ok (RCtx.extend_res x pred' value' Usage.Avail delta)
@@ -854,8 +856,10 @@ and rpat_match (_cs : _ Sig.t) (_gamma : Context.t) (pat : Var.t RPat.t) (pf : (
       (match Sort.shape pred_sort with
        | Sort.Pred inner_sort ->
          let ce_x = ce_of_var x inner_sort in
-         let pred' = CoreExpr.subst z ce_x pred in
-         let rest_pf' = ProofSort.subst y ce_x (ProofSort.subst z ce_x rest_pf) in
+         let sub = Subst.extend_var z ce_x Subst.empty in
+         let pred' = Subst.apply_ce sub pred in
+         let sub2 = Subst.extend_var y ce_x (Subst.extend_var z ce_x Subst.empty) in
+         let rest_pf' = ProofSort.apply_subst sub2 rest_pf in
          let* delta = go rest_elems rest_pf' in
          let delta = RCtx.extend_res w pred' ce_x Usage.Avail delta in
          Ok (RCtx.extend_comp x inner_sort Effect.Spec delta)

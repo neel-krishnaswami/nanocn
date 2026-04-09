@@ -38,8 +38,11 @@ val pf_to_ctx : RCtx.t -> (CoreExpr.typed_ce, Var.t) t -> (RCtx.t, string) resul
     resource entries get [Avail] usage.
     For DepRes entries, reads the sort directly from the typed info. *)
 
+val apply_subst : Subst.t -> (CoreExpr.typed_ce, Var.t) t -> (CoreExpr.typed_ce, Var.t) t
+(** [apply_subst gamma pf] is [[gamma]]pf. *)
+
 val subst : Var.t -> CoreExpr.typed_ce -> (CoreExpr.typed_ce, Var.t) t -> (CoreExpr.typed_ce, Var.t) t
-(** [subst x e pf] is [[e/x]pf]. *)
+(** [subst x e pf] is [[e/x]pf], shorthand for [apply_subst (extend_var x e empty)]. *)
 
 val print_gen : (Format.formatter -> Var.t -> unit) -> (Format.formatter -> 'e -> unit) -> Format.formatter -> ('e, Var.t) t -> unit
 val print : (Format.formatter -> 'e -> unit) -> Format.formatter -> ('e, Var.t) t -> unit

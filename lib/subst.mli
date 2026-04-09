@@ -1,14 +1,30 @@
-(** Type variable substitution for sorts.
+(** Explicit substitutions.
 
-    A substitution maps type variables to sorts.
-    [apply] recursively replaces [TVar a] with the bound sort. *)
+    A substitution maps type variables to sorts and term variables to
+    core expressions. Application is capture-avoiding: at each binder,
+    the substitution is extended with an identity mapping for the bound
+    variable. *)
 
 type t
 
 val empty : t
-val extend : Tvar.t -> Sort.sort -> t -> t
+val extend_tvar : Tvar.t -> Sort.sort -> t -> t
+val extend_var : Var.t -> CoreExpr.typed_ce -> t -> t
+
 val apply : t -> Sort.sort -> Sort.sort
+(** [apply gamma tau] is [[gamma]]tau. *)
+
+val apply_ce : t -> CoreExpr.typed_ce -> CoreExpr.typed_ce
+(** [apply_ce gamma ce] is [[gamma]]ce. *)
+
 val of_lists : Tvar.t list -> Sort.sort list -> (t, string) result
+(** [of_lists tvars sorts] builds a type-variable substitution. *)
+
+val id : Context.t -> t
+(** [id gamma] is the identity substitution on [gamma]. *)
+
+val compose : t -> t -> t
+(** [compose gamma0 gamma1] is [gamma0 ; gamma1]. *)
 
 val compare : t -> t -> int
 val print : Format.formatter -> t -> unit
