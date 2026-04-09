@@ -90,28 +90,28 @@ decl:
   | FUN; f = ident_var; COLON; a = sort; ARROW; b = sort; LBRACKET; eff = eff_level; RBRACKET; EQUAL; LBRACE; bs = separated_nonempty_list(BAR, branch); RBRACE
     { Prog.FunDecl { name = f; arg_sort = a; ret_sort = b; eff;
         branches = bs; loc = mk_loc $startpos $endpos } }
-  | SORT; d = IDENT; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
-    { Prog.SortDecl (DsortDecl.resolve_tvars DsortDecl.({
+  | SORT; d = LABEL; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
+    { Prog.SortDecl DsortDecl.({
         name = dsort d;
         params = List.map Tvar.of_string params;
         ctors = cs;
         loc = mk_loc $startpos $endpos;
-      })) }
-  | SORT; d = IDENT; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
+      }) }
+  | SORT; d = LABEL; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
     { Prog.SortDecl DsortDecl.({
         name = dsort d;
         params = [];
         ctors = cs;
         loc = mk_loc $startpos $endpos;
       }) }
-  | TYPE; d = IDENT; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
-    { Prog.TypeDecl (DtypeDecl.resolve_tvars DtypeDecl.({
+  | TYPE; d = LABEL; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
+    { Prog.TypeDecl DtypeDecl.({
         name = dsort d;
         params = List.map Tvar.of_string params;
         ctors = cs;
         loc = mk_loc $startpos $endpos;
-      })) }
-  | TYPE; d = IDENT; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
+      }) }
+  | TYPE; d = LABEL; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
     { Prog.TypeDecl DtypeDecl.({
         name = dsort d;
         params = [];
@@ -148,10 +148,12 @@ atomic_typ:
     { mk_typ $startpos $endpos Typ.Int }
   | BOOL_KW
     { mk_typ $startpos $endpos Typ.Bool }
-  | d = IDENT; LPAREN; ts = separated_nonempty_list(COMMA, typ); RPAREN
+  | d = LABEL; LPAREN; ts = separated_nonempty_list(COMMA, typ); RPAREN
     { mk_typ $startpos $endpos (Typ.App (dsort d, ts)) }
-  | d = IDENT
+  | d = LABEL
     { mk_typ $startpos $endpos (Typ.App (dsort d, [])) }
+  | a = IDENT
+    { mk_typ $startpos $endpos (Typ.TVar (Tvar.of_string a)) }
 
 eff_level:
   | PURE   { Effect.Pure }
@@ -179,10 +181,12 @@ atomic_sort:
     { mk_sort $startpos $endpos Sort.Int }
   | BOOL_KW
     { mk_sort $startpos $endpos Sort.Bool }
-  | d = IDENT; LPAREN; ss = separated_nonempty_list(COMMA, sort); RPAREN
+  | d = LABEL; LPAREN; ss = separated_nonempty_list(COMMA, sort); RPAREN
     { mk_sort $startpos $endpos (Sort.App (dsort d, ss)) }
-  | d = IDENT
+  | d = LABEL
     { mk_sort $startpos $endpos (Sort.App (dsort d, [])) }
+  | a = IDENT
+    { mk_sort $startpos $endpos (Sort.TVar (Tvar.of_string a)) }
 
 (* ===== Patterns ===== *)
 
@@ -345,28 +349,28 @@ rdecl:
     { let pf1 = [ProofSort.Comp { var = x; sort = a; eff = Effect.Pure }] in
       RProg.RFunDecl { name = f; domain = pf1; codomain = pf2; eff;
                         body = e; loc = mk_loc $startpos $endpos } }
-  | SORT; d = IDENT; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
-    { RProg.SortDecl (DsortDecl.resolve_tvars DsortDecl.({
+  | SORT; d = LABEL; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
+    { RProg.SortDecl DsortDecl.({
         name = dsort d;
         params = List.map Tvar.of_string params;
         ctors = cs;
         loc = mk_loc $startpos $endpos;
-      })) }
-  | SORT; d = IDENT; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
+      }) }
+  | SORT; d = LABEL; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
     { RProg.SortDecl DsortDecl.({
         name = dsort d;
         params = [];
         ctors = cs;
         loc = mk_loc $startpos $endpos;
       }) }
-  | TYPE; d = IDENT; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
-    { RProg.TypeDecl (DtypeDecl.resolve_tvars DtypeDecl.({
+  | TYPE; d = LABEL; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
+    { RProg.TypeDecl DtypeDecl.({
         name = dsort d;
         params = List.map Tvar.of_string params;
         ctors = cs;
         loc = mk_loc $startpos $endpos;
-      })) }
-  | TYPE; d = IDENT; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
+      }) }
+  | TYPE; d = LABEL; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, type_ctor_decl); RBRACE
     { RProg.TypeDecl DtypeDecl.({
         name = dsort d;
         params = [];

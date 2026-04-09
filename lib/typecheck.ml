@@ -263,7 +263,7 @@ and check sig_ ctx ce sort eff0 =
     else
       let* e1' = synth sig_ ctx Effect.Pure e1 in
       let a = (CoreExpr.info e1')#sort in
-      let step_dsort = match Dsort.of_string "step" with Ok d -> d | Error _ -> failwith "impossible" in
+      let step_dsort = match Dsort.of_string "Step" with Ok d -> d | Error _ -> failwith "impossible" in
       let iter_sort = mk_sort (Sort.App (step_dsort, [a; sort])) in
       let bind_eff = Effect.purify Effect.Impure in
       let ctx' = Context.extend x a bind_eff ctx in
@@ -333,7 +333,7 @@ let step_decl =
   let done_label = match Label.of_string "Done" with Ok l -> l | Error _ -> failwith "impossible" in
   let a = Tvar.of_string "a" in
   let b = Tvar.of_string "b" in
-  let step_dsort = match Dsort.of_string "step" with Ok d -> d | Error _ -> failwith "impossible" in
+  let step_dsort = match Dsort.of_string "Step" with Ok d -> d | Error _ -> failwith "impossible" in
   DtypeDecl.{
     name = step_dsort;
     params = [a; b];

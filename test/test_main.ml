@@ -66,7 +66,7 @@ let () =
     ("qcheck", suite);
     ("parse", [
       Alcotest.test_case "parse int sort" `Quick (fun () ->
-        match (Parse.parse_sort "int" ~file:"test") with
+        match (Parse.parse_sort "Int" ~file:"test") with
         | Ok s ->
           (match Sort.shape s with
            | Sort.Int -> ()
@@ -74,29 +74,29 @@ let () =
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse record sort" `Quick (fun () ->
-        match (Parse.parse_sort "(int * int)" ~file:"test") with
+        match (Parse.parse_sort "(Int * Int)" ~file:"test") with
         | Ok s ->
           (match Sort.shape s with
            | Sort.Record [t1; t2] ->
              (match Sort.shape t1, Sort.shape t2 with
               | Sort.Int, Sort.Int -> ()
-              | _ -> Alcotest.fail "expected (int * int)")
+              | _ -> Alcotest.fail "expected (Int * Int)")
            | _ -> Alcotest.fail "expected record sort")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse sort application" `Quick (fun () ->
-        match (Parse.parse_sort "step(int, bool)" ~file:"test") with
+        match (Parse.parse_sort "Step(Int, Bool)" ~file:"test") with
         | Ok s ->
           (match Sort.shape s with
            | Sort.App (_, [t1; t2]) ->
              (match Sort.shape t1, Sort.shape t2 with
               | Sort.Int, Sort.Bool -> ()
-              | _ -> Alcotest.fail "expected step(int, bool)")
+              | _ -> Alcotest.fail "expected Step(Int, Bool)")
            | _ -> Alcotest.fail "expected sort application with 2 args")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse bare sort name" `Quick (fun () ->
-        match (Parse.parse_sort "color" ~file:"test") with
+        match (Parse.parse_sort "Color" ~file:"test") with
         | Ok s ->
           (match Sort.shape s with
            | Sort.App (_, []) -> ()
@@ -104,14 +104,14 @@ let () =
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse ptr sort" `Quick (fun () ->
-        match (Parse.parse_sort "ptr int" ~file:"test") with
+        match (Parse.parse_sort "Ptr Int" ~file:"test") with
         | Ok s ->
           (match Sort.shape s with
            | Sort.Ptr inner ->
              (match Sort.shape inner with
               | Sort.Int -> ()
-              | _ -> Alcotest.fail "expected ptr int")
-           | _ -> Alcotest.fail "expected ptr sort")
+              | _ -> Alcotest.fail "expected Ptr Int")
+           | _ -> Alcotest.fail "expected Ptr sort")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse variable" `Quick (fun () ->
@@ -158,18 +158,18 @@ let () =
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse state op with type" `Quick (fun () ->
-        match Parse.parse_expr_raw "New[int] x" ~file:"test" with
+        match Parse.parse_expr_raw "New[Int] x" ~file:"test" with
         | Ok e ->
           (match SurfExpr.shape e with
            | SurfExpr.App (Prim.New ty, _) ->
              (match Typ.shape ty with
               | Typ.Int -> ()
-              | _ -> Alcotest.fail "expected int type param")
+              | _ -> Alcotest.fail "expected Int type param")
            | _ -> Alcotest.fail "expected App New")
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse Get with ptr type" `Quick (fun () ->
-        match Parse.parse_expr_raw "Get[int] p" ~file:"test" with
+        match Parse.parse_expr_raw "Get[Int] p" ~file:"test" with
         | Ok e ->
           (match SurfExpr.shape e with
            | SurfExpr.App (Prim.Get _, _) -> ()
@@ -201,7 +201,7 @@ let () =
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse annotation" `Quick (fun () ->
-        match Parse.parse_expr_raw "x : int" ~file:"test" with
+        match Parse.parse_expr_raw "x : Int" ~file:"test" with
         | Ok e ->
           (match SurfExpr.shape e with
            | SurfExpr.Annot (_, _) -> ()
@@ -209,7 +209,7 @@ let () =
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse type decl" `Quick (fun () ->
-        let src = "type option(a) = { Some : a | None : () }" in
+        let src = "type Option(a) = { Some : a | None : () }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Ok (Prog.TypeDecl d, _supply) ->
           if List.length d.DtypeDecl.ctors <> 2 then
@@ -220,7 +220,7 @@ let () =
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse type decl no params" `Quick (fun () ->
-        let src = "type color = { Red : () | Blue : () }" in
+        let src = "type Color = { Red : () | Blue : () }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Ok (Prog.TypeDecl d, _supply) ->
           if List.length d.DtypeDecl.params <> 0 then
@@ -274,14 +274,14 @@ let () =
         | Ok _ -> Alcotest.fail "should fail on unbound variable");
 
       Alcotest.test_case "check inject into declared type" `Quick (fun () ->
-        let src = "type option = { Some : int | None : () }" in
+        let src = "type Option = { Some : Int | None : () }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse decl: " ^ msg)
         | Ok (d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig d with
           | Error msg -> Alcotest.fail ("typecheck decl: " ^ msg)
           | Ok (_supply', sig_) ->
-            let expr_src = "Some 1 : option" in
+            let expr_src = "Some 1 : Option" in
             match run_m (Parse.parse_expr expr_src ~file:"test") with
             | Error msg -> Alcotest.fail ("parse: " ^ msg)
             | Ok e ->
@@ -292,14 +292,14 @@ let () =
               | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "check case with declared type" `Quick (fun () ->
-        let src = "type option = { Some : int | None : () }" in
+        let src = "type Option = { Some : Int | None : () }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse decl: " ^ msg)
         | Ok (d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig d with
           | Error msg -> Alcotest.fail ("typecheck decl: " ^ msg)
           | Ok (_supply', sig_) ->
-            let expr_src = "let x = (Some 1 : option); case x of { Some y -> y | None u -> 0 } : int" in
+            let expr_src = "let x = (Some 1 : Option); case x of { Some y -> y | None u -> 0 } : Int" in
             match run_m (Parse.parse_expr expr_src ~file:"test") with
             | Error msg -> Alcotest.fail ("parse: " ^ msg)
             | Ok e ->
@@ -321,7 +321,7 @@ let () =
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "let-tuple destructuring" `Quick (fun () ->
-        match run_m (Parse.parse_expr "let (a, b) = ((1, 2) : (int * int)); a + b" ~file:"test") with
+        match run_m (Parse.parse_expr "let (a, b) = ((1, 2) : (Int * Int)); a + b" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
           let int_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Int in
@@ -330,7 +330,7 @@ let () =
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "New synthesizes ptr sort" `Quick (fun () ->
-        match run_m (Parse.parse_expr "New[int] 1" ~file:"test") with
+        match run_m (Parse.parse_expr "New[Int] 1" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Impure e with
@@ -339,14 +339,14 @@ let () =
              | Sort.Ptr inner ->
                (match Sort.shape inner with
                 | Sort.Int -> ()
-                | _ -> Alcotest.fail "expected ptr int")
-             | _ -> Alcotest.fail "expected ptr sort");
+                | _ -> Alcotest.fail "expected Ptr Int")
+             | _ -> Alcotest.fail "expected Ptr sort");
             if Effect.compare (eff_of te) Effect.Impure <> 0 then
               Alcotest.fail "New should be effectful"
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "Get with explicit type" `Quick (fun () ->
-        let src = "let p = New[int] 42; Get[int] p" in
+        let src = "let p = New[Int] 42; Get[Int] p" in
         match run_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
@@ -356,7 +356,7 @@ let () =
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "Set with explicit type" `Quick (fun () ->
-        let src = "let p = New[int] 0; Set[int] (p, 42)" in
+        let src = "let p = New[Int] 0; Set[Int] (p, 42)" in
         match run_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
@@ -366,7 +366,7 @@ let () =
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "annotation effect mismatch fails" `Quick (fun () ->
-        match run_m (Parse.parse_expr "1 / 2 : int" ~file:"test") with
+        match run_m (Parse.parse_expr "1 / 2 : Int" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -374,7 +374,7 @@ let () =
           | Error _ -> ());
 
       Alcotest.test_case "typed output carries context" `Quick (fun () ->
-        let src = "let x = 1; x : int" in
+        let src = "let x = 1; x : Int" in
         match run_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
@@ -425,7 +425,7 @@ let () =
             | _ -> Alcotest.fail "expected App at root");
 
       Alcotest.test_case "typecheck type decl" `Quick (fun () ->
-        let src = "type color = { Red : () | Blue : () }" in
+        let src = "type Color = { Red : () | Blue : () }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok (d, supply) ->
@@ -434,7 +434,7 @@ let () =
           | Error msg -> Alcotest.fail ("typecheck: " ^ msg));
 
       Alcotest.test_case "typecheck parameterized type decl" `Quick (fun () ->
-        let src = "type option(a) = { Some : a | None : () }" in
+        let src = "type Option(a) = { Some : a | None : () }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok (d, supply) ->
@@ -443,7 +443,7 @@ let () =
           | Error msg -> Alcotest.fail ("typecheck: " ^ msg));
 
       Alcotest.test_case "typecheck inject with step (built-in)" `Quick (fun () ->
-        let src = "Done 1 : step(int, int)" in
+        let src = "Done 1 : Step(Int, Int)" in
         match run_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
@@ -456,7 +456,7 @@ let () =
 
     ("parse-bool", [
       Alcotest.test_case "parse bool sort" `Quick (fun () ->
-        match (Parse.parse_sort "bool" ~file:"test") with
+        match (Parse.parse_sort "Bool" ~file:"test") with
         | Ok s ->
           (match Sort.shape s with
            | Sort.Bool -> ()
@@ -480,7 +480,7 @@ let () =
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse if-then-else" `Quick (fun () ->
-        match run_m (Parse.parse_expr "if true then 1 else 2 : int" ~file:"test") with
+        match run_m (Parse.parse_expr "if true then 1 else 2 : Int" ~file:"test") with
         | Ok e ->
           (match SurfExpr.shape e with
            | SurfExpr.Annot (inner, _) ->
@@ -530,7 +530,7 @@ let () =
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "check if-then-else" `Quick (fun () ->
-        let src = "if true then 1 else 2 : int" in
+        let src = "if true then 1 else 2 : Int" in
         match run_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
@@ -568,7 +568,7 @@ let () =
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "if with non-bool condition fails" `Quick (fun () ->
-        let src = "if 1 then 2 else 3 : int" in
+        let src = "if 1 then 2 else 3 : Int" in
         match run_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
@@ -578,8 +578,8 @@ let () =
     ]);
 
     ("typecheck-eq", [
-      Alcotest.test_case "Eq[int] synth bool pure" `Quick (fun () ->
-        match run_m (Parse.parse_expr "Eq[int] (1, 2)" ~file:"test") with
+      Alcotest.test_case "Eq[Int] synth bool pure" `Quick (fun () ->
+        match run_m (Parse.parse_expr "Eq[Int] (1, 2)" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -591,8 +591,8 @@ let () =
               Alcotest.fail "expected pure"
           | Error msg -> Alcotest.fail msg);
 
-      Alcotest.test_case "Eq[bool] synth bool pure" `Quick (fun () ->
-        match run_m (Parse.parse_expr "Eq[bool] (true, false)" ~file:"test") with
+      Alcotest.test_case "Eq[Bool] synth bool pure" `Quick (fun () ->
+        match run_m (Parse.parse_expr "Eq[Bool] (true, false)" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -603,7 +603,7 @@ let () =
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "Eq on record sort fails" `Quick (fun () ->
-        match run_m (Parse.parse_expr "Eq[(int * int)] ((1,2), (3,4))" ~file:"test") with
+        match run_m (Parse.parse_expr "Eq[(Int * Int)] ((1,2), (3,4))" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -629,7 +629,7 @@ let () =
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse program with function" `Quick (fun () ->
-        let src = "fun double : int -> int [pure] = { x -> x + x } main : () [impure] = ()" in
+        let src = "fun double : Int -> Int [pure] = { x -> x + x } main : () [impure] = ()" in
         match run_m (Parse.parse_prog src ~file:"test") with
         | Ok p ->
           if List.length p.Prog.decls <> 1 then
@@ -648,7 +648,7 @@ let () =
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "typecheck program with function" `Quick (fun () ->
-        let src = "fun double : int -> int [pure] = { x -> x + x } main : () [impure] = ()" in
+        let src = "fun double : Int -> Int [pure] = { x -> x + x } main : () [impure] = ()" in
         match ElabM.run Var.empty_supply (Parse.parse_prog src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok (p, supply) ->
@@ -657,7 +657,7 @@ let () =
           | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "typecheck function call" `Quick (fun () ->
-        let src = "fun double : int -> int [pure] = { x -> x + x } main : () [impure] = (let r = double 21; ())" in
+        let src = "fun double : Int -> Int [pure] = { x -> x + x } main : () [impure] = (let r = double 21; ())" in
         match ElabM.run Var.empty_supply (Parse.parse_prog src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok (p, supply) ->
@@ -667,8 +667,8 @@ let () =
 
       Alcotest.test_case "typecheck recursive function with step" `Quick (fun () ->
         let src = {|
-          fun countdown : int -> step(int, ()) [impure] = {
-            x -> Done () : step(int, ())
+          fun countdown : Int -> Step(Int, ()) [impure] = {
+            x -> Done () : Step(Int, ())
           }
           main : () [impure] = iter (x = 10) { countdown x }
         |} in
@@ -681,7 +681,7 @@ let () =
 
       Alcotest.test_case "pure recursive function fails" `Quick (fun () ->
         let src = {|
-          fun loop : int -> int [pure] = {
+          fun loop : Int -> Int [pure] = {
             x -> loop x
           }
           main : () [impure] = ()
@@ -694,7 +694,7 @@ let () =
           | Error _ -> ());
 
       Alcotest.test_case "unknown function fails" `Quick (fun () ->
-        let src = "main : () [impure] = (unknown 1 : int)" in
+        let src = "main : () [impure] = (unknown 1 : Int)" in
         match ElabM.run Var.empty_supply (Parse.parse_prog src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok (p, supply) ->
@@ -704,11 +704,11 @@ let () =
 
       Alcotest.test_case "typecheck program with type decl and inject/case" `Quick (fun () ->
         let src = {|
-          type option(a) = { Some : a | None : () }
-          fun unwrap : option(int) -> int [pure] = {
+          type Option(a) = { Some : a | None : () }
+          fun unwrap : Option(Int) -> Int [pure] = {
             Some y -> y | None u -> 0
           }
-          main : () [impure] = (let r = unwrap (Some 42 : option(int)); ())
+          main : () [impure] = (let r = unwrap (Some 42 : Option(Int)); ())
         |} in
         match ElabM.run Var.empty_supply (Parse.parse_prog src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
@@ -720,7 +720,7 @@ let () =
 
     ("parse-sort", [
       Alcotest.test_case "parse sort decl" `Quick (fun () ->
-        let src = "sort list(a) = { Nil : () | Cons : (a * list(a)) }" in
+        let src = "sort List(a) = { Nil : () | Cons : (a * List(a)) }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Ok (Prog.SortDecl d, _supply) ->
           if List.length d.DsortDecl.ctors <> 2 then
@@ -729,7 +729,7 @@ let () =
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse sort decl no params" `Quick (fun () ->
-        let src = "sort color = { Red : () | Blue : () }" in
+        let src = "sort Color = { Red : () | Blue : () }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Ok (Prog.SortDecl d, _supply) ->
           if List.length d.DsortDecl.params <> 0 then
@@ -738,7 +738,7 @@ let () =
         | Error msg -> Alcotest.fail msg);
 
       Alcotest.test_case "parse spec fun decl" `Quick (fun () ->
-        let src = "fun length : list(int) -> int [spec] = { Nil () -> 0 | Cons (x, xs) -> 1 + length xs }" in
+        let src = "fun length : List(Int) -> Int [spec] = { Nil () -> 0 | Cons (x, xs) -> 1 + length xs }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Ok (Prog.FunDecl d, _supply) ->
           if List.length d.branches <> 2 then
@@ -757,7 +757,7 @@ let () =
 
     ("typecheck-spec", [
       Alcotest.test_case "typecheck sort decl" `Quick (fun () ->
-        let src = "sort color = { Red : () | Blue : () }" in
+        let src = "sort Color = { Red : () | Blue : () }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok (d, supply) ->
@@ -768,7 +768,7 @@ let () =
       Alcotest.test_case "sort decl no ctors fails" `Quick (fun () ->
         (* Can't parse an empty sort, so build one manually *)
         let d = Prog.SortDecl DsortDecl.{
-          name = (match Dsort.of_string "empty" with Ok d -> d | _ -> failwith "impossible");
+          name = (match Dsort.of_string "Empty" with Ok d -> d | _ -> failwith "impossible");
           params = [];
           ctors = [];
           loc = SourcePos.dummy;
@@ -781,7 +781,7 @@ let () =
         let mk_label s = match Label.of_string s with Ok l -> l | _ -> failwith "impossible" in
         let unit_sort = Sort.mk (object method loc = SourcePos.dummy end) (Sort.Record []) in
         let d = Prog.SortDecl DsortDecl.{
-          name = (match Dsort.of_string "bad" with Ok d -> d | _ -> failwith "impossible");
+          name = (match Dsort.of_string "Bad" with Ok d -> d | _ -> failwith "impossible");
           params = [];
           ctors = [(mk_label "Aa", unit_sort); (mk_label "Aa", unit_sort)];
           loc = SourcePos.dummy;
@@ -791,7 +791,7 @@ let () =
         | Error _ -> ());
 
       Alcotest.test_case "sort referencing undeclared sort fails" `Quick (fun () ->
-        let src = "sort bad = { Mk : unknown }" in
+        let src = "sort Bad = { Mk : Unknown }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok (d, supply) ->
@@ -800,14 +800,14 @@ let () =
           | Error _ -> ());
 
       Alcotest.test_case "sort with wrong arity fails" `Quick (fun () ->
-        let sort_src = "sort pair(a, b) = { Mk : (a * b) }" in
+        let sort_src = "sort Pair(a, b) = { Mk : (a * b) }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl sort_src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse sort: " ^ msg)
         | Ok (sort_d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig sort_d with
           | Error msg -> Alcotest.fail ("typecheck sort: " ^ msg)
           | Ok (_supply', sig1) ->
-            let bad_src = "sort bad = { Mk : pair(int) }" in
+            let bad_src = "sort Bad = { Mk : Pair(Int) }" in
             match ElabM.run Var.empty_supply (Parse.parse_decl bad_src ~file:"test") with
             | Error msg -> Alcotest.fail ("parse bad: " ^ msg)
             | Ok (bad_d, supply2) ->
@@ -816,7 +816,7 @@ let () =
               | Error _ -> ());
 
       Alcotest.test_case "self-referential sort succeeds" `Quick (fun () ->
-        let src = "sort list(a) = { Nil : () | Cons : (a * list(a)) }" in
+        let src = "sort List(a) = { Nil : () | Cons : (a * List(a)) }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok (d, supply) ->
@@ -825,7 +825,7 @@ let () =
           | Error msg -> Alcotest.fail ("typecheck: " ^ msg));
 
       Alcotest.test_case "type referencing undeclared type fails" `Quick (fun () ->
-        let src = "type bad = { Mk : unknown }" in
+        let src = "type Bad = { Mk : Unknown }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok (d, supply) ->
@@ -834,14 +834,14 @@ let () =
           | Error _ -> ());
 
       Alcotest.test_case "type with wrong arity fails" `Quick (fun () ->
-        let type_src = "type pair(a, b) = { Mk : (a * b) }" in
+        let type_src = "type Pair(a, b) = { Mk : (a * b) }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl type_src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse type: " ^ msg)
         | Ok (type_d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig type_d with
           | Error msg -> Alcotest.fail ("typecheck type: " ^ msg)
           | Ok (_supply', sig1) ->
-            let bad_src = "type bad = { Mk : pair(int) }" in
+            let bad_src = "type Bad = { Mk : Pair(Int) }" in
             match ElabM.run Var.empty_supply (Parse.parse_decl bad_src ~file:"test") with
             | Error msg -> Alcotest.fail ("parse bad: " ^ msg)
             | Ok (bad_d, supply2) ->
@@ -850,7 +850,7 @@ let () =
               | Error _ -> ());
 
       Alcotest.test_case "bare self-referential type rejected" `Quick (fun () ->
-        let src = "type list(a) = { Nil : () | Cons : (a * list(a)) }" in
+        let src = "type List(a) = { Nil : () | Cons : (a * List(a)) }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok (d, supply) ->
@@ -859,7 +859,7 @@ let () =
           | Error _ -> ());
 
       Alcotest.test_case "ptr self-referential type succeeds" `Quick (fun () ->
-        let src = "type list(a) = { Nil : () | Cons : (a * ptr list(a)) }" in
+        let src = "type List(a) = { Nil : () | Cons : (a * Ptr List(a)) }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ msg)
         | Ok (d, supply) ->
@@ -869,14 +869,14 @@ let () =
 
       Alcotest.test_case "typecheck spec fun" `Quick (fun () ->
         (* First register a sort, then a spec function using it *)
-        let sort_src = "sort color = { Red : () | Blue : () }" in
+        let sort_src = "sort Color = { Red : () | Blue : () }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl sort_src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse sort: " ^ msg)
         | Ok (sort_d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig sort_d with
           | Error msg -> Alcotest.fail ("typecheck sort: " ^ msg)
           | Ok (_supply', sig1) ->
-            let fun_src = "fun isRed : color -> int [spec] = { Red () -> 1 | Blue () -> 0 }" in
+            let fun_src = "fun isRed : Color -> Int [spec] = { Red () -> 1 | Blue () -> 0 }" in
             match ElabM.run Var.empty_supply (Parse.parse_decl fun_src ~file:"test") with
             | Error msg -> Alcotest.fail ("parse fun: " ^ msg)
             | Ok (fun_d, supply2) ->
@@ -885,14 +885,14 @@ let () =
               | Error msg -> Alcotest.fail ("typecheck fun: " ^ msg));
 
       Alcotest.test_case "typecheck spec fun with arithmetic" `Quick (fun () ->
-        let sort_src = "sort color = { Red : () | Blue : () }" in
+        let sort_src = "sort Color = { Red : () | Blue : () }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl sort_src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse sort: " ^ msg)
         | Ok (sort_d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig sort_d with
           | Error msg -> Alcotest.fail ("typecheck sort: " ^ msg)
           | Ok (_supply', sig1) ->
-            let fun_src = "fun toNum : color -> int [spec] = { Red () -> 2 + 3 | Blue () -> 0 }" in
+            let fun_src = "fun toNum : Color -> Int [spec] = { Red () -> 2 + 3 | Blue () -> 0 }" in
             match ElabM.run Var.empty_supply (Parse.parse_decl fun_src ~file:"test") with
             | Error msg -> Alcotest.fail ("parse fun: " ^ msg)
             | Ok (fun_d, supply2) ->
@@ -902,7 +902,7 @@ let () =
 
       Alcotest.test_case "pure function callable from spec" `Quick (fun () ->
         (* Register a pure function: fun inc : int -> int [pure] *)
-        let fun_src = "fun inc : int -> int [pure] = { x -> x + 1 }" in
+        let fun_src = "fun inc : Int -> Int [pure] = { x -> x + 1 }" in
         match ElabM.run Var.empty_supply (Parse.parse_decl fun_src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse fun: " ^ msg)
         | Ok (fun_d, supply) ->
@@ -910,7 +910,7 @@ let () =
           | Error msg -> Alcotest.fail ("typecheck fun: " ^ msg)
           | Ok (_supply', sig1) ->
             (* Now use inc in a spec function *)
-            let spec_src = "fun three : () -> int [spec] = { () -> inc 2 }" in
+            let spec_src = "fun three : () -> Int [spec] = { () -> inc 2 }" in
             match ElabM.run Var.empty_supply (Parse.parse_decl spec_src ~file:"test") with
             | Error msg -> Alcotest.fail ("parse spec: " ^ msg)
             | Ok (spec_d, supply2) ->
@@ -1017,15 +1017,15 @@ let () =
       (* Fix 2: RFunDecl body constraints are collected, not discarded *)
       Alcotest.test_case "rfundecl body constraints collected" `Quick (fun () ->
         let src = {|
-          fun incr (p : ptr int, [res] r : (take x : int = Own[int](p)))
-            ~> ([res] r' : (take x' : int = Own[int](p))) [impure] =
-            let (v, pf, r2) = Get[int](p, res r);
-            let (r3) = Set[int](p, v + 1, res r2);
+          fun incr (p : Ptr Int, [res] r : (take x : Int = Own[Int](p)))
+            ~> ([res] r' : (take x' : Int = Own[Int](p))) [impure] =
+            let (v, pf, r2) = Get[Int](p, res r);
+            let (r3) = Set[Int](p, v + 1, res r2);
             (res r3)
           main : () [impure] =
-            let (p, r) = New[int](0);
+            let (p, r) = New[Int](0);
             let ((x', r')) = incr(p, res r);
-            Del[int](p, x', res r')
+            Del[Int](p, x', res r')
         |} in
         match run_m (
           let open ElabM in
@@ -1044,15 +1044,15 @@ let () =
       (* Fix 3: tuple checking uses entry effect for spec entries *)
       Alcotest.test_case "incr.rcn passes refined check" `Quick (fun () ->
         let src = {|
-          fun incr (p : ptr int, [res] r : (take x : int = Own[int](p)))
-            ~> ([res] r' : (take x' : int = Own[int](p))) [impure] =
-            let (v, pf, r2) = Get[int](p, res r);
-            let (r3) = Set[int](p, v + 1, res r2);
+          fun incr (p : Ptr Int, [res] r : (take x : Int = Own[Int](p)))
+            ~> ([res] r' : (take x' : Int = Own[Int](p))) [impure] =
+            let (v, pf, r2) = Get[Int](p, res r);
+            let (r3) = Set[Int](p, v + 1, res r2);
             (res r3)
           main : () [impure] =
-            let (p, r) = New[int](0);
+            let (p, r) = New[Int](0);
             let ((x', r')) = incr(p, res r);
-            Del[int](p, x', res r')
+            Del[Int](p, x', res r')
         |} in
         match run_m (
           let open ElabM in
@@ -1101,8 +1101,8 @@ let () =
       (* Fix 5: spec recursive core functions have self-reference *)
       Alcotest.test_case "spec recursive function succeeds" `Quick (fun () ->
         let src = {|
-          sort list(a) = { Nil : () | Cons : (a * list(a)) }
-          fun length (xs : list(int)) -> int [spec] =
+          sort List(a) = { Nil : () | Cons : (a * List(a)) }
+          fun length (xs : List(Int)) -> Int [spec] =
             case xs of { Nil u -> 0 | Cons p -> let (x, t) = p; 1 + length t }
           main : () [impure] = ()
         |} in

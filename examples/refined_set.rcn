@@ -1,5 +1,5 @@
 // Allocate, update, deallocate.
 main : () [impure] =
-  let (p, r) = New[int](0);
-  let (r2) = Set[int](p, 42, 0, res r);
-  Del[int](p, 42, res r2)
+  let (p, r) = New[Int](0);
+  let (r2) = Set[Int](p, 42, 0, res r);
+  Del[Int](p, 42, res r2)

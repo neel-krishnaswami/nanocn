@@ -76,9 +76,9 @@ let compare = compare_sort
 
 let rec print fmt t =
   match shape t with
-  | Int -> Format.fprintf fmt "int"
-  | Bool -> Format.fprintf fmt "bool"
-  | Ptr t -> Format.fprintf fmt "@[<hov 2>ptr@ %a@]" print t
+  | Int -> Format.fprintf fmt "Int"
+  | Bool -> Format.fprintf fmt "Bool"
+  | Ptr t -> Format.fprintf fmt "@[<hov 2>Ptr@ %a@]" print t
   | Record [] -> Format.fprintf fmt "()"
   | Record [t] -> Format.fprintf fmt "(%a *)" print t
   | Record ts ->
@@ -90,7 +90,7 @@ let rec print fmt t =
     Format.fprintf fmt "@[<hov 2>%a(%a)@]" Dsort.print d
       (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") print)
       ts
-  | Pred t -> Format.fprintf fmt "@[<hov 2>pred@ %a@]" print t
+  | Pred t -> Format.fprintf fmt "@[<hov 2>Pred@ %a@]" print t
   | TVar a -> Tvar.print fmt a
 
 let rec json jb t =

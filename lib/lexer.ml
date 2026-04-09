@@ -33,11 +33,8 @@ let keyword_or_ident s =
   | "iter" -> Parser.ITER
   | "fun" -> Parser.FUN
   | "main" -> Parser.MAIN
-  | "int" -> Parser.INT_KW
-  | "ptr" -> Parser.PTR
   | "pure" -> Parser.PURE
   | "impure" -> Parser.IMPURE
-  | "bool" -> Parser.BOOL_KW
   | "true" -> Parser.TRUE
   | "false" -> Parser.FALSE
   | "if" -> Parser.IF
@@ -48,7 +45,6 @@ let keyword_or_ident s =
   | "sort" -> Parser.SORT
   | "take" -> Parser.TAKE
   | "return" -> Parser.RETURN
-  | "pred" -> Parser.PRED
   | "of" -> Parser.OF
   | "type" -> Parser.TYPE
   | "exfalso" -> Parser.EXFALSO
@@ -61,6 +57,10 @@ let keyword_or_ident s =
 
 let keyword_or_label s =
   match s with
+  | "Int" -> Parser.INT_KW
+  | "Bool" -> Parser.BOOL_KW
+  | "Ptr" -> Parser.PTR
+  | "Pred" -> Parser.PRED
   | "Eq" -> Parser.EQ
   | "Set" -> Parser.SET
   | "Get" -> Parser.GET

@@ -2,8 +2,8 @@ type t = string
 
 let is_valid s =
   String.length s >= 1
-  && Char.compare 'a' s.[0] <= 0
-  && Char.compare s.[0] 'z' <= 0
+  && Char.compare 'A' s.[0] <= 0
+  && Char.compare s.[0] 'Z' <= 0
   && String.to_seq s |> Seq.drop 1 |> Seq.for_all (fun c ->
        (Char.compare 'a' c <= 0 && Char.compare c 'z' <= 0)
        || (Char.compare 'A' c <= 0 && Char.compare c 'Z' <= 0)
@@ -23,14 +23,14 @@ let json s = Json.String s
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let lower = map Char.chr (97 -- 122) in
+    let upper = map Char.chr (65 -- 90) in
     let rest_char = oneof [
       map Char.chr (97 -- 122);
       map Char.chr (65 -- 90);
       map Char.chr (48 -- 57);
       pure '_';
     ] in
-    let* first = lower in
+    let* first = upper in
     let* rest = list_size (0 -- 8) rest_char in
     pure (String.init (1 + List.length rest) (fun i ->
       if Int.compare i 0 = 0 then first else List.nth rest (i - 1)))

@@ -1,7 +1,7 @@
-(** Datasort names (identifiers starting with lowercase).
+(** Datasort names (identifiers starting with uppercase).
 
-    Datasort names like [list], [tree] identify user-defined datasort
-    declarations. They start with a lowercase letter, like type names. *)
+    Datasort names like [List], [Tree] identify user-defined datasort
+    declarations. They start with an uppercase letter. *)
 
 type t
 

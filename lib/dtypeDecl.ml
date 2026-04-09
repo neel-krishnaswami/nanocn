@@ -15,25 +15,6 @@ let lookup_ctor l d =
 
 let ctor_labels d = List.map fst d.ctors
 
-let resolve_tvars d =
-  let param_names =
-    List.map Tvar.to_string d.params
-  in
-  let rec resolve_ty t =
-    let b = Typ.info t in
-    let tf = Typ.shape t in
-    match tf with
-    | Typ.App (dsname, []) ->
-      let name_str = Dsort.to_string dsname in
-      if List.exists (fun p -> String.compare p name_str = 0) param_names then
-        Typ.mk b (Typ.TVar (Tvar.of_string name_str))
-      else
-        t
-    | _ -> Typ.mk b (Typ.map_shape resolve_ty tf)
-  in
-  let ctors = List.map (fun (l, ty) -> (l, resolve_ty ty)) d.ctors in
-  { d with ctors }
-
 let compare d1 d2 =
   let c = Dsort.compare d1.name d2.name in
   if c <> 0 then c
@@ -134,12 +115,5 @@ module Test = struct
            let labels = ctor_labels d in
            List.length labels = List.length d.ctors);
 
-      QCheck.Test.make ~name:"dtypeDecl resolve_tvars replaces matching params"
-        ~count:100
-        (QCheck.make gen)
-        (fun d ->
-           let d' = resolve_tvars d in
-           Dsort.compare d.name d'.name = 0
-           && List.length d.ctors = List.length d'.ctors);
     ]
 end

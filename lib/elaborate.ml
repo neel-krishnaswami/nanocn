@@ -423,7 +423,7 @@ and check sig_ ctx se sort eff0 =
       fail_at pos "iter requires impure context"
     else
     let* (ce1, init_sort) = synth sig_ ctx Effect.Pure se1 in
-    let step_dsort = match Dsort.of_string "step" with Ok d -> d | Error _ -> failwith "impossible" in
+    let step_dsort = match Dsort.of_string "Step" with Ok d -> d | Error _ -> failwith "impossible" in
     let iter_sort = mk_sort pos (Sort.App (step_dsort, [init_sort; sort])) in
     let* y = ElabM.fresh (Pat.info pat)#loc in
     let bind_eff = Effect.purify Effect.Impure in

@@ -44,9 +44,9 @@ let print_tF pp fmt = function
     Format.fprintf fmt "@[<hov 2>%a(%a)@]" Dsort.print d
       (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") pp) ts
   | TVar a -> Tvar.print fmt a
-  | Int -> Format.fprintf fmt "int"
-  | Bool -> Format.fprintf fmt "bool"
-  | Ptr t -> Format.fprintf fmt "@[<hov 2>ptr@ %a@]" pp t
+  | Int -> Format.fprintf fmt "Int"
+  | Bool -> Format.fprintf fmt "Bool"
+  | Ptr t -> Format.fprintf fmt "@[<hov 2>Ptr@ %a@]" pp t
 
 type 'b t = In of 'b * ('b t, 'b) tF
 

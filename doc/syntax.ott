@@ -1,7 +1,7 @@
 % nanocn: a small language with bidirectional typechecking
 % Merged spec: unified expression grammars, three-level effects
 
-metavar var, x, y, z ::=
+metavar var, x, y, z, w ::=
 metavar label, L, Next, Done ::=
 metavar lit ::=
 metavar f ::=
@@ -30,9 +30,9 @@ blit :: 'BLit_' ::=                                       {{ com boolean literal
   | false                              :: :: False
 
 A, B, C :: 'T_' ::=                                        {{ com types }}
-  | int                                :: :: Int            {{ com integers }} {{ tex \mathsf{int} }}
-  | bool                               :: :: Bool           {{ com booleans }} {{ tex \mathsf{bool} }}
-  | ptr A                              :: :: Ptr            {{ com pointer }}  {{ tex \mathsf{ptr}\;[[A]] }}
+  | int                                :: :: Int            {{ com integers }} {{ tex \mathsf{Int} }}
+  | bool                               :: :: Bool           {{ com booleans }} {{ tex \mathsf{Bool} }}
+  | ptr A                              :: :: Ptr            {{ com pointer }}  {{ tex \mathsf{Ptr}\;[[A]] }}
   | ( A1 , .. , An )                   :: :: Record         {{ com record }}
   | D ( A1 , .. , An )                 :: :: App            {{ com datatype application }}
   | a                                  :: :: TVar           {{ com type variable }}
@@ -47,12 +47,12 @@ eff, eff_b {{ tex \epsilon }} :: 'Eff_' ::=                        {{ com effect
   | spec                               :: :: Spec            {{ tex \mathbf{S} }}
 
 tau {{ tex \tau }} :: 'Sort_' ::=                          {{ com sorts }}
-  | int                                :: :: Int            {{ com integers }} {{ tex \mathsf{int} }}
-  | bool                               :: :: Bool           {{ com booleans }} {{ tex \mathsf{bool} }}
-  | ptr tau'                           :: :: Ptr            {{ com pointer }}  {{ tex \mathsf{ptr}\;[[tau']] }}
+  | int                                :: :: Int            {{ com integers }} {{ tex \mathsf{Int} }}
+  | bool                               :: :: Bool           {{ com booleans }} {{ tex \mathsf{Bool} }}
+  | ptr tau'                           :: :: Ptr            {{ com pointer }}  {{ tex \mathsf{Ptr}\;[[tau']] }}
   | ( tau1 , .. , taun )               :: :: Record         {{ com tuple }}
   | D ( tau1 , .. , taun )             :: :: App            {{ com datasort application }}
-  | pred tau'                          :: :: Pred           {{ com predicate sort }} {{ tex \mathsf{pred}\;[[tau']] }}
+  | pred tau'                          :: :: Pred           {{ com predicate sort }} {{ tex \mathsf{Pred}\;[[tau']] }}
   | a                                  :: :: TVar           {{ com type variable }}
 
 F :: 'P_' ::=                                              {{ com function signatures }}
@@ -290,6 +290,7 @@ Pf :: 'Pf_' ::=                                     {{ com proof sorts }}
   | x : tau [ eff ] , Pf            :: :: Comp       {{ tex [[x]] \mathord{:}_{[[eff]]} [[tau]], [[Pf]] }}
   | x : ce [ log ] , Pf             :: :: Log        {{ tex [[x]] \mathord{:} [[ce]] \; [\mathsf{log}], [[Pf]] }}
   | x : ce @ ce' [ res ] , Pf     :: :: Res        {{ tex [[x]] \mathord{:} [[ce]] @ [[ce']] \; [\mathsf{res}], [[Pf]] }}
+  | x : ( y ) . ce [ res ] , Pf  :: :: DepRes {{ tex [[x]] \mathord{:} ([[y]]).[[ce]] \; [\mathsf{res}], [[Pf]] }}
   | [ ce / x ] Pf                   :: :: Subst      {{ tex [ [[ce]] / [[x]] ] [[Pf]] }}
 
 RF :: 'RF_' ::=                                      {{ com refined function types }}
@@ -298,6 +299,7 @@ RF :: 'RF_' ::=                                      {{ com refined function typ
 q :: 'RPat_' ::=                                     {{ com refined patterns }}
   | rpempty                         :: :: Empty       {{ tex () }}
   | ( x , q )                       :: :: Cons
+  | ( ( x , y ) , q )              :: :: ConsPair
 
 crt :: 'CRT_' ::=                                    {{ com core refined terms }}
   | let q = crt1 ; crt2            :: :: Let
@@ -1146,6 +1148,10 @@ defns Jrefine :: '' ::=
     --------------------------------------------------------------------------------------------------------------------- :: res
     RS ; G |- [ eff ] x : ce @ ce' [ res ] , Pf pfwf
 
+    CS = comp RS    CS ; G |- [ spec ] ce ==> pred tau    RS ; G , y : tau [ spec ] |- [ eff ] Pf pfwf
+    -------------------------------------------------------------------------------------------------------- :: depres
+    RS ; G |- [ eff ] x : ( y ) . ce [ res ] , Pf pfwf
+
 
 % -----------------------------------------------------------------------------
 % Refined function type well-formedness
@@ -1205,6 +1211,10 @@ defns Jrefine :: '' ::=
     ------------------------------------------- :: res
     AL = pf_types x : ce @ ce' [ res ] , Pf
 
+    AL = pf_types Pf
+    --------------------------------------------------- :: depres
+    AL = pf_types x : ( y ) . ce [ res ] , Pf
+
 
 % -----------------------------------------------------------------------------
 % Proof sort to context
@@ -1227,6 +1237,10 @@ defns Jrefine :: '' ::=
     Delta = pf_to_ctx Delta' , x : ce @ ce' [ res ( avail ) ] Pf
     ----------------------------------------------------------------- :: res
     Delta = pf_to_ctx Delta' x : ce @ ce' [ res ] , Pf
+
+    Delta = pf_to_ctx Delta' , y : tau [ spec ] , x : ce @ y [ res ( avail ) ] Pf
+    ------------------------------------------------------------------------------------- :: depres
+    Delta = pf_to_ctx Delta' x : ( y ) . ce [ res ] , Pf
 
 
 % -----------------------------------------------------------------------------
@@ -1405,6 +1419,11 @@ defns Jrefine :: '' ::=
     -------------------------------------------------------------------------------------------------- :: res
     RS ; Delta |- x : ce1 @ ce1' [ res ] , Pf1 pfeq y : ce2 @ ce2' [ res ] , Pf2 ~~> ( ( Ct_ce ( ce1 == ce2 ) ) cand Ct_ce ( ce1' == ce2' ) ) cand Ct
 
+    G = erase Delta    CS = comp RS    CS ; G |- [ spec ] ce1 ==> pred tau    CS ; G |- [ spec ] ce2 ==> pred tau
+    RS ; Delta , z : tau [ spec ] |- [ z / y ] Pf1 pfeq [ z / y ] Pf2 ~~> Ct
+    -------------------------------------------------------------------------------------------------------------------------- :: depres
+    RS ; Delta |- x : ( y ) . ce1 [ res ] , Pf1 pfeq w : ( y ) . ce2 [ res ] , Pf2 ~~> ( Ct_ce ( ce1 == ce2 ) ) cand forall z : tau . Ct
+
 
 % -----------------------------------------------------------------------------
 % Context merge
@@ -1452,6 +1471,11 @@ defns Jrefine :: '' ::=
     ---------------------------------------------------------------------------- :: res
     RS ; G |- ( x , q ) : y : ce @ ce' [ res ] , Pf -| rempty , x : ce @ ce' [ res ( avail ) ] , Delta
 
+    CS = comp RS    CS ; G |- [ spec ] ce ==> pred tau
+    RS ; G , x : tau [ spec ] |- q : [ x / z ] [ x / y ] Pf -| Delta
+    --------------------------------------------------------------------------------------------- :: depres
+    RS ; G |- ( ( x , w ) , q ) : y : ( z ) . ce [ res ] , Pf -| rempty , x : tau [ spec ] , w : ce @ x [ res ( avail ) ] , Delta
+
 
 % -----------------------------------------------------------------------------
 % Refined term synthesis
@@ -1478,6 +1502,13 @@ defns Jrefine :: '' ::=
     RS ; Delta |- rpf r==> take x = ce1 ; ce2 @ ce3 -| Delta' ~~> Ct
     ------------------------------------------------------------------------------------------------------- :: opentake
     RS ; Delta |- [ eff ] open-take rpf r==> x : tau [ spec ] , y : ce1 @ x [ res ] , z : ce2 @ ce3 [ res ] , pfnil -| Delta' ~~> Ct
+
+    CS = comp RS    type D ( x , y ) = { Next : a , Done : b } in CS
+    G = erase Delta    CS ; G |- [ spec ] ce ==> pred D ( A , B )
+    RS ; Delta |- [ pure ] crt1 r<== x : A [ pure ] , y : ce @ Next x [ res ] , pfnil -| Delta' ~~> Ct
+    RS ; Delta' , x : A [ pure ] , y : ce @ Next x [ res ( avail ) ] |- [ impure ] crt2 r<== z : D ( A , B ) [ pure ] , y : ce @ z [ res ] , pfnil -| Delta' , x : A [ pure ] , y : ce @ Next x [ res ( used ) ] ~~> Ct'
+    ------------------------------------------------------------------------------------------------------------------------------------ :: iter
+    RS ; Delta |- [ impure ] iter [ ce ] ( q = crt1 ) { crt2 } r==> z : B [ pure ] , y : ce @ Done z [ res ] , pfnil -| Delta' ~~> Ct cand forall x : A . Ct'
 
 
 % -----------------------------------------------------------------------------
@@ -1526,13 +1557,6 @@ defns Jrefine :: '' ::=
     ------------------------------------------------------------------------------------------------------------------- :: case
     RS ; Delta |- [ eff ] case [ y ] ce of { L1 x1 -> crt1 | .. | Ln xn -> crtn } r<== Pf -| Delta' ~~> Ct1 cand Ctn
 
-    CS = comp RS    type D ( x , y ) = { Next : a , Done : b } in CS
-    G = erase Delta    CS ; G |- [ spec ] ce ==> pred D ( A , B )
-    RS ; Delta |- [ pure ] crt1 r<== x : A [ pure ] , y : ce @ Next x [ res ] , pfnil -| Delta' ~~> Ct
-    RS ; Delta' , x : A [ pure ] , y : ce @ Next x [ res ( avail ) ] |- [ impure ] crt2 r<== z : D ( A , B ) [ pure ] , y : ce @ z [ res ] , pfnil -| Delta' , x : A [ pure ] , y : ce @ Next x [ res ( avail ) ] ~~> Ct'
-    ------------------------------------------------------------------------------------------------------------------------------------ :: iter
-    RS ; Delta |- [ impure ] iter [ ce ] ( q = crt1 ) { crt2 } r<== z : B [ pure ] , y : ce @ Done z [ res ] , pfnil -| Delta' ~~> Ct cand forall x : A . Ct'
-
     Delta' = affinize Delta
     ------------------------------------------- :: exfalso
     RS ; Delta |- [ eff ] exfalso r<== Pf -| Delta' ~~> Bot
@@ -1573,6 +1597,11 @@ defns Jrefine :: '' ::=
     ----------------------------------------------------------------------------- :: res
     RS ; Delta |- [ eff ] rpf , rsp : x : ce1 @ ce2 [ res ] , Pf1 -o Pf2 >> Pf -| Delta'' ~~> Ct cand Ct'
 
+    RS ; Delta |- rpf r==> ce' @ ce'' -| Delta' ~~> Ct
+    RS ; Delta' |- [ eff ] rsp : [ ce'' / y ] Pf1 -o [ ce'' / y ] Pf2 >> Pf -| Delta'' ~~> Ct'
+    ----------------------------------------------------------------------------- :: depres
+    RS ; Delta |- [ eff ] rpf , rsp : x : ( y ) . ce [ res ] , Pf1 -o Pf2 >> Pf -| Delta'' ~~> ( Ct cand Ct_ce ( ce == ce' ) ) cand Ct'
+
 
 % -----------------------------------------------------------------------------
 % Tuple checking
@@ -1598,6 +1627,11 @@ defns Jrefine :: '' ::=
     RS ; Delta' |- [ eff ] rsp t: Pf -| Delta'' ~~> Ct'
     ------------------------------------------------------------- :: res
     RS ; Delta |- [ eff ] rpf , rsp t: x : ce @ ce' [ res ] , Pf -| Delta'' ~~> Ct cand Ct'
+
+    RS ; Delta |- rpf r==> ce' @ ce'' -| Delta' ~~> Ct
+    RS ; Delta' |- [ eff ] rsp t: [ ce'' / y ] Pf -| Delta'' ~~> Ct'
+    ------------------------------------------------------------- :: depres
+    RS ; Delta |- [ eff ] rpf , rsp t: x : ( y ) . ce [ res ] , Pf -| Delta'' ~~> ( Ct cand Ct_ce ( ce == ce' ) ) cand Ct'
 
 
 % -----------------------------------------------------------------------------
