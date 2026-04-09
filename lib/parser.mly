@@ -73,7 +73,7 @@ sort_eof:
   | s = sort; EOF { s }
 
 prog_eof:
-  | ds = list(decl); MAIN; COLON; ms = sort; LBRACKET; meff = effect; RBRACKET; EQUAL; e = expr; EOF
+  | ds = list(decl); MAIN; COLON; ms = sort; LBRACKET; meff = eff_level; RBRACKET; EQUAL; e = expr; EOF
     { { Prog.decls = ds; main = e; main_sort = ms; main_eff = meff;
         loc = mk_loc $startpos $endpos } }
 
@@ -87,7 +87,7 @@ repl_let:
 (* ===== Declarations ===== *)
 
 decl:
-  | FUN; f = ident_var; COLON; a = sort; ARROW; b = sort; LBRACKET; eff = effect; RBRACKET; EQUAL; LBRACE; bs = separated_nonempty_list(BAR, branch); RBRACE
+  | FUN; f = ident_var; COLON; a = sort; ARROW; b = sort; LBRACKET; eff = eff_level; RBRACKET; EQUAL; LBRACE; bs = separated_nonempty_list(BAR, branch); RBRACE
     { Prog.FunDecl { name = f; arg_sort = a; ret_sort = b; eff;
         branches = bs; loc = mk_loc $startpos $endpos } }
   | SORT; d = IDENT; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
@@ -153,7 +153,7 @@ atomic_typ:
   | d = IDENT
     { mk_typ $startpos $endpos (Typ.App (dsort d, [])) }
 
-effect:
+eff_level:
   | PURE   { Effect.Pure }
   | IMPURE { Effect.Impure }
   | SPEC   { Effect.Spec }
@@ -330,18 +330,18 @@ simple_expr:
 (* ===== Refined programs ===== *)
 
 rprog_eof:
-  | ds = list(rdecl); MAIN; COLON; pf = pf_sort; LBRACKET; eff = effect; RBRACKET; EQUAL; e = crt_expr; EOF
+  | ds = list(rdecl); MAIN; COLON; pf = pf_sort; LBRACKET; eff = eff_level; RBRACKET; EQUAL; e = crt_expr; EOF
     { RProg.{ decls = ds; main_pf = pf; main_eff = eff; main_body = e;
               loc = mk_loc $startpos $endpos } }
 
 rdecl:
-  | FUN; f = ident_var; LPAREN; x = ident_var; COLON; a = sort; RPAREN; ARROW; b = sort; LBRACKET; eff = effect; RBRACKET; EQUAL; body = expr
+  | FUN; f = ident_var; LPAREN; x = ident_var; COLON; a = sort; RPAREN; ARROW; b = sort; LBRACKET; eff = eff_level; RBRACKET; EQUAL; body = expr
     { RProg.FunDecl { name = f; param = x; arg_sort = a; ret_sort = b; eff;
                        body; loc = mk_loc $startpos $endpos } }
-  | FUN; f = ident_var; pf1 = pf_sort; TILDEARROW; pf2 = pf_sort; LBRACKET; eff = effect; RBRACKET; EQUAL; e = crt_expr
+  | FUN; f = ident_var; pf1 = pf_sort; TILDEARROW; pf2 = pf_sort; LBRACKET; eff = eff_level; RBRACKET; EQUAL; e = crt_expr
     { RProg.RFunDecl { name = f; domain = pf1; codomain = pf2; eff;
                         body = e; loc = mk_loc $startpos $endpos } }
-  | FUN; f = ident_var; LPAREN; x = ident_var; COLON; a = sort; RPAREN; TILDEARROW; pf2 = pf_sort; LBRACKET; eff = effect; RBRACKET; EQUAL; e = crt_expr
+  | FUN; f = ident_var; LPAREN; x = ident_var; COLON; a = sort; RPAREN; TILDEARROW; pf2 = pf_sort; LBRACKET; eff = eff_level; RBRACKET; EQUAL; e = crt_expr
     { let pf1 = [ProofSort.Comp { var = x; sort = a; eff = Effect.Pure }] in
       RProg.RFunDecl { name = f; domain = pf1; codomain = pf2; eff;
                         body = e; loc = mk_loc $startpos $endpos } }
@@ -383,7 +383,7 @@ pf_sort:
 pf_entry:
   | x = ident_var; COLON; s = sort
     { ProofSort.Comp { var = x; sort = s; eff = Effect.Pure } }
-  | LBRACKET; eff = effect; RBRACKET; x = ident_var; COLON; s = sort
+  | LBRACKET; eff = eff_level; RBRACKET; x = ident_var; COLON; s = sort
     { ProofSort.Comp { var = x; sort = s; eff } }
   | LBRACKET; LOG; RBRACKET; x = ident_var; COLON; e = app_expr
     { ProofSort.Log { var = x; prop = e } }
