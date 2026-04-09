@@ -35,7 +35,7 @@
 \newcommand{\ottafterlastrule}{\\}
 \newcommand{\ottmetavars}{
 \ottmetavartabular{
- $ \ottmv{var} ,\, \ottmv{x} ,\, \ottmv{y} ,\, \ottmv{z} $ &  \\
+ $ \ottmv{var} ,\, \ottmv{x} ,\, \ottmv{y} ,\, \ottmv{z} ,\, \ottmv{w} $ &  \\
  $ \ottmv{label} ,\, \ottmv{L} ,\, \ottmv{Next} ,\, \ottmv{Done} $ &  \\
  $ \ottmv{lit} $ &  \\
  $ \ottmv{f} $ &  \\
@@ -64,35 +64,32 @@
 \ottfirstprodline{|}{\mathsf{true}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\mathsf{false}}{}{}{}{}}
 
-\newcommand{\ottA}{
-\ottrulehead{\ottnt{A}  ,\ \ottnt{B}  ,\ \ottnt{C}}{::=}{\ottcom{types}}\ottprodnewline
-\ottfirstprodline{|}{ \mathsf{int} }{}{}{}{\ottcom{integers}}\ottprodnewline
-\ottprodline{|}{ \mathsf{bool} }{}{}{}{\ottcom{booleans}}\ottprodnewline
-\ottprodline{|}{ \mathsf{ptr}\; \ottnt{A} }{}{}{}{\ottcom{pointer}}\ottprodnewline
-\ottprodline{|}{\ottsym{(}  \ottnt{A_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{A_{\ottmv{n}}}  \ottsym{)}}{}{}{}{\ottcom{record}}\ottprodnewline
-\ottprodline{|}{\ottmv{D}  \ottsym{(}  \ottnt{A_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{A_{\ottmv{n}}}  \ottsym{)}}{}{}{}{\ottcom{datatype application}}\ottprodnewline
-\ottprodline{|}{\ottmv{a}}{}{}{}{\ottcom{type variable}}}
-
-\newcommand{\ottAL}{
-\ottrulehead{\overline{A}}{::=}{\ottcom{type lists}}\ottprodnewline
-\ottfirstprodline{|}{ [] }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ottnt{A}  \mathord{::}  \overline{A} }{}{}{}{}}
-
 \newcommand{\otteff}{
 \ottrulehead{\ottnt{eff}  ,\ \epsilon}{::=}{\ottcom{effects}}\ottprodnewline
 \ottfirstprodline{|}{ \mathbf{0} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathbf{1} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathbf{S} }{}{}{}{}}
 
+\newcommand{\ottkind}{
+\ottrulehead{\ottnt{kind}}{::=}{\ottcom{kinds}}\ottprodnewline
+\ottfirstprodline{|}{ \mathsf{type} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{sort} }{}{}{}{}}
+
 \newcommand{\otttau}{
-\ottrulehead{\tau}{::=}{\ottcom{sorts}}\ottprodnewline
-\ottfirstprodline{|}{ \mathsf{int} }{}{}{}{\ottcom{integers}}\ottprodnewline
-\ottprodline{|}{ \mathsf{bool} }{}{}{}{\ottcom{booleans}}\ottprodnewline
-\ottprodline{|}{ \mathsf{ptr}\; \tau' }{}{}{}{\ottcom{pointer}}\ottprodnewline
+\ottrulehead{\tau  ,\ \ottnt{A}  ,\ \ottnt{B}  ,\ \ottnt{C}}{::=}{\ottcom{sorts}}\ottprodnewline
+\ottfirstprodline{|}{ \mathsf{Int} }{}{}{}{\ottcom{integers}}\ottprodnewline
+\ottprodline{|}{ \mathsf{Bool} }{}{}{}{\ottcom{booleans}}\ottprodnewline
+\ottprodline{|}{ \mathsf{Ptr}\; \tau' }{}{}{}{\ottcom{pointer}}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{)}}{}{}{}{\ottcom{tuple}}\ottprodnewline
-\ottprodline{|}{\ottmv{D}  \ottsym{(}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{)}}{}{}{}{\ottcom{datasort application}}\ottprodnewline
-\ottprodline{|}{ \mathsf{pred}\; \tau' }{}{}{}{\ottcom{predicate sort}}\ottprodnewline
-\ottprodline{|}{\ottmv{a}}{}{}{}{\ottcom{type variable}}}
+\ottprodline{|}{\ottmv{D}  \ottsym{(}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{)}}{}{}{}{\ottcom{datatype application}}\ottprodnewline
+\ottprodline{|}{ \mathsf{Pred}\; \tau' }{}{}{}{\ottcom{predicate sort}}\ottprodnewline
+\ottprodline{|}{\ottmv{a}}{}{}{}{\ottcom{type variable}}\ottprodnewline
+\ottprodline{|}{ \lbrack  \gamma  \rbrack  \tau } {\textsf{M}}{}{}{}}
+
+\newcommand{\ottAL}{
+\ottrulehead{\overline{A}}{::=}{\ottcom{type lists}}\ottprodnewline
+\ottfirstprodline{|}{ [] }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{A}  \mathord{::}  \overline{A} }{}{}{}{}}
 
 \newcommand{\ottF}{
 \ottrulehead{\ottnt{F}}{::=}{\ottcom{function signatures}}\ottprodnewline
@@ -102,7 +99,17 @@
 \ottrulehead{\Gamma}{::=}{\ottcom{contexts}}\ottprodnewline
 \ottfirstprodline{|}{ \cdot }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Gamma ,  \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau }{}{}{}{}\ottprodnewline
-\ottprodline{|}{\Gamma  \ottsym{,}  \Gamma'}{}{}{}{}}
+\ottprodline{|}{ \Gamma ,  \ottmv{a}  \mathord{:}  \ottnt{kind} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\Gamma  \ottsym{,}  \Gamma'}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ | \Delta | } {\textsf{M}}{}{}{}}
+
+\newcommand{\ottgamma}{
+\ottrulehead{\gamma}{::=}{\ottcom{explicit substitutions}}\ottprodnewline
+\ottfirstprodline{|}{ \cdot }{}{}{}{}\ottprodnewline
+\ottprodline{|}{\gamma  \ottsym{,}  \ottnt{ce_{{\mathrm{1}}}}  \ottsym{/}  \ottmv{x_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{ce_{\ottmv{n}}}  \ottsym{/}  \ottmv{x_{\ottmv{n}}}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\gamma  \ottsym{,}  \tau_{{\mathrm{1}}}  \ottsym{/}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{/}  \ottmv{a_{\ottmv{n}}}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{id}( \Gamma ) } {\textsf{M}}{}{}{}\ottprodnewline
+\ottprodline{|}{\gamma  \ottsym{;}  \gamma'} {\textsf{M}}{}{}{}}
 
 \newcommand{\ottCS}{
 \ottrulehead{\Sigma_c}{::=}{\ottcom{core signatures}}\ottprodnewline
@@ -128,12 +135,6 @@
 \ottprodline{|}{\Sigma_r  \ottsym{,}  \ottmv{f}  \ottsym{:}  \ottnt{RF}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_r , \mathsf{sort}\; \ottmv{D} (\overline{a}) = \{\overline{L : \tau}\} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_r , \mathsf{type}\; \ottmv{D} (\overline{a}) = \{\overline{L : A}\} }{}{}{}{}}
-
-\newcommand{\ottPhi}{
-\ottrulehead{\Phi}{::=}{\ottcom{type variable contexts}}\ottprodnewline
-\ottfirstprodline{|}{ \cdot }{}{}{}{}\ottprodnewline
-\ottprodline{|}{\Phi  \ottsym{,}  \ottmv{a}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \overline{a} }{}{}{}{}}
 
 \newcommand{\ottprim}{
 \ottrulehead{\ottnt{prim}}{::=}{\ottcom{primitives}}\ottprodnewline
@@ -174,7 +175,7 @@
 \ottprodline{|}{\ottkw{take} \, \ottmv{x}  \ottsym{=}  \ottnt{ce_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{ce_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{return} \, \ottnt{ce}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottsym{(}  \ottnt{ce}  \ottsym{)}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{ [  \ottnt{ce}  /  \ottmv{x}  ]  \ottnt{ce'} }{}{}{}{}}
+\ottprodline{|}{ \lbrack  \gamma  \rbrack  \ottnt{ce} } {\textsf{M}}{}{}{}}
 
 \newcommand{\ottse}{
 \ottrulehead{\ottnt{se}}{::=}{\ottcom{surface expressions}}\ottprodnewline
@@ -261,17 +262,20 @@
 \ottprodline{|}{\ottnt{A}  \ottsym{=} \, \ottkw{subst} \, \ottnt{A_{{\mathrm{1}}}}  \ottsym{/}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{A_{\ottmv{i}}}  \ottsym{/}  \ottmv{a_{\ottmv{i}}} \, \ottkw{in} \, \ottnt{A'}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottkw{type} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{k}}}  \ottsym{)}  \ottsym{=}  \ottsym{\{}  \ottmv{L_{{\mathrm{1}}}}  \ottsym{:}  \ottnt{A_{{\mathrm{1}}}}  \ottsym{\mbox{$\mid$}} \, .. \, \ottsym{\mbox{$\mid$}}  \ottmv{L_{\ottmv{n}}}  \ottsym{:}  \ottnt{A_{\ottmv{n}}}  \ottsym{\}} \, \ottkw{in} \, \Sigma_c}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{type}\;  \ottmv{D} (  \ottmv{a} ,  \ottmv{b} ) = \{ \mathsf{Next}\mathord{:} \ottmv{a}  \mid \mathsf{Done}\mathord{:} \ottmv{b}  \} \in  \Sigma_c }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ottmv{a}  \in  \Phi }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottmv{a}  \mathord{:}  \ottnt{kind}  \in  \Gamma }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{kind}  \leq  \ottnt{kind'} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottmv{L}  \neq  \ottmv{L'} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ M  = \overline{ pat \mathord{:}  \tau , \cdot \to [\cdot][\cdot] \, se } }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{ce}  =  \mathcal{E}  [  \ottnt{ce'}  ] }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottmv{D}  \neq  \ottmv{D'} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottmv{x}  \neq  \ottmv{y} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottmv{a}  \neq  \ottmv{b} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottmv{n}  =  \ottmv{k} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{eff}  =  \ottnt{eff_{{\mathrm{1}}}}  \vee  \ottnt{eff_{{\mathrm{2}}}} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{eff}  =  \ottnt{eff_{{\mathrm{1}}}}  \vee  \ottnt{eff_{{\mathrm{2}}}}  \vee  \ottnt{eff_{{\mathrm{3}}}} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{eff}  \ottsym{=}  \ottnt{eff_{{\mathrm{1}}}} \, \vee \, .. \, \vee \, \ottnt{eff_{\ottmv{n}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\Gamma  \ottsym{=}  \ottmv{x_{{\mathrm{1}}}}  \ottsym{:}  \tau_{{\mathrm{1}}}  \ottsym{[}  \ottnt{eff_{{\mathrm{1}}}}  \ottsym{]}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{x_{\ottmv{n}}}  \ottsym{:}  \tau_{\ottmv{n}}  \ottsym{[}  \ottnt{eff_{\ottmv{n}}}  \ottsym{]}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \Gamma  = \overline{a : k} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{formula_{{\mathrm{1}}}} \quad .. \quad \ottnt{formula_{\ottmv{n}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottmv{x}  \mathord{:}  \ottnt{ce}  \; [\mathsf{log}] \in  \Delta }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottmv{x}  \mathord{:}  \ottnt{ce}  @  \ottnt{ce'}  \; [\mathsf{res}( \ottnt{u} )] \in  \Delta }{}{}{}{}\ottprodnewline
@@ -291,7 +295,8 @@
 \ottprodline{|}{ \ottmv{f}  \mathord{:}  \tau  \to_{ \ottnt{eff} }  \tau'  \in  \Sigma_r }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottmv{f} ( \ottkw{x}  :  \tau ) \to_{ \ottnt{eff} }  \tau'  =  \ottnt{ce}  \in  \Sigma_r }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \mathsf{len}( \Delta ) = \mathsf{len}( \Delta' ) }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \ottnt{A}  = \mathsf{Prod}( \overline{A} ) }{}{}{}{}}
+\ottprodline{|}{ \ottnt{A}  = \mathsf{Prod}( \overline{A} ) }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{prim}  \mathord{:}  \ottnt{RF} }{}{}{}{}}
 
 \newcommand{\ottu}{
 \ottrulehead{\ottnt{u}}{::=}{\ottcom{usage flags}}\ottprodnewline
@@ -330,7 +335,8 @@
 \ottprodline{|}{ \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau ,  \ottnt{Pf} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottmv{x}  \mathord{:}  \ottnt{ce}  \; [\mathsf{log}],  \ottnt{Pf} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottmv{x}  \mathord{:}  \ottnt{ce}  @  \ottnt{ce'}  \; [\mathsf{res}],  \ottnt{Pf} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ [  \ottnt{ce}  /  \ottmv{x}  ]  \ottnt{Pf} }{}{}{}{}}
+\ottprodline{|}{ \ottmv{x}  \mathord{:} ( \ottmv{y} ). \ottnt{ce}  \; [\mathsf{res}],  \ottnt{Pf} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \lbrack  \gamma  \rbrack  \ottnt{Pf} } {\textsf{M}}{}{}{}}
 
 \newcommand{\ottRF}{
 \ottrulehead{\ottnt{RF}}{::=}{\ottcom{refined function types}}\ottprodnewline
@@ -339,14 +345,12 @@
 \newcommand{\ottq}{
 \ottrulehead{\ottnt{q}}{::=}{\ottcom{refined patterns}}\ottprodnewline
 \ottfirstprodline{|}{ () }{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottsym{(}  \ottmv{x}  \ottsym{,}  \ottnt{q}  \ottsym{)}}{}{}{}{}}
+\ottprodline{|}{\ottsym{(}  \ottmv{x}  \ottsym{,}  \ottnt{q}  \ottsym{)}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottsym{(}  \ottsym{(}  \ottmv{x}  \ottsym{,}  \ottmv{y}  \ottsym{)}  \ottsym{,}  \ottnt{q}  \ottsym{)}}{}{}{}{}}
 
 \newcommand{\ottcrt}{
 \ottrulehead{\ottnt{crt}}{::=}{\ottcom{core refined terms}}\ottprodnewline
-\ottfirstprodline{|}{\ottmv{x}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottmv{lit}}{}{}{}{\ottcom{integer literal}}\ottprodnewline
-\ottprodline{|}{\ottnt{blit}}{}{}{}{\ottcom{boolean literal}}\ottprodnewline
-\ottprodline{|}{\ottkw{let} \, \ottnt{q}  \ottsym{=}  \ottnt{crt_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{crt_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
+\ottfirstprodline{|}{\ottkw{let} \, \ottnt{q}  \ottsym{=}  \ottnt{crt_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{crt_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{crt}  \ottsym{:}  \ottnt{Pf}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{prim} \, \ottnt{rsp}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{f} \, \ottnt{rsp}}{}{}{}{}\ottprodnewline
@@ -381,11 +385,17 @@
 
 \newcommand{\ottJtype}{
 \ottrulehead{\ottnt{Jtype}}{::=}{}\ottprodnewline
-\ottfirstprodline{|}{ \Sigma_c  ;  \Phi  \vdash  \ottnt{A}  \;\mathsf{wf} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \Sigma_c  ;  \Phi  ;  \ottmv{D'}  \vdash  \ottnt{A}  \;\mathsf{guarded} }{}{}{}{}\ottprodnewline
+\ottfirstprodline{|}{ \ottnt{kind}  \leq  \ottnt{kind'} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \Sigma_c  ;  \Gamma  \vdash  \tau  \mathord{:}  \ottnt{kind} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \Sigma_c  ;  \Gamma  ;  \ottmv{D'} (\overline{a}) \vdash  \ottsym{,}  \;\mathsf{guarded} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_c  \vdash \mathsf{sort}\;  \ottmv{D} (\overline{a}) = \{\overline{L : \tau}\} \;\mathsf{ok} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_c  \vdash \mathsf{type}\;  \ottmv{D} (\overline{a}) = \{\overline{L : A}\} \;\mathsf{ok} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \Sigma_c  ;  \Phi  \vdash  \tau  \;\mathsf{wf} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \Sigma_c  ;  \Gamma  \vdash  \gamma  \mathbin{:}  \Gamma' }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \gamma  = \mathsf{id}( \Gamma ) }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \tau'  = \lbrack  \gamma  \rbrack  \tau }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottnt{ce} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \ottnt{Pf'}  = \lbrack  \gamma  \rbrack  \ottnt{Pf} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \gamma''  =  \gamma  \mathbin{;}  \gamma' }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{A}  \;\mathsf{eqtype} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{eff}  \leq  \ottnt{eff'} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \ottnt{eff'}  = \lfloor  \ottnt{eff}  \rfloor }{}{}{}{}\ottprodnewline
@@ -442,7 +452,7 @@
 \ottprodline{|}{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{crt}  \Rightarrow  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottmv{y}  \mathord{:}  \ottnt{ce}  \;\mathsf{is}\;  \ottmv{L} \, \ottmv{x}  \to  \ottnt{crt}  \Leftarrow  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{crt}  \Leftarrow  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }{}{}{}{}\ottprodnewline
-\ottprodline{|}{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :  \ottnt{RF}  \gg  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :  \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \gg  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_r  \vdash  \ottnt{rprog}  \dashv  \Sigma_r'  \leadsto  \mathcal{C} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{ \Sigma_r  \vdash \sqcap  \overline{\Delta}  =  \Delta }{}{}{}{}}
@@ -466,16 +476,16 @@
 \ottprodline{|}{\ottmv{index}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{terminals}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{blit}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\ottnt{A}}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\overline{A}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{eff}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\ottnt{kind}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\tau}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\overline{A}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{F}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\Gamma}{}{}{}{}\ottprodnewline
+\ottprodline{|}{\gamma}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\Sigma_c}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\Sigma_s}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\Sigma_r}{}{}{}{}\ottprodnewline
-\ottprodline{|}{\Phi}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{prim}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{ce}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{se}}{}{}{}{}\ottprodnewline
@@ -503,16 +513,16 @@
 \newcommand{\ottgrammar}{\ottgrammartabular{
 \ottterminals\ottinterrule
 \ottblit\ottinterrule
-\ottA\ottinterrule
-\ottAL\ottinterrule
 \otteff\ottinterrule
+\ottkind\ottinterrule
 \otttau\ottinterrule
+\ottAL\ottinterrule
 \ottF\ottinterrule
 \ottG\ottinterrule
+\ottgamma\ottinterrule
 \ottCS\ottinterrule
 \ottSS\ottinterrule
 \ottRS\ottinterrule
-\ottPhi\ottinterrule
 \ottprim\ottinterrule
 \ottce\ottinterrule
 \ottse\ottinterrule
@@ -547,110 +557,156 @@
 
 % defnss
 % defns Jtype
-%% defn type_wf
-\newcommand{\ottdruleTWfXXint}[1]{\ottdrule[#1]{%
+%% defn subkind
+\newcommand{\ottdruleSKXXtypeXXtype}[1]{\ottdrule[#1]{%
 }{
- \Sigma_c  ;  \Phi  \vdash   \mathsf{int}   \;\mathsf{wf} }{%
-{\ottdrulename{TWf\_int}}{}%
+  \mathsf{type}   \leq   \mathsf{type}  }{%
+{\ottdrulename{SK\_type\_type}}{}%
 }}
 
 
-\newcommand{\ottdruleTWfXXbool}[1]{\ottdrule[#1]{%
+\newcommand{\ottdruleSKXXtypeXXsort}[1]{\ottdrule[#1]{%
 }{
- \Sigma_c  ;  \Phi  \vdash   \mathsf{bool}   \;\mathsf{wf} }{%
-{\ottdrulename{TWf\_bool}}{}%
+  \mathsf{type}   \leq   \mathsf{sort}  }{%
+{\ottdrulename{SK\_type\_sort}}{}%
 }}
 
 
-\newcommand{\ottdruleTWfXXptr}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;  \Phi  \vdash  \ottnt{A}  \;\mathsf{wf} }%
+\newcommand{\ottdruleSKXXsortXXsort}[1]{\ottdrule[#1]{%
 }{
- \Sigma_c  ;  \Phi  \vdash   \mathsf{ptr}\; \ottnt{A}   \;\mathsf{wf} }{%
-{\ottdrulename{TWf\_ptr}}{}%
+  \mathsf{sort}   \leq   \mathsf{sort}  }{%
+{\ottdrulename{SK\_sort\_sort}}{}%
+}}
+
+\newcommand{\ottdefnsubkind}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{kind}  \leq  \ottnt{kind'} $}{}
+\ottusedrule{\ottdruleSKXXtypeXXtype{}}
+\ottusedrule{\ottdruleSKXXtypeXXsort{}}
+\ottusedrule{\ottdruleSKXXsortXXsort{}}
+\end{ottdefnblock}}
+
+%% defn kind_wf
+\newcommand{\ottdruleKWfXXint}[1]{\ottdrule[#1]{%
+}{
+ \Sigma_c  ;  \Gamma  \vdash   \mathsf{Int}   \mathord{:}  \ottnt{kind} }{%
+{\ottdrulename{KWf\_int}}{}%
 }}
 
 
-\newcommand{\ottdruleTWfXXrecord}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;  \Phi  \vdash  \ottnt{A_{{\mathrm{1}}}}  \;\mathsf{wf}  \quad .. \quad  \Sigma_c  ;  \Phi  \vdash  \ottnt{A_{\ottmv{n}}}  \;\mathsf{wf} }%
+\newcommand{\ottdruleKWfXXbool}[1]{\ottdrule[#1]{%
 }{
- \Sigma_c  ;  \Phi  \vdash  \ottsym{(}  \ottnt{A_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{A_{\ottmv{n}}}  \ottsym{)}  \;\mathsf{wf} }{%
-{\ottdrulename{TWf\_record}}{}%
+ \Sigma_c  ;  \Gamma  \vdash   \mathsf{Bool}   \mathord{:}  \ottnt{kind} }{%
+{\ottdrulename{KWf\_bool}}{}%
 }}
 
 
-\newcommand{\ottdruleTWfXXapp}[1]{\ottdrule[#1]{%
+\newcommand{\ottdruleKWfXXptr}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_c  ;  \Gamma  \vdash  \tau  \mathord{:}   \mathsf{type}  }%
+}{
+ \Sigma_c  ;  \Gamma  \vdash   \mathsf{Ptr}\; \tau   \mathord{:}  \ottnt{kind} }{%
+{\ottdrulename{KWf\_ptr}}{}%
+}}
+
+
+\newcommand{\ottdruleKWfXXrecord}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_c  ;  \Gamma  \vdash  \tau_{{\mathrm{1}}}  \mathord{:}  \ottnt{kind}  \quad .. \quad  \Sigma_c  ;  \Gamma  \vdash  \tau_{\ottmv{n}}  \mathord{:}  \ottnt{kind} }%
+}{
+ \Sigma_c  ;  \Gamma  \vdash  \ottsym{(}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{)}  \mathord{:}  \ottnt{kind} }{%
+{\ottdrulename{KWf\_record}}{}%
+}}
+
+
+\newcommand{\ottdruleKWfXXtypeXXapp}[1]{\ottdrule[#1]{%
 \ottpremise{\ottkw{type} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{k}}}  \ottsym{)} \, \ottkw{in} \, \Sigma_c \quad  \ottmv{n}  =  \ottmv{k} }%
-\ottpremise{ \Sigma_c  ;  \Phi  \vdash  \ottnt{A_{{\mathrm{1}}}}  \;\mathsf{wf}  \quad .. \quad  \Sigma_c  ;  \Phi  \vdash  \ottnt{A_{\ottmv{n}}}  \;\mathsf{wf} }%
+\ottpremise{ \Sigma_c  ;  \Gamma  \vdash  \tau_{{\mathrm{1}}}  \mathord{:}   \mathsf{type}   \quad .. \quad  \Sigma_c  ;  \Gamma  \vdash  \tau_{\ottmv{n}}  \mathord{:}   \mathsf{type}  }%
 }{
- \Sigma_c  ;  \Phi  \vdash  \ottmv{D}  \ottsym{(}  \ottnt{A_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{A_{\ottmv{n}}}  \ottsym{)}  \;\mathsf{wf} }{%
-{\ottdrulename{TWf\_app}}{}%
+ \Sigma_c  ;  \Gamma  \vdash  \ottmv{D}  \ottsym{(}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{)}  \mathord{:}   \mathsf{type}  }{%
+{\ottdrulename{KWf\_type\_app}}{}%
 }}
 
 
-\newcommand{\ottdruleTWfXXtvar}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottmv{a}  \in  \Phi }%
+\newcommand{\ottdruleKWfXXsortXXapp}[1]{\ottdrule[#1]{%
+\ottpremise{\ottkw{sort} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{k}}}  \ottsym{)} \, \ottkw{in} \, \Sigma_c \quad  \ottmv{n}  =  \ottmv{k} }%
+\ottpremise{ \Sigma_c  ;  \Gamma  \vdash  \tau_{{\mathrm{1}}}  \mathord{:}   \mathsf{sort}   \quad .. \quad  \Sigma_c  ;  \Gamma  \vdash  \tau_{\ottmv{n}}  \mathord{:}   \mathsf{sort}  }%
 }{
- \Sigma_c  ;  \Phi  \vdash  \ottmv{a}  \;\mathsf{wf} }{%
-{\ottdrulename{TWf\_tvar}}{}%
+ \Sigma_c  ;  \Gamma  \vdash  \ottmv{D}  \ottsym{(}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{)}  \mathord{:}   \mathsf{sort}  }{%
+{\ottdrulename{KWf\_sort\_app}}{}%
 }}
 
-\newcommand{\ottdefntypeXXwf}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_c  ;  \Phi  \vdash  \ottnt{A}  \;\mathsf{wf} $}{}
-\ottusedrule{\ottdruleTWfXXint{}}
-\ottusedrule{\ottdruleTWfXXbool{}}
-\ottusedrule{\ottdruleTWfXXptr{}}
-\ottusedrule{\ottdruleTWfXXrecord{}}
-\ottusedrule{\ottdruleTWfXXapp{}}
-\ottusedrule{\ottdruleTWfXXtvar{}}
+
+\newcommand{\ottdruleKWfXXpred}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_c  ;  \Gamma  \vdash  \tau  \mathord{:}   \mathsf{sort}  }%
+}{
+ \Sigma_c  ;  \Gamma  \vdash   \mathsf{Pred}\; \tau   \mathord{:}   \mathsf{sort}  }{%
+{\ottdrulename{KWf\_pred}}{}%
+}}
+
+
+\newcommand{\ottdruleKWfXXtvar}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottmv{a}  \mathord{:}  \ottnt{kind'}  \in  \Gamma  \quad  \ottnt{kind'}  \leq  \ottnt{kind} }%
+}{
+ \Sigma_c  ;  \Gamma  \vdash  \ottmv{a}  \mathord{:}  \ottnt{kind} }{%
+{\ottdrulename{KWf\_tvar}}{}%
+}}
+
+\newcommand{\ottdefnkindXXwf}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_c  ;  \Gamma  \vdash  \tau  \mathord{:}  \ottnt{kind} $}{}
+\ottusedrule{\ottdruleKWfXXint{}}
+\ottusedrule{\ottdruleKWfXXbool{}}
+\ottusedrule{\ottdruleKWfXXptr{}}
+\ottusedrule{\ottdruleKWfXXrecord{}}
+\ottusedrule{\ottdruleKWfXXtypeXXapp{}}
+\ottusedrule{\ottdruleKWfXXsortXXapp{}}
+\ottusedrule{\ottdruleKWfXXpred{}}
+\ottusedrule{\ottdruleKWfXXtvar{}}
 \end{ottdefnblock}}
 
 %% defn type_guarded
 \newcommand{\ottdruleTWfGXXint}[1]{\ottdrule[#1]{%
 }{
- \Sigma_c  ;  \Phi  ;  \ottmv{D'}  \vdash   \mathsf{int}   \;\mathsf{guarded} }{%
+ \Sigma_c  ;  \Gamma  ;  \ottmv{D'} (\overline{a}) \vdash  \ottsym{,}  \;\mathsf{guarded} }{%
 {\ottdrulename{TWfG\_int}}{}%
 }}
 
 
 \newcommand{\ottdruleTWfGXXbool}[1]{\ottdrule[#1]{%
 }{
- \Sigma_c  ;  \Phi  ;  \ottmv{D'}  \vdash   \mathsf{bool}   \;\mathsf{guarded} }{%
+ \Sigma_c  ;  \Gamma  ;  \ottmv{D'} (\overline{a}) \vdash  \ottsym{,}  \;\mathsf{guarded} }{%
 {\ottdrulename{TWfG\_bool}}{}%
 }}
 
 
 \newcommand{\ottdruleTWfGXXptr}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;  \Phi  \vdash  \ottnt{A}  \;\mathsf{wf} }%
+\ottpremise{  \Sigma_c , \mathsf{type}\; \ottmv{D'} (\overline{a}) = \{\overline{L : A}\}   ;  \Gamma  \vdash  \tau  \mathord{:}   \mathsf{type}  }%
 }{
- \Sigma_c  ;  \Phi  ;  \ottmv{D'}  \vdash   \mathsf{ptr}\; \ottnt{A}   \;\mathsf{guarded} }{%
+ \Sigma_c  ;  \Gamma  ;  \ottmv{D'} (\overline{a}) \vdash  \ottsym{,}  \;\mathsf{guarded} }{%
 {\ottdrulename{TWfG\_ptr}}{}%
 }}
 
 
 \newcommand{\ottdruleTWfGXXrecord}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;  \Phi  ;  \ottmv{D'}  \vdash  \ottnt{A_{{\mathrm{1}}}}  \;\mathsf{guarded}  \quad .. \quad  \Sigma_c  ;  \Phi  ;  \ottmv{D'}  \vdash  \ottnt{A_{\ottmv{n}}}  \;\mathsf{guarded} }%
+\ottpremise{ \Sigma_c  ;  \Gamma  ;  \ottmv{D'} (\overline{a}) \vdash  \ottsym{,}  \;\mathsf{guarded}  \quad .. \quad  \Sigma_c  ;  \Gamma  ;  \ottmv{D'} (\overline{a}) \vdash  \ottsym{,}  \;\mathsf{guarded} }%
 }{
- \Sigma_c  ;  \Phi  ;  \ottmv{D'}  \vdash  \ottsym{(}  \ottnt{A_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{A_{\ottmv{n}}}  \ottsym{)}  \;\mathsf{guarded} }{%
+ \Sigma_c  ;  \Gamma  ;  \ottmv{D'} (\overline{a}) \vdash  \ottsym{,}  \;\mathsf{guarded} }{%
 {\ottdrulename{TWfG\_record}}{}%
 }}
 
 
 \newcommand{\ottdruleTWfGXXapp}[1]{\ottdrule[#1]{%
-\ottpremise{\ottkw{type} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{k}}}  \ottsym{)} \, \ottkw{in} \, \Sigma_c \quad  \ottmv{n}  =  \ottmv{k}  \quad  \ottmv{D}  \neq  \ottmv{D'} }%
-\ottpremise{ \Sigma_c  ;  \Phi  \vdash  \ottnt{A_{{\mathrm{1}}}}  \;\mathsf{wf}  \quad .. \quad  \Sigma_c  ;  \Phi  \vdash  \ottnt{A_{\ottmv{n}}}  \;\mathsf{wf} }%
+\ottpremise{\ottkw{type} \, \ottmv{D}  \ottsym{(}  \ottmv{b_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{b_{\ottmv{k}}}  \ottsym{)} \, \ottkw{in} \, \Sigma_c \quad  \ottmv{n}  =  \ottmv{k}  \quad  \ottmv{D}  \neq  \ottmv{D'} }%
+\ottpremise{ \Sigma_c  ;  \Gamma  \vdash  \tau_{{\mathrm{1}}}  \mathord{:}   \mathsf{type}   \quad .. \quad  \Sigma_c  ;  \Gamma  \vdash  \tau_{\ottmv{n}}  \mathord{:}   \mathsf{type}  }%
 }{
- \Sigma_c  ;  \Phi  ;  \ottmv{D'}  \vdash  \ottmv{D}  \ottsym{(}  \ottnt{A_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{A_{\ottmv{n}}}  \ottsym{)}  \;\mathsf{guarded} }{%
+ \Sigma_c  ;  \Gamma  ;  \ottmv{D'} (\overline{a}) \vdash  \ottsym{,}  \;\mathsf{guarded} }{%
 {\ottdrulename{TWfG\_app}}{}%
 }}
 
 
 \newcommand{\ottdruleTWfGXXtvar}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottmv{a}  \in  \Phi }%
+\ottpremise{ \ottmv{a}  \mathord{:}  \ottnt{kind}  \in  \Gamma }%
 }{
- \Sigma_c  ;  \Phi  ;  \ottmv{D'}  \vdash  \ottmv{a}  \;\mathsf{guarded} }{%
+ \Sigma_c  ;  \Gamma  ;  \ottmv{D'} (\overline{a}) \vdash  \ottsym{,}  \;\mathsf{guarded} }{%
 {\ottdrulename{TWfG\_tvar}}{}%
 }}
 
-\newcommand{\ottdefntypeXXguarded}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_c  ;  \Phi  ;  \ottmv{D'}  \vdash  \ottnt{A}  \;\mathsf{guarded} $}{}
+\newcommand{\ottdefntypeXXguarded}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_c  ;  \Gamma  ;  \ottmv{D'} (\overline{a}) \vdash  \ottsym{,}  \;\mathsf{guarded} $}{}
 \ottusedrule{\ottdruleTWfGXXint{}}
 \ottusedrule{\ottdruleTWfGXXbool{}}
 \ottusedrule{\ottdruleTWfGXXptr{}}
@@ -661,7 +717,8 @@
 
 %% defn sort_decl_wf
 \newcommand{\ottdruleSDWfXXok}[1]{\ottdrule[#1]{%
-\ottpremise{  \Sigma_c , \mathsf{sort}\; \ottmv{D} (\overline{a}) = \{\overline{L : \tau}\}   ;   \overline{a}   \vdash  \tau_{{\mathrm{1}}}  \;\mathsf{wf}  \quad .. \quad   \Sigma_c , \mathsf{sort}\; \ottmv{D} (\overline{a}) = \{\overline{L : \tau}\}   ;   \overline{a}   \vdash  \tau_{\ottmv{n}}  \;\mathsf{wf} }%
+\ottpremise{ \Gamma  = \overline{a : k} }%
+\ottpremise{  \Sigma_c , \mathsf{sort}\; \ottmv{D} (\overline{a}) = \{\overline{L : \tau}\}   ;  \Gamma  \vdash  \tau_{{\mathrm{1}}}  \mathord{:}   \mathsf{sort}   \quad .. \quad   \Sigma_c , \mathsf{sort}\; \ottmv{D} (\overline{a}) = \{\overline{L : \tau}\}   ;  \Gamma  \vdash  \tau_{\ottmv{n}}  \mathord{:}   \mathsf{sort}  }%
 }{
  \Sigma_c  \vdash \mathsf{sort}\;  \ottmv{D} (\overline{a}) = \{\overline{L : \tau}\} \;\mathsf{ok} }{%
 {\ottdrulename{SDWf\_ok}}{}%
@@ -673,7 +730,8 @@
 
 %% defn type_decl_wf
 \newcommand{\ottdruleTDWfXXok}[1]{\ottdrule[#1]{%
-\ottpremise{  \Sigma_c , \mathsf{type}\; \ottmv{D} (\overline{a}) = \{\overline{L : A}\}   ;   \overline{a}   ;  \ottmv{D}  \vdash  \ottnt{A_{{\mathrm{1}}}}  \;\mathsf{guarded}  \quad .. \quad   \Sigma_c , \mathsf{type}\; \ottmv{D} (\overline{a}) = \{\overline{L : A}\}   ;   \overline{a}   ;  \ottmv{D}  \vdash  \ottnt{A_{\ottmv{n}}}  \;\mathsf{guarded} }%
+\ottpremise{ \Gamma  = \overline{a : k} }%
+\ottpremise{ \Sigma_c  ;  \Gamma  ;  \ottmv{D} (\overline{a}) \vdash  \ottsym{,}  \;\mathsf{guarded}  \quad .. \quad  \Sigma_c  ;  \Gamma  ;  \ottmv{D} (\overline{a}) \vdash  \ottsym{,}  \;\mathsf{guarded} }%
 }{
  \Sigma_c  \vdash \mathsf{type}\;  \ottmv{D} (\overline{a}) = \{\overline{L : A}\} \;\mathsf{ok} }{%
 {\ottdrulename{TDWf\_ok}}{}%
@@ -683,89 +741,401 @@
 \ottusedrule{\ottdruleTDWfXXok{}}
 \end{ottdefnblock}}
 
-%% defn sort_wf
-\newcommand{\ottdruleSWfXXint}[1]{\ottdrule[#1]{%
+%% defn subst_wf
+\newcommand{\ottdruleSubWfXXempty}[1]{\ottdrule[#1]{%
 }{
- \Sigma_c  ;  \Phi  \vdash   \mathsf{int}   \;\mathsf{wf} }{%
-{\ottdrulename{SWf\_int}}{}%
+ \Sigma_c  ;  \Gamma  \vdash   \cdot   \mathbin{:}   \cdot  }{%
+{\ottdrulename{SubWf\_empty}}{}%
 }}
 
 
-\newcommand{\ottdruleSWfXXbool}[1]{\ottdrule[#1]{%
+\newcommand{\ottdruleSubWfXXterm}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_c  ;  \Gamma  \vdash  \gamma  \mathbin{:}  \Gamma'  \quad  \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{ce}  \Rightarrow  \tau }%
 }{
- \Sigma_c  ;  \Phi  \vdash   \mathsf{bool}   \;\mathsf{wf} }{%
-{\ottdrulename{SWf\_bool}}{}%
+ \Sigma_c  ;  \Gamma  \vdash  \gamma  \ottsym{,}  \ottnt{ce}  \ottsym{/}  \ottmv{x}  \mathbin{:}   \Gamma' ,  \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau  }{%
+{\ottdrulename{SubWf\_term}}{}%
 }}
 
 
-\newcommand{\ottdruleSWfXXptr}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;  \Phi  \vdash  \tau  \;\mathsf{wf} }%
+\newcommand{\ottdruleSubWfXXtype}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_c  ;  \Gamma  \vdash  \gamma  \mathbin{:}  \Gamma'  \quad  \Sigma_c  ;  \Gamma  \vdash  \tau  \mathord{:}  \ottnt{kind} }%
 }{
- \Sigma_c  ;  \Phi  \vdash   \mathsf{ptr}\; \tau   \;\mathsf{wf} }{%
-{\ottdrulename{SWf\_ptr}}{}%
+ \Sigma_c  ;  \Gamma  \vdash  \gamma  \ottsym{,}  \tau  \ottsym{/}  \ottmv{a}  \mathbin{:}   \Gamma' ,  \ottmv{a}  \mathord{:}  \ottnt{kind}  }{%
+{\ottdrulename{SubWf\_type}}{}%
+}}
+
+\newcommand{\ottdefnsubstXXwf}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_c  ;  \Gamma  \vdash  \gamma  \mathbin{:}  \Gamma' $}{}
+\ottusedrule{\ottdruleSubWfXXempty{}}
+\ottusedrule{\ottdruleSubWfXXterm{}}
+\ottusedrule{\ottdruleSubWfXXtype{}}
+\end{ottdefnblock}}
+
+%% defn subst_id_def
+\newcommand{\ottdruleIdDefXXempty}[1]{\ottdrule[#1]{%
+}{
+  \cdot   = \mathsf{id}(  \cdot  ) }{%
+{\ottdrulename{IdDef\_empty}}{}%
 }}
 
 
-\newcommand{\ottdruleSWfXXrecord}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;  \Phi  \vdash  \tau_{{\mathrm{1}}}  \;\mathsf{wf}  \quad .. \quad  \Sigma_c  ;  \Phi  \vdash  \tau_{\ottmv{n}}  \;\mathsf{wf} }%
+\newcommand{\ottdruleIdDefXXterm}[1]{\ottdrule[#1]{%
+\ottpremise{ \gamma  = \mathsf{id}( \Gamma ) }%
 }{
- \Sigma_c  ;  \Phi  \vdash  \ottsym{(}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{)}  \;\mathsf{wf} }{%
-{\ottdrulename{SWf\_record}}{}%
+ \gamma  \ottsym{,}  \ottmv{x}  \ottsym{/}  \ottmv{x}  = \mathsf{id}(  \Gamma ,  \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau  ) }{%
+{\ottdrulename{IdDef\_term}}{}%
 }}
 
 
-\newcommand{\ottdruleSWfXXapp}[1]{\ottdrule[#1]{%
-\ottpremise{\ottkw{sort} \, \ottmv{D}  \ottsym{(}  \ottmv{a_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{a_{\ottmv{k}}}  \ottsym{)} \, \ottkw{in} \, \Sigma_c \quad  \ottmv{n}  =  \ottmv{k} }%
-\ottpremise{ \Sigma_c  ;  \Phi  \vdash  \tau_{{\mathrm{1}}}  \;\mathsf{wf}  \quad .. \quad  \Sigma_c  ;  \Phi  \vdash  \tau_{\ottmv{n}}  \;\mathsf{wf} }%
+\newcommand{\ottdruleIdDefXXtype}[1]{\ottdrule[#1]{%
+\ottpremise{ \gamma  = \mathsf{id}( \Gamma ) }%
 }{
- \Sigma_c  ;  \Phi  \vdash  \ottmv{D}  \ottsym{(}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{)}  \;\mathsf{wf} }{%
-{\ottdrulename{SWf\_app}}{}%
+ \gamma  \ottsym{,}  \ottmv{a}  \ottsym{/}  \ottmv{a}  = \mathsf{id}(  \Gamma ,  \ottmv{a}  \mathord{:}  \ottnt{kind}  ) }{%
+{\ottdrulename{IdDef\_type}}{}%
+}}
+
+\newcommand{\ottdefnsubstXXidXXdef}[1]{\begin{ottdefnblock}[#1]{$ \gamma  = \mathsf{id}( \Gamma ) $}{}
+\ottusedrule{\ottdruleIdDefXXempty{}}
+\ottusedrule{\ottdruleIdDefXXterm{}}
+\ottusedrule{\ottdruleIdDefXXtype{}}
+\end{ottdefnblock}}
+
+%% defn sort_subst
+\newcommand{\ottdruleSSXXint}[1]{\ottdrule[#1]{%
+}{
+  \mathsf{Int}   = \lbrack  \gamma  \rbrack   \mathsf{Int}  }{%
+{\ottdrulename{SS\_int}}{}%
 }}
 
 
-\newcommand{\ottdruleSWfXXpred}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;  \Phi  \vdash  \tau  \;\mathsf{wf} }%
+\newcommand{\ottdruleSSXXbool}[1]{\ottdrule[#1]{%
 }{
- \Sigma_c  ;  \Phi  \vdash   \mathsf{pred}\; \tau   \;\mathsf{wf} }{%
-{\ottdrulename{SWf\_pred}}{}%
+  \mathsf{Bool}   = \lbrack  \gamma  \rbrack   \mathsf{Bool}  }{%
+{\ottdrulename{SS\_bool}}{}%
 }}
 
 
-\newcommand{\ottdruleSWfXXtvar}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottmv{a}  \in  \Phi }%
+\newcommand{\ottdruleSSXXptr}[1]{\ottdrule[#1]{%
+\ottpremise{ \tau'  = \lbrack  \gamma  \rbrack  \tau }%
 }{
- \Sigma_c  ;  \Phi  \vdash  \ottmv{a}  \;\mathsf{wf} }{%
-{\ottdrulename{SWf\_tvar}}{}%
+  \mathsf{Ptr}\; \tau'   = \lbrack  \gamma  \rbrack   \mathsf{Ptr}\; \tau  }{%
+{\ottdrulename{SS\_ptr}}{}%
 }}
 
-\newcommand{\ottdefnsortXXwf}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_c  ;  \Phi  \vdash  \tau  \;\mathsf{wf} $}{}
-\ottusedrule{\ottdruleSWfXXint{}}
-\ottusedrule{\ottdruleSWfXXbool{}}
-\ottusedrule{\ottdruleSWfXXptr{}}
-\ottusedrule{\ottdruleSWfXXrecord{}}
-\ottusedrule{\ottdruleSWfXXapp{}}
-\ottusedrule{\ottdruleSWfXXpred{}}
-\ottusedrule{\ottdruleSWfXXtvar{}}
+
+\newcommand{\ottdruleSSXXrecord}[1]{\ottdrule[#1]{%
+\ottpremise{ \tau'_{{\mathrm{1}}}  = \lbrack  \gamma  \rbrack  \tau_{{\mathrm{1}}}  \quad .. \quad  \tau'_{\ottmv{n}}  = \lbrack  \gamma  \rbrack  \tau_{\ottmv{n}} }%
+}{
+ \ottsym{(}  \tau'_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau'_{\ottmv{n}}  \ottsym{)}  = \lbrack  \gamma  \rbrack  \ottsym{(}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{)} }{%
+{\ottdrulename{SS\_record}}{}%
+}}
+
+
+\newcommand{\ottdruleSSXXapp}[1]{\ottdrule[#1]{%
+\ottpremise{ \tau'_{{\mathrm{1}}}  = \lbrack  \gamma  \rbrack  \tau_{{\mathrm{1}}}  \quad .. \quad  \tau'_{\ottmv{n}}  = \lbrack  \gamma  \rbrack  \tau_{\ottmv{n}} }%
+}{
+ \ottmv{D}  \ottsym{(}  \tau'_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau'_{\ottmv{n}}  \ottsym{)}  = \lbrack  \gamma  \rbrack  \ottmv{D}  \ottsym{(}  \tau_{{\mathrm{1}}}  \ottsym{,} \, .. \, \ottsym{,}  \tau_{\ottmv{n}}  \ottsym{)} }{%
+{\ottdrulename{SS\_app}}{}%
+}}
+
+
+\newcommand{\ottdruleSSXXpred}[1]{\ottdrule[#1]{%
+\ottpremise{ \tau'  = \lbrack  \gamma  \rbrack  \tau }%
+}{
+  \mathsf{Pred}\; \tau'   = \lbrack  \gamma  \rbrack   \mathsf{Pred}\; \tau  }{%
+{\ottdrulename{SS\_pred}}{}%
+}}
+
+
+\newcommand{\ottdruleSSXXtvarXXhere}[1]{\ottdrule[#1]{%
+}{
+ \tau  = \lbrack  \gamma  \ottsym{,}  \tau  \ottsym{/}  \ottmv{a}  \rbrack  \ottmv{a} }{%
+{\ottdrulename{SS\_tvar\_here}}{}%
+}}
+
+
+\newcommand{\ottdruleSSXXtvarXXskipXXty}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottmv{a}  \neq  \ottmv{b}  \quad  \tau'  = \lbrack  \gamma  \rbrack  \ottmv{b} }%
+}{
+ \tau'  = \lbrack  \gamma  \ottsym{,}  \tau  \ottsym{/}  \ottmv{a}  \rbrack  \ottmv{b} }{%
+{\ottdrulename{SS\_tvar\_skip\_ty}}{}%
+}}
+
+
+\newcommand{\ottdruleSSXXtvarXXskipXXtm}[1]{\ottdrule[#1]{%
+\ottpremise{ \tau'  = \lbrack  \gamma  \rbrack  \ottmv{b} }%
+}{
+ \tau'  = \lbrack  \gamma  \ottsym{,}  \ottnt{ce}  \ottsym{/}  \ottmv{x}  \rbrack  \ottmv{b} }{%
+{\ottdrulename{SS\_tvar\_skip\_tm}}{}%
+}}
+
+\newcommand{\ottdefnsortXXsubst}[1]{\begin{ottdefnblock}[#1]{$ \tau'  = \lbrack  \gamma  \rbrack  \tau $}{}
+\ottusedrule{\ottdruleSSXXint{}}
+\ottusedrule{\ottdruleSSXXbool{}}
+\ottusedrule{\ottdruleSSXXptr{}}
+\ottusedrule{\ottdruleSSXXrecord{}}
+\ottusedrule{\ottdruleSSXXapp{}}
+\ottusedrule{\ottdruleSSXXpred{}}
+\ottusedrule{\ottdruleSSXXtvarXXhere{}}
+\ottusedrule{\ottdruleSSXXtvarXXskipXXty{}}
+\ottusedrule{\ottdruleSSXXtvarXXskipXXtm{}}
+\end{ottdefnblock}}
+
+%% defn term_subst
+\newcommand{\ottdruleTSXXvarXXhere}[1]{\ottdrule[#1]{%
+}{
+ \ottnt{ce}  = \lbrack  \gamma  \ottsym{,}  \ottnt{ce}  \ottsym{/}  \ottmv{x}  \rbrack  \ottmv{x} }{%
+{\ottdrulename{TS\_var\_here}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXvarXXskipXXtm}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottmv{x}  \neq  \ottmv{y}  \quad  \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottmv{x} }%
+}{
+ \ottnt{ce'}  = \lbrack  \gamma  \ottsym{,}  \ottnt{ce}  \ottsym{/}  \ottmv{y}  \rbrack  \ottmv{x} }{%
+{\ottdrulename{TS\_var\_skip\_tm}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXvarXXskipXXty}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottmv{x} }%
+}{
+ \ottnt{ce'}  = \lbrack  \gamma  \ottsym{,}  \tau  \ottsym{/}  \ottmv{a}  \rbrack  \ottmv{x} }{%
+{\ottdrulename{TS\_var\_skip\_ty}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXintlit}[1]{\ottdrule[#1]{%
+}{
+ \ottmv{lit}  = \lbrack  \gamma  \rbrack  \ottmv{lit} }{%
+{\ottdrulename{TS\_intlit}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXboollit}[1]{\ottdrule[#1]{%
+}{
+ \ottnt{blit}  = \lbrack  \gamma  \rbrack  \ottnt{blit} }{%
+{\ottdrulename{TS\_boollit}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXlet}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'_{{\mathrm{1}}}}  = \lbrack  \gamma  \rbrack  \ottnt{ce_{{\mathrm{1}}}}  \quad  \ottnt{ce'_{{\mathrm{2}}}}  = \lbrack  \gamma  \ottsym{,}  \ottmv{x}  \ottsym{/}  \ottmv{x}  \rbrack  \ottnt{ce_{{\mathrm{2}}}} }%
+}{
+ \ottkw{let} \, \ottmv{x}  \ottsym{=}  \ottnt{ce'_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{ce'_{{\mathrm{2}}}}  = \lbrack  \gamma  \rbrack  \ottkw{let} \, \ottmv{x}  \ottsym{=}  \ottnt{ce_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{ce_{{\mathrm{2}}}} }{%
+{\ottdrulename{TS\_let}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXtuple}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'_{{\mathrm{1}}}}  = \lbrack  \gamma  \rbrack  \ottnt{ce_{{\mathrm{1}}}}  \quad .. \quad  \ottnt{ce'_{\ottmv{n}}}  = \lbrack  \gamma  \rbrack  \ottnt{ce_{\ottmv{n}}} }%
+}{
+ \ottsym{(}  \ottnt{ce'_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{ce'_{\ottmv{n}}}  \ottsym{)}  = \lbrack  \gamma  \rbrack  \ottsym{(}  \ottnt{ce_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottnt{ce_{\ottmv{n}}}  \ottsym{)} }{%
+{\ottdrulename{TS\_tuple}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXlettuple}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'_{{\mathrm{1}}}}  = \lbrack  \gamma  \rbrack  \ottnt{ce_{{\mathrm{1}}}}  \quad  \ottnt{ce'_{{\mathrm{2}}}}  = \lbrack  \gamma  \ottsym{,}  \ottmv{x_{{\mathrm{1}}}}  \ottsym{/}  \ottmv{x_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{x_{\ottmv{n}}}  \ottsym{/}  \ottmv{x_{\ottmv{n}}}  \rbrack  \ottnt{ce_{{\mathrm{2}}}} }%
+}{
+ \ottkw{let} \, \ottsym{(}  \ottmv{x_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{x_{\ottmv{n}}}  \ottsym{)}  \ottsym{=}  \ottnt{ce'_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{ce'_{{\mathrm{2}}}}  = \lbrack  \gamma  \rbrack  \ottkw{let} \, \ottsym{(}  \ottmv{x_{{\mathrm{1}}}}  \ottsym{,} \, .. \, \ottsym{,}  \ottmv{x_{\ottmv{n}}}  \ottsym{)}  \ottsym{=}  \ottnt{ce_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{ce_{{\mathrm{2}}}} }{%
+{\ottdrulename{TS\_lettuple}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXinject}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottnt{ce} }%
+}{
+ \ottmv{L} \, \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottmv{L} \, \ottnt{ce} }{%
+{\ottdrulename{TS\_inject}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXcase}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottnt{ce}  \quad  \ottnt{ce'_{{\mathrm{1}}}}  = \lbrack  \gamma  \ottsym{,}  \ottmv{x_{{\mathrm{1}}}}  \ottsym{/}  \ottmv{x_{{\mathrm{1}}}}  \rbrack  \ottnt{ce_{{\mathrm{1}}}}  \quad .. \quad  \ottnt{ce'_{\ottmv{n}}}  = \lbrack  \gamma  \ottsym{,}  \ottmv{x_{\ottmv{n}}}  \ottsym{/}  \ottmv{x_{\ottmv{n}}}  \rbrack  \ottnt{ce_{\ottmv{n}}} }%
+}{
+ \ottkw{case} \, \ottnt{ce'} \, \ottkw{of} \, \ottsym{\{}  \ottmv{L_{{\mathrm{1}}}} \, \ottmv{x_{{\mathrm{1}}}}  \rightarrow  \ottnt{ce'_{{\mathrm{1}}}}  \ottsym{\mbox{$\mid$}} \, .. \, \ottsym{\mbox{$\mid$}}  \ottmv{L_{\ottmv{n}}} \, \ottmv{x_{\ottmv{n}}}  \rightarrow  \ottnt{ce'_{\ottmv{n}}}  \ottsym{\}}  = \lbrack  \gamma  \rbrack  \ottkw{case} \, \ottnt{ce} \, \ottkw{of} \, \ottsym{\{}  \ottmv{L_{{\mathrm{1}}}} \, \ottmv{x_{{\mathrm{1}}}}  \rightarrow  \ottnt{ce_{{\mathrm{1}}}}  \ottsym{\mbox{$\mid$}} \, .. \, \ottsym{\mbox{$\mid$}}  \ottmv{L_{\ottmv{n}}} \, \ottmv{x_{\ottmv{n}}}  \rightarrow  \ottnt{ce_{\ottmv{n}}}  \ottsym{\}} }{%
+{\ottdrulename{TS\_case}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXiter}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'_{{\mathrm{1}}}}  = \lbrack  \gamma  \rbrack  \ottnt{ce_{{\mathrm{1}}}}  \quad  \ottnt{ce'_{{\mathrm{2}}}}  = \lbrack  \gamma  \ottsym{,}  \ottmv{x}  \ottsym{/}  \ottmv{x}  \rbrack  \ottnt{ce_{{\mathrm{2}}}} }%
+}{
+ \ottkw{iter} \, \ottsym{(}  \ottmv{x}  \ottsym{=}  \ottnt{ce'_{{\mathrm{1}}}}  \ottsym{)}  \ottsym{\{}  \ottnt{ce'_{{\mathrm{2}}}}  \ottsym{\}}  = \lbrack  \gamma  \rbrack  \ottkw{iter} \, \ottsym{(}  \ottmv{x}  \ottsym{=}  \ottnt{ce_{{\mathrm{1}}}}  \ottsym{)}  \ottsym{\{}  \ottnt{ce_{{\mathrm{2}}}}  \ottsym{\}} }{%
+{\ottdrulename{TS\_iter}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXprim}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottnt{ce} }%
+}{
+ \ottnt{prim} \, \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottnt{prim} \, \ottnt{ce} }{%
+{\ottdrulename{TS\_prim}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXif}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'_{{\mathrm{1}}}}  = \lbrack  \gamma  \rbrack  \ottnt{ce_{{\mathrm{1}}}}  \quad  \ottnt{ce'_{{\mathrm{2}}}}  = \lbrack  \gamma  \rbrack  \ottnt{ce_{{\mathrm{2}}}}  \quad  \ottnt{ce'_{{\mathrm{3}}}}  = \lbrack  \gamma  \rbrack  \ottnt{ce_{{\mathrm{3}}}} }%
+}{
+ \ottkw{if} \, \ottnt{ce'_{{\mathrm{1}}}} \, \ottkw{then} \, \ottnt{ce'_{{\mathrm{2}}}} \, \ottkw{else} \, \ottnt{ce'_{{\mathrm{3}}}}  = \lbrack  \gamma  \rbrack  \ottkw{if} \, \ottnt{ce_{{\mathrm{1}}}} \, \ottkw{then} \, \ottnt{ce_{{\mathrm{2}}}} \, \ottkw{else} \, \ottnt{ce_{{\mathrm{3}}}} }{%
+{\ottdrulename{TS\_if}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXannot}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottnt{ce}  \quad  \tau'  = \lbrack  \gamma  \rbrack  \tau }%
+}{
+ \ottnt{ce'}  \ottsym{:}  \tau'  = \lbrack  \gamma  \rbrack  \ottnt{ce}  \ottsym{:}  \tau }{%
+{\ottdrulename{TS\_annot}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXcall}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottnt{ce} }%
+}{
+ \ottmv{f} \, \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottmv{f} \, \ottnt{ce} }{%
+{\ottdrulename{TS\_call}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXeq}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'_{{\mathrm{1}}}}  = \lbrack  \gamma  \rbrack  \ottnt{ce_{{\mathrm{1}}}}  \quad  \ottnt{ce'_{{\mathrm{2}}}}  = \lbrack  \gamma  \rbrack  \ottnt{ce_{{\mathrm{2}}}} }%
+}{
+  \ottnt{ce'_{{\mathrm{1}}}}  \doteq  \ottnt{ce'_{{\mathrm{2}}}}   = \lbrack  \gamma  \rbrack   \ottnt{ce_{{\mathrm{1}}}}  \doteq  \ottnt{ce_{{\mathrm{2}}}}  }{%
+{\ottdrulename{TS\_eq}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXtake}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'_{{\mathrm{1}}}}  = \lbrack  \gamma  \rbrack  \ottnt{ce_{{\mathrm{1}}}}  \quad  \ottnt{ce'_{{\mathrm{2}}}}  = \lbrack  \gamma  \ottsym{,}  \ottmv{x}  \ottsym{/}  \ottmv{x}  \rbrack  \ottnt{ce_{{\mathrm{2}}}} }%
+}{
+ \ottkw{take} \, \ottmv{x}  \ottsym{=}  \ottnt{ce'_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{ce'_{{\mathrm{2}}}}  = \lbrack  \gamma  \rbrack  \ottkw{take} \, \ottmv{x}  \ottsym{=}  \ottnt{ce_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{ce_{{\mathrm{2}}}} }{%
+{\ottdrulename{TS\_take}}{}%
+}}
+
+
+\newcommand{\ottdruleTSXXreturn}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottnt{ce} }%
+}{
+ \ottkw{return} \, \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottkw{return} \, \ottnt{ce} }{%
+{\ottdrulename{TS\_return}}{}%
+}}
+
+\newcommand{\ottdefntermXXsubst}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottnt{ce} $}{}
+\ottusedrule{\ottdruleTSXXvarXXhere{}}
+\ottusedrule{\ottdruleTSXXvarXXskipXXtm{}}
+\ottusedrule{\ottdruleTSXXvarXXskipXXty{}}
+\ottusedrule{\ottdruleTSXXintlit{}}
+\ottusedrule{\ottdruleTSXXboollit{}}
+\ottusedrule{\ottdruleTSXXlet{}}
+\ottusedrule{\ottdruleTSXXtuple{}}
+\ottusedrule{\ottdruleTSXXlettuple{}}
+\ottusedrule{\ottdruleTSXXinject{}}
+\ottusedrule{\ottdruleTSXXcase{}}
+\ottusedrule{\ottdruleTSXXiter{}}
+\ottusedrule{\ottdruleTSXXprim{}}
+\ottusedrule{\ottdruleTSXXif{}}
+\ottusedrule{\ottdruleTSXXannot{}}
+\ottusedrule{\ottdruleTSXXcall{}}
+\ottusedrule{\ottdruleTSXXeq{}}
+\ottusedrule{\ottdruleTSXXtake{}}
+\ottusedrule{\ottdruleTSXXreturn{}}
+\end{ottdefnblock}}
+
+%% defn pf_subst
+\newcommand{\ottdrulePSXXnil}[1]{\ottdrule[#1]{%
+}{
+  \cdot   = \lbrack  \gamma  \rbrack   \cdot  }{%
+{\ottdrulename{PS\_nil}}{}%
+}}
+
+
+\newcommand{\ottdrulePSXXcomp}[1]{\ottdrule[#1]{%
+\ottpremise{ \tau'  = \lbrack  \gamma  \rbrack  \tau  \quad  \ottnt{Pf'}  = \lbrack  \gamma  \ottsym{,}  \ottmv{x}  \ottsym{/}  \ottmv{x}  \rbrack  \ottnt{Pf} }%
+}{
+  \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau' ,  \ottnt{Pf'}   = \lbrack  \gamma  \rbrack   \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau ,  \ottnt{Pf}  }{%
+{\ottdrulename{PS\_comp}}{}%
+}}
+
+
+\newcommand{\ottdrulePSXXlog}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottnt{ce}  \quad  \ottnt{Pf'}  = \lbrack  \gamma  \rbrack  \ottnt{Pf} }%
+}{
+  \ottmv{x}  \mathord{:}  \ottnt{ce'}  \; [\mathsf{log}],  \ottnt{Pf'}   = \lbrack  \gamma  \rbrack   \ottmv{x}  \mathord{:}  \ottnt{ce}  \; [\mathsf{log}],  \ottnt{Pf}  }{%
+{\ottdrulename{PS\_log}}{}%
+}}
+
+
+\newcommand{\ottdrulePSXXres}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'_{{\mathrm{1}}}}  = \lbrack  \gamma  \rbrack  \ottnt{ce_{{\mathrm{1}}}}  \quad  \ottnt{ce'_{{\mathrm{2}}}}  = \lbrack  \gamma  \rbrack  \ottnt{ce_{{\mathrm{2}}}}  \quad  \ottnt{Pf'}  = \lbrack  \gamma  \rbrack  \ottnt{Pf} }%
+}{
+  \ottmv{x}  \mathord{:}  \ottnt{ce'_{{\mathrm{1}}}}  @  \ottnt{ce'_{{\mathrm{2}}}}  \; [\mathsf{res}],  \ottnt{Pf'}   = \lbrack  \gamma  \rbrack   \ottmv{x}  \mathord{:}  \ottnt{ce_{{\mathrm{1}}}}  @  \ottnt{ce_{{\mathrm{2}}}}  \; [\mathsf{res}],  \ottnt{Pf}  }{%
+{\ottdrulename{PS\_res}}{}%
+}}
+
+
+\newcommand{\ottdrulePSXXdepres}[1]{\ottdrule[#1]{%
+\ottpremise{ \ottnt{ce'}  = \lbrack  \gamma  \ottsym{,}  \ottmv{y}  \ottsym{/}  \ottmv{y}  \rbrack  \ottnt{ce}  \quad  \ottnt{Pf'}  = \lbrack  \gamma  \rbrack  \ottnt{Pf} }%
+}{
+  \ottmv{x}  \mathord{:} ( \ottmv{y} ). \ottnt{ce'}  \; [\mathsf{res}],  \ottnt{Pf'}   = \lbrack  \gamma  \rbrack   \ottmv{x}  \mathord{:} ( \ottmv{y} ). \ottnt{ce}  \; [\mathsf{res}],  \ottnt{Pf}  }{%
+{\ottdrulename{PS\_depres}}{}%
+}}
+
+\newcommand{\ottdefnpfXXsubst}[1]{\begin{ottdefnblock}[#1]{$ \ottnt{Pf'}  = \lbrack  \gamma  \rbrack  \ottnt{Pf} $}{}
+\ottusedrule{\ottdrulePSXXnil{}}
+\ottusedrule{\ottdrulePSXXcomp{}}
+\ottusedrule{\ottdrulePSXXlog{}}
+\ottusedrule{\ottdrulePSXXres{}}
+\ottusedrule{\ottdrulePSXXdepres{}}
+\end{ottdefnblock}}
+
+%% defn subst_comp_def
+\newcommand{\ottdruleCompDefXXempty}[1]{\ottdrule[#1]{%
+}{
+  \cdot   =  \gamma  \mathbin{;}   \cdot  }{%
+{\ottdrulename{CompDef\_empty}}{}%
+}}
+
+
+\newcommand{\ottdruleCompDefXXterm}[1]{\ottdrule[#1]{%
+\ottpremise{ \gamma''  =  \gamma  \mathbin{;}  \gamma'  \quad  \ottnt{ce'}  = \lbrack  \gamma  \rbrack  \ottnt{ce} }%
+}{
+ \gamma''  \ottsym{,}  \ottnt{ce'}  \ottsym{/}  \ottmv{x}  =  \gamma  \mathbin{;}  \gamma'  \ottsym{,}  \ottnt{ce}  \ottsym{/}  \ottmv{x} }{%
+{\ottdrulename{CompDef\_term}}{}%
+}}
+
+
+\newcommand{\ottdruleCompDefXXtype}[1]{\ottdrule[#1]{%
+\ottpremise{ \gamma''  =  \gamma  \mathbin{;}  \gamma'  \quad  \tau'  = \lbrack  \gamma  \rbrack  \tau }%
+}{
+ \gamma''  \ottsym{,}  \tau'  \ottsym{/}  \ottmv{a}  =  \gamma  \mathbin{;}  \gamma'  \ottsym{,}  \tau  \ottsym{/}  \ottmv{a} }{%
+{\ottdrulename{CompDef\_type}}{}%
+}}
+
+\newcommand{\ottdefnsubstXXcompXXdef}[1]{\begin{ottdefnblock}[#1]{$ \gamma''  =  \gamma  \mathbin{;}  \gamma' $}{}
+\ottusedrule{\ottdruleCompDefXXempty{}}
+\ottusedrule{\ottdruleCompDefXXterm{}}
+\ottusedrule{\ottdruleCompDefXXtype{}}
 \end{ottdefnblock}}
 
 %% defn eqtype
 \newcommand{\ottdruleEqTyXXint}[1]{\ottdrule[#1]{%
 }{
-  \mathsf{int}   \;\mathsf{eqtype} }{%
+  \mathsf{Int}   \;\mathsf{eqtype} }{%
 {\ottdrulename{EqTy\_int}}{}%
 }}
 
 
 \newcommand{\ottdruleEqTyXXbool}[1]{\ottdrule[#1]{%
 }{
-  \mathsf{bool}   \;\mathsf{eqtype} }{%
+  \mathsf{Bool}   \;\mathsf{eqtype} }{%
 {\ottdrulename{EqTy\_bool}}{}%
 }}
 
 
 \newcommand{\ottdruleEqTyXXptr}[1]{\ottdrule[#1]{%
 }{
-  \mathsf{ptr}\; \ottnt{A}   \;\mathsf{eqtype} }{%
+  \mathsf{Ptr}\; \ottnt{A}   \;\mathsf{eqtype} }{%
 {\ottdrulename{EqTy\_ptr}}{}%
 }}
 
@@ -891,77 +1261,77 @@
 %% defn prim_type
 \newcommand{\ottdrulePTXXadd}[1]{\ottdrule[#1]{%
 }{
- \ottkw{Add}  \mathord{:}  \ottsym{(}   \mathsf{int}   \ottsym{,}   \mathsf{int}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{int}  }{%
+ \ottkw{Add}  \mathord{:}  \ottsym{(}   \mathsf{Int}   \ottsym{,}   \mathsf{Int}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{Int}  }{%
 {\ottdrulename{PT\_add}}{}%
 }}
 
 
 \newcommand{\ottdrulePTXXsub}[1]{\ottdrule[#1]{%
 }{
- \ottkw{Sub}  \mathord{:}  \ottsym{(}   \mathsf{int}   \ottsym{,}   \mathsf{int}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{int}  }{%
+ \ottkw{Sub}  \mathord{:}  \ottsym{(}   \mathsf{Int}   \ottsym{,}   \mathsf{Int}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{Int}  }{%
 {\ottdrulename{PT\_sub}}{}%
 }}
 
 
 \newcommand{\ottdrulePTXXmul}[1]{\ottdrule[#1]{%
 }{
- \ottkw{Mul}  \mathord{:}  \ottsym{(}   \mathsf{int}   \ottsym{,}   \mathsf{int}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{int}  }{%
+ \ottkw{Mul}  \mathord{:}  \ottsym{(}   \mathsf{Int}   \ottsym{,}   \mathsf{Int}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{Int}  }{%
 {\ottdrulename{PT\_mul}}{}%
 }}
 
 
 \newcommand{\ottdrulePTXXdiv}[1]{\ottdrule[#1]{%
 }{
- \ottkw{Div}  \mathord{:}  \ottsym{(}   \mathsf{int}   \ottsym{,}   \mathsf{int}   \ottsym{)}  \to_{  \mathbf{1}  }   \mathsf{int}  }{%
+ \ottkw{Div}  \mathord{:}  \ottsym{(}   \mathsf{Int}   \ottsym{,}   \mathsf{Int}   \ottsym{)}  \to_{  \mathbf{1}  }   \mathsf{Int}  }{%
 {\ottdrulename{PT\_div}}{}%
 }}
 
 
 \newcommand{\ottdrulePTXXand}[1]{\ottdrule[#1]{%
 }{
- \ottkw{And}  \mathord{:}  \ottsym{(}   \mathsf{bool}   \ottsym{,}   \mathsf{bool}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{bool}  }{%
+ \ottkw{And}  \mathord{:}  \ottsym{(}   \mathsf{Bool}   \ottsym{,}   \mathsf{Bool}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{Bool}  }{%
 {\ottdrulename{PT\_and}}{}%
 }}
 
 
 \newcommand{\ottdrulePTXXor}[1]{\ottdrule[#1]{%
 }{
- \ottkw{Or}  \mathord{:}  \ottsym{(}   \mathsf{bool}   \ottsym{,}   \mathsf{bool}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{bool}  }{%
+ \ottkw{Or}  \mathord{:}  \ottsym{(}   \mathsf{Bool}   \ottsym{,}   \mathsf{Bool}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{Bool}  }{%
 {\ottdrulename{PT\_or}}{}%
 }}
 
 
 \newcommand{\ottdrulePTXXnot}[1]{\ottdrule[#1]{%
 }{
- \ottkw{Not}  \mathord{:}   \mathsf{bool}   \to_{  \mathbf{0}  }   \mathsf{bool}  }{%
+ \ottkw{Not}  \mathord{:}   \mathsf{Bool}   \to_{  \mathbf{0}  }   \mathsf{Bool}  }{%
 {\ottdrulename{PT\_not}}{}%
 }}
 
 
 \newcommand{\ottdrulePTXXlt}[1]{\ottdrule[#1]{%
 }{
- \ottkw{Lt}  \mathord{:}  \ottsym{(}   \mathsf{int}   \ottsym{,}   \mathsf{int}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{bool}  }{%
+ \ottkw{Lt}  \mathord{:}  \ottsym{(}   \mathsf{Int}   \ottsym{,}   \mathsf{Int}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{Bool}  }{%
 {\ottdrulename{PT\_lt}}{}%
 }}
 
 
 \newcommand{\ottdrulePTXXle}[1]{\ottdrule[#1]{%
 }{
- \ottkw{Le}  \mathord{:}  \ottsym{(}   \mathsf{int}   \ottsym{,}   \mathsf{int}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{bool}  }{%
+ \ottkw{Le}  \mathord{:}  \ottsym{(}   \mathsf{Int}   \ottsym{,}   \mathsf{Int}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{Bool}  }{%
 {\ottdrulename{PT\_le}}{}%
 }}
 
 
 \newcommand{\ottdrulePTXXgt}[1]{\ottdrule[#1]{%
 }{
- \ottkw{Gt}  \mathord{:}  \ottsym{(}   \mathsf{int}   \ottsym{,}   \mathsf{int}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{bool}  }{%
+ \ottkw{Gt}  \mathord{:}  \ottsym{(}   \mathsf{Int}   \ottsym{,}   \mathsf{Int}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{Bool}  }{%
 {\ottdrulename{PT\_gt}}{}%
 }}
 
 
 \newcommand{\ottdrulePTXXge}[1]{\ottdrule[#1]{%
 }{
- \ottkw{Ge}  \mathord{:}  \ottsym{(}   \mathsf{int}   \ottsym{,}   \mathsf{int}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{bool}  }{%
+ \ottkw{Ge}  \mathord{:}  \ottsym{(}   \mathsf{Int}   \ottsym{,}   \mathsf{Int}   \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{Bool}  }{%
 {\ottdrulename{PT\_ge}}{}%
 }}
 
@@ -969,42 +1339,42 @@
 \newcommand{\ottdrulePTXXeq}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{A}  \;\mathsf{eqtype} }%
 }{
- \ottkw{Eq} \, \ottsym{[}  \ottnt{A}  \ottsym{]}  \mathord{:}  \ottsym{(}  \ottnt{A}  \ottsym{,}  \ottnt{A}  \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{bool}  }{%
+ \ottkw{Eq} \, \ottsym{[}  \ottnt{A}  \ottsym{]}  \mathord{:}  \ottsym{(}  \ottnt{A}  \ottsym{,}  \ottnt{A}  \ottsym{)}  \to_{  \mathbf{0}  }   \mathsf{Bool}  }{%
 {\ottdrulename{PT\_eq}}{}%
 }}
 
 
 \newcommand{\ottdrulePTXXnew}[1]{\ottdrule[#1]{%
 }{
- \ottkw{New} \, \ottsym{[}  \ottnt{A}  \ottsym{]}  \mathord{:}  \ottnt{A}  \to_{  \mathbf{1}  }   \mathsf{ptr}\; \ottnt{A}  }{%
+ \ottkw{New} \, \ottsym{[}  \ottnt{A}  \ottsym{]}  \mathord{:}  \ottnt{A}  \to_{  \mathbf{1}  }   \mathsf{Ptr}\; \ottnt{A}  }{%
 {\ottdrulename{PT\_new}}{}%
 }}
 
 
 \newcommand{\ottdrulePTXXdel}[1]{\ottdrule[#1]{%
 }{
- \ottkw{Del} \, \ottsym{[}  \ottnt{A}  \ottsym{]}  \mathord{:}   \mathsf{ptr}\; \ottnt{A}   \to_{  \mathbf{1}  }  \ottsym{(}  \,  \ottsym{)} }{%
+ \ottkw{Del} \, \ottsym{[}  \ottnt{A}  \ottsym{]}  \mathord{:}   \mathsf{Ptr}\; \ottnt{A}   \to_{  \mathbf{1}  }  \ottsym{(}  \,  \ottsym{)} }{%
 {\ottdrulename{PT\_del}}{}%
 }}
 
 
 \newcommand{\ottdrulePTXXget}[1]{\ottdrule[#1]{%
 }{
- \ottkw{Get} \, \ottsym{[}  \ottnt{A}  \ottsym{]}  \mathord{:}   \mathsf{ptr}\; \ottnt{A}   \to_{  \mathbf{1}  }  \ottnt{A} }{%
+ \ottkw{Get} \, \ottsym{[}  \ottnt{A}  \ottsym{]}  \mathord{:}   \mathsf{Ptr}\; \ottnt{A}   \to_{  \mathbf{1}  }  \ottnt{A} }{%
 {\ottdrulename{PT\_get}}{}%
 }}
 
 
 \newcommand{\ottdrulePTXXset}[1]{\ottdrule[#1]{%
 }{
- \ottkw{Set} \, \ottsym{[}  \ottnt{A}  \ottsym{]}  \mathord{:}  \ottsym{(}   \mathsf{ptr}\; \ottnt{A}   \ottsym{,}  \ottnt{A}  \ottsym{)}  \to_{  \mathbf{1}  }  \ottsym{(}  \,  \ottsym{)} }{%
+ \ottkw{Set} \, \ottsym{[}  \ottnt{A}  \ottsym{]}  \mathord{:}  \ottsym{(}   \mathsf{Ptr}\; \ottnt{A}   \ottsym{,}  \ottnt{A}  \ottsym{)}  \to_{  \mathbf{1}  }  \ottsym{(}  \,  \ottsym{)} }{%
 {\ottdrulename{PT\_set}}{}%
 }}
 
 
 \newcommand{\ottdrulePTXXown}[1]{\ottdrule[#1]{%
 }{
- \ottkw{Own} \, \ottsym{[}  \ottnt{A}  \ottsym{]}  \mathord{:}   \mathsf{ptr}\; \ottnt{A}   \to_{  \mathbf{S}  }   \mathsf{pred}\; \ottsym{(}  \ottnt{A}  \ottsym{)}  }{%
+ \ottkw{Own} \, \ottsym{[}  \ottnt{A}  \ottsym{]}  \mathord{:}   \mathsf{Ptr}\; \ottnt{A}   \to_{  \mathbf{S}  }   \mathsf{Pred}\; \ottsym{(}  \ottnt{A}  \ottsym{)}  }{%
 {\ottdrulename{PT\_own}}{}%
 }}
 
@@ -1031,14 +1401,14 @@
 %% defn synth
 \newcommand{\ottdruleSynXXint}[1]{\ottdrule[#1]{%
 }{
- \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }  \ottmv{lit}  \Rightarrow   \mathsf{int}  }{%
+ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }  \ottmv{lit}  \Rightarrow   \mathsf{Int}  }{%
 {\ottdrulename{Syn\_int}}{}%
 }}
 
 
 \newcommand{\ottdruleSynXXbool}[1]{\ottdrule[#1]{%
 }{
- \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }  \ottnt{blit}  \Rightarrow   \mathsf{bool}  }{%
+ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }  \ottnt{blit}  \Rightarrow   \mathsf{Bool}  }{%
 {\ottdrulename{Syn\_bool}}{}%
 }}
 
@@ -1087,7 +1457,7 @@
 \ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff'} }  \ottnt{ce_{{\mathrm{1}}}}  \Rightarrow  \ottnt{A} }%
 \ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff'} }  \ottnt{ce_{{\mathrm{2}}}}  \Leftarrow  \ottnt{A} }%
 }{
- \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }   \ottnt{ce_{{\mathrm{1}}}}  \doteq  \ottnt{ce_{{\mathrm{2}}}}   \Rightarrow   \mathsf{bool}  }{%
+ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }   \ottnt{ce_{{\mathrm{1}}}}  \doteq  \ottnt{ce_{{\mathrm{2}}}}   \Rightarrow   \mathsf{Bool}  }{%
 {\ottdrulename{Syn\_eq}}{}%
 }}
 
@@ -1165,7 +1535,7 @@
 
 \newcommand{\ottdruleChkXXif}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{eff'}  = \lfloor  \ottnt{eff_{{\mathrm{0}}}}  \rfloor }%
-\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff'} }  \ottnt{ce_{{\mathrm{1}}}}  \Leftarrow   \mathsf{bool}  }%
+\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff'} }  \ottnt{ce_{{\mathrm{1}}}}  \Leftarrow   \mathsf{Bool}  }%
 \ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }  \ottnt{ce_{{\mathrm{2}}}}  \Leftarrow  \tau }%
 \ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }  \ottnt{ce_{{\mathrm{3}}}}  \Leftarrow  \tau }%
 }{
@@ -1177,16 +1547,16 @@
 \newcommand{\ottdruleChkXXreturn}[1]{\ottdrule[#1]{%
 \ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow  \tau }%
 }{
- \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottkw{return} \, \ottnt{ce}  \Leftarrow   \mathsf{pred}\; \tau  }{%
+ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottkw{return} \, \ottnt{ce}  \Leftarrow   \mathsf{Pred}\; \tau  }{%
 {\ottdrulename{Chk\_return}}{}%
 }}
 
 
 \newcommand{\ottdruleChkXXtake}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce_{{\mathrm{1}}}}  \Rightarrow   \mathsf{pred}\; \tau  }%
-\ottpremise{ \Sigma_c  ;   \Gamma ,  \ottmv{x}  \mathord{:}_{  \mathbf{S}  }  \tau   \vdash_{  \mathbf{S}  }  \ottnt{ce_{{\mathrm{2}}}}  \Leftarrow   \mathsf{pred}\; \tau'  }%
+\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce_{{\mathrm{1}}}}  \Rightarrow   \mathsf{Pred}\; \tau  }%
+\ottpremise{ \Sigma_c  ;   \Gamma ,  \ottmv{x}  \mathord{:}_{  \mathbf{S}  }  \tau   \vdash_{  \mathbf{S}  }  \ottnt{ce_{{\mathrm{2}}}}  \Leftarrow   \mathsf{Pred}\; \tau'  }%
 }{
- \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottkw{take} \, \ottmv{x}  \ottsym{=}  \ottnt{ce_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{ce_{{\mathrm{2}}}}  \Leftarrow   \mathsf{pred}\; \tau'  }{%
+ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottkw{take} \, \ottmv{x}  \ottsym{=}  \ottnt{ce_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{ce_{{\mathrm{2}}}}  \Leftarrow   \mathsf{Pred}\; \tau'  }{%
 {\ottdrulename{Chk\_take}}{}%
 }}
 
@@ -1275,7 +1645,7 @@
 
 
 \newcommand{\ottdefnsJtype}{
-\ottdefntypeXXwf{}\ottdefntypeXXguarded{}\ottdefnsortXXdeclXXwf{}\ottdefntypeXXdeclXXwf{}\ottdefnsortXXwf{}\ottdefneqtype{}\ottdefnsubeff{}\ottdefnpurify{}\ottdefneffXXjoin{}\ottdefnprimXXtype{}\ottdefnsynth{}\ottdefncheck{}\ottdefncprog{}}
+\ottdefnsubkind{}\ottdefnkindXXwf{}\ottdefntypeXXguarded{}\ottdefnsortXXdeclXXwf{}\ottdefntypeXXdeclXXwf{}\ottdefnsubstXXwf{}\ottdefnsubstXXidXXdef{}\ottdefnsortXXsubst{}\ottdefntermXXsubst{}\ottdefnpfXXsubst{}\ottdefnsubstXXcompXXdef{}\ottdefneqtype{}\ottdefnsubeff{}\ottdefnpurify{}\ottdefneffXXjoin{}\ottdefnprimXXtype{}\ottdefnsynth{}\ottdefncheck{}\ottdefncprog{}}
 
 % defns Jcore
 %% defn ctor_lookup
@@ -1336,14 +1706,14 @@
 
 \newcommand{\ottdruleSurfSynXXint}[1]{\ottdrule[#1]{%
 }{
- \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }  \ottmv{lit}  \Rightarrow   \mathsf{int}   \leadsto  \ottmv{lit} }{%
+ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }  \ottmv{lit}  \Rightarrow   \mathsf{Int}   \leadsto  \ottmv{lit} }{%
 {\ottdrulename{SurfSyn\_int}}{}%
 }}
 
 
 \newcommand{\ottdruleSurfSynXXbool}[1]{\ottdrule[#1]{%
 }{
- \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }  \ottnt{blit}  \Rightarrow   \mathsf{bool}   \leadsto  \ottnt{blit} }{%
+ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }  \ottnt{blit}  \Rightarrow   \mathsf{Bool}   \leadsto  \ottnt{blit} }{%
 {\ottdrulename{SurfSyn\_bool}}{}%
 }}
 
@@ -1384,7 +1754,7 @@
 \ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff'} }  \ottnt{se_{{\mathrm{1}}}}  \Rightarrow  \ottnt{A}  \leadsto  \ottnt{ce_{{\mathrm{1}}}} }%
 \ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff'} }  \ottnt{se_{{\mathrm{2}}}}  \Leftarrow  \ottnt{A}  \leadsto  \ottnt{ce_{{\mathrm{2}}}} }%
 }{
- \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }   \ottnt{se_{{\mathrm{1}}}}  \doteq  \ottnt{se_{{\mathrm{2}}}}   \Rightarrow   \mathsf{bool}   \leadsto   \ottnt{ce_{{\mathrm{1}}}}  \doteq  \ottnt{ce_{{\mathrm{2}}}}  }{%
+ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }   \ottnt{se_{{\mathrm{1}}}}  \doteq  \ottnt{se_{{\mathrm{2}}}}   \Rightarrow   \mathsf{Bool}   \leadsto   \ottnt{ce_{{\mathrm{1}}}}  \doteq  \ottnt{ce_{{\mathrm{2}}}}  }{%
 {\ottdrulename{SurfSyn\_eq}}{}%
 }}
 
@@ -1450,7 +1820,7 @@
 
 \newcommand{\ottdruleSurfChkXXif}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{eff'}  = \lfloor  \ottnt{eff_{{\mathrm{0}}}}  \rfloor }%
-\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff'} }  \ottnt{se_{{\mathrm{1}}}}  \Leftarrow   \mathsf{bool}   \leadsto  \ottnt{ce_{{\mathrm{1}}}} }%
+\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff'} }  \ottnt{se_{{\mathrm{1}}}}  \Leftarrow   \mathsf{Bool}   \leadsto  \ottnt{ce_{{\mathrm{1}}}} }%
 \ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }  \ottnt{se_{{\mathrm{2}}}}  \Leftarrow  \tau  \leadsto  \ottnt{ce_{{\mathrm{2}}}} }%
 \ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff_{{\mathrm{0}}}} }  \ottnt{se_{{\mathrm{3}}}}  \Leftarrow  \tau  \leadsto  \ottnt{ce_{{\mathrm{3}}}} }%
 }{
@@ -1462,16 +1832,16 @@
 \newcommand{\ottdruleSurfChkXXreturn}[1]{\ottdrule[#1]{%
 \ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{se}  \Leftarrow  \tau  \leadsto  \ottnt{ce} }%
 }{
- \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottkw{return} \, \ottnt{se}  \Leftarrow   \mathsf{pred}\; \tau   \leadsto  \ottkw{return} \, \ottnt{ce} }{%
+ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottkw{return} \, \ottnt{se}  \Leftarrow   \mathsf{Pred}\; \tau   \leadsto  \ottkw{return} \, \ottnt{ce} }{%
 {\ottdrulename{SurfChk\_return}}{}%
 }}
 
 
 \newcommand{\ottdruleSurfChkXXtake}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{se_{{\mathrm{1}}}}  \Rightarrow   \mathsf{pred}\; \tau   \leadsto  \ottnt{ce_{{\mathrm{1}}}} }%
-\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottmv{y}  \ottsym{,}   \cdot   ;  \ottnt{pat}  \ottsym{:}  \tau  \to  \ottsym{[}   \cdot   \ottsym{]}  \ottsym{[}   [\cdot]   \ottsym{]}  \ottnt{se_{{\mathrm{2}}}}  \Leftarrow_{  \mathbf{S}  }   \mathsf{pred}\; \tau'   \leadsto  \ottnt{ce_{{\mathrm{2}}}} }%
+\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{se_{{\mathrm{1}}}}  \Rightarrow   \mathsf{Pred}\; \tau   \leadsto  \ottnt{ce_{{\mathrm{1}}}} }%
+\ottpremise{ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottmv{y}  \ottsym{,}   \cdot   ;  \ottnt{pat}  \ottsym{:}  \tau  \to  \ottsym{[}   \cdot   \ottsym{]}  \ottsym{[}   [\cdot]   \ottsym{]}  \ottnt{se_{{\mathrm{2}}}}  \Leftarrow_{  \mathbf{S}  }   \mathsf{Pred}\; \tau'   \leadsto  \ottnt{ce_{{\mathrm{2}}}} }%
 }{
- \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottkw{take} \, \ottnt{pat}  \ottsym{=}  \ottnt{se_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{se_{{\mathrm{2}}}}  \Leftarrow   \mathsf{pred}\; \tau'   \leadsto  \ottkw{take} \, \ottmv{y}  \ottsym{=}  \ottnt{ce_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{ce_{{\mathrm{2}}}} }{%
+ \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottkw{take} \, \ottnt{pat}  \ottsym{=}  \ottnt{se_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{se_{{\mathrm{2}}}}  \Leftarrow   \mathsf{Pred}\; \tau'   \leadsto  \ottkw{take} \, \ottmv{y}  \ottsym{=}  \ottnt{ce_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{ce_{{\mathrm{2}}}} }{%
 {\ottdrulename{SurfChk\_take}}{}%
 }}
 
@@ -1780,7 +2150,7 @@
 
 
 \newcommand{\ottdruleRWfXXlog}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_r  \vdash  \Delta  \;\mathsf{wf}  \quad  \Gamma  = | \Delta |  \quad  \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow   \mathsf{bool}  }%
+\ottpremise{ \Sigma_r  \vdash  \Delta  \;\mathsf{wf}  \quad  \Gamma  = | \Delta |  \quad  \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow   \mathsf{Bool}  }%
 }{
  \Sigma_r  \vdash   \Delta ,  \ottmv{x}  \mathord{:}  \ottnt{ce}  \; [\mathsf{log}]   \;\mathsf{wf} }{%
 {\ottdrulename{RWf\_log}}{}%
@@ -1788,7 +2158,7 @@
 
 
 \newcommand{\ottdruleRWfXXres}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_r  \vdash  \Delta  \;\mathsf{wf}  \quad  \Gamma  = | \Delta |  \quad  \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Rightarrow   \mathsf{pred}\; \tau   \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce'}  \Leftarrow  \tau }%
+\ottpremise{ \Sigma_r  \vdash  \Delta  \;\mathsf{wf}  \quad  \Gamma  = | \Delta |  \quad  \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Rightarrow   \mathsf{Pred}\; \tau   \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce'}  \Leftarrow  \tau }%
 }{
  \Sigma_r  \vdash   \Delta ,  \ottmv{x}  \mathord{:}  \ottnt{ce}  @  \ottnt{ce'}  \; [\mathsf{res}( \ottnt{u} )]   \;\mathsf{wf} }{%
 {\ottdrulename{RWf\_res}}{}%
@@ -1996,7 +2366,7 @@
 
 
 \newcommand{\ottdruleCtWfXXimpl}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow   \mathsf{bool}   \quad  \Sigma_r  ;  \Gamma  \vdash  \mathcal{C}  \;\mathsf{wf} }%
+\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow   \mathsf{Bool}   \quad  \Sigma_r  ;  \Gamma  \vdash  \mathcal{C}  \;\mathsf{wf} }%
 }{
  \Sigma_r  ;  \Gamma  \vdash   \ottnt{ce}  \Rightarrow  \mathcal{C}   \;\mathsf{wf} }{%
 {\ottdrulename{CtWf\_impl}}{}%
@@ -2004,7 +2374,7 @@
 
 
 \newcommand{\ottdruleCtWfXXatom}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow   \mathsf{bool}  }%
+\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow   \mathsf{Bool}  }%
 }{
  \Sigma_r  ;  \Gamma  \vdash   \ottnt{ce}   \;\mathsf{wf} }{%
 {\ottdrulename{CtWf\_atom}}{}%
@@ -2044,7 +2414,7 @@
 
 
 \newcommand{\ottdrulePfWfXXlog}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow   \mathsf{bool}   \quad  \Sigma_r  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{Pf}  \;\mathsf{wf} }%
+\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow   \mathsf{Bool}   \quad  \Sigma_r  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{Pf}  \;\mathsf{wf} }%
 }{
  \Sigma_r  ;  \Gamma  \vdash_{ \ottnt{eff} }   \ottmv{x}  \mathord{:}  \ottnt{ce}  \; [\mathsf{log}],  \ottnt{Pf}   \;\mathsf{wf} }{%
 {\ottdrulename{PfWf\_log}}{}%
@@ -2052,10 +2422,18 @@
 
 
 \newcommand{\ottdrulePfWfXXres}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce'}  \Rightarrow  \tau  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow   \mathsf{pred}\; \tau   \quad  \Sigma_r  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{Pf}  \;\mathsf{wf} }%
+\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce'}  \Rightarrow  \tau  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow   \mathsf{Pred}\; \tau   \quad  \Sigma_r  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{Pf}  \;\mathsf{wf} }%
 }{
  \Sigma_r  ;  \Gamma  \vdash_{ \ottnt{eff} }   \ottmv{x}  \mathord{:}  \ottnt{ce}  @  \ottnt{ce'}  \; [\mathsf{res}],  \ottnt{Pf}   \;\mathsf{wf} }{%
 {\ottdrulename{PfWf\_res}}{}%
+}}
+
+
+\newcommand{\ottdrulePfWfXXdepres}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Rightarrow   \mathsf{Pred}\; \tau   \quad  \Sigma_r  ;   \Gamma ,  \ottmv{y}  \mathord{:}_{  \mathbf{S}  }  \tau   \vdash_{ \ottnt{eff} }  \ottnt{Pf}  \;\mathsf{wf} }%
+}{
+ \Sigma_r  ;  \Gamma  \vdash_{ \ottnt{eff} }   \ottmv{x}  \mathord{:} ( \ottmv{y} ). \ottnt{ce}  \; [\mathsf{res}],  \ottnt{Pf}   \;\mathsf{wf} }{%
+{\ottdrulename{PfWf\_depres}}{}%
 }}
 
 \newcommand{\ottdefnpfXXwf}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_r  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{Pf}  \;\mathsf{wf} $}{}
@@ -2063,6 +2441,7 @@
 \ottusedrule{\ottdrulePfWfXXcomp{}}
 \ottusedrule{\ottdrulePfWfXXlog{}}
 \ottusedrule{\ottdrulePfWfXXres{}}
+\ottusedrule{\ottdrulePfWfXXdepres{}}
 \end{ottdefnblock}}
 
 %% defn rf_wf
@@ -2146,12 +2525,21 @@
 {\ottdrulename{PfTys\_res}}{}%
 }}
 
+
+\newcommand{\ottdrulePfTysXXdepres}[1]{\ottdrule[#1]{%
+\ottpremise{ \overline{A}  = \{ \ottnt{Pf} \} }%
+}{
+ \overline{A}  = \{  \ottmv{x}  \mathord{:} ( \ottmv{y} ). \ottnt{ce}  \; [\mathsf{res}],  \ottnt{Pf}  \} }{%
+{\ottdrulename{PfTys\_depres}}{}%
+}}
+
 \newcommand{\ottdefnpfXXtypes}[1]{\begin{ottdefnblock}[#1]{$ \overline{A}  = \{ \ottnt{Pf} \} $}{}
 \ottusedrule{\ottdrulePfTysXXnil{}}
 \ottusedrule{\ottdrulePfTysXXpure{}}
 \ottusedrule{\ottdrulePfTysXXspec{}}
 \ottusedrule{\ottdrulePfTysXXlog{}}
 \ottusedrule{\ottdrulePfTysXXres{}}
+\ottusedrule{\ottdrulePfTysXXdepres{}}
 \end{ottdefnblock}}
 
 %% defn pf_to_ctx
@@ -2185,11 +2573,20 @@
 {\ottdrulename{PfCtx\_res}}{}%
 }}
 
+
+\newcommand{\ottdrulePfCtxXXdepres}[1]{\ottdrule[#1]{%
+\ottpremise{ \Delta  = \mathsf{PfToCtx}(   \Delta' ,  \ottmv{y}  \mathord{:}_{  \mathbf{S}  }  \tau  ,  \ottmv{x}  \mathord{:}  \ottnt{ce}  @  \ottmv{y}  \; [\mathsf{res}(  1  )]  ;  \ottnt{Pf} ) }%
+}{
+ \Delta  = \mathsf{PfToCtx}( \Delta' ;   \ottmv{x}  \mathord{:} ( \ottmv{y} ). \ottnt{ce}  \; [\mathsf{res}],  \ottnt{Pf}  ) }{%
+{\ottdrulename{PfCtx\_depres}}{}%
+}}
+
 \newcommand{\ottdefnpfXXtoXXctx}[1]{\begin{ottdefnblock}[#1]{$ \Delta  = \mathsf{PfToCtx}( \Delta' ;  \ottnt{Pf} ) $}{}
 \ottusedrule{\ottdrulePfCtxXXnil{}}
 \ottusedrule{\ottdrulePfCtxXXcomp{}}
 \ottusedrule{\ottdrulePfCtxXXlog{}}
 \ottusedrule{\ottdrulePfCtxXXres{}}
+\ottusedrule{\ottdrulePfCtxXXdepres{}}
 \end{ottdefnblock}}
 
 %% defn rsig_erase
@@ -2299,7 +2696,7 @@
 \ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \ottmv{f} ( \ottkw{x}  :  \tau ) \to_{ \ottnt{eff} }  \tau'  =  \ottnt{ce'}  \in  \Sigma_c  \quad  \ottnt{eff}  \leq   \mathbf{S}  }%
 \ottpremise{ \Gamma  = | \Delta |  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow  \tau }%
 }{
- \Sigma_r  ;  \Delta  \vdash   \mathsf{unfold}\; \ottmv{f} ( \ottnt{ce} )   \Rightarrow   \ottsym{(}  \ottmv{f} \, \ottnt{ce}  \ottsym{)}  \doteq   [  \ottnt{ce}  /  \ottmv{x}  ]  \ottnt{ce'}    \dashv  \Delta  \leadsto   \top  }{%
+ \Sigma_r  ;  \Delta  \vdash   \mathsf{unfold}\; \ottmv{f} ( \ottnt{ce} )   \Rightarrow   \ottsym{(}  \ottmv{f} \, \ottnt{ce}  \ottsym{)}  \doteq   \lbrack   \mathsf{id}( \Gamma )   \ottsym{,}  \ottnt{ce}  \ottsym{/}  \ottmv{x}  \rbrack  \ottnt{ce'}    \dashv  \Delta  \leadsto   \top  }{%
 {\ottdrulename{LSyn\_unfold}}{}%
 }}
 
@@ -2445,7 +2842,7 @@
 
 
 \newcommand{\ottdrulePfEqXXcomp}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_r  ;   \Delta ,  \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau   \vdash  \ottnt{Pf_{{\mathrm{1}}}}  =   [  \ottmv{x}  /  \ottmv{y}  ]  \ottnt{Pf_{{\mathrm{2}}}}   \leadsto  \mathcal{C} }%
+\ottpremise{ \Sigma_r  ;   \Delta ,  \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau   \vdash  \ottnt{Pf_{{\mathrm{1}}}}  =   \lbrack   \mathsf{id}(  | \Delta |  )   \ottsym{,}  \ottmv{x}  \ottsym{/}  \ottmv{y}  \rbrack  \ottnt{Pf_{{\mathrm{2}}}}   \leadsto  \mathcal{C} }%
 }{
  \Sigma_r  ;  \Delta  \vdash   \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau ,  \ottnt{Pf_{{\mathrm{1}}}}   =   \ottmv{y}  \mathord{:}_{ \ottnt{eff} }  \tau ,  \ottnt{Pf_{{\mathrm{2}}}}   \leadsto   \forall  \ottmv{x}  \mathord{:}  \tau . \,  \mathcal{C}  }{%
 {\ottdrulename{PfEq\_comp}}{}%
@@ -2467,11 +2864,21 @@
 {\ottdrulename{PfEq\_res}}{}%
 }}
 
+
+\newcommand{\ottdrulePfEqXXdepres}[1]{\ottdrule[#1]{%
+\ottpremise{ \Gamma  = | \Delta |  \quad  \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce_{{\mathrm{1}}}}  \Rightarrow   \mathsf{Pred}\; \tau   \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce_{{\mathrm{2}}}}  \Rightarrow   \mathsf{Pred}\; \tau  }%
+\ottpremise{ \Sigma_r  ;   \Delta ,  \ottmv{z}  \mathord{:}_{  \mathbf{S}  }  \tau   \vdash   \lbrack   \mathsf{id}(  | \Delta |  )   \ottsym{,}  \ottmv{z}  \ottsym{/}  \ottmv{y}  \rbrack  \ottnt{Pf_{{\mathrm{1}}}}   =   \lbrack   \mathsf{id}(  | \Delta |  )   \ottsym{,}  \ottmv{z}  \ottsym{/}  \ottmv{y}  \rbrack  \ottnt{Pf_{{\mathrm{2}}}}   \leadsto  \mathcal{C} }%
+}{
+ \Sigma_r  ;  \Delta  \vdash   \ottmv{x}  \mathord{:} ( \ottmv{y} ). \ottnt{ce_{{\mathrm{1}}}}  \; [\mathsf{res}],  \ottnt{Pf_{{\mathrm{1}}}}   =   \ottmv{w}  \mathord{:} ( \ottmv{y} ). \ottnt{ce_{{\mathrm{2}}}}  \; [\mathsf{res}],  \ottnt{Pf_{{\mathrm{2}}}}   \leadsto   \ottsym{(}   \ottsym{(}   \ottnt{ce_{{\mathrm{1}}}}  \doteq  \ottnt{ce_{{\mathrm{2}}}}   \ottsym{)}   \ottsym{)}  \wedge   \forall  \ottmv{z}  \mathord{:}  \tau . \,  \mathcal{C}   }{%
+{\ottdrulename{PfEq\_depres}}{}%
+}}
+
 \newcommand{\ottdefnpfXXeq}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_r  ;  \Delta  \vdash  \ottnt{Pf_{{\mathrm{1}}}}  =  \ottnt{Pf_{{\mathrm{2}}}}  \leadsto  \mathcal{C} $}{}
 \ottusedrule{\ottdrulePfEqXXnil{}}
 \ottusedrule{\ottdrulePfEqXXcomp{}}
 \ottusedrule{\ottdrulePfEqXXlog{}}
 \ottusedrule{\ottdrulePfEqXXres{}}
+\ottusedrule{\ottdrulePfEqXXdepres{}}
 \end{ottdefnblock}}
 
 %% defn ctx_merge
@@ -2521,7 +2928,7 @@
 
 
 \newcommand{\ottdruleRPMXXcomp}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_r  ;   \Gamma ,  \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau   \vdash  \ottnt{q}  :   [  \ottmv{x}  /  \ottmv{y}  ]  \ottnt{Pf}   \dashv  \Delta }%
+\ottpremise{ \Sigma_r  ;   \Gamma ,  \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau   \vdash  \ottnt{q}  :   \lbrack   \mathsf{id}( \Gamma )   \ottsym{,}  \ottmv{x}  \ottsym{/}  \ottmv{y}  \rbrack  \ottnt{Pf}   \dashv  \Delta }%
 }{
  \Sigma_r  ;  \Gamma  \vdash  \ottsym{(}  \ottmv{x}  \ottsym{,}  \ottnt{q}  \ottsym{)}  :   \ottmv{y}  \mathord{:}_{ \ottnt{eff} }  \tau ,  \ottnt{Pf}   \dashv    \cdot  ,  \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau   \ottsym{,}  \Delta }{%
 {\ottdrulename{RPM\_comp}}{}%
@@ -2529,7 +2936,7 @@
 
 
 \newcommand{\ottdruleRPMXXlog}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_r  ;  \Gamma  \vdash  \ottnt{q}  :   [  \ottmv{x}  /  \ottmv{y}  ]  \ottnt{Pf}   \dashv  \Delta }%
+\ottpremise{ \Sigma_r  ;  \Gamma  \vdash  \ottnt{q}  :   \lbrack   \mathsf{id}( \Gamma )   \ottsym{,}  \ottmv{x}  \ottsym{/}  \ottmv{y}  \rbrack  \ottnt{Pf}   \dashv  \Delta }%
 }{
  \Sigma_r  ;  \Gamma  \vdash  \ottsym{(}  \ottmv{x}  \ottsym{,}  \ottnt{q}  \ottsym{)}  :   \ottmv{y}  \mathord{:}  \ottnt{ce}  \; [\mathsf{log}],  \ottnt{Pf}   \dashv    \cdot  ,  \ottmv{x}  \mathord{:}  \ottnt{ce}  \; [\mathsf{log}]   \ottsym{,}  \Delta }{%
 {\ottdrulename{RPM\_log}}{}%
@@ -2537,10 +2944,19 @@
 
 
 \newcommand{\ottdruleRPMXXres}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_r  ;  \Gamma  \vdash  \ottnt{q}  :   [  \ottmv{x}  /  \ottmv{y}  ]  \ottnt{Pf}   \dashv  \Delta }%
+\ottpremise{ \Sigma_r  ;  \Gamma  \vdash  \ottnt{q}  :   \lbrack   \mathsf{id}( \Gamma )   \ottsym{,}  \ottmv{x}  \ottsym{/}  \ottmv{y}  \rbrack  \ottnt{Pf}   \dashv  \Delta }%
 }{
  \Sigma_r  ;  \Gamma  \vdash  \ottsym{(}  \ottmv{x}  \ottsym{,}  \ottnt{q}  \ottsym{)}  :   \ottmv{y}  \mathord{:}  \ottnt{ce}  @  \ottnt{ce'}  \; [\mathsf{res}],  \ottnt{Pf}   \dashv    \cdot  ,  \ottmv{x}  \mathord{:}  \ottnt{ce}  @  \ottnt{ce'}  \; [\mathsf{res}(  1  )]   \ottsym{,}  \Delta }{%
 {\ottdrulename{RPM\_res}}{}%
+}}
+
+
+\newcommand{\ottdruleRPMXXdepres}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Rightarrow   \mathsf{Pred}\; \tau  }%
+\ottpremise{ \Sigma_r  ;   \Gamma ,  \ottmv{x}  \mathord{:}_{  \mathbf{S}  }  \tau   \vdash  \ottnt{q}  :   \lbrack   \mathsf{id}( \Gamma )   \ottsym{,}  \ottmv{w}  \ottsym{/}  \ottmv{z}  \ottsym{,}  \ottmv{x}  \ottsym{/}  \ottmv{y}  \rbrack  \ottnt{Pf}   \dashv  \Delta }%
+}{
+ \Sigma_r  ;  \Gamma  \vdash  \ottsym{(}  \ottsym{(}  \ottmv{x}  \ottsym{,}  \ottmv{w}  \ottsym{)}  \ottsym{,}  \ottnt{q}  \ottsym{)}  :   \ottmv{y}  \mathord{:} ( \ottmv{z} ). \ottnt{ce}  \; [\mathsf{res}],  \ottnt{Pf}   \dashv     \cdot  ,  \ottmv{x}  \mathord{:}_{  \mathbf{S}  }  \tau  ,  \ottmv{w}  \mathord{:}  \ottnt{ce}  @  \ottmv{x}  \; [\mathsf{res}(  1  )]   \ottsym{,}  \Delta }{%
+{\ottdrulename{RPM\_depres}}{}%
 }}
 
 \newcommand{\ottdefnrpatXXmatch}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_r  ;  \Gamma  \vdash  \ottnt{q}  :  \ottnt{Pf}  \dashv  \Delta $}{}
@@ -2548,6 +2964,7 @@
 \ottusedrule{\ottdruleRPMXXcomp{}}
 \ottusedrule{\ottdruleRPMXXlog{}}
 \ottusedrule{\ottdruleRPMXXres{}}
+\ottusedrule{\ottdruleRPMXXdepres{}}
 \end{ottdefnblock}}
 
 %% defn rcrt_synth
@@ -2561,8 +2978,8 @@
 
 
 \newcommand{\ottdruleRCSynXXcall}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_r  \vdash  \ottmv{f}  \mathord{:}  \ottnt{RF}  \quad  \ottnt{eff'}  \in \{\mathbf{S}, \lfloor  \ottnt{eff}  \rfloor\} }%
-\ottpremise{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :  \ottnt{RF}  \gg  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }%
+\ottpremise{ \Sigma_r  \vdash  \ottmv{f}  \mathord{:}   \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \; \lbrack  \ottnt{eff'}  \rbrack   \quad  \ottnt{eff'}  \leq  \ottnt{eff}  \quad  \ottnt{eff''}  = \lfloor  \ottnt{eff}  \rfloor }%
+\ottpremise{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff''} }  \ottnt{rsp}  :  \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \gg  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }%
 }{
  \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottmv{f} \, \ottnt{rsp}  \Rightarrow  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }{%
 {\ottdrulename{RCSyn\_call}}{}%
@@ -2570,8 +2987,8 @@
 
 
 \newcommand{\ottdruleRCSynXXprimapp}[1]{\ottdrule[#1]{%
-\ottpremise{ \ottnt{eff'}  \in \{\mathbf{S}, \lfloor  \ottnt{eff}  \rfloor\} }%
-\ottpremise{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :  \ottnt{RF}  \gg  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }%
+\ottpremise{ \ottnt{prim}  \mathord{:}   \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \; \lbrack  \ottnt{eff'}  \rbrack   \quad  \ottnt{eff'}  \leq  \ottnt{eff}  \quad  \ottnt{eff''}  = \lfloor  \ottnt{eff}  \rfloor }%
+\ottpremise{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff''} }  \ottnt{rsp}  :  \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \gg  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }%
 }{
  \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{prim} \, \ottnt{rsp}  \Rightarrow  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }{%
 {\ottdrulename{RCSyn\_primapp}}{}%
@@ -2585,11 +3002,23 @@
 {\ottdrulename{RCSyn\_opentake}}{}%
 }}
 
+
+\newcommand{\ottdruleRCSynXXiter}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \mathsf{type}\;  \ottmv{D} (  \ottmv{a} ,  \ottmv{b} ) = \{ \mathsf{Next}\mathord{:} \ottmv{a}  \mid \mathsf{Done}\mathord{:} \ottmv{b}  \} \in  \Sigma_c }%
+\ottpremise{ \Gamma  = | \Delta |  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Rightarrow   \mathsf{Pred}\; \ottmv{D}  \ottsym{(}  \ottnt{A}  \ottsym{,}  \ottnt{B}  \ottsym{)}  }%
+\ottpremise{ \Sigma_r  ;  \Delta  \vdash_{  \mathbf{0}  }  \ottnt{crt_{{\mathrm{1}}}}  \Leftarrow   \ottmv{x}  \mathord{:}_{  \mathbf{0}  }  \ottnt{A} ,   \ottmv{y}  \mathord{:}  \ottnt{ce}  @  \ottmv{Next} \, \ottmv{x}  \; [\mathsf{res}],   \cdot     \dashv  \Delta'  \leadsto  \mathcal{C} }%
+\ottpremise{ \Sigma_r  ;    \Delta' ,  \ottmv{x}  \mathord{:}_{  \mathbf{0}  }  \ottnt{A}  ,  \ottmv{y}  \mathord{:}  \ottnt{ce}  @  \ottmv{Next} \, \ottmv{x}  \; [\mathsf{res}(  1  )]   \vdash_{  \mathbf{1}  }  \ottnt{crt_{{\mathrm{2}}}}  \Leftarrow   \ottmv{z}  \mathord{:}_{  \mathbf{0}  }  \ottmv{D}  \ottsym{(}  \ottnt{A}  \ottsym{,}  \ottnt{B}  \ottsym{)} ,   \ottmv{y}  \mathord{:}  \ottnt{ce}  @  \ottmv{z}  \; [\mathsf{res}],   \cdot     \dashv    \Delta' ,  \ottmv{x}  \mathord{:}_{  \mathbf{0}  }  \ottnt{A}  ,  \ottmv{y}  \mathord{:}  \ottnt{ce}  @  \ottmv{Next} \, \ottmv{x}  \; [\mathsf{res}(  0  )]   \leadsto  \mathcal{C}' }%
+}{
+ \Sigma_r  ;  \Delta  \vdash_{  \mathbf{1}  }  \ottkw{iter} \, \ottsym{[}  \ottnt{ce}  \ottsym{]}  \ottsym{(}  \ottnt{q}  \ottsym{=}  \ottnt{crt_{{\mathrm{1}}}}  \ottsym{)}  \ottsym{\{}  \ottnt{crt_{{\mathrm{2}}}}  \ottsym{\}}  \Rightarrow   \ottmv{z}  \mathord{:}_{  \mathbf{0}  }  \ottnt{B} ,   \ottmv{y}  \mathord{:}  \ottnt{ce}  @  \ottmv{Done} \, \ottmv{z}  \; [\mathsf{res}],   \cdot     \dashv  \Delta'  \leadsto   \mathcal{C}  \wedge   \forall  \ottmv{x}  \mathord{:}  \ottnt{A} . \,  \mathcal{C}'   }{%
+{\ottdrulename{RCSyn\_iter}}{}%
+}}
+
 \newcommand{\ottdefnrcrtXXsynth}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{crt}  \Rightarrow  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} $}{}
 \ottusedrule{\ottdruleRCSynXXannot{}}
 \ottusedrule{\ottdruleRCSynXXcall{}}
 \ottusedrule{\ottdruleRCSynXXprimapp{}}
 \ottusedrule{\ottdruleRCSynXXopentake{}}
+\ottusedrule{\ottdruleRCSynXXiter{}}
 \end{ottdefnblock}}
 
 %% defn case_branch
@@ -2622,7 +3051,7 @@
 
 \newcommand{\ottdruleRCChkXXif}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{eff'}  = \lfloor  \ottnt{eff}  \rfloor }%
-\ottpremise{ \Gamma  = | \Delta |  \quad  \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff'} }  \ottnt{ce}  \Leftarrow   \mathsf{bool}  }%
+\ottpremise{ \Gamma  = | \Delta |  \quad  \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff'} }  \ottnt{ce}  \Leftarrow   \mathsf{Bool}  }%
 \ottpremise{ \Sigma_r  ;   \Delta ,  \ottmv{x}  \mathord{:}   \ottnt{ce}  \doteq  \mathsf{true}   \; [\mathsf{log}]   \vdash_{ \ottnt{eff'} }  \ottnt{crt_{{\mathrm{1}}}}  \Leftarrow  \ottnt{Pf}  \dashv   \Delta_{{\mathrm{1}}} ,  \ottmv{x}  \mathord{:}   \ottnt{ce}  \doteq  \mathsf{true}   \; [\mathsf{log}]   \leadsto  \mathcal{C}_{{\mathrm{1}}} }%
 \ottpremise{ \Sigma_r  ;   \Delta ,  \ottmv{x}  \mathord{:}   \ottnt{ce}  \doteq  \mathsf{false}   \; [\mathsf{log}]   \vdash_{ \ottnt{eff'} }  \ottnt{crt_{{\mathrm{2}}}}  \Leftarrow  \ottnt{Pf}  \dashv   \Delta_{{\mathrm{2}}} ,  \ottmv{x}  \mathord{:}   \ottnt{ce}  \doteq  \mathsf{false}   \; [\mathsf{log}]   \leadsto  \mathcal{C}_{{\mathrm{2}}} }%
 \ottpremise{ \Sigma_r  \vdash  \Delta_{{\mathrm{1}}}  \sqcap  \Delta_{{\mathrm{2}}}  =  \Delta' }%
@@ -2641,17 +3070,6 @@
 }{
  \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottkw{case} \, \ottsym{[}  \ottmv{y}  \ottsym{]}  \ottnt{ce} \, \ottkw{of} \, \ottsym{\{}  \ottmv{L_{{\mathrm{1}}}} \, \ottmv{x_{{\mathrm{1}}}}  \rightarrow  \ottnt{crt_{{\mathrm{1}}}}  \ottsym{\mbox{$\mid$}} \, .. \, \ottsym{\mbox{$\mid$}}  \ottmv{L_{\ottmv{n}}} \, \ottmv{x_{\ottmv{n}}}  \rightarrow  \ottnt{crt_{\ottmv{n}}}  \ottsym{\}}  \Leftarrow  \ottnt{Pf}  \dashv  \Delta'  \leadsto   \mathcal{C}_{{\mathrm{1}}}  \wedge  \mathcal{C}_{\ottmv{n}}  }{%
 {\ottdrulename{RCChk\_case}}{}%
-}}
-
-
-\newcommand{\ottdruleRCChkXXiter}[1]{\ottdrule[#1]{%
-\ottpremise{ \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \mathsf{type}\;  \ottmv{D} (  \ottmv{a} ,  \ottmv{b} ) = \{ \mathsf{Next}\mathord{:} \ottmv{a}  \mid \mathsf{Done}\mathord{:} \ottmv{b}  \} \in  \Sigma_c }%
-\ottpremise{ \Gamma  = | \Delta |  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Rightarrow   \mathsf{pred}\; \ottmv{D}  \ottsym{(}  \ottnt{A}  \ottsym{,}  \ottnt{B}  \ottsym{)}  }%
-\ottpremise{ \Sigma_r  ;  \Delta  \vdash_{  \mathbf{0}  }  \ottnt{crt_{{\mathrm{1}}}}  \Leftarrow   \ottmv{x}  \mathord{:}_{  \mathbf{0}  }  \ottnt{A} ,   \ottmv{y}  \mathord{:}  \ottnt{ce}  @  \ottmv{Next} \, \ottmv{x}  \; [\mathsf{res}],   \cdot     \dashv  \Delta'  \leadsto  \mathcal{C} }%
-\ottpremise{ \Sigma_r  ;    \Delta' ,  \ottmv{x}  \mathord{:}_{  \mathbf{0}  }  \ottnt{A}  ,  \ottmv{y}  \mathord{:}  \ottnt{ce}  @  \ottmv{Next} \, \ottmv{x}  \; [\mathsf{res}(  1  )]   \vdash_{  \mathbf{1}  }  \ottnt{crt_{{\mathrm{2}}}}  \Leftarrow   \ottmv{z}  \mathord{:}_{  \mathbf{0}  }  \ottmv{D}  \ottsym{(}  \ottnt{A}  \ottsym{,}  \ottnt{B}  \ottsym{)} ,   \ottmv{y}  \mathord{:}  \ottnt{ce}  @  \ottmv{z}  \; [\mathsf{res}],   \cdot     \dashv    \Delta' ,  \ottmv{x}  \mathord{:}_{  \mathbf{0}  }  \ottnt{A}  ,  \ottmv{y}  \mathord{:}  \ottnt{ce}  @  \ottmv{Next} \, \ottmv{x}  \; [\mathsf{res}(  1  )]   \leadsto  \mathcal{C}' }%
-}{
- \Sigma_r  ;  \Delta  \vdash_{  \mathbf{1}  }  \ottkw{iter} \, \ottsym{[}  \ottnt{ce}  \ottsym{]}  \ottsym{(}  \ottnt{q}  \ottsym{=}  \ottnt{crt_{{\mathrm{1}}}}  \ottsym{)}  \ottsym{\{}  \ottnt{crt_{{\mathrm{2}}}}  \ottsym{\}}  \Leftarrow   \ottmv{z}  \mathord{:}_{  \mathbf{0}  }  \ottnt{B} ,   \ottmv{y}  \mathord{:}  \ottnt{ce}  @  \ottmv{Done} \, \ottmv{z}  \; [\mathsf{res}],   \cdot     \dashv  \Delta'  \leadsto   \mathcal{C}  \wedge   \forall  \ottmv{x}  \mathord{:}  \ottnt{A} . \,  \mathcal{C}'   }{%
-{\ottdrulename{RCChk\_iter}}{}%
 }}
 
 
@@ -2675,7 +3093,6 @@
 \ottusedrule{\ottdruleRCChkXXlet{}}
 \ottusedrule{\ottdruleRCChkXXif{}}
 \ottusedrule{\ottdruleRCChkXXcase{}}
-\ottusedrule{\ottdruleRCChkXXiter{}}
 \ottusedrule{\ottdruleRCChkXXexfalso{}}
 \ottusedrule{\ottdruleRCChkXXsub{}}
 \end{ottdefnblock}}
@@ -2683,42 +3100,62 @@
 %% defn spine_check
 \newcommand{\ottdruleSpineXXnil}[1]{\ottdrule[#1]{%
 }{
- \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }   \cdot   :    \cdot   \multimap  \ottnt{Pf}  \; \lbrack  \ottnt{eff}  \rbrack   \gg  \ottnt{Pf}  \dashv  \Delta  \leadsto   \top  }{%
+ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }   \cdot   :   \cdot   \multimap  \ottnt{Pf}  \gg  \ottnt{Pf}  \dashv  \Delta  \leadsto   \top  }{%
 {\ottdrulename{Spine\_nil}}{}%
 }}
 
 
-\newcommand{\ottdruleSpineXXcore}[1]{\ottdrule[#1]{%
+\newcommand{\ottdruleSpineXXpure}[1]{\ottdrule[#1]{%
 \ottpremise{ \Gamma  = | \Delta |  \quad  \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{ce}  \Leftarrow  \tau }%
-\ottpremise{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :    [  \ottnt{ce}  /  \ottmv{x}  ]  \ottnt{Pf_{{\mathrm{1}}}}   \multimap   [  \ottnt{ce}  /  \ottmv{x}  ]  \ottnt{Pf_{{\mathrm{2}}}}   \; \lbrack  \ottnt{eff}  \rbrack   \gg  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }%
+\ottpremise{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :   \lbrack   \mathsf{id}(  | \Delta |  )   \ottsym{,}  \ottnt{ce}  \ottsym{/}  \ottmv{x}  \rbrack  \ottnt{Pf_{{\mathrm{1}}}}   \multimap   \lbrack   \mathsf{id}(  | \Delta |  )   \ottsym{,}  \ottnt{ce}  \ottsym{/}  \ottmv{x}  \rbrack  \ottnt{Pf_{{\mathrm{2}}}}   \gg  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }%
 }{
- \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{ce}  \ottsym{,}  \ottnt{rsp}  :    \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau ,  \ottnt{Pf_{{\mathrm{1}}}}   \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \; \lbrack  \ottnt{eff}  \rbrack   \gg  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }{%
-{\ottdrulename{Spine\_core}}{}%
+ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{ce}  \ottsym{,}  \ottnt{rsp}  :   \ottmv{x}  \mathord{:}_{  \mathbf{0}  }  \tau ,  \ottnt{Pf_{{\mathrm{1}}}}   \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \gg  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }{%
+{\ottdrulename{Spine\_pure}}{}%
+}}
+
+
+\newcommand{\ottdruleSpineXXspec}[1]{\ottdrule[#1]{%
+\ottpremise{ \Gamma  = | \Delta |  \quad  \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{  \mathbf{S}  }  \ottnt{ce}  \Leftarrow  \tau }%
+\ottpremise{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :   \lbrack   \mathsf{id}(  | \Delta |  )   \ottsym{,}  \ottnt{ce}  \ottsym{/}  \ottmv{x}  \rbrack  \ottnt{Pf_{{\mathrm{1}}}}   \multimap   \lbrack   \mathsf{id}(  | \Delta |  )   \ottsym{,}  \ottnt{ce}  \ottsym{/}  \ottmv{x}  \rbrack  \ottnt{Pf_{{\mathrm{2}}}}   \gg  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }%
+}{
+ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{ce}  \ottsym{,}  \ottnt{rsp}  :   \ottmv{x}  \mathord{:}_{  \mathbf{S}  }  \tau ,  \ottnt{Pf_{{\mathrm{1}}}}   \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \gg  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} }{%
+{\ottdrulename{Spine\_spec}}{}%
 }}
 
 
 \newcommand{\ottdruleSpineXXlog}[1]{\ottdrule[#1]{%
 \ottpremise{ \Sigma_r  ;  \Delta  \vdash  \ottnt{lpf}  \Leftarrow  \ottnt{ce}  \dashv  \Delta'  \leadsto  \mathcal{C} }%
-\ottpremise{ \Sigma_r  ;  \Delta'  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :   \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \; \lbrack  \ottnt{eff}  \rbrack   \gg  \ottnt{Pf}  \dashv  \Delta''  \leadsto  \mathcal{C}' }%
+\ottpremise{ \Sigma_r  ;  \Delta'  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :  \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \gg  \ottnt{Pf}  \dashv  \Delta''  \leadsto  \mathcal{C}' }%
 }{
- \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{lpf}  \ottsym{,}  \ottnt{rsp}  :    \ottmv{x}  \mathord{:}  \ottnt{ce}  \; [\mathsf{log}],  \ottnt{Pf_{{\mathrm{1}}}}   \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \; \lbrack  \ottnt{eff}  \rbrack   \gg  \ottnt{Pf}  \dashv  \Delta''  \leadsto   \mathcal{C}  \wedge  \mathcal{C}'  }{%
+ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{lpf}  \ottsym{,}  \ottnt{rsp}  :   \ottmv{x}  \mathord{:}  \ottnt{ce}  \; [\mathsf{log}],  \ottnt{Pf_{{\mathrm{1}}}}   \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \gg  \ottnt{Pf}  \dashv  \Delta''  \leadsto   \mathcal{C}  \wedge  \mathcal{C}'  }{%
 {\ottdrulename{Spine\_log}}{}%
 }}
 
 
 \newcommand{\ottdruleSpineXXres}[1]{\ottdrule[#1]{%
 \ottpremise{ \Sigma_r  ;  \Delta  \vdash  \ottnt{rpf}  \Leftarrow  \ottnt{ce_{{\mathrm{1}}}}  @  \ottnt{ce_{{\mathrm{2}}}}  \dashv  \Delta'  \leadsto  \mathcal{C} }%
-\ottpremise{ \Sigma_r  ;  \Delta'  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :   \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \; \lbrack  \ottnt{eff}  \rbrack   \gg  \ottnt{Pf}  \dashv  \Delta''  \leadsto  \mathcal{C}' }%
+\ottpremise{ \Sigma_r  ;  \Delta'  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :  \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \gg  \ottnt{Pf}  \dashv  \Delta''  \leadsto  \mathcal{C}' }%
 }{
- \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rpf}  \ottsym{,}  \ottnt{rsp}  :    \ottmv{x}  \mathord{:}  \ottnt{ce_{{\mathrm{1}}}}  @  \ottnt{ce_{{\mathrm{2}}}}  \; [\mathsf{res}],  \ottnt{Pf_{{\mathrm{1}}}}   \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \; \lbrack  \ottnt{eff}  \rbrack   \gg  \ottnt{Pf}  \dashv  \Delta''  \leadsto   \mathcal{C}  \wedge  \mathcal{C}'  }{%
+ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rpf}  \ottsym{,}  \ottnt{rsp}  :   \ottmv{x}  \mathord{:}  \ottnt{ce_{{\mathrm{1}}}}  @  \ottnt{ce_{{\mathrm{2}}}}  \; [\mathsf{res}],  \ottnt{Pf_{{\mathrm{1}}}}   \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \gg  \ottnt{Pf}  \dashv  \Delta''  \leadsto   \mathcal{C}  \wedge  \mathcal{C}'  }{%
 {\ottdrulename{Spine\_res}}{}%
 }}
 
-\newcommand{\ottdefnspineXXcheck}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :  \ottnt{RF}  \gg  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} $}{}
+
+\newcommand{\ottdruleSpineXXdepres}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_r  ;  \Delta  \vdash  \ottnt{rpf}  \Rightarrow  \ottnt{ce'}  @  \ottnt{ce''}  \dashv  \Delta'  \leadsto  \mathcal{C} }%
+\ottpremise{ \Sigma_r  ;  \Delta'  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :   \lbrack   \mathsf{id}(  | \Delta' |  )   \ottsym{,}  \ottnt{ce''}  \ottsym{/}  \ottmv{y}  \rbrack  \ottnt{Pf_{{\mathrm{1}}}}   \multimap   \lbrack   \mathsf{id}(  | \Delta' |  )   \ottsym{,}  \ottnt{ce''}  \ottsym{/}  \ottmv{y}  \rbrack  \ottnt{Pf_{{\mathrm{2}}}}   \gg  \ottnt{Pf}  \dashv  \Delta''  \leadsto  \mathcal{C}' }%
+}{
+ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rpf}  \ottsym{,}  \ottnt{rsp}  :   \ottmv{x}  \mathord{:} ( \ottmv{y} ). \ottnt{ce}  \; [\mathsf{res}],  \ottnt{Pf_{{\mathrm{1}}}}   \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \gg  \ottnt{Pf}  \dashv  \Delta''  \leadsto   \ottsym{(}   \mathcal{C}  \wedge   \ottsym{(}   \ottnt{ce}  \doteq  \ottnt{ce'}   \ottsym{)}    \ottsym{)}  \wedge  \mathcal{C}'  }{%
+{\ottdrulename{Spine\_depres}}{}%
+}}
+
+\newcommand{\ottdefnspineXXcheck}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :  \ottnt{Pf_{{\mathrm{1}}}}  \multimap  \ottnt{Pf_{{\mathrm{2}}}}  \gg  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} $}{}
 \ottusedrule{\ottdruleSpineXXnil{}}
-\ottusedrule{\ottdruleSpineXXcore{}}
+\ottusedrule{\ottdruleSpineXXpure{}}
+\ottusedrule{\ottdruleSpineXXspec{}}
 \ottusedrule{\ottdruleSpineXXlog{}}
 \ottusedrule{\ottdruleSpineXXres{}}
+\ottusedrule{\ottdruleSpineXXdepres{}}
 \end{ottdefnblock}}
 
 %% defn tuple_check
@@ -2731,7 +3168,7 @@
 
 \newcommand{\ottdruleTupXXcore}[1]{\ottdrule[#1]{%
 \ottpremise{ \Gamma  = | \Delta |  \quad  \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff} }  \ottnt{ce}  \Leftarrow  \tau }%
-\ottpremise{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :   [  \ottnt{ce}  /  \ottmv{x}  ]  \ottnt{Pf}   \dashv  \Delta'  \leadsto  \mathcal{C} }%
+\ottpremise{ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :   \lbrack   \mathsf{id}(  | \Delta |  )   \ottsym{,}  \ottnt{ce}  \ottsym{/}  \ottmv{x}  \rbrack  \ottnt{Pf}   \dashv  \Delta'  \leadsto  \mathcal{C} }%
 }{
  \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{ce}  \ottsym{,}  \ottnt{rsp}  :   \ottmv{x}  \mathord{:}_{ \ottnt{eff} }  \tau ,  \ottnt{Pf}   \dashv  \Delta'  \leadsto  \mathcal{C} }{%
 {\ottdrulename{Tup\_core}}{}%
@@ -2755,11 +3192,21 @@
 {\ottdrulename{Tup\_res}}{}%
 }}
 
+
+\newcommand{\ottdruleTupXXdepres}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_r  ;  \Delta  \vdash  \ottnt{rpf}  \Rightarrow  \ottnt{ce'}  @  \ottnt{ce''}  \dashv  \Delta'  \leadsto  \mathcal{C} }%
+\ottpremise{ \Sigma_r  ;  \Delta'  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :   \lbrack   \mathsf{id}(  | \Delta' |  )   \ottsym{,}  \ottnt{ce''}  \ottsym{/}  \ottmv{y}  \rbrack  \ottnt{Pf}   \dashv  \Delta''  \leadsto  \mathcal{C}' }%
+}{
+ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rpf}  \ottsym{,}  \ottnt{rsp}  :   \ottmv{x}  \mathord{:} ( \ottmv{y} ). \ottnt{ce}  \; [\mathsf{res}],  \ottnt{Pf}   \dashv  \Delta''  \leadsto   \ottsym{(}   \mathcal{C}  \wedge   \ottsym{(}   \ottnt{ce}  \doteq  \ottnt{ce'}   \ottsym{)}    \ottsym{)}  \wedge  \mathcal{C}'  }{%
+{\ottdrulename{Tup\_depres}}{}%
+}}
+
 \newcommand{\ottdefntupleXXcheck}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{rsp}  :  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} $}{}
 \ottusedrule{\ottdruleTupXXnil{}}
 \ottusedrule{\ottdruleTupXXcore{}}
 \ottusedrule{\ottdruleTupXXlog{}}
 \ottusedrule{\ottdruleTupXXres{}}
+\ottusedrule{\ottdruleTupXXdepres{}}
 \end{ottdefnblock}}
 
 %% defn rprog
@@ -2900,7 +3347,7 @@
 \ottall
 
 \begin{verbatim}
-Definition rules:        234 good    0 bad
-Definition rule clauses: 516 good    0 bad
+Definition rules:        281 good    0 bad
+Definition rule clauses: 606 good    0 bad
 \end{verbatim}
 \end{document}

@@ -29,31 +29,28 @@ blit :: 'BLit_' ::=                                       {{ com boolean literal
   | true                               :: :: True
   | false                              :: :: False
 
-A, B, C :: 'T_' ::=                                        {{ com types }}
-  | int                                :: :: Int            {{ com integers }} {{ tex \mathsf{Int} }}
-  | bool                               :: :: Bool           {{ com booleans }} {{ tex \mathsf{Bool} }}
-  | ptr A                              :: :: Ptr            {{ com pointer }}  {{ tex \mathsf{Ptr}\;[[A]] }}
-  | ( A1 , .. , An )                   :: :: Record         {{ com record }}
-  | D ( A1 , .. , An )                 :: :: App            {{ com datatype application }}
-  | a                                  :: :: TVar           {{ com type variable }}
-
-AL {{ tex \overline{A} }} :: 'AList_' ::=                          {{ com type lists }}
-  | alnil                             :: :: Nil           {{ tex [] }}
-  | A ,, AL                           :: :: Cons          {{ tex [[A]] \mathord{::} [[AL]] }}
-
 eff, eff_b {{ tex \epsilon }} :: 'Eff_' ::=                        {{ com effects }}
   | pure                               :: :: Pure            {{ tex \mathbf{0} }}
   | impure                             :: :: Impure          {{ tex \mathbf{1} }}
   | spec                               :: :: Spec            {{ tex \mathbf{S} }}
 
-tau {{ tex \tau }} :: 'Sort_' ::=                          {{ com sorts }}
+kind :: 'Kind_' ::=                                            {{ com kinds }}
+  | type                               :: :: Type           {{ tex \mathsf{type} }}
+  | sort                               :: :: Sort           {{ tex \mathsf{sort} }}
+
+tau {{ tex \tau }}, A, B, C :: 'Sort_' ::=                 {{ com sorts }}
   | int                                :: :: Int            {{ com integers }} {{ tex \mathsf{Int} }}
   | bool                               :: :: Bool           {{ com booleans }} {{ tex \mathsf{Bool} }}
   | ptr tau'                           :: :: Ptr            {{ com pointer }}  {{ tex \mathsf{Ptr}\;[[tau']] }}
   | ( tau1 , .. , taun )               :: :: Record         {{ com tuple }}
-  | D ( tau1 , .. , taun )             :: :: App            {{ com datasort application }}
+  | D ( tau1 , .. , taun )             :: :: App            {{ com datatype application }}
   | pred tau'                          :: :: Pred           {{ com predicate sort }} {{ tex \mathsf{Pred}\;[[tau']] }}
   | a                                  :: :: TVar           {{ com type variable }}
+  | app_s gamma tau                    :: M :: Subst         {{ tex \lbrack [[gamma]] \rbrack [[tau]] }}
+
+AL {{ tex \overline{A} }} :: 'AList_' ::=                          {{ com type lists }}
+  | alnil                             :: :: Nil           {{ tex [] }}
+  | A ,, AL                           :: :: Cons          {{ tex [[A]] \mathord{::} [[AL]] }}
 
 F :: 'P_' ::=                                              {{ com function signatures }}
   | tau -> tau' [ eff ]                :: :: FunSig   {{ tex [[tau]] \to_{[[eff]]} [[tau']] }}
@@ -62,7 +59,16 @@ F :: 'P_' ::=                                              {{ com function signa
 G {{ tex \Gamma }} :: 'Ctx_' ::=                            {{ com contexts }}
   | empty                              :: :: Empty          {{ tex \cdot }}
   | G , x : tau [ eff ]               :: :: Ext            {{ tex [[G]], [[x]] \mathord{:}_{[[eff]]} [[tau]] }}
+  | G , a : kind                       :: :: TVar           {{ tex [[G]], [[a]] \mathord{:} [[kind]] }}
   | G , G'                             :: :: Concat
+  | erase Delta                        :: M :: Erase         {{ tex |[[Delta]]| }}
+
+gamma {{ tex \gamma }} :: 'Subst_' ::=                     {{ com explicit substitutions }}
+  | nosub                              :: :: Empty          {{ tex \cdot }}
+  | gamma , ce1 / x1 , .. , cen / xn  :: :: TermList
+  | gamma , tau1 / a1 , .. , taun / an :: :: TypeList
+  | id G                               :: M :: Id          {{ tex \mathsf{id}([[G]]) }}
+  | gamma ; gamma'                     :: M :: Comp
 
 
 CS {{ tex \Sigma_c }} :: 'Sig_' ::=                            {{ com core signatures }}
@@ -86,11 +92,6 @@ RS {{ tex \Sigma_r }} :: 'RSig_' ::=                            {{ com refined s
   | RS , f : RF                         :: :: RFun
   | RS , sort D ( a1 , .. , ai ) = { L1 : tau1 '|' .. '|' Ln : taun }  :: :: Sort  {{ tex [[RS]], \mathsf{sort}\;[[D]](\overline{a}) = \{\overline{L : \tau}\} }}
   | RS , type D ( a1 , .. , ai ) = { L1 : A1 '|' .. '|' Ln : An }  :: :: Type  {{ tex [[RS]], \mathsf{type}\;[[D]](\overline{a}) = \{\overline{L : A}\} }}
-
-Phi {{ tex \Phi }} :: 'TVCtx_' ::=                             {{ com type variable contexts }}
-  | notvs                              :: :: Empty          {{ tex \cdot }}
-  | Phi , a                            :: :: Ext
-  | a1 , .. , ai                       :: :: List           {{ tex \overline{a} }}
 
 prim :: 'Prim_' ::=                                            {{ com primitives }}
   | Add                                :: :: Add            {{ com addition }}
@@ -133,7 +134,7 @@ ce :: 'CE_' ::=                                               {{ com core expres
   | take x = ce1 ; ce2                :: :: Take
   | return ce                          :: :: Return
   | ( ce )                             :: :: Paren
-  | [ ce / x ] ce'                     :: :: Subst      {{ tex [ [[ce]] / [[x]] ] [[ce']] }}
+  | app_s gamma ce                     :: M :: ExSubst   {{ tex \lbrack [[gamma]] \rbrack [[ce]] }}
 
 
 
@@ -222,17 +223,20 @@ formula :: 'formula_' ::=
   | A = subst A1 / a1 , .. , Ai / ai in A'   :: :: type_subst_eq
   | type D ( a1 , .. , ak ) = { L1 : A1 | .. | Ln : An } in CS   :: :: type_lookup
   | type D ( x , y ) = { Next : a , Done : b } in CS   :: :: step_lookup   {{ tex \mathsf{type}\; [[D]]( [[a]], [[b]]) = \{ \mathsf{Next}\mathord{:}[[a]] \mid \mathsf{Done}\mathord{:}[[b]] \} \in [[CS]] }}
-  | a in Phi                            :: :: tvar_in     {{ tex [[a]] \in [[Phi]] }}
+  | a : kind in G                       :: :: tvar_in     {{ tex [[a]] \mathord{:} [[kind]] \in [[G]] }}
+  | kind <= kind'                      :: :: subkind     {{ tex [[kind]] \leq [[kind']] }}
   | L != L'                            :: :: label_neq   {{ tex [[L]] \neq [[L']] }}
   | mbranches = mk tau { pat1 --> se1 || .. || patn --> sen }  :: :: mk_branches  {{ tex [[mbranches]] = \overline{ pat \mathord{:} [[tau]], \cdot \to [\cdot][\cdot] \, se } }}
   | ce = fill E ce'                    :: :: fill_ctx      {{ tex [[ce]] = [[E]] [ [[ce']] ] }}
   | D != D'                             :: :: dsort_neq  {{ tex [[D]] \neq [[D']] }}
   | x != y                              :: :: var_neq    {{ tex [[x]] \neq [[y]] }}
+  | a != b                              :: :: tvar_neq   {{ tex [[a]] \neq [[b]] }}
   | n = k                               :: :: arity_eq   {{ tex [[n]] = [[k]] }}
   | eff = eff1 join eff2                :: :: eff_join   {{ tex [[eff]] = [[eff1]] \vee [[eff2]] }}
   | eff = eff1 join eff2 join eff3     :: :: eff_join3  {{ tex [[eff]] = [[eff1]] \vee [[eff2]] \vee [[eff3]] }}
   | eff = eff1 vjoin .. vjoin effn             :: :: eff_joinlist_nary
   | G = x1 : tau1 [ eff1 ] , .. , xn : taun [ effn ]  :: :: ctx_eq
+  | G = a1 : kind1 , .. , ai : kindi  :: :: tvar_ctx_eq  {{ tex [[G]] = \overline{a : k} }}
   | formula1 .. formulan                :: :: dots
   | x : ce [ log ] in Delta          :: :: log_in     {{ tex [[x]] \mathord{:} [[ce]] \; [\mathsf{log}] \in [[Delta]] }}
   | x : ce @ ce' [ res ( u ) ] in Delta  :: :: res_in  {{ tex [[x]] \mathord{:} [[ce]] @ [[ce']] \; [\mathsf{res}([[u]])] \in [[Delta]] }}
@@ -291,7 +295,7 @@ Pf :: 'Pf_' ::=                                     {{ com proof sorts }}
   | x : ce [ log ] , Pf             :: :: Log        {{ tex [[x]] \mathord{:} [[ce]] \; [\mathsf{log}], [[Pf]] }}
   | x : ce @ ce' [ res ] , Pf     :: :: Res        {{ tex [[x]] \mathord{:} [[ce]] @ [[ce']] \; [\mathsf{res}], [[Pf]] }}
   | x : ( y ) . ce [ res ] , Pf  :: :: DepRes {{ tex [[x]] \mathord{:} ([[y]]).[[ce]] \; [\mathsf{res}], [[Pf]] }}
-  | [ ce / x ] Pf                   :: :: Subst      {{ tex [ [[ce]] / [[x]] ] [[Pf]] }}
+  | app_s gamma Pf                  :: M :: ExSubst   {{ tex \lbrack [[gamma]] \rbrack [[Pf]] }}
 
 RF :: 'RF_' ::=                                      {{ com refined function types }}
   | Pf1 -o Pf2 [ eff ]             :: :: Fun         {{ tex [[Pf1]] \multimap [[Pf2]] \; \lbrack [[eff]] \rbrack }}
@@ -333,9 +337,6 @@ rpf :: 'RPf_' ::=                                    {{ com resource proof facts
   | rpf : ce @ ce'                :: :: Annot        {{ tex [[rpf]] : [[ce]] @ [[ce']] }}
 
 
-subrules
-  A <:: tau
-
 
 % =============================================================================
 % Well-formedness, effects, and primitive typing
@@ -343,101 +344,270 @@ subrules
 
 defns Jtype :: '' ::=
 
-  defn CS ; Phi |- A wf :: :: type_wf :: 'TWf_'
-  {{ tex [[CS]] ; [[Phi]] \vdash [[A]] \;\mathsf{wf} }} by
+  defn kind <= kind' :: :: subkind :: 'SK_'
+  {{ tex [[kind]] \leq [[kind']] }} by
 
-    ------------- :: int
-    CS ; Phi |- int wf
+    ------------- :: type_type
+    type <= type
 
-    -------------- :: bool
-    CS ; Phi |- bool wf
+    ------------- :: type_sort
+    type <= sort
 
-    CS ; Phi |- A wf
-    ---------------- :: ptr
-    CS ; Phi |- ptr A wf
+    ------------- :: sort_sort
+    sort <= sort
 
-    CS ; Phi |- A1 wf .. CS ; Phi |- An wf
-    ---------------------------------------- :: record
-    CS ; Phi |- ( A1 , .. , An ) wf
+  defn CS ; G |- tau : kind :: :: kind_wf :: 'KWf_'
+  {{ tex [[CS]] ; [[G]] \vdash [[tau]] \mathord{:} [[kind]] }} by
+
+    --------------------- :: int
+    CS ; G |- int : kind
+
+    ---------------------- :: bool
+    CS ; G |- bool : kind
+
+    CS ; G |- tau : type
+    ---------------------- :: ptr
+    CS ; G |- ptr tau : kind
+
+    CS ; G |- tau1 : kind .. CS ; G |- taun : kind
+    ------------------------------------------------ :: record
+    CS ; G |- ( tau1 , .. , taun ) : kind
 
     type D ( a1 , .. , ak ) in CS    n = k
-    CS ; Phi |- A1 wf .. CS ; Phi |- An wf
-    ---------------------------------------- :: app
-    CS ; Phi |- D ( A1 , .. , An ) wf
+    CS ; G |- tau1 : type .. CS ; G |- taun : type
+    ------------------------------------------------ :: type_app
+    CS ; G |- D ( tau1 , .. , taun ) : type
 
-    a in Phi
-    ------------- :: tvar
-    CS ; Phi |- a wf
+    sort D ( a1 , .. , ak ) in CS    n = k
+    CS ; G |- tau1 : sort .. CS ; G |- taun : sort
+    ------------------------------------------------ :: sort_app
+    CS ; G |- D ( tau1 , .. , taun ) : sort
 
-  defn CS ; Phi ; D' |- A guarded :: :: type_guarded :: 'TWfG_'
-  {{ tex [[CS]] ; [[Phi]] ; [[D']] \vdash [[A]] \;\mathsf{guarded} }} by
+    CS ; G |- tau : sort
+    ---------------------- :: pred
+    CS ; G |- pred tau : sort
 
-    --------------- :: int
-    CS ; Phi ; D' |- int guarded
+    a : kind' in G    kind' <= kind
+    -------------------------------- :: tvar
+    CS ; G |- a : kind
 
-    ---------------- :: bool
-    CS ; Phi ; D' |- bool guarded
+  defn CS ; G ; D' ( a1 , .. , ai ) |- tau guarded :: :: type_guarded :: 'TWfG_'
+  {{ tex [[CS]] ; [[G]] ; [[D']](\overline{a}) \vdash [[tau]] \;\mathsf{guarded} }} by
 
-    CS ; Phi |- A wf
-    ------------------- :: ptr
-    CS ; Phi ; D' |- ptr A guarded
+    ----------------------- :: int
+    CS ; G ; D' ( a1 , .. , ai ) |- int guarded
 
-    CS ; Phi ; D' |- A1 guarded .. CS ; Phi ; D' |- An guarded
-    ----------------------------------------------------------- :: record
-    CS ; Phi ; D' |- ( A1 , .. , An ) guarded
+    ------------------------ :: bool
+    CS ; G ; D' ( a1 , .. , ai ) |- bool guarded
 
-    type D ( a1 , .. , ak ) in CS    n = k    D != D'
-    CS ; Phi |- A1 wf .. CS ; Phi |- An wf
+    CS , type D' ( a1 , .. , ai ) = { } ; G |- tau : type
+    ------------------------------------------------------- :: ptr
+    CS ; G ; D' ( a1 , .. , ai ) |- ptr tau guarded
+
+    CS ; G ; D' ( a1 , .. , ai ) |- tau1 guarded .. CS ; G ; D' ( a1 , .. , ai ) |- taun guarded
+    ---------------------------------------------------------------------------------------------- :: record
+    CS ; G ; D' ( a1 , .. , ai ) |- ( tau1 , .. , taun ) guarded
+
+    type D ( b1 , .. , bk ) in CS    n = k    D != D'
+    CS ; G |- tau1 : type .. CS ; G |- taun : type
     ----------------------------------------------------------- :: app
-    CS ; Phi ; D' |- D ( A1 , .. , An ) guarded
+    CS ; G ; D' ( a1 , .. , ai ) |- D ( tau1 , .. , taun ) guarded
 
-    a in Phi
-    --------------- :: tvar
-    CS ; Phi ; D' |- a guarded
+    a : kind in G
+    ----------------------- :: tvar
+    CS ; G ; D' ( a1 , .. , ai ) |- a guarded
 
   defn CS |- sort D ( a1 , .. , ai ) = { L1 : tau1 '|' .. '|' Ln : taun } sort_ok :: :: sort_decl_wf :: 'SDWf_'
   {{ tex [[CS]] \vdash \mathsf{sort}\; [[D]](\overline{a}) = \{\overline{L : \tau}\} \;\mathsf{ok} }} by
 
-    CS , sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } ; a1 , .. , ai |- tau1 wf .. CS , sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } ; a1 , .. , ai |- taun wf
+    G = a1 : sort , .. , ai : sort
+    CS , sort D ( a1 , .. , ai ) = { } ; G |- tau1 : sort .. CS , sort D ( a1 , .. , ai ) = { } ; G |- taun : sort
     ---------------------------------------------------------------------------- :: ok
     CS |- sort D ( a1 , .. , ai ) = { L1 : tau1 | .. | Ln : taun } sort_ok
 
   defn CS |- type D ( a1 , .. , ai ) = { L1 : A1 '|' .. '|' Ln : An } type_ok :: :: type_decl_wf :: 'TDWf_'
   {{ tex [[CS]] \vdash \mathsf{type}\; [[D]](\overline{a}) = \{\overline{L : A}\} \;\mathsf{ok} }} by
 
-    CS , type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } ; a1 , .. , ai ; D |- A1 guarded .. CS , type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } ; a1 , .. , ai ; D |- An guarded
+    G = a1 : type , .. , ai : type
+    CS ; G ; D ( a1 , .. , ai ) |- A1 guarded .. CS ; G ; D ( a1 , .. , ai ) |- An guarded
     ---------------------------------------------------------------------------- :: ok
     CS |- type D ( a1 , .. , ai ) = { L1 : A1 | .. | Ln : An } type_ok
 
-  defn CS ; Phi |- tau wf :: :: sort_wf :: 'SWf_'
-  {{ tex [[CS]] ; [[Phi]] \vdash [[tau]] \;\mathsf{wf} }} by
+  defn CS ; G |- gamma : G' :: :: subst_wf :: 'SubWf_'
+  {{ tex [[CS]] ; [[G]] \vdash [[gamma]] \mathbin{:} [[G']] }} by
 
-    --------------- :: int
-    CS ; Phi |- int wf
+    ----------------------- :: empty
+    CS ; G |- nosub : empty
 
-    ---------------- :: bool
-    CS ; Phi |- bool wf
+    CS ; G |- gamma : G'    CS ; G |- [ eff ] ce ==> tau
+    ------------------------------------------------------ :: term
+    CS ; G |- gamma , ce / x : G' , x : tau [ eff ]
 
-    CS ; Phi |- tau wf
-    ------------------- :: ptr
-    CS ; Phi |- ptr tau wf
+    CS ; G |- gamma : G'    CS ; G |- tau : kind
+    ----------------------------------------------- :: type
+    CS ; G |- gamma , tau / a : G' , a : kind
 
-    CS ; Phi |- tau1 wf .. CS ; Phi |- taun wf
-    -------------------------------------------- :: record
-    CS ; Phi |- ( tau1 , .. , taun ) wf
+% =============================================================================
+% Substitution definitions
+% =============================================================================
 
-    sort D ( a1 , .. , ak ) in CS    n = k
-    CS ; Phi |- tau1 wf .. CS ; Phi |- taun wf
-    -------------------------------------------- :: app
-    CS ; Phi |- D ( tau1 , .. , taun ) wf
+  defn gamma = id G :: :: subst_id_def :: 'IdDef_'
+  {{ tex [[gamma]] = \mathsf{id}([[G]]) }} by
 
-    CS ; Phi |- tau wf
-    ------------------- :: pred
-    CS ; Phi |- pred tau wf
+    -------------------- :: empty
+    nosub = id empty
 
-    a in Phi
-    ------------- :: tvar
-    CS ; Phi |- a wf
+    gamma = id G
+    ---------------------------------- :: term
+    gamma , x / x = id G , x : tau [ eff ]
+
+    gamma = id G
+    ---------------------------------- :: type
+    gamma , a / a = id G , a : kind
+
+  defn tau' = app_s gamma tau :: :: sort_subst :: 'SS_'
+  {{ tex [[tau']] = \lbrack [[gamma]] \rbrack [[tau]] }} by
+
+    --------------------- :: int
+    int = app_s gamma int
+
+    ----------------------- :: bool
+    bool = app_s gamma bool
+
+    tau' = app_s gamma tau
+    --------------------------------- :: ptr
+    ptr tau' = app_s gamma ptr tau
+
+    tau'1 = app_s gamma tau1 .. tau'n = app_s gamma taun
+    ------------------------------------------------------ :: record
+    ( tau'1 , .. , tau'n ) = app_s gamma ( tau1 , .. , taun )
+
+    tau'1 = app_s gamma tau1 .. tau'n = app_s gamma taun
+    -------------------------------------------------------- :: app
+    D ( tau'1 , .. , tau'n ) = app_s gamma D ( tau1 , .. , taun )
+
+    tau' = app_s gamma tau
+    ------------------------------- :: pred
+    pred tau' = app_s gamma pred tau
+
+    ----------------------------- :: tvar_here
+    tau = app_s gamma , tau / a  a
+
+    a != b    tau' = app_s gamma b
+    ---------------------------------- :: tvar_skip_ty
+    tau' = app_s gamma , tau / a  b
+
+    tau' = app_s gamma b
+    ---------------------------------- :: tvar_skip_tm
+    tau' = app_s gamma , ce / x  b
+
+  defn ce' = app_s gamma ce :: :: term_subst :: 'TS_'
+  {{ tex [[ce']] = \lbrack [[gamma]] \rbrack [[ce]] }} by
+
+    ----------------------------- :: var_here
+    ce = app_s gamma , ce / x  x
+
+    x != y    ce' = app_s gamma x
+    ---------------------------------- :: var_skip_tm
+    ce' = app_s gamma , ce / y  x
+
+    ce' = app_s gamma x
+    ---------------------------------- :: var_skip_ty
+    ce' = app_s gamma , tau / a  x
+
+    ----------------------- :: intlit
+    lit = app_s gamma lit
+
+    ------------------------- :: boollit
+    blit = app_s gamma blit
+
+    ce'1 = app_s gamma ce1    ce'2 = app_s gamma , x / x ce2
+    ----------------------------------------------------------------- :: let
+    let x = ce'1 ; ce'2 = app_s gamma let x = ce1 ; ce2
+
+    ce'1 = app_s gamma ce1 .. ce'n = app_s gamma cen
+    -------------------------------------------------------- :: tuple
+    ( ce'1 , .. , ce'n ) = app_s gamma ( ce1 , .. , cen )
+
+    ce'1 = app_s gamma ce1    ce'2 = app_s gamma , x1 / x1 , .. , xn / xn ce2
+    ------------------------------------------------------------------------------- :: lettuple
+    let ( x1 , .. , xn ) = ce'1 ; ce'2 = app_s gamma let ( x1 , .. , xn ) = ce1 ; ce2
+
+    ce' = app_s gamma ce
+    ----------------------------- :: inject
+    L ce' = app_s gamma L ce
+
+    ce' = app_s gamma ce    ce'1 = app_s gamma , x1 / x1 ce1 .. ce'n = app_s gamma , xn / xn cen
+    -------------------------------------------------------------------------------------------------- :: case
+    case ce' of { L1 x1 -> ce'1 | .. | Ln xn -> ce'n } = app_s gamma case ce of { L1 x1 -> ce1 | .. | Ln xn -> cen }
+
+    ce'1 = app_s gamma ce1    ce'2 = app_s gamma , x / x ce2
+    ----------------------------------------------------------------- :: iter
+    iter ( x = ce'1 ) { ce'2 } = app_s gamma iter ( x = ce1 ) { ce2 }
+
+    ce' = app_s gamma ce
+    ------------------------------ :: prim
+    prim ce' = app_s gamma prim ce
+
+    ce'1 = app_s gamma ce1    ce'2 = app_s gamma ce2    ce'3 = app_s gamma ce3
+    ----------------------------------------------------------------------------- :: if
+    if ce'1 then ce'2 else ce'3 = app_s gamma if ce1 then ce2 else ce3
+
+    ce' = app_s gamma ce    tau' = app_s gamma tau
+    ------------------------------------------------- :: annot
+    ce' : tau' = app_s gamma ce : tau
+
+    ce' = app_s gamma ce
+    ------------------------------ :: call
+    f ce' = app_s gamma f ce
+
+    ce'1 = app_s gamma ce1    ce'2 = app_s gamma ce2
+    ---------------------------------------------------- :: eq
+    ce'1 == ce'2 = app_s gamma ce1 == ce2
+
+    ce'1 = app_s gamma ce1    ce'2 = app_s gamma , x / x ce2
+    ----------------------------------------------------------------- :: take
+    take x = ce'1 ; ce'2 = app_s gamma take x = ce1 ; ce2
+
+    ce' = app_s gamma ce
+    ---------------------------------- :: return
+    return ce' = app_s gamma return ce
+
+  defn Pf' = app_s gamma Pf :: :: pf_subst :: 'PS_'
+  {{ tex [[Pf']] = \lbrack [[gamma]] \rbrack [[Pf]] }} by
+
+    ----------------------------- :: nil
+    pfnil = app_s gamma pfnil
+
+    tau' = app_s gamma tau    Pf' = app_s gamma , x / x Pf
+    ----------------------------------------------------------- :: comp
+    x : tau' [ eff ] , Pf' = app_s gamma x : tau [ eff ] , Pf
+
+    ce' = app_s gamma ce    Pf' = app_s gamma Pf
+    ------------------------------------------------- :: log
+    x : ce' [ log ] , Pf' = app_s gamma x : ce [ log ] , Pf
+
+    ce'1 = app_s gamma ce1    ce'2 = app_s gamma ce2    Pf' = app_s gamma Pf
+    ----------------------------------------------------------------------------- :: res
+    x : ce'1 @ ce'2 [ res ] , Pf' = app_s gamma x : ce1 @ ce2 [ res ] , Pf
+
+    ce' = app_s gamma , y / y ce    Pf' = app_s gamma Pf
+    ----------------------------------------------------------- :: depres
+    x : ( y ) . ce' [ res ] , Pf' = app_s gamma x : ( y ) . ce [ res ] , Pf
+
+  defn gamma'' = gamma ; gamma' :: :: subst_comp_def :: 'CompDef_'
+  {{ tex [[gamma'']] = [[gamma]] \mathbin{;} [[gamma']] }} by
+
+    --------------------- :: empty
+    nosub = gamma ; nosub
+
+    gamma'' = gamma ; gamma'    ce' = app_s gamma ce
+    ---------------------------------------------------- :: term
+    gamma'' , ce' / x = gamma ; gamma' , ce / x
+
+    gamma'' = gamma ; gamma'    tau' = app_s gamma tau
+    ---------------------------------------------------- :: type
+    gamma'' , tau' / a = gamma ; gamma' , tau / a
 
   defn A eqtype :: :: eqtype :: 'EqTy_'
   {{ tex [[A]] \;\mathsf{eqtype} }} by
@@ -1311,7 +1481,7 @@ defns Jrefine :: '' ::=
     CS = comp RS    f : tau -> tau' [ eff ] = ce' in CS    eff <= spec
     G = erase Delta    CS ; G |- [ spec ] ce <== tau
     ------------------------------------------------------------------ :: unfold
-    RS ; Delta |- unfold f ( ce ) l==> ( f ce ) == [ ce / x ] ce' -| Delta ~~> Top
+    RS ; Delta |- unfold f ( ce ) l==> ( f ce ) == app_s id G , ce / x ce' -| Delta ~~> Top
 
     RS ; Delta |- lpf l<== ce -| Delta' ~~> Ct
     ------------------------------------------------ :: annot
@@ -1407,7 +1577,7 @@ defns Jrefine :: '' ::=
     -------------------------------------------- :: nil
     RS ; Delta |- pfnil pfeq pfnil ~~> Top
 
-    RS ; Delta , x : tau [ eff ] |- Pf1 pfeq [ x / y ] Pf2 ~~> Ct
+    RS ; Delta , x : tau [ eff ] |- Pf1 pfeq app_s id erase Delta , x / y Pf2 ~~> Ct
     ----------------------------------------------------------------------- :: comp
     RS ; Delta |- x : tau [ eff ] , Pf1 pfeq y : tau [ eff ] , Pf2 ~~> forall x : tau . Ct
 
@@ -1420,7 +1590,7 @@ defns Jrefine :: '' ::=
     RS ; Delta |- x : ce1 @ ce1' [ res ] , Pf1 pfeq y : ce2 @ ce2' [ res ] , Pf2 ~~> ( ( Ct_ce ( ce1 == ce2 ) ) cand Ct_ce ( ce1' == ce2' ) ) cand Ct
 
     G = erase Delta    CS = comp RS    CS ; G |- [ spec ] ce1 ==> pred tau    CS ; G |- [ spec ] ce2 ==> pred tau
-    RS ; Delta , z : tau [ spec ] |- [ z / y ] Pf1 pfeq [ z / y ] Pf2 ~~> Ct
+    RS ; Delta , z : tau [ spec ] |- app_s id erase Delta , z / y Pf1 pfeq app_s id erase Delta , z / y Pf2 ~~> Ct
     -------------------------------------------------------------------------------------------------------------------------- :: depres
     RS ; Delta |- x : ( y ) . ce1 [ res ] , Pf1 pfeq w : ( y ) . ce2 [ res ] , Pf2 ~~> ( Ct_ce ( ce1 == ce2 ) ) cand forall z : tau . Ct
 
@@ -1459,20 +1629,20 @@ defns Jrefine :: '' ::=
     ---------------------------------------- :: empty
     RS ; G |- rpempty : pfnil -| rempty
 
-    RS ; G , x : tau [ eff ] |- q : [ x / y ] Pf -| Delta
+    RS ; G , x : tau [ eff ] |- q : app_s id G , x / y Pf -| Delta
     ---------------------------------------------------------------------- :: comp
     RS ; G |- ( x , q ) : y : tau [ eff ] , Pf -| rempty , x : tau [ eff ] , Delta
 
-    RS ; G |- q : [ x / y ] Pf -| Delta
+    RS ; G |- q : app_s id G , x / y Pf -| Delta
     ---------------------------------------------------------------------- :: log
     RS ; G |- ( x , q ) : y : ce [ log ] , Pf -| rempty , x : ce [ log ] , Delta
 
-    RS ; G |- q : [ x / y ] Pf -| Delta
+    RS ; G |- q : app_s id G , x / y Pf -| Delta
     ---------------------------------------------------------------------------- :: res
     RS ; G |- ( x , q ) : y : ce @ ce' [ res ] , Pf -| rempty , x : ce @ ce' [ res ( avail ) ] , Delta
 
     CS = comp RS    CS ; G |- [ spec ] ce ==> pred tau
-    RS ; G , x : tau [ spec ] |- q : [ x / z ] [ x / y ] Pf -| Delta
+    RS ; G , x : tau [ spec ] |- q : app_s id G , w / z , x / y Pf -| Delta
     --------------------------------------------------------------------------------------------- :: depres
     RS ; G |- ( ( x , w ) , q ) : y : ( z ) . ce [ res ] , Pf -| rempty , x : tau [ spec ] , w : ce @ x [ res ( avail ) ] , Delta
 
@@ -1578,12 +1748,12 @@ defns Jrefine :: '' ::=
     RS ; Delta |- [ eff ] rspnil : pfnil -o Pf >> Pf -| Delta ~~> Top
 
     G = erase Delta    CS = comp RS    CS ; G |- [ eff ] ce <== tau
-    RS ; Delta |- [ eff ] rsp : [ ce / x ] Pf1 -o [ ce / x ] Pf2 >> Pf -| Delta' ~~> Ct
+    RS ; Delta |- [ eff ] rsp : app_s id erase Delta , ce / x Pf1 -o app_s id erase Delta , ce / x Pf2 >> Pf -| Delta' ~~> Ct
     -------------------------------------------------------------------------- :: pure
     RS ; Delta |- [ eff ] ce , rsp : x : tau [ pure ] , Pf1 -o Pf2 >> Pf -| Delta' ~~> Ct
 
     G = erase Delta    CS = comp RS    CS ; G |- [ spec ] ce <== tau
-    RS ; Delta |- [ eff ] rsp : [ ce / x ] Pf1 -o [ ce / x ] Pf2 >> Pf -| Delta' ~~> Ct
+    RS ; Delta |- [ eff ] rsp : app_s id erase Delta , ce / x Pf1 -o app_s id erase Delta , ce / x Pf2 >> Pf -| Delta' ~~> Ct
     -------------------------------------------------------------------------- :: spec
     RS ; Delta |- [ eff ] ce , rsp : x : tau [ spec ] , Pf1 -o Pf2 >> Pf -| Delta' ~~> Ct
 
@@ -1598,7 +1768,7 @@ defns Jrefine :: '' ::=
     RS ; Delta |- [ eff ] rpf , rsp : x : ce1 @ ce2 [ res ] , Pf1 -o Pf2 >> Pf -| Delta'' ~~> Ct cand Ct'
 
     RS ; Delta |- rpf r==> ce' @ ce'' -| Delta' ~~> Ct
-    RS ; Delta' |- [ eff ] rsp : [ ce'' / y ] Pf1 -o [ ce'' / y ] Pf2 >> Pf -| Delta'' ~~> Ct'
+    RS ; Delta' |- [ eff ] rsp : app_s id erase Delta' , ce'' / y Pf1 -o app_s id erase Delta' , ce'' / y Pf2 >> Pf -| Delta'' ~~> Ct'
     ----------------------------------------------------------------------------- :: depres
     RS ; Delta |- [ eff ] rpf , rsp : x : ( y ) . ce [ res ] , Pf1 -o Pf2 >> Pf -| Delta'' ~~> ( Ct cand Ct_ce ( ce == ce' ) ) cand Ct'
 
@@ -1614,7 +1784,7 @@ defns Jrefine :: '' ::=
     RS ; Delta |- [ eff ] rspnil t: pfnil -| Delta ~~> Top
 
     G = erase Delta    CS = comp RS    CS ; G |- [ eff ] ce <== tau
-    RS ; Delta |- [ eff ] rsp t: [ ce / x ] Pf -| Delta' ~~> Ct
+    RS ; Delta |- [ eff ] rsp t: app_s id erase Delta , ce / x Pf -| Delta' ~~> Ct
     --------------------------------------------------------- :: core
     RS ; Delta |- [ eff ] ce , rsp t: x : tau [ eff ] , Pf -| Delta' ~~> Ct
 
@@ -1629,7 +1799,7 @@ defns Jrefine :: '' ::=
     RS ; Delta |- [ eff ] rpf , rsp t: x : ce @ ce' [ res ] , Pf -| Delta'' ~~> Ct cand Ct'
 
     RS ; Delta |- rpf r==> ce' @ ce'' -| Delta' ~~> Ct
-    RS ; Delta' |- [ eff ] rsp t: [ ce'' / y ] Pf -| Delta'' ~~> Ct'
+    RS ; Delta' |- [ eff ] rsp t: app_s id erase Delta' , ce'' / y Pf -| Delta'' ~~> Ct'
     ------------------------------------------------------------- :: depres
     RS ; Delta |- [ eff ] rpf , rsp t: x : ( y ) . ce [ res ] , Pf -| Delta'' ~~> ( Ct cand Ct_ce ( ce == ce' ) ) cand Ct'
 
