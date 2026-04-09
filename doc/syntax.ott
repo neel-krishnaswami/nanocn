@@ -177,7 +177,7 @@ rprog :: 'RProg_' ::=                                      {{ com refined progra
   | sort D ( a1 , .. , ai ) = { L1 : tau1 '|' .. '|' Ln : taun } rprog   :: :: SortDecl
   | type D ( a1 , .. , ai ) = { L1 : A1 '|' .. '|' Ln : An } rprog     :: :: TypeDecl
   | fun f ( x : tau ) -> tau' [ eff ] = ce rprog   :: :: FunDecl   {{ tex \mathsf{fun}\;[[f]]([[x]] : [[tau]]) \to_{[[eff]]} [[tau']] = [[ce]] \quad \ottnt{rprog} }}
-  | fun f ( Pf1 ) -> Pf2 [ eff ] = crt rprog   :: :: RFunDecl   {{ tex \mathsf{fun}\;[[f]]([[Pf1]]) \to_{[[eff]]} [[Pf2]] = [[crt]] \quad \ottnt{rprog} }}
+  | fun f ( q ) : Pf1 -o Pf2 [ eff ] = crt rprog   :: :: RFunDecl   {{ tex \mathsf{fun}\;[[f]]([[q]]) : [[Pf1]] \multimap [[Pf2]] \; \lbrack [[eff]] \rbrack = [[crt]] \quad \ottnt{rprog} }}
   | main : Pf [ eff ] = crt                    :: :: Main   {{ tex \mathsf{main} : [[Pf]]_{[[eff]]} = [[crt]] }}
 
 
@@ -290,9 +290,9 @@ Ct {{ tex \mathcal{C} }} :: 'Ct_' ::=               {{ com SMT constraints }}
 Pf :: 'Pf_' ::=                                     {{ com proof sorts }}
   | pfnil                            :: :: Nil       {{ tex \cdot }}
   | x : tau [ eff ] , Pf            :: :: Comp       {{ tex [[x]] \mathord{:}_{[[eff]]} [[tau]], [[Pf]] }}
-  | x : ce [ log ] , Pf             :: :: Log        {{ tex [[x]] \mathord{:} [[ce]] \; [\mathsf{log}], [[Pf]] }}
-  | x : ce @ ce' [ res ] , Pf     :: :: Res        {{ tex [[x]] \mathord{:} [[ce]] @ [[ce']] \; [\mathsf{res}], [[Pf]] }}
-  | x : ( y ) . ce [ res ] , Pf  :: :: DepRes {{ tex [[x]] \mathord{:} ([[y]]).[[ce]] \; [\mathsf{res}], [[Pf]] }}
+  | ce [ log ] , Pf                  :: :: Log        {{ tex [[ce]] \; [\mathsf{log}], [[Pf]] }}
+  | ce @ ce' [ res ] , Pf           :: :: Res        {{ tex [[ce]] @ [[ce']] \; [\mathsf{res}], [[Pf]] }}
+  | ( y ) . ce [ res ] , Pf        :: :: DepRes     {{ tex ([[y]]).[[ce]] \; [\mathsf{res}], [[Pf]] }}
   | app_s gamma Pf                  :: M :: ExSubst   {{ tex \lbrack [[gamma]] \rbrack [[Pf]] }}
 
 RF :: 'RF_' ::=                                      {{ com refined function types }}
@@ -583,15 +583,15 @@ defns Jtype :: '' ::=
 
     ce' = app_s gamma ce    Pf' = app_s gamma Pf
     ------------------------------------------------- :: log
-    x : ce' [ log ] , Pf' = app_s gamma x : ce [ log ] , Pf
+    ce' [ log ] , Pf' = app_s gamma ce [ log ] , Pf
 
     ce'1 = app_s gamma ce1    ce'2 = app_s gamma ce2    Pf' = app_s gamma Pf
     ----------------------------------------------------------------------------- :: res
-    x : ce'1 @ ce'2 [ res ] , Pf' = app_s gamma x : ce1 @ ce2 [ res ] , Pf
+    ce'1 @ ce'2 [ res ] , Pf' = app_s gamma ce1 @ ce2 [ res ] , Pf
 
     ce' = app_s gamma , y / y ce    Pf' = app_s gamma Pf
     ----------------------------------------------------------- :: depres
-    x : ( y ) . ce' [ res ] , Pf' = app_s gamma x : ( y ) . ce [ res ] , Pf
+    ( y ) . ce' [ res ] , Pf' = app_s gamma ( y ) . ce [ res ] , Pf
 
   defn gamma'' = gamma ; gamma' :: :: subst_comp_def :: 'CompDef_'
   {{ tex [[gamma'']] = [[gamma]] \mathbin{;} [[gamma']] }} by
@@ -1310,15 +1310,15 @@ defns Jrefine :: '' ::=
 
     CS = comp RS    CS ; G |- [ spec ] ce <== bool    RS ; G |- [ eff ] Pf pfwf
     ------------------------------------------------------------------------------- :: log
-    RS ; G |- [ eff ] x : ce [ log ] , Pf pfwf
+    RS ; G |- [ eff ] ce [ log ] , Pf pfwf
 
     CS = comp RS    CS ; G |- [ spec ] ce' ==> tau    CS ; G |- [ spec ] ce <== pred tau    RS ; G |- [ eff ] Pf pfwf
     --------------------------------------------------------------------------------------------------------------------- :: res
-    RS ; G |- [ eff ] x : ce @ ce' [ res ] , Pf pfwf
+    RS ; G |- [ eff ] ce @ ce' [ res ] , Pf pfwf
 
     CS = comp RS    CS ; G |- [ spec ] ce ==> pred tau    RS ; G , y : tau [ spec ] |- [ eff ] Pf pfwf
     -------------------------------------------------------------------------------------------------------- :: depres
-    RS ; G |- [ eff ] x : ( y ) . ce [ res ] , Pf pfwf
+    RS ; G |- [ eff ] ( y ) . ce [ res ] , Pf pfwf
 
 
 % -----------------------------------------------------------------------------
@@ -1373,42 +1373,20 @@ defns Jrefine :: '' ::=
 
     AL = pf_types Pf
     ------------------------------------------- :: log
-    AL = pf_types x : ce [ log ] , Pf
+    AL = pf_types ce [ log ] , Pf
 
     AL = pf_types Pf
     ------------------------------------------- :: res
-    AL = pf_types x : ce @ ce' [ res ] , Pf
+    AL = pf_types ce @ ce' [ res ] , Pf
 
     AL = pf_types Pf
     --------------------------------------------------- :: depres
-    AL = pf_types x : ( y ) . ce [ res ] , Pf
+    AL = pf_types ( y ) . ce [ res ] , Pf
 
 
 % -----------------------------------------------------------------------------
-% Proof sort to context
+% Proof sort to context (REMOVED — replaced by pattern matching judgement)
 % -----------------------------------------------------------------------------
-
-  defn Delta = pf_to_ctx Delta' Pf :: :: pf_to_ctx :: 'PfCtx_'
-  {{ tex [[Delta]] = \mathsf{PfToCtx}([[Delta']]; [[Pf]]) }} by
-
-    ----------------------------------- :: nil
-    Delta = pf_to_ctx Delta pfnil
-
-    Delta = pf_to_ctx Delta' , x : tau [ eff ] Pf
-    --------------------------------------------------- :: comp
-    Delta = pf_to_ctx Delta' x : tau [ eff ] , Pf
-
-    Delta = pf_to_ctx Delta' , x : ce [ log ] Pf
-    --------------------------------------------------- :: log
-    Delta = pf_to_ctx Delta' x : ce [ log ] , Pf
-
-    Delta = pf_to_ctx Delta' , x : ce @ ce' [ res ( avail ) ] Pf
-    ----------------------------------------------------------------- :: res
-    Delta = pf_to_ctx Delta' x : ce @ ce' [ res ] , Pf
-
-    Delta = pf_to_ctx Delta' , y : tau [ spec ] , x : ce @ y [ res ( avail ) ] Pf
-    ------------------------------------------------------------------------------------- :: depres
-    Delta = pf_to_ctx Delta' x : ( y ) . ce [ res ] , Pf
 
 
 % -----------------------------------------------------------------------------
@@ -1556,7 +1534,7 @@ defns Jrefine :: '' ::=
     ---------------------------------------------------------------- :: makeret
     RS ; Delta |- make-ret lpf r<== return ce1 @ ce2 -| Delta' ~~> Ct
 
-    RS ; Delta |- [ eff ] crt r<== x : tau [ spec ] , y : ce1 @ x [ res ] , z : ce2 @ ce3 [ res ] , pfnil -| Delta' ~~> Ct
+    RS ; Delta |- [ eff ] crt r<== x : tau [ spec ] , ce1 @ x [ res ] , ce2 @ ce3 [ res ] , pfnil -| Delta' ~~> Ct
     ---------------------------------------------------------------- :: maketake
     RS ; Delta |- make-take crt r<== take x = ce1 ; ce2 @ ce3 -| Delta' ~~> Ct
 
@@ -1581,16 +1559,16 @@ defns Jrefine :: '' ::=
 
     RS ; Delta |- Pf1 pfeq Pf2 ~~> Ct
     -------------------------------------------------------------------------- :: log
-    RS ; Delta |- x : ce1 [ log ] , Pf1 pfeq y : ce2 [ log ] , Pf2 ~~> ( Ct_ce ( ce1 == ce2 ) ) cand Ct
+    RS ; Delta |- ce1 [ log ] , Pf1 pfeq ce2 [ log ] , Pf2 ~~> ( Ct_ce ( ce1 == ce2 ) ) cand Ct
 
     RS ; Delta |- Pf1 pfeq Pf2 ~~> Ct
     -------------------------------------------------------------------------------------------------- :: res
-    RS ; Delta |- x : ce1 @ ce1' [ res ] , Pf1 pfeq y : ce2 @ ce2' [ res ] , Pf2 ~~> ( ( Ct_ce ( ce1 == ce2 ) ) cand Ct_ce ( ce1' == ce2' ) ) cand Ct
+    RS ; Delta |- ce1 @ ce1' [ res ] , Pf1 pfeq ce2 @ ce2' [ res ] , Pf2 ~~> ( ( Ct_ce ( ce1 == ce2 ) ) cand Ct_ce ( ce1' == ce2' ) ) cand Ct
 
     G = erase Delta    CS = comp RS    CS ; G |- [ spec ] ce1 ==> pred tau    CS ; G |- [ spec ] ce2 ==> pred tau
-    RS ; Delta , z : tau [ spec ] |- app_s id erase Delta , z / y Pf1 pfeq app_s id erase Delta , z / y Pf2 ~~> Ct
+    RS ; Delta , z : tau [ spec ] |- app_s id erase Delta , z / y Pf1 pfeq app_s id erase Delta , z / w Pf2 ~~> Ct
     -------------------------------------------------------------------------------------------------------------------------- :: depres
-    RS ; Delta |- x : ( y ) . ce1 [ res ] , Pf1 pfeq w : ( y ) . ce2 [ res ] , Pf2 ~~> ( Ct_ce ( ce1 == ce2 ) ) cand forall z : tau . Ct
+    RS ; Delta |- ( y ) . ce1 [ res ] , Pf1 pfeq ( w ) . ce2 [ res ] , Pf2 ~~> ( Ct_ce ( ce1 == ce2 ) ) cand forall z : tau . Ct
 
 
 % -----------------------------------------------------------------------------
@@ -1631,18 +1609,18 @@ defns Jrefine :: '' ::=
     ---------------------------------------------------------------------- :: comp
     RS ; G |- ( x , q ) : y : tau [ eff ] , Pf -| rempty , x : tau [ eff ] , Delta
 
-    RS ; G |- q : app_s id G , x / y Pf -| Delta
+    RS ; G |- q : Pf -| Delta
     ---------------------------------------------------------------------- :: log
-    RS ; G |- ( x , q ) : y : ce [ log ] , Pf -| rempty , x : ce [ log ] , Delta
+    RS ; G |- ( x , q ) : ce [ log ] , Pf -| rempty , x : ce [ log ] , Delta
 
-    RS ; G |- q : app_s id G , x / y Pf -| Delta
+    RS ; G |- q : Pf -| Delta
     ---------------------------------------------------------------------------- :: res
-    RS ; G |- ( x , q ) : y : ce @ ce' [ res ] , Pf -| rempty , x : ce @ ce' [ res ( avail ) ] , Delta
+    RS ; G |- ( x , q ) : ce @ ce' [ res ] , Pf -| rempty , x : ce @ ce' [ res ( avail ) ] , Delta
 
     CS = comp RS    CS ; G |- [ spec ] ce ==> pred tau
-    RS ; G , x : tau [ spec ] |- q : app_s id G , w / z , x / y Pf -| Delta
+    RS ; G , x : tau [ spec ] |- q : app_s id G , x / z Pf -| Delta
     --------------------------------------------------------------------------------------------- :: depres
-    RS ; G |- ( ( x , w ) , q ) : y : ( z ) . ce [ res ] , Pf -| rempty , x : tau [ spec ] , w : ce @ x [ res ( avail ) ] , Delta
+    RS ; G |- ( ( x , w ) , q ) : ( z ) . ce [ res ] , Pf -| rempty , x : tau [ spec ] , w : ce @ x [ res ( avail ) ] , Delta
 
 
 % -----------------------------------------------------------------------------
@@ -1669,14 +1647,14 @@ defns Jrefine :: '' ::=
 
     RS ; Delta |- rpf r==> take x = ce1 ; ce2 @ ce3 -| Delta' ~~> Ct
     ------------------------------------------------------------------------------------------------------- :: opentake
-    RS ; Delta |- [ eff ] open-take rpf r==> x : tau [ spec ] , y : ce1 @ x [ res ] , z : ce2 @ ce3 [ res ] , pfnil -| Delta' ~~> Ct
+    RS ; Delta |- [ eff ] open-take rpf r==> x : tau [ spec ] , ce1 @ x [ res ] , ce2 @ ce3 [ res ] , pfnil -| Delta' ~~> Ct
 
     CS = comp RS    type D ( x , y ) = { Next : a , Done : b } in CS
     G = erase Delta    CS ; G |- [ spec ] ce ==> pred D ( A , B )
-    RS ; Delta |- [ pure ] crt1 r<== x : A [ pure ] , y : ce @ Next x [ res ] , pfnil -| Delta' ~~> Ct
-    RS ; Delta' , x : A [ pure ] , y : ce @ Next x [ res ( avail ) ] |- [ impure ] crt2 r<== z : D ( A , B ) [ pure ] , y : ce @ z [ res ] , pfnil -| Delta' , x : A [ pure ] , y : ce @ Next x [ res ( used ) ] ~~> Ct'
+    RS ; Delta |- [ pure ] crt1 r<== x : A [ pure ] , ce @ Next x [ res ] , pfnil -| Delta' ~~> Ct
+    RS ; Delta' , x : A [ pure ] , y : ce @ Next x [ res ( avail ) ] |- [ impure ] crt2 r<== z : D ( A , B ) [ pure ] , ce @ z [ res ] , pfnil -| Delta' , x : A [ pure ] , y : ce @ Next x [ res ( used ) ] ~~> Ct'
     ------------------------------------------------------------------------------------------------------------------------------------ :: iter
-    RS ; Delta |- [ impure ] iter [ ce ] ( q = crt1 ) { crt2 } r==> z : B [ pure ] , y : ce @ Done z [ res ] , pfnil -| Delta' ~~> Ct cand forall x : A . Ct'
+    RS ; Delta |- [ impure ] iter [ ce ] ( q = crt1 ) { crt2 } r==> z : B [ pure ] , ce @ Done z [ res ] , pfnil -| Delta' ~~> Ct cand forall x : A . Ct'
 
 
 % -----------------------------------------------------------------------------
@@ -1758,17 +1736,17 @@ defns Jrefine :: '' ::=
     RS ; Delta |- lpf l<== ce -| Delta' ~~> Ct
     RS ; Delta' |- [ eff ] rsp : Pf1 -o Pf2 >> Pf -| Delta'' ~~> Ct'
     ----------------------------------------------------------------------------- :: log
-    RS ; Delta |- [ eff ] lpf , rsp : x : ce [ log ] , Pf1 -o Pf2 >> Pf -| Delta'' ~~> Ct cand Ct'
+    RS ; Delta |- [ eff ] lpf , rsp : ce [ log ] , Pf1 -o Pf2 >> Pf -| Delta'' ~~> Ct cand Ct'
 
     RS ; Delta |- rpf r<== ce1 @ ce2 -| Delta' ~~> Ct
     RS ; Delta' |- [ eff ] rsp : Pf1 -o Pf2 >> Pf -| Delta'' ~~> Ct'
     ----------------------------------------------------------------------------- :: res
-    RS ; Delta |- [ eff ] rpf , rsp : x : ce1 @ ce2 [ res ] , Pf1 -o Pf2 >> Pf -| Delta'' ~~> Ct cand Ct'
+    RS ; Delta |- [ eff ] rpf , rsp : ce1 @ ce2 [ res ] , Pf1 -o Pf2 >> Pf -| Delta'' ~~> Ct cand Ct'
 
     RS ; Delta |- rpf r==> ce' @ ce'' -| Delta' ~~> Ct
     RS ; Delta' |- [ eff ] rsp : app_s id erase Delta' , ce'' / y Pf1 -o app_s id erase Delta' , ce'' / y Pf2 >> Pf -| Delta'' ~~> Ct'
     ----------------------------------------------------------------------------- :: depres
-    RS ; Delta |- [ eff ] rpf , rsp : x : ( y ) . ce [ res ] , Pf1 -o Pf2 >> Pf -| Delta'' ~~> ( Ct cand Ct_ce ( ce == ce' ) ) cand Ct'
+    RS ; Delta |- [ eff ] rpf , rsp : ( y ) . ce [ res ] , Pf1 -o Pf2 >> Pf -| Delta'' ~~> ( Ct cand Ct_ce ( ce == ce' ) ) cand Ct'
 
 
 % -----------------------------------------------------------------------------
@@ -1789,17 +1767,17 @@ defns Jrefine :: '' ::=
     RS ; Delta |- lpf l<== ce -| Delta' ~~> Ct
     RS ; Delta' |- [ eff ] rsp t: Pf -| Delta'' ~~> Ct'
     --------------------------------------------------------- :: log
-    RS ; Delta |- [ eff ] lpf , rsp t: x : ce [ log ] , Pf -| Delta'' ~~> Ct cand Ct'
+    RS ; Delta |- [ eff ] lpf , rsp t: ce [ log ] , Pf -| Delta'' ~~> Ct cand Ct'
 
     RS ; Delta |- rpf r<== ce @ ce' -| Delta' ~~> Ct
     RS ; Delta' |- [ eff ] rsp t: Pf -| Delta'' ~~> Ct'
     ------------------------------------------------------------- :: res
-    RS ; Delta |- [ eff ] rpf , rsp t: x : ce @ ce' [ res ] , Pf -| Delta'' ~~> Ct cand Ct'
+    RS ; Delta |- [ eff ] rpf , rsp t: ce @ ce' [ res ] , Pf -| Delta'' ~~> Ct cand Ct'
 
     RS ; Delta |- rpf r==> ce' @ ce'' -| Delta' ~~> Ct
     RS ; Delta' |- [ eff ] rsp t: app_s id erase Delta' , ce'' / y Pf -| Delta'' ~~> Ct'
     ------------------------------------------------------------- :: depres
-    RS ; Delta |- [ eff ] rpf , rsp t: x : ( y ) . ce [ res ] , Pf -| Delta'' ~~> ( Ct cand Ct_ce ( ce == ce' ) ) cand Ct'
+    RS ; Delta |- [ eff ] rpf , rsp t: ( y ) . ce [ res ] , Pf -| Delta'' ~~> ( Ct cand Ct_ce ( ce == ce' ) ) cand Ct'
 
 
 % -----------------------------------------------------------------------------
@@ -1839,25 +1817,25 @@ defns Jrefine :: '' ::=
     RS |- fun f ( x : tau ) -> tau' [ spec ] = ce rprog -| RS' ~~> Ct
 
     RS |- Pf1 -o Pf2 [ pure ] rfwf
-    Delta = pf_to_ctx rempty Pf1
+    RS ; empty |- q : Pf1 -| Delta
     RS ; Delta |- [ pure ] crt r<== Pf2 -| Delta' ~~> Ct
     RS , f : Pf1 -o Pf2 [ pure ] |- rprog -| RS' ~~> Ct'
     --------------------------------------------------------------------------- :: purerefined
-    RS |- fun f ( Pf1 ) -> Pf2 [ pure ] = crt rprog -| RS' ~~> Ct cand Ct'
+    RS |- fun f ( q ) : Pf1 -o Pf2 [ pure ] = crt rprog -| RS' ~~> Ct cand Ct'
 
     RS |- Pf1 -o Pf2 [ impure ] rfwf
-    Delta = pf_to_ctx rempty Pf1
+    RS ; empty |- q : Pf1 -| Delta
     RS , f : Pf1 -o Pf2 [ impure ] ; Delta |- [ impure ] crt r<== Pf2 -| Delta' ~~> Ct
     RS , f : Pf1 -o Pf2 [ impure ] |- rprog -| RS' ~~> Ct'
     --------------------------------------------------------------------------- :: impurerefined
-    RS |- fun f ( Pf1 ) -> Pf2 [ impure ] = crt rprog -| RS' ~~> Ct cand Ct'
+    RS |- fun f ( q ) : Pf1 -o Pf2 [ impure ] = crt rprog -| RS' ~~> Ct cand Ct'
 
     RS |- Pf1 -o Pf2 [ spec ] rfwf
-    Delta = pf_to_ctx rempty Pf1
+    RS ; empty |- q : Pf1 -| Delta
     RS , f : Pf1 -o Pf2 [ spec ] ; Delta |- [ spec ] crt r<== Pf2 -| Delta' ~~> Ct
     RS , f : Pf1 -o Pf2 [ spec ] |- rprog -| RS' ~~> Ct'
     --------------------------------------------------------------------------- :: specrefined
-    RS |- fun f ( Pf1 ) -> Pf2 [ spec ] = crt rprog -| RS' ~~> Ct cand Ct'
+    RS |- fun f ( q ) : Pf1 -o Pf2 [ spec ] = crt rprog -| RS' ~~> Ct cand Ct'
 
 
 % -----------------------------------------------------------------------------

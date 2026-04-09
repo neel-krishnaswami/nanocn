@@ -1,6 +1,6 @@
 # Adding refinement types to nanocn 
 
-Next, we are going to add support refinement types to nanoCN. 
+Next, we are going to add support for refinement types to nanoCN. 
 
 ## Extending the signature. 
 
@@ -11,7 +11,7 @@ done this.)
 ## Updating the context
 
 The context should now be extended with logical assumptions (terms of type bool), and 
-resource aassumptions (pairs of terms of sort τ and Pred τ). Because resources are substructural,
+resource assumptions (pairs of terms of sort τ and Pred τ). Because resources are substructural,
 resource assumptions are marked with a 0/1 usage flag indicating whether they can be used (1),
 have already been used (0), or can optionally be used (?). 
 
@@ -35,7 +35,7 @@ u ⊓ u = u
 1 ⊓ ? = 1
 ? ⊓ 1 = 1
 0 ⊓ ? = 0
-? ⊓ 1 = 0
+? ⊓ 0 = 0
 
 
 ### Context Well-formedness
@@ -61,7 +61,7 @@ u ⊓ u = u
 
 Σ ⊢ Δ wf   Σ; |Δ| ⊢ ce ⇒ pred τ   Σ; |Δ| ⊢ ce' ⇐ τ    
 ———————————————————————————————————————————————————
-Σ ⊢ Δ, x:(ce @ ce') [res(u)]
+Σ ⊢ Δ, x:(ce @ ce') [res(u)] wf 
 
 
 ### Resource usage in contexts
@@ -106,12 +106,12 @@ zero(Δ, x:ce@ce' [res(u)])
 
 There is an erasure judgement  |Δ| = Γ
 
-|·|                 = ·
-|Δ, res x:ᵘ(ce@ce)| = |Δ|
-|Δ, log x:ϕ|        = |Δ|
-|Δ, x:_eff τ]|      = |Δ|, x:_eff τ
+|·|                      = ·
+|Δ, x:(ce@ce') [res(u)]| = |Δ|
+|Δ, x:ϕ [log]|           = |Δ|
+|Δ, x:τ [eff]|           = |Δ|, x: τ [eff]
 
-We use this to typecheck any core terms occuring inside refined terms, using our existing
+We use this to typecheck any core terms occurring inside refined terms, using our existing
 judgemental machinery. 
 
 ## SMT Constraints 
@@ -124,7 +124,7 @@ C ::= ⊤
    | ϕ → C 
    | ϕ 
 
-They are checked for well-formedness relative to a signature Σ and erased context Γ: 
+They are checked for well-formedness relative to a simple signature Σ and erased context Γ: 
 
 * Σ; Γ ⊢ C wf 
 
@@ -132,15 +132,15 @@ They are checked for well-formedness relative to a signature Σ and erased conte
   - Outputs: none 
 
 —————————————
-Σ; Γ ⊢ T wf 
+Σ; Γ ⊢ ⊤ wf 
 
 
-Σ; Γ ⊢ C1 wf   Σ; Γ ⊢ C1 wf
+Σ; Γ ⊢ C1 wf   Σ; Γ ⊢ C2 wf
 ————————————————————————————
 Σ; Γ ⊢ C1 ∧ C2 wf
 
 
-Σ, Γ, x:τ[spec] ⊢ C wf
+Σ; Γ, x:τ[spec] ⊢ C wf
 ———————————————————————
 Σ; Γ ⊢ ∀x:τ.C wf
 
@@ -154,7 +154,7 @@ They are checked for well-formedness relative to a signature Σ and erased conte
 ———————————————————————————————
 Σ; Γ ⊢ ϕ wf
 
-The auxilliary function Δ ⇒ C = C' is defined as follows:
+The auxiliary function Δ ⇒ C = C' is defined as follows:
 
 ·              	       ⇒ C = C
 (Δ, x:τ [eff]) 	       ⇒ C = (Δ ⇒ ∀x:τ.C)
@@ -174,22 +174,22 @@ Refined terms are terms, augmented with additional clauses for manipulating the 
 
 I give the grammar of proof sorts as follows: 
 
-    Pf ::= (x:ϕ [log]), Pf | (x : rs [res]), Pf | (x:τ [eff]), Pf | · 
+    Pf ::= (ϕ [log]), Pf | (rs [res]), Pf | (x:τ [eff]), Pf | · 
     rs ::= ce@ce'
-        |  (x:τ).ce     
+        |  (x).ce     
  
 
 (This is not the same as Δ, since (1) it associates the other way around, and (2) resources
 don't have a flag.)
 
-So a proof sort represents a list of logical faces, resources, and logical and computational values.
+So a proof sort represents a list of logical facts, resources, and logical and computational values.
 The computational erasure of this is
 
     Comp(Pf) = Prod {Pf}
     
     Prod [A1; ...;An] = (A1, ..., An)
     
-    {x:ϕ[log], Pf}    = {Pf}
+    {ϕ[log], Pf}      = {Pf}
     {rs[res], Pf}     = {Pf}
     {x:τ[spec], Pf}   = {Pf}
     {x:A[pure], Pf}   = A :: {Pf}
@@ -199,21 +199,58 @@ So Comp(Pf) = A means that A is the computational content of the proof sort.
 
 We can also extract the binding content – the logical and computational bindings: 
 
-    Bind(Γ; ·)                   = Γ
-    Bind(Γ; x:τ[eff], Pf)        = Bind(Γ; x:τ[eff], Pf)   
-    Bind(Γ; x:ce[log], Pf)       = Bind(Γ; Pf)
-    Bind(Γ; x:ce@ce'[res]), Pf)  = Bind(Γ; Pf)
-    Bind(Γ; x:(y:τ).ce[res], Pf) = Bind(Γ, y:τ; Pf)
+——————————————————— 
+Σ; Γ ⊢ Bind(·) = Γ
+
+
+Σ; Γ, x:τ[eff] ⊢ Bind(Pf) = Γ'  
+—————————————————————————————————————— 
+Σ; Γ ⊢ Bind(x:τ[eff], Pf) = Γ'   
+
+Σ; Γ ⊢ Bind(Pf) = Γ'
+——————————————————————————————————————
+Σ; Γ ⊢ Bind(ce[log], Pf) = Γ'
+
+Σ; Γ ⊢ Bind(Pf) = Γ'
+——————————————————————————————————————
+Σ; Γ ⊢ Bind(ce@ce'[res], Pf) = Γ'
+
+Σ; Γ ⊢ ce ⇒ Pred τ   Σ; Γ, y:τ[spec] ⊢ Bind(Pf) = Γ'
+——————————————————————————————————————————————————————
+Σ; Γ ⊢ Bind((y).ce[res], Pf) = Γ'
     
-Bind(Γ, Pf) adds the computational and spec variables bound in Pf to Γ. 
+
+Σ; Γ ⊢ Bind(Pf) = Γ' adds the computational and spec variables bound in Pf to Γ. 
+
+
+<!--
+NOTE: PfToCtx is unnecessary! 
+
 
 Finally, we can append Pf sorts to refined contexts Δ as follows:
 
-PfToCtx(Δ; ·)                   = Δ
-PfToCtx(Δ; x:τ[eff], Pf)        = PfToCtx(Δ, x:τ[eff]; Pf)
-PfToCtx(Δ; x:ce[log], Pf)       = PfToCtx(Δ, x:ce[log]; Pf)
-PfToCtx(Δ; x:ce@ce'[res], Pf)   = PfToCtx(Δ, x:ce@ce'[res(1)]; Pf)
-PfToCtx(Δ; x:(y:τ).ce[res], Pf) = PfToCtx(Δ, y:τ, x:ce@y[res(1)]; Pf)
+——————————————————————
+Σ ⊢ PfToCtx(Δ; ·) = Δ
+
+
+Σ ⊢ PfToCtx(Δ, x:τ[eff]; Pf) = Δ'
+——————————————————————————————————
+Σ ⊢ PfToCtx(Δ; x:τ[eff], Pf)  = Δ'
+
+
+Σ ⊢ PfToCtx(Δ, x:ce[log]; Pf) = Δ'
+——————————————————————————————————
+Σ ⊢ PfToCtx(Δ; x:ce[log], Pf) = Δ'
+
+
+Σ ⊢ PfToCtx(Δ, x:ce@ce'[res(1)]; Pf) = Δ'
+——————————————————————————————————————————
+Σ ⊢ PfToCtx(Δ; x:ce@ce'[res], Pf) = Δ'
+
+
+Σ ⊢ PfToCtx(Δ, y:τ, x:ce@y[res(1)]; Pf) = Δ'
+—————————————————————————————————————————————
+Σ ⊢ PfToCtx(Δ; x:(y).ce[res], Pf) = Δ'
 
 The invariant of this is that if Σ ⊢ Δ wf and Σ; |Δ| ⊢ Pf wf, then Σ ⊢ PfToCtx(Δ; Pf) wf.
 
@@ -223,6 +260,7 @@ A refined function type has the shape:
 
 The variables in Pf1 will be in scope in Pf2, like in a dependent function space. Because
 it mention terms, it also need a well-formedness check. 
+-->
 
 * Σ; Γ ⊢[eff] Pf wf
 
@@ -233,27 +271,30 @@ it mention terms, it also need a well-formedness check.
 Σ; Γ ⊢[eff] · wf 
 
 
-Σ; Γ, x:τ[eff] ⊢ Pf wf  eff ∈ {spec, ⌊eff0⌋}
-————————————————————————————————————————————
-Σ; Γ ⊢[eff] x:τ [eff], Pf wf
+eff' ∈ {spec, ⌊eff⌋}    Σ; Γ, x:τ[eff'] ⊢ Pf wf  
+————————————————————————————————————————————————
+Σ; Γ ⊢[eff] x:τ [eff'], Pf wf
 
 
 Σ; Γ ⊢[spec] ce ⇐ bool [eff]    Σ; Γ ⊢ Pf wf    
 ———————————————————————————————————————————————————
-Σ; Γ ⊢ x:ce [log], Pf wf
+Σ; Γ ⊢[eff] ce [log], Pf wf
 
 
 Σ; Γ ⊢[spec] ce' ⇒ τ [eff']  Σ; Γ ⊢[spec] ce ⇐ pred τ   Σ; Γ ⊢[eff] Pf wf   
 ——————————————————————————————————————————————————————————————————————————————
-Σ; Γ ⊢[eff] x:(ce @ ce') [res], Pf
+Σ; Γ ⊢[eff] (ce @ ce') [res], Pf wf
 
 
-Σ; Γ ⊢[spec] ce ⇐ pred τ [eff]   Σ; Γ, y:τ, x:ce@y ⊢[eff] Pf wf   
+Σ; Γ ⊢[spec] ce ⇒ pred τ [eff]   Σ; Γ, y:τ[spec] ⊢[eff] Pf wf   
 ——————————————————————————————————————————————————————————————————————————————
-Σ; Γ ⊢[eff] x:(y:τ).ce [res], Pf
+Σ; Γ ⊢[eff] (y).ce [res], Pf wf
 
 
-Σ; · ⊢[eff] Pf1 wf    Σ; Bind(·; Pf1) ⊢[eff] Pf2 wf   
+
+Σ; · ⊢[eff] Pf1 wf
+Σ; · ⊢ Bind(Pf1) = Γ
+Σ; Γ ⊢[eff] Pf2 wf   
 —————————————————————————————————————————————————————
 Σ ⊢ Pf1 ⊸ Pf2 [eff] wf 
 
@@ -261,7 +302,7 @@ it mention terms, it also need a well-formedness check.
 These rules ensure that if a refined function has sort spec, it can only operates on spec
 and resource arguments/returns values – it cannot return any computational (i.e., pure) values.
 A refined computational (pure or impure) function can receive and return both pure and spec 
-arguments. Return types can can also depend upon the bindings of their inputs. 
+arguments. Return types can also depend upon the bindings of their inputs. 
 
 ### Grammar of core terms 
 
@@ -274,7 +315,7 @@ q ::= (qbase1, ..., qbasen)
 We use these to avoid introducing variables of arbitrary proof sort
 in the context.
 
-We use core refined terms will be as follows: 
+The grammar of core refined terms is as follows: 
 
 crt ::=
     | let q = crt1; crt2 
@@ -311,7 +352,7 @@ There are 12 typechecking judgements, organized as follows:
   - Inputs: Σ, Δ, x
   - Outputs: ce, ce', Δ'
 
-* Synthesizing resource usage: Σ; Δ ⊢ rpf ==> ce@ce' ̣⊣ Δ' ↝ C 
+* Synthesizing resource usage: Σ; Δ ⊢ rpf ==> ce@ce' ⊣ Δ' ↝ C 
 
   - Inputs: Σ, Δ, rpf, ce, ce' 
   - Outputs: ce@ce', Δ', C
@@ -353,13 +394,13 @@ There are 12 typechecking judgements, organized as follows:
 
 * Tuple checking Σ; Δ ⊢[eff] spine : Pf ⊣ Δ' ↝ C 
 
-  - Inputs: Σ, Δ, eff, spine, F
+  - Inputs: Σ, Δ, eff, spine, Pf
   - Outputs: Δ', C 
 
 
 
 1. The decision to emit constraints rather than solve them on the fly is 
-   basically so tha we can statically check the rough well-formedness
+   basically so that we can statically check the rough well-formedness
    of a program *before* we try solving any constraints. 
 
    In reality, we probably want to first check well-formedness, and
@@ -419,7 +460,7 @@ succeeds if the usage is 1 or ?, and accessing it sets the usage to 0.
 
 #### Checking/synthesizing resource facts: 
 
-Σ; Δ ⊢[spec] x : ce@ce' [res] ⊣ Δ' 
+Σ; Δ ⊢ x : ce@ce' ⊣ Δ' 
 ————————————————————————————————————
 Σ; Δ ⊢ x ==> ce@ce' ⊣ Δ' ↝ ⊤ 
 
@@ -429,7 +470,7 @@ succeeds if the usage is 1 or ?, and accessing it sets the usage to 0.
 Σ; Δ ⊢ make-ret lpf <== (return ce1)@ce2 ⊣ Δ' ↝ C 
 
 
-Σ; Δ ⊢ crt <== (x:τ, y: ce1@x [res]; z: ce2@ce3 [res]) ⊣ Δ' ↝ C 
+Σ; Δ ⊢ crt <== (x:τ[spec], ce1@x [res], ce2@ce3 [res]) ⊣ Δ' ↝ C 
 ——————————————————————————————————————————————————————————————————
 Σ; Δ ⊢ make-take crt <== (take x = ce1; ce2)@ce3 ⊣ Δ' ↝ C 
 
@@ -459,18 +500,20 @@ succeeds if the usage is 1 or ?, and accessing it sets the usage to 0.
 
 Σ; Δ ⊢ Pf1 = Pf2 ↝ C 
 ———————————————————————————————————————————————————————————————————
-Σ; Δ ⊢ (x:ce1 [log], Pf1) = (y:ce2 [log], Pf2) ↝ (ce1 = ce2) ∧ C
+Σ; Δ ⊢ (ce1 [log], Pf1) = (ce2 [log], Pf2) ↝ (ce1 = ce2) ∧ C
 
 
 Σ; Δ ⊢ Pf1 = Pf2 ↝ C 
 ——————————————————————————————————————————————————————————————————————————————————
-Σ; Δ ⊢ (x:(ce1@ce1') [res], Pf1) = (y:(ce2@ce2') [res], Pf2) 
+Σ; Δ ⊢ ((ce1@ce1') [res], Pf1) = ((ce2@ce2') [res], Pf2) 
 ↝ (ce1 = ce2 ∧ ce1' = ce2') ∧ C
 
 
+Σ;|Δ| ⊢ ce1 ==> Pred τ
+Σ;|Δ| ⊢ ce2 ==> Pred τ
 Σ; Δ, c:τ ⊢ [c/a]Pf1 = [c/b]Pf2 ↝ C 
 ——————————————————————————————————————————————————————————————————————————————————
-Σ; Δ ⊢ (x:(a:τ).ce [res], Pf1) = (y:(b:τ).ce' [res], Pf2) ↝ (ce = ce') ∧ ∀c:τ.C
+Σ; Δ ⊢ ((a).ce1 [res], Pf1) = ((b).ce2 [res], Pf2) ↝ (ce1 = ce2) ∧ ∀c:τ.C
 
 
 
@@ -515,24 +558,24 @@ succeeds if the usage is 1 or ?, and accessing it sets the usage to 0.
 Σ; Γ ⊢ () : · ⊣ ·
 
 
-Σ; Γ, x:τ[eff]] ⊢ q : [x/y]Pf ⊣ Δ
+Σ; Γ, x:τ[eff] ⊢ q : [id(Γ), x/y]Pf ⊣ Δ
 —————————————————————————————————————————————
 Σ; Γ ⊢ (x,q) : (y:τ[eff], Pf) ⊣ x:τ[eff], Δ
 
 
-Σ; Γ ⊢ q : [x/y]Pf ⊣ Δ
+Σ; Γ ⊢ q : Pf ⊣ Δ
 ————————————————————————————————————————————————————
-Σ; Γ ⊢ (x,q) : (y:ce[log], Pf) ⊣ x:ce[log], Δ
+Σ; Γ ⊢ (x,q) : (ce[log], Pf) ⊣ x:ce[log], Δ
 
 
-Σ; Γ ⊢ q : [x/y]Pf ⊣ Δ
+Σ; Γ ⊢ q : Pf ⊣ Δ
 ————————————————————————————————————————————————————————————————
-Σ; Γ ⊢ (x,q) : (y:ce@ce'[res], Pf) ⊣ x:(ce@ce')[res(1)], Δ
+Σ; Γ ⊢ (x,q) : (ce@ce'[res], Pf) ⊣ x:(ce@ce')[res(1)], Δ
 
-
-Σ; Γ, x:τ ⊢ q : [x/z]Pf ⊣ Δ
+Σ; Γ ⊢[spec] ce ==> Pred τ
+Σ; Γ, x:τ ⊢ q : [id(Γ), x/z]Pf ⊣ Δ
 —————————————————————————————————————————————————————————————————————
-Σ; Γ ⊢ ((x,a),q) : (y:(z:τ).ce[res], Pf) ⊣ x:τ, a:(ce@x)[res(1)], Δ
+Σ; Γ ⊢ ((x,a),q) : ((z).ce[res], Pf) ⊣ x:τ, a:(ce@x)[res(1)], Δ
 
 
 
@@ -541,13 +584,13 @@ succeeds if the usage is 1 or ?, and accessing it sets the usage to 0.
 
 
 Σ; Δ0 ⊢[eff] crt ==> Pf' ⊣ Δ1 ↝ C
-Σ; Δ1 ⊢ q : Pf' ⊣ Δ' 
+Σ; |Δ1| ⊢ q : Pf' ⊣ Δ' 
 Σ; Δ1, Δ' ⊢[eff] crt2 <== Pf ⊣ Δ2, Δ'' ↝ C'
 length(Δ1) = length(Δ2) 
 length(Δ') = length(Δ'')
 zero(Δ'')
 ————————————————————————————————————————————————————
-Σ; Δ0 ⊢[eff0] let q = crt1; crt2 <== Pf [eff4] ⊣ Δ2 ↝ C ∧ C'
+Σ; Δ0 ⊢[eff] let q = crt1; crt2 <== Pf ⊣ Δ2 ↝ C ∧ C'
 
 
 
@@ -569,10 +612,10 @@ eff'' = ⌊eff⌋
 
 
 Σ; |Δ| ⊢[spec] P ==> Pred (Step(A, B)) 
-Σ; Δ' ⊢[pure] crt1 <== (a:A, u: P @ Next a) ⊣ Δ' ↝ C 
-Σ; Δ', x : A [pure], u : P@(Next x) [res(1)] ⊢[impure] crt2 <== (y:A+B. P@y) ⊣ Δ' ↝ C'
+Σ; Δ ⊢[pure] crt1 <== (a:A, P @ Next a) ⊣ Δ' ↝ C 
+Σ; Δ', x : A [pure], u : P@(Next x) [res(1)] ⊢[impure] crt2 <== ([pure] y:Step(A,B), [res] P@y) ⊣ Δ', x : A [pure], u : P@(Next x) [res(0)] ↝ C'
 ——————————————————————————————————————————————————————————————————————————————————————————————————
-Σ; Δ ⊢[impure] iter[P] ((x,u) = crt1) { crt2 } ==> (b:B[pure[, u : P @ Done b) ⊣ Δ' ↝ C ∧ ∀x:A.C'
+Σ; Δ ⊢[impure] iter[P] ((x,u) = crt1) { crt2 } ==> (b:B[pure], P @ Done b) ⊣ Δ' ↝ C ∧ ∀x:A.C'
 
 
 eff' = ⌊eff⌋
@@ -619,19 +662,19 @@ eff' = ⌊eff⌋
 Σ; Δ ⊢ lpf <== ce ⊣ Δ' ↝ C 
 Σ; Δ' ⊢[eff] spine : (Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ'' ↝ C'
 ——————————————————————————————————————————————————————————————————————
-Σ; Δ ⊢[eff] (lpf, spine) : (x:ce[log], Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ'' ↝ C ∧ C'
+Σ; Δ ⊢[eff] (lpf, spine) : (ce[log], Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ'' ↝ C ∧ C'
 
 
 Σ; Δ ⊢ rpf <== (ce1@ce2) ⊣ Δ' ↝ C
 Σ; Δ' ⊢[eff] spine : (Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ'' ↝ C'
 —————————————————————————————————————————————————————————————————————————
-Σ; Δ ⊢[eff] (rpf, spine) : (x:ce1@ce2[res], Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ'' ↝ C ∧ C'
+Σ; Δ ⊢[eff] (rpf, spine) : (ce1@ce2[res], Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ'' ↝ C ∧ C'
 
 
-Σ; Δ ⊢ rpf ==> (ce@ce') ⊣ Δ' ↝ C
-Σ; Δ' ⊢[eff] spine : ([ce'/y]Pf1 ⊸ [ce'/y]Pf2) >> Pf3 ⊣ Δ'' ↝ C'
-—————————————————————————————————————————————————————————————————————————
-Σ; Δ ⊢[eff] (rpf, spine) : (x:(y:τ).ce[res], Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ'' ↝ C ∧ C'
+Σ; Δ ⊢ rpf ==> (ce2@ce) ⊣ Δ' ↝ C
+Σ; Δ' ⊢[eff] spine : ([ce/y]Pf1 ⊸ [ce/y]Pf2) >> Pf3 ⊣ Δ'' ↝ C'
+————————————————————————————————————————————————————————————————————————————————————————————————
+Σ; Δ ⊢[eff] (rpf, spine) : ((y).ce1[res], Pf1 ⊸ Pf2) >> Pf3 ⊣ Δ'' ↝ C ∧ (ce1 = ce2) ∧ C'
 
 
 #### Tuple (Σ; Δ ⊢[eff] spine : Pf ⊣ Δ' ↝ C) 
@@ -640,11 +683,11 @@ eff' = ⌊eff⌋
 Σ; Δ ⊢[eff] · : · ⊣ Δ ↝ ⊤
 
 
-Σ; |Δ| ⊢[eff] ce <== τ    Σ; Δ ⊢ spine : [ce/x]Pf ⊣ Δ' ↝ C 
+Σ; |Δ| ⊢[eff] ce <== τ    Σ; Δ ⊢ spine : [id(|Δ|), ce/x]Pf ⊣ Δ' ↝ C 
 —————————————————————————————————————————————————————————
 Σ; Δ ⊢ (ce, spine) : (x:τ[pure], Pf) ⊣ Δ' ↝ C 
 
-Σ; |Δ| ⊢[spec] ce <== τ    Σ; Δ ⊢ spine : [ce/x]Pf ⊣ Δ' ↝ C 
+Σ; |Δ| ⊢[spec] ce <== τ    Σ; Δ ⊢ spine : [id(|Δ|), ce/x]Pf ⊣ Δ' ↝ C 
 —————————————————————————————————————————————————————————
 Σ; Δ ⊢ (ce, spine) : (x:τ[spec], Pf) ⊣ Δ' ↝ C 
 
@@ -652,19 +695,19 @@ eff' = ⌊eff⌋
 Σ; Δ ⊢ lpf <== ce ⊣ Δ' ↝ C 
 Σ; Δ' ⊢ spine : Pf ⊣ Δ'' ↝ C'
 —————————————————————————————————————————————————————————
-Σ; Δ ⊢ (lpf, spine) : (x:ce[log], Pf) ⊣ Δ'' ↝ C ∧ C'
+Σ; Δ ⊢ (lpf, spine) : (ce[log], Pf) ⊣ Δ'' ↝ C ∧ C'
 
 
 Σ; Δ ⊢[eff] rpf <== ce@ce' ⊣ Δ' ↝ C 
 Σ; Δ' ⊢[eff] spine : Pf ⊣ Δ'' ↝ C'
 ———————————————————————————————————————————————————————————————
-Σ; Δ ⊢[eff] (rpf, spine) : (x:ce@ce'[res], Pf) ⊣ Δ'' ↝ C ∧ C'
+Σ; Δ ⊢[eff] (rpf, spine) : (ce@ce'[res], Pf) ⊣ Δ'' ↝ C ∧ C'
 
 
-Σ; Δ ⊢[eff] rpf ==> ce@ce' ⊣ Δ' ↝ C 
-Σ; Δ' ⊢[eff] spine : [ce'/y]Pf ⊣ Δ'' ↝ C'
-———————————————————————————————————————————————————————————————
-Σ; Δ ⊢[eff] (rpf, spine) : (x:(y:τ).ce[res], Pf) ⊣ Δ'' ↝ C ∧ C'
+Σ; Δ ⊢[eff] rpf ==> ce2@ce ⊣ Δ' ↝ C 
+Σ; Δ' ⊢[eff] spine : [id(|Δ|), ce/y]Pf ⊣ Δ'' ↝ C'
+———————————————————————————————————————————————————————————————————————————————————
+Σ; Δ ⊢[eff] (rpf, spine) : ((y).ce1[res], Pf) ⊣ Δ'' ↝ C ∧ (ce1 = ce2) ∧ C'
 
 
 
@@ -672,14 +715,14 @@ eff' = ⌊eff⌋
 
 Δ' = affinize(Δ)
 —————————————————————————————————————
-Σ; Δ ⊢[eff] exfalso <== Pf ↝ Δ' / ⊥  
+Σ; Δ ⊢[eff] exfalso <== Pf ⊣ Δ' ↝ ⊥  
 
 (If we are in dead code, there are no more constraints on resource usage.)
 
 
-Σ; Δ ⊢ rpf ==> (take x = ce1; ce2)@ce3) ⊣ Δ' ↝ C
+Σ; Δ ⊢ rpf ==> ((take x = ce1; ce2)@ce3) ⊣ Δ' ↝ C
 —————————————————————————————————————————————————————————————————————————————————————————
-Σ; Δ ⊢[eff] open-take rpf ==> (x:τ[spec], y : ce1@x [res], z : ce2@ce3 [res]) ⊣ Δ' ↝ C 
+Σ; Δ ⊢[eff] open-take rpf ==> (x:τ[spec], [res] ce1@x,  [res] ce2@ce3) ⊣ Δ' ↝ C 
 
 
 
@@ -690,23 +733,23 @@ eff' = ⌊eff⌋
    lemmas, with the following schemas for manipulating the proof states. The
    pcmd are intended to behave like: 
    
-       open-ret     : (return ce1@ce2)              ⊸ (x:τ, u : ce1 = ce2)  
-       make-ret     : (ce1 = ce2)                   ⊸ (return ce1)@ce2      
-       open-take    : (take x = ce1; ce2)@ce3       ⊸ (x:τ, u : ce1@x, ce2@ce3) 
-       make-take    : (x:τ, ce1@x, ce2@ce3)         ⊸ take x = ce1; ce2)@ce3
-       unfold(f,τ)  : ()                            ⊸ (f(ce) = ce') 
+       open-ret     : (return ce1@ce2)              ⊸ ([log] ce1 = ce2)  
+       make-ret     : (ce1 = ce2)                   ⊸ ([res] (return ce1)@ce2)
+       open-take    : (take x = ce1; ce2)@ce3       ⊸ ([spec] x:τ, [res] ce1@x, [res] ce2@ce3) 
+       make-take    : (x:τ, ce1@x, ce2@ce3)         ⊸ ([res] take x = ce1; ce2)@ce3)
+       unfold(f,τ)  : ()                            ⊸ ([log] f(ce) = ce') 
    
    These are all schematic, and so cannot be primitives/functions unless
    we add type quantification. Furthermore, they live in different sorts
    – the unfold(f, t) command produces a logical fact, make-ret takes a
    logical fact and produces a resource, make-take takes a proof and
-   produces a resource, and and open-ret and open-take consume resources,
+   produces a resource, and open-ret and open-take consume resources,
    but produce full proofs. So they all live in different judgements! 
 
 
 #### Core refined signatures: 
 
-Σr ::= · | Σr, f:F | Σr, fun f(x:τ) → τ'[eff] = ce | Σr, f : RF 
+Σr ::= · | Σr, f:F | Σr, fun f(x:τ) → τ'[eff] = ce | Σr, f(q) : RF 
 
 First, we do lookup in a signature: 
 
@@ -754,10 +797,10 @@ Next, we give signature well-formedness ⊢ Σr wf
 
 #### Refined Programs: 
 
-A refined program consists 
+A refined program consists of the following declarations:
 
-rprog ::= data D(a1, ..., ak) = {L1 : τ1 | ... | τn: τn} rprog
-       |  type D(a1, ..., ak) = {L1 : A1 | ... | τn: An} rprog
+rprog ::= sort D(a1, ..., ak) = {L1 : τ1 | ... | Ln: τn} rprog
+       |  type D(a1, ..., ak) = {L1 : A1 | ... | Ln: An} rprog
        |  fun f(x : τ) → τ' [eff] = { e } rprog
        |  fun f(Pf1) → Pf2 [eff] = { crt } rprog
        |  main : Pf [eff] = crt 
@@ -772,17 +815,17 @@ We typecheck these programs with the Σr ⊢ rprog ⊣ Σr' ↝ C judgement
 
 
 Σc = Comp(Σr)
-Σc ⊢ type D(a1, ..., ak) = {L1 : A1 | ... | τn: An} ok
-Σr, type D(a1, ..., ak) = {L1 : A1 | ... | τn: An} ⊢ rprog ⊣ Σr' ↝ C
+Σc ⊢ type D(a1, ..., ak) = {L1 : A1 | ... | Ln: An} ok
+Σr, type D(a1, ..., ak) = {L1 : A1 | ... | Ln: An} ⊢ rprog ⊣ Σr' ↝ C
 ———————————————————————————————————————————————————————————————————————
-Σr ⊢ type D(a1, ..., ak) = {L1 : A1 | ... | τn: An} rprog ⊣ Σr' ↝ C
+Σr ⊢ type D(a1, ..., ak) = {L1 : A1 | ... | Ln: An} rprog ⊣ Σr' ↝ C
 
 
 Σc = Comp(Σr)
-Σc ⊢ sort D(a1, ..., ak) = {L1 : τ1 | ... | τn: τn} ok
-Σr, sort D(a1, ..., ak) = {L1 : τ1 | ... | τn: τn} ⊢ rprog ⊣ Σr' ↝ C
+Σc ⊢ sort D(a1, ..., ak) = {L1 : τ1 | ... | Ln: τn} ok
+Σr, sort D(a1, ..., ak) = {L1 : τ1 | ... | Ln: τn} ⊢ rprog ⊣ Σr' ↝ C
 ———————————————————————————————————————————————————————————————————————
-Σr ⊢ type D(a1, ..., ak) = {L1 : τ1 | ... | τn: τn} rprog ⊣ Σr' ↝ C
+Σr ⊢ sort D(a1, ..., ak) = {L1 : τ1 | ... | Ln: τn} rprog ⊣ Σr' ↝ C
 
 
 Σc = Comp(Σr)
@@ -801,51 +844,51 @@ We typecheck these programs with the Σr ⊢ rprog ⊣ Σr' ↝ C judgement
 
 Σc = Comp(Σr)
 Σc, f : τ → τ' [spec]; x:τ ⊢[spec] ce <== τ'
-Σr, fun f(x:A) → B [pure] = ce ⊢ rprog ⊣ Σr' ↝ C
+Σr, fun f(x:τ) → τ' [spec] = ce ⊢ rprog ⊣ Σr' ↝ C
 ————————————————————————————————————————————————————————
 Σr ⊢ fun f(x : τ) → τ' [spec] = { ce } rprog ⊣ Σr' ↝ C
 
 
 Σr; · ⊢ Pf1 ⊸ Pf2 [spec] wf 
-PfToCtx(·; Pf1) = Δ
+Σr; · ⊢ q : Pf1 ⊣ Δ   
 Σr, f : Pf1 ⊸ Pf2 [spec]; Δ ⊢[spec] crt <== Pf2 ↝ C
 Σr, f:Pf1 ⊸ Pf2 [spec] ⊢ rprog ⊣ Σr' ↝ C'
 ——————————————————————————————————————————————————————————————
-Σr ⊢ fun f(Pf1) → Pf2 [spec] = { crt } rprog ⊣ Σr' ↝ C ∧ C'
+Σr ⊢ fun f(q) : Pf1 ⊸ Pf2 [spec] = { crt } rprog ⊣ Σr' ↝ C ∧ C'
 
 
 Σr; · ⊢ Pf1 ⊸ Pf2 [impure] wf 
-PfToCtx(·; Pf1) = Δ
+Σr; · ⊢ q : Pf1 ⊣ Δ   
 Σr, f : Pf1 ⊸ Pf2 [impure]; Δ ⊢[impure] crt <== Pf2 ↝ C
 Σr, f:Pf1 ⊸ Pf2 [impure] ⊢ rprog ⊣ Σr' ↝ C'
 ——————————————————————————————————————————————————————————————
-Σr ⊢ fun f(Pf1) → Pf2 [impure] = { crt } rprog ⊣ Σr' ↝ C ∧ C'
+Σr ⊢ fun f(q) : Pf1 ⊸ Pf2 [impure] = { crt } rprog ⊣ Σr' ↝ C ∧ C'
 
 
 Σr; · ⊢ Pf1 ⊸ Pf2 [pure] wf 
-PfToCtx(·; Pf1) = Δ
+Σr; · ⊢ q : Pf1 ⊣ Δ   
 Σr; Δ ⊢[pure] crt <== Pf2 ↝ C
 Σr, f:Pf1 ⊸ Pf2 [pure] ⊢ rprog ⊣ Σr' ↝ C'
 ——————————————————————————————————————————————————————————————
-Σr ⊢ fun f(Pf1) → Pf2 [pure] = { crt } rprog ⊣ Σr' ↝ C ∧ C'
+Σr ⊢ fun f(q) : Pf1 ⊸ Pf2 [pure] = { crt } rprog ⊣ Σr' ↝ C ∧ C'
 
 ## Refined primitives
 
 Here are refined types for all of the primitives: 
 
-Add : (x:int[pure], y:int[pure]) ⊸ (z:int[pure], prop:z = x + y) [pure]
-Mul : (x:int[pure], y:int[pure]) ⊸ (z:int[pure], prop:z = x * y) [pure]
-Sub : (x:int[pure], y:int[pure]) ⊸ (z:int[pure], prop:z = x - y) [pure]
-Div : (x:int[pure], y:int[pure], pre:y ≠ 0) ⊸ (z:int[pure], prop:z = x/y) [pure]
-Lt  : (x:int[pure], y:int[pure]) ⊸ (z:bool[pure], prop:z = x < y) [pure]
-Le  : (x:int[pure], y:int[pure]) ⊸ (z:bool[pure], prop:z = x ≤ y) [pure]
-Gt  : (x:int[pure], y:int[pure]) ⊸ (z:bool[pure], prop:z = x > y) [pure]
-Ge  : (x:int[pure], y:int[pure]) ⊸ (z:bool[pure], prop:z = x ≥ y) [pure]
-Eq[A] : (x:A[pure], y:A[pure]) ⊸ (z:bool[pure], prop:z = x = y) [pure]
+Add : (x:int[pure], y:int[pure]) ⊸ (z:int[pure], z = x + y) [pure]
+Mul : (x:int[pure], y:int[pure]) ⊸ (z:int[pure], z = x * y) [pure]
+Sub : (x:int[pure], y:int[pure]) ⊸ (z:int[pure], z = x - y) [pure]
+Div : (x:int[pure], y:int[pure], y ≠ 0) ⊸ (z:int[pure], z = x/y) [pure]
+Lt  : (x:int[pure], y:int[pure]) ⊸ (z:bool[pure], z = x < y) [pure]
+Le  : (x:int[pure], y:int[pure]) ⊸ (z:bool[pure], z = x ≤ y) [pure]
+Gt  : (x:int[pure], y:int[pure]) ⊸ (z:bool[pure], z = x > y) [pure]
+Ge  : (x:int[pure], y:int[pure]) ⊸ (z:bool[pure], z = x ≥ y) [pure]
+Eq[A] : (x:A[pure], y:A[pure]) ⊸ (z:bool[pure], z = x = y) [pure]
 
 
-New[A] : (x:A[pure]) ⊸ (p:Ptr A[pure], r:Own[A] p@x [res]) [impure]
-Del[A] : (p:Ptr A [pure], x:A[spec], r:Own[A]p@x [res]) ⊸ () [impure]
-Get[A] : (p:Ptr A [pure], x:A[spec], r:Own[A]p@x [res]) ⊸ (v:A[pure], pf:x = v, r:Own[A]p@x [res]) [impure]
-Set[A] : (p:Ptr A [pure], v:A[pure], x:A[spec], r:Own[A]p@x [res]) ⊸ (r:Own[A] p@v [res]) [impure]
+New[A] : (x:A[pure]) ⊸ (p:Ptr A[pure], Own[A] p@x [res]) [impure]
+Del[A] : (p:Ptr A [pure], (take x = Own[A]p) [res]) ⊸ () [impure]
+Get[A] : (p:Ptr A [pure], (take x = Own[A]p) [res]) ⊸ (v:A[pure], v = x, Own[A]p@x [res]) [impure]
+Set[A] : (p:Ptr A [pure], v:A[pure], take x:A = Own[A]p [res]) ⊸ (Own[A] p@v [res]) [impure]
 
