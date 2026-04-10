@@ -52,8 +52,10 @@ Instructions to Claude for writing OCaml code:
      functions. 
 
    - Every module should have property-based tests using `QCheck`, based on the
-     invariants of the module. In a Test submodule, expose generators, properties,
-     and a test field using the QCheck library. 
+     invariants of the module. In particular, if a specification file lists some expected
+     properties or theorems, turn these into property-based tests. In a Test submodule, expose
+     generators, properties, and a test field using the QCheck library. 
+
 
 3. Here are some bad language features to avoid: 
 
@@ -82,7 +84,6 @@ Instructions to Claude for writing OCaml code:
    - Use of map, filter, and other algebraically well-behaved functions is acceptable. 
    - Avoid the use of folds, because they offer no reasoning advantages over explicit
      structural recursion.
-
 
 5. To write or edit a syntax tree, look in doc/instructions/syntax-trees.md for instructions. 
 
