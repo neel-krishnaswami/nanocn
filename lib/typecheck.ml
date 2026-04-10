@@ -417,7 +417,7 @@ let validate_sort_decl sig_ (d : DsortDecl.t) =
 
 (** Check guarded well-formedness for datatype declarations:
     CS ; G ; D'(a1,...,an) |- tau guarded *)
-let rec type_guarded sig_ ctx guard s =
+let rec type_guarded sig_ ctx (guard_name, guard_params) s =
   let pos = (Sort.info s)#loc in
   match Sort.shape s with
   | Sort.Int | Sort.Bool -> Ok ()
@@ -428,16 +428,17 @@ let rec type_guarded sig_ ctx guard s =
        Error (Format.asprintf "%a: unbound type variable %a"
                 SourcePos.print pos Tvar.print a))
   | Sort.Ptr t ->
-    (* Re-add D with empty ctors to allow recursive reference under Ptr *)
-    let empty_decl = DtypeDecl.{ name = guard; params = []; ctors = []; loc = SourcePos.dummy } in
-    let sig_with_guard = Sig.extend_type sig_ empty_decl in
+    (* Re-add D (with its actual params) to allow recursive reference under Ptr *)
+    let stub_decl = DtypeDecl.{ name = guard_name; params = guard_params;
+                                ctors = []; loc = SourcePos.dummy } in
+    let sig_with_guard = Sig.extend_type sig_ stub_decl in
     kind_wf sig_with_guard ctx t Kind.Type
   | Sort.Pred _ ->
     Error (Format.asprintf "%a: pred not allowed in type declarations"
              SourcePos.print pos)
-  | Sort.Record ts -> type_guarded_list sig_ ctx guard ts
+  | Sort.Record ts -> type_guarded_list sig_ ctx (guard_name, guard_params) ts
   | Sort.App (d, args) ->
-    if Dsort.compare d guard = 0 then
+    if Dsort.compare d guard_name = 0 then
       Error (Format.asprintf
                "%a: recursive reference to %a must go through ptr"
                SourcePos.print pos Dsort.print d)
@@ -480,7 +481,7 @@ let validate_type_decl sig_ (d : DtypeDecl.t) =
     let ctx = List.fold_left (fun acc a -> Context.extend_tvar a Kind.Type acc)
                 Context.empty d.params in
     (* Check guardedness of constructor sorts *)
-    type_guarded_list sig_ ctx d.name (List.map snd d.ctors)
+    type_guarded_list sig_ ctx (d.name, d.params) (List.map snd d.ctors)
 
 (** Elaborate and typecheck a FunDecl *)
 let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =

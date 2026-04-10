@@ -905,27 +905,27 @@ module Test = struct
     in
     [ check_program "delta monotonicity: incr (new/get/set/del)"
         {|
-          rfun incr (p : ptr int, [res] r : (take x : int = Own[int](p)))
-            -> ([res] (take x' : int = Own[int](p))) [impure] =
-            let (v, pf, r2) = Get[int](p, res r);
-            let (r3) = Set[int](p, v + 1, res r2);
+          rfun incr (p : Ptr Int, [res] r : (take x : Int = Own[Int](p)))
+            -> ([res] (take x' : Int = Own[Int](p))) [impure] =
+            let (v, pf, r2) = Get[Int](p, res r);
+            let (r3) = Set[Int](p, v + 1, res r2);
             (res r3)
           main : () [impure] =
-            let (p, r) = New[int](0);
+            let (p, r) = New[Int](0);
             let ((x', r')) = incr(p, res r);
-            Del[int](p, x', res r')
+            Del[Int](p, x', res r')
         |};
 
       check_program "delta monotonicity: if-then-else with resources"
         {|
           main : () [impure] =
-            let (p, r) = New[int](0);
-            let (v, pf, r2) = Get[int](p, res r);
-            let (b, bpf) = Eq[int](v, 0);
+            let (p, r) = New[Int](0);
+            let (v, pf, r2) = Get[Int](p, res r);
+            let (b, bpf) = Eq[Int](v, 0);
             if [w] b
-              then let (r3) = Set[int](p, 1, res r2);
-                   Del[int](p, 1, res r3)
-              else Del[int](p, v, res r2)
+              then let (r3) = Set[Int](p, 1, res r2);
+                   Del[Int](p, 1, res r3)
+              else Del[Int](p, v, res r2)
         |};
 
       check_program "delta monotonicity: pure computation (no resources)"
@@ -935,17 +935,17 @@ module Test = struct
 
       check_program "delta monotonicity: iter with heap cell"
         {|
-          type step(a, b) = { Next : a | Done : b }
+          type Step(a, b) = { Next : a | Done : b }
           main : () [impure] =
-            let (p, r) = New[step(int, ())](Next 0);
-            let (z_done, r_done) = iter [Own[step(int, ())](p)] ((x, r_loop) =
-              (0, res r) : (x : int, [res] Own[step(int, ())](p) @ Next x)
+            let (p, r) = New[Step(Int, ())](Next 0);
+            let (z_done, r_done) = iter [Own[Step(Int, ())](p)] ((x, r_loop) =
+              (0, res r) : (x : Int, [res] Own[Step(Int, ())](p) @ Next x)
             ) {
-              let (v, pf, r2) = Get[step(int, ())](p, res r_loop);
-              let (r3) = Set[step(int, ())](p, Done (), res r2);
-              (Done (), res r3) : (z : step(int, ()), [res] Own[step(int, ())](p) @ z)
+              let (v, pf, r2) = Get[Step(Int, ())](p, res r_loop);
+              let (r3) = Set[Step(Int, ())](p, Done (), res r2);
+              (Done (), res r3) : (z : Step(Int, ()), [res] Own[Step(Int, ())](p) @ z)
             };
-            Del[step(int, ())](p, Done z_done, res r_done)
+            Del[Step(Int, ())](p, Done z_done, res r_done)
         |};
     ]
 
