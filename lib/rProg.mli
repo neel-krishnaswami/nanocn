@@ -19,6 +19,7 @@ type ('e, 'var) decl =
     }
   | RFunDecl of {
       name : string;
+      pat : 'var RPat.t;
       domain : ('e, 'var) ProofSort.t;
       codomain : ('e, 'var) ProofSort.t;
       eff : Effect.t;

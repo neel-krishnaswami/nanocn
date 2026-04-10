@@ -12,6 +12,7 @@ type ('e, 'var) decl =
     }
   | RFunDecl of {
       name : string;
+      pat : 'var RPat.t;
       domain : ('e, 'var) ProofSort.t;
       codomain : ('e, 'var) ProofSort.t;
       eff : Effect.t;
@@ -39,9 +40,9 @@ let print_gen pp_var pp_e fmt prog =
     | FunDecl { name; param; arg_sort; ret_sort; eff; _ } ->
       Format.fprintf fmt "@[<hov 2>fun %s (%a : %a) -> %a [%a] = <body>@]"
         name pp_var param Sort.print arg_sort Sort.print ret_sort Effect.print eff
-    | RFunDecl { name; domain; codomain; eff; _ } ->
-      Format.fprintf fmt "@[<hov 2>fun %s (%a) ~> %a [%a] = <body>@]"
-        name pp_pf domain pp_pf codomain Effect.print eff
+    | RFunDecl { name; pat; domain; codomain; eff; _ } ->
+      Format.fprintf fmt "@[<hov 2>rfun %s (%a) : %a -> %a [%a] = <body>@]"
+        name (RPat.print_gen pp_var) pat pp_pf domain pp_pf codomain Effect.print eff
   in
   Format.fprintf fmt "@[<v>%a@ main : %a [%a] = %a@]"
     (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt "@ ") pp_decl)

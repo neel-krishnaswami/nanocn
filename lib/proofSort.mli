@@ -11,9 +11,9 @@
 
 type ('e, 'var) entry =
   | Comp of { var : 'var; sort : Sort.sort; eff : Effect.t }
-  | Log of { var : 'var; prop : 'e }
-  | Res of { var : 'var; pred : 'e; value : 'e }
-  | DepRes of { var : 'var; bound_var : 'var; pred : 'e }
+  | Log of { prop : 'e }
+  | Res of { pred : 'e; value : 'e }
+  | DepRes of { bound_var : 'var; pred : 'e }
 
 type ('e, 'var) t = ('e, 'var) entry list
 
@@ -31,11 +31,6 @@ val comp : ('e, 'var) t -> Sort.sort
 
 val bind : Context.t -> (CoreExpr.typed_ce, Var.t) t -> (Context.t, string) result
 (** [bind Γ pf] extends Γ with comp/spec variable bindings from [pf].
-    For DepRes entries, reads the sort directly from the typed info. *)
-
-val pf_to_ctx : RCtx.t -> (CoreExpr.typed_ce, Var.t) t -> (RCtx.t, string) result
-(** [pf_to_ctx Δ pf] appends proof sort entries to Δ;
-    resource entries get [Avail] usage.
     For DepRes entries, reads the sort directly from the typed info. *)
 
 val apply_subst : Subst.t -> (CoreExpr.typed_ce, Var.t) t -> (CoreExpr.typed_ce, Var.t) t

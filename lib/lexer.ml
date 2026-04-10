@@ -32,6 +32,7 @@ let keyword_or_ident s =
   | "case" -> Parser.CASE
   | "iter" -> Parser.ITER
   | "fun" -> Parser.FUN
+  | "rfun" -> Parser.RFUN
   | "main" -> Parser.MAIN
   | "pure" -> Parser.PURE
   | "impure" -> Parser.IMPURE
@@ -99,7 +100,6 @@ let rec token buf =
   | "==" -> Parser.EQEQ
   | '=' -> Parser.EQUAL
   | ':' -> Parser.COLON
-  | "~>" -> Parser.TILDEARROW
   | "->" -> Parser.ARROW
   | "||" -> Parser.BARBAR
   | "&&" -> Parser.AMPAMP

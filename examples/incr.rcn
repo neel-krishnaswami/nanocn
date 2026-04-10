@@ -1,8 +1,8 @@
 // A refined function that increments a heap cell.
 // Takes ownership, reads, writes incremented value, returns ownership.
 // Uses DepRes to existentially bind the output value.
-fun incr (p : Ptr Int, [res] r : (take x : Int = Own[Int](p)))
-  ~> ([res] r' : (take x' : Int = Own[Int](p))) [impure] =
+rfun incr (p : Ptr Int, [res] r : (take x : Int = Own[Int](p)))
+  -> ([res] (take x' : Int = Own[Int](p))) [impure] =
   let (v, pf, r2) = Get[Int](p, res r);
   let (r3) = Set[Int](p, v + 1, res r2);
   (res r3)

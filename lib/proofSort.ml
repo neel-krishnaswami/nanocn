@@ -1,26 +1,26 @@
 type ('e, 'var) entry =
   | Comp of { var : 'var; sort : Sort.sort; eff : Effect.t }
-  | Log of { var : 'var; prop : 'e }
-  | Res of { var : 'var; pred : 'e; value : 'e }
-  | DepRes of { var : 'var; bound_var : 'var; pred : 'e }
+  | Log of { prop : 'e }
+  | Res of { pred : 'e; value : 'e }
+  | DepRes of { bound_var : 'var; pred : 'e }
 
 type ('e, 'var) t = ('e, 'var) entry list
 
 let map_entry f = function
   | Comp c -> Comp c
-  | Log { var; prop } -> Log { var; prop = f prop }
-  | Res { var; pred; value } -> Res { var; pred = f pred; value = f value }
-  | DepRes { var; bound_var; pred } ->
-    DepRes { var; bound_var; pred = f pred }
+  | Log { prop } -> Log { prop = f prop }
+  | Res { pred; value } -> Res { pred = f pred; value = f value }
+  | DepRes { bound_var; pred } ->
+    DepRes { bound_var; pred = f pred }
 
 let map f = List.map (map_entry f)
 
 let map_var_entry f = function
   | Comp { var; sort; eff } -> Comp { var = f var; sort; eff }
-  | Log { var; prop } -> Log { var = f var; prop }
-  | Res { var; pred; value } -> Res { var = f var; pred; value }
-  | DepRes { var; bound_var; pred } ->
-    DepRes { var = f var; bound_var = f bound_var; pred }
+  | Log { prop } -> Log { prop }
+  | Res { pred; value } -> Res { pred; value }
+  | DepRes { bound_var; pred } ->
+    DepRes { bound_var = f bound_var; pred }
 
 let map_var f = List.map (map_var_entry f)
 
@@ -58,42 +58,23 @@ let bind gamma pf =
       Ok (Context.extend bound_var inner Effect.Spec acc))
     (Ok gamma) pf
 
-let mk_info sort =
-  (object method loc = SourcePos.dummy method ctx = Context.empty
-          method sort = sort method eff = Effect.Spec end : CoreExpr.typed_info)
-
-let pf_to_ctx delta pf =
-  let ( let* ) = Result.bind in
-  List.fold_left (fun acc_result entry ->
-    let* acc = acc_result in
-    match entry with
-    | Comp { var; sort; eff } -> Ok (RCtx.extend_comp var sort eff acc)
-    | Log { var; prop } -> Ok (RCtx.extend_log var prop acc)
-    | Res { var; pred; value } -> Ok (RCtx.extend_res var pred value Usage.Avail acc)
-    | DepRes { var; bound_var; pred } ->
-      let* inner = synth_bound_sort pred in
-      let ce_y = CoreExpr.mk (mk_info inner) (CoreExpr.Var bound_var) in
-      let acc = RCtx.extend_comp bound_var inner Effect.Spec acc in
-      Ok (RCtx.extend_res var pred ce_y Usage.Avail acc))
-    (Ok delta) pf
-
 (* Proof sort substitution per explicit-substitutions.md:
    - Comp: apply to sort, extend with x/x for tail
-   - Log/Res: apply to exprs, do NOT extend (x not in |Delta|)
-   - DepRes: extend with y/y for pred, do NOT extend x for tail *)
+   - Log/Res: apply to exprs, do NOT extend (no var to extend)
+   - DepRes: extend with y/y for pred, do NOT extend for tail *)
 let apply_subst sub pf =
   List.map (fun entry ->
     match entry with
     | Comp { var; sort; eff } ->
       Comp { var; sort = Subst.apply sub sort; eff }
-    | Log { var; prop } ->
-      Log { var; prop = Subst.apply_ce sub prop }
-    | Res { var; pred; value } ->
-      Res { var; pred = Subst.apply_ce sub pred; value = Subst.apply_ce sub value }
-    | DepRes { var; bound_var; pred } ->
+    | Log { prop } ->
+      Log { prop = Subst.apply_ce sub prop }
+    | Res { pred; value } ->
+      Res { pred = Subst.apply_ce sub pred; value = Subst.apply_ce sub value }
+    | DepRes { bound_var; pred } ->
       let sub' = Subst.extend_var bound_var
         (CoreExpr.mk (CoreExpr.info pred) (CoreExpr.Var bound_var)) sub in
-      DepRes { var; bound_var; pred = Subst.apply_ce sub' pred })
+      DepRes { bound_var; pred = Subst.apply_ce sub' pred })
     pf
 
 let subst x e pf =
@@ -103,14 +84,12 @@ let print_gen pp_var pp_e fmt pf =
   let pp_entry fmt = function
     | Comp { var; sort; eff } ->
       Format.fprintf fmt "@[%a : %a [%a]@]" pp_var var Sort.print sort Effect.print eff
-    | Log { var; prop } ->
-      Format.fprintf fmt "@[%a : %a [log]@]" pp_var var pp_e prop
-    | Res { var; pred; value } ->
-      Format.fprintf fmt "@[%a : %a @ %a [res]@]"
-        pp_var var pp_e pred pp_e value
-    | DepRes { var; bound_var; pred } ->
-      Format.fprintf fmt "@[[res] %a : (take %a = %a)@]"
-        pp_var var pp_var bound_var pp_e pred
+    | Log { prop } ->
+      Format.fprintf fmt "@[%a [log]@]" pp_e prop
+    | Res { pred; value } ->
+      Format.fprintf fmt "@[%a @ %a [res]@]" pp_e pred pp_e value
+    | DepRes { bound_var; pred } ->
+      Format.fprintf fmt "@[[res] (take %a = %a)@]" pp_var bound_var pp_e pred
   in
   match pf with
   | [] -> Format.fprintf fmt "·"
@@ -133,12 +112,11 @@ module Test = struct
         (fun () ->
            let loc = object method loc = SourcePos.dummy end in
            let s = Sort.mk loc Sort.Int in
-           let (x, supply) = Var.mk "x" SourcePos.dummy Var.empty_supply in
-           let (y, _supply) = Var.mk "y" SourcePos.dummy supply in
+           let (x, _supply) = Var.mk "x" SourcePos.dummy Var.empty_supply in
            let ce = CoreExpr.mk loc (CoreExpr.BoolLit true) in
            let pf = [
              Comp { var = x; sort = s; eff = Effect.Pure };
-             Log { var = y; prop = ce };
+             Log { prop = ce };
            ] in
            match pf_types pf with
            | [s'] -> Sort.compare s s' = 0

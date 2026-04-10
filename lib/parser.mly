@@ -36,7 +36,7 @@
 %token <int> INT_LIT
 %token <string> IDENT
 %token <string> LABEL
-%token LET CASE ITER FUN MAIN
+%token LET CASE ITER FUN RFUN MAIN
 %token INT_KW BOOL_KW PTR
 %token PURE IMPURE
 %token SET GET NEW DEL
@@ -47,7 +47,7 @@
 %token LBRACKET RBRACKET LPAREN RPAREN LBRACE RBRACE
 %token LESS LESSEQ GREATER GREATEREQ
 %token COMMA SEMICOLON EQUAL COLON ARROW BAR
-%token EXFALSO AUTO UNFOLD OPEN_RET OPEN_TAKE MAKE_RET MAKE_TAKE LOG RES FORALL AT TILDEARROW
+%token EXFALSO AUTO UNFOLD OPEN_RET OPEN_TAKE MAKE_RET MAKE_TAKE LOG RES FORALL AT
 %token EOF
 
 %start <SurfExpr.parsed_se> program
@@ -313,12 +313,9 @@ rdecl:
   | FUN; f = ident_var; LPAREN; x = ident_var; COLON; a = sort; RPAREN; ARROW; b = sort; LBRACKET; eff = eff_level; RBRACKET; EQUAL; body = expr
     { RProg.FunDecl { name = f; param = x; arg_sort = a; ret_sort = b; eff;
                        body; loc = mk_loc $startpos $endpos } }
-  | FUN; f = ident_var; pf1 = pf_sort; TILDEARROW; pf2 = pf_sort; LBRACKET; eff = eff_level; RBRACKET; EQUAL; e = crt_expr
-    { RProg.RFunDecl { name = f; domain = pf1; codomain = pf2; eff;
-                        body = e; loc = mk_loc $startpos $endpos } }
-  | FUN; f = ident_var; LPAREN; x = ident_var; COLON; a = sort; RPAREN; TILDEARROW; pf2 = pf_sort; LBRACKET; eff = eff_level; RBRACKET; EQUAL; e = crt_expr
-    { let pf1 = [ProofSort.Comp { var = x; sort = a; eff = Effect.Pure }] in
-      RProg.RFunDecl { name = f; domain = pf1; codomain = pf2; eff;
+  | RFUN; f = ident_var; dom = pf_domain; ARROW; pf2 = pf_sort; LBRACKET; eff = eff_level; RBRACKET; EQUAL; e = crt_expr
+    { let (pat, pf1) = List.split dom in
+      RProg.RFunDecl { name = f; pat; domain = pf1; codomain = pf2; eff;
                         body = e; loc = mk_loc $startpos $endpos } }
   | SORT; d = LABEL; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
     { RProg.SortDecl DsortDecl.({
@@ -349,7 +346,12 @@ rdecl:
         loc = mk_loc $startpos $endpos;
       }) }
 
-(* ===== Proof sorts ===== *)
+(* ===== Proof sorts =====
+
+   Two grammars:
+   - pf_sort: codomain/annotations — no binders for Log/Res/DepRes
+   - pf_domain: domain — every entry carries a binder, parsed into a
+     pattern element. Returns a list of (pat_elem, pf_entry) pairs. *)
 
 pf_sort:
   | LPAREN; entries = separated_list(COMMA, pf_entry); RPAREN
@@ -360,18 +362,42 @@ pf_entry:
     { ProofSort.Comp { var = x; sort = s; eff = Effect.Pure } }
   | LBRACKET; eff = eff_level; RBRACKET; x = ident_var; COLON; s = sort
     { ProofSort.Comp { var = x; sort = s; eff } }
+  | LBRACKET; LOG; RBRACKET; e = app_expr
+    { ProofSort.Log { prop = e } }
+  | LBRACKET; RES; RBRACKET; e1 = app_expr; AT; e2 = app_expr
+    { ProofSort.Res { pred = e1; value = e2 } }
+  | LBRACKET; RES; RBRACKET;
+    LPAREN; TAKE; y = ident_var; COLON; s = sort; EQUAL; e = app_expr; RPAREN
+    { let pred_sort = mk_sort $startpos $endpos (Sort.Pred s) in
+      let annot_e = mk_surfexpr $startpos $endpos (SurfExpr.Annot (e, pred_sort)) in
+      ProofSort.DepRes { bound_var = y; pred = annot_e } }
+  | LBRACKET; RES; RBRACKET;
+    LPAREN; TAKE; y = ident_var; EQUAL; e = app_expr; RPAREN
+    { ProofSort.DepRes { bound_var = y; pred = e } }
+
+pf_domain:
+  | LPAREN; entries = separated_list(COMMA, pf_domain_entry); RPAREN
+    { entries }
+
+pf_domain_entry:
+  | x = ident_var; COLON; s = sort
+    { (RPat.Single x,
+       ProofSort.Comp { var = x; sort = s; eff = Effect.Pure }) }
+  | LBRACKET; eff = eff_level; RBRACKET; x = ident_var; COLON; s = sort
+    { (RPat.Single x,
+       ProofSort.Comp { var = x; sort = s; eff }) }
   | LBRACKET; LOG; RBRACKET; x = ident_var; COLON; e = app_expr
-    { ProofSort.Log { var = x; prop = e } }
+    { (RPat.Single x, ProofSort.Log { prop = e }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON; e1 = app_expr; AT; e2 = app_expr
-    { ProofSort.Res { var = x; pred = e1; value = e2 } }
+    { (RPat.Single x, ProofSort.Res { pred = e1; value = e2 }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON;
     LPAREN; TAKE; y = ident_var; COLON; s = sort; EQUAL; e = app_expr; RPAREN
     { let pred_sort = mk_sort $startpos $endpos (Sort.Pred s) in
       let annot_e = mk_surfexpr $startpos $endpos (SurfExpr.Annot (e, pred_sort)) in
-      ProofSort.DepRes { var = x; bound_var = y; pred = annot_e } }
+      (RPat.Pair (y, x), ProofSort.DepRes { bound_var = y; pred = annot_e }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON;
     LPAREN; TAKE; y = ident_var; EQUAL; e = app_expr; RPAREN
-    { ProofSort.DepRes { var = x; bound_var = y; pred = e } }
+    { (RPat.Pair (y, x), ProofSort.DepRes { bound_var = y; pred = e }) }
 
 (* ===== Core refined terms ===== *)
 

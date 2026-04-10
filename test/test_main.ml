@@ -1016,8 +1016,8 @@ let () =
       (* Fix 2: RFunDecl body constraints are collected, not discarded *)
       Alcotest.test_case "rfundecl body constraints collected" `Quick (fun () ->
         let src = {|
-          fun incr (p : Ptr Int, [res] r : (take x : Int = Own[Int](p)))
-            ~> ([res] r' : (take x' : Int = Own[Int](p))) [impure] =
+          rfun incr (p : Ptr Int, [res] r : (take x : Int = Own[Int](p)))
+            -> ([res] (take x' : Int = Own[Int](p))) [impure] =
             let (v, pf, r2) = Get[Int](p, res r);
             let (r3) = Set[Int](p, v + 1, res r2);
             (res r3)
@@ -1043,8 +1043,8 @@ let () =
       (* Fix 3: tuple checking uses entry effect for spec entries *)
       Alcotest.test_case "incr.rcn passes refined check" `Quick (fun () ->
         let src = {|
-          fun incr (p : Ptr Int, [res] r : (take x : Int = Own[Int](p)))
-            ~> ([res] r' : (take x' : Int = Own[Int](p))) [impure] =
+          rfun incr (p : Ptr Int, [res] r : (take x : Int = Own[Int](p)))
+            -> ([res] (take x' : Int = Own[Int](p))) [impure] =
             let (v, pf, r2) = Get[Int](p, res r);
             let (r3) = Set[Int](p, v + 1, res r2);
             (res r3)
@@ -1068,12 +1068,11 @@ let () =
         let mk_info sort =
           (object method loc = SourcePos.dummy method ctx = Context.empty
                   method sort = sort method eff = Effect.Spec end : CoreExpr.typed_info) in
-        let (x, s0) = Var.mk "x" SourcePos.dummy Var.empty_supply in
-        let (y, _s1) = Var.mk "y" SourcePos.dummy s0 in
+        let (x, _s0) = Var.mk "x" SourcePos.dummy Var.empty_supply in
         let ce = CoreExpr.mk (mk_info bool_sort) (CoreExpr.IntLit 0) in
         let pf1 = [
           ProofSort.Comp { var = x; sort = int_sort; eff = Effect.Pure };
-          ProofSort.Log { var = y; prop = ce };
+          ProofSort.Log { prop = ce };
         ] in
         let pf2 = [
           ProofSort.Comp { var = x; sort = int_sort; eff = Effect.Pure };
