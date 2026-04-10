@@ -1,0 +1,22 @@
+; Generate locations.txt and callsites.txt by running the searcher tool
+; over all .cmt files produced by the nanocn library.
+;
+; - (source_tree ../lib) tracks every file in the lib source directory,
+;   so the searcher reruns whenever any nanocn source changes.
+; - (alias_rec ../lib/check) ensures the lib (and therefore its .cmt
+;   files) is built before the action runs.
+; - %{exe:../scripts/searcher/searcher.exe} adds an implicit dep on the
+;   searcher binary, so it's built first too.
+; - (alias default) attaches the targets to the default alias so they
+;   are produced by a plain `dune build`.
+;
+; Outputs land at _build/default/info/locations.txt and
+; _build/default/info/callsites.txt.
+
+(rule
+ (alias default)
+ (targets locations.txt callsites.txt)
+ (deps (source_tree ../lib)
+       (alias_rec ../lib/check))
+ (action
+  (bash "%{exe:../scripts/searcher/searcher.exe} --out-dir . ../lib/.nanocn.objs/byte/*.cmt")))

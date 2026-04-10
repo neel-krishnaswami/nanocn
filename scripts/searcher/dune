@@ -1,0 +1,3 @@
+(executable
+ (name searcher)
+ (libraries compiler-libs.common))
