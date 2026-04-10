@@ -38,7 +38,7 @@ let print fmt = function
 
 module Test = struct
   let gen =
-    QCheck.Gen.oneofl [Used; Avail; Opt]
+    QCheck.Gen.oneof_list [Used; Avail; Opt]
 
   let arb = QCheck.make gen
 

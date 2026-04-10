@@ -37,7 +37,7 @@ let json = function
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    oneofl [ Pure; Impure; Spec ]
+    oneof_list [ Pure; Impure; Spec ]
 
   let test =
     [ QCheck.Test.make ~name:"sub is reflexive"

@@ -64,7 +64,7 @@ module Test = struct
     let open QCheck.Gen in
     let dummy_info = object method loc = SourcePos.dummy end in
     let int_sort = Sort.mk dummy_info Sort.Int in
-    oneofl [ Add; Mul; Sub; Div; Lt; Le; Gt; Ge; And; Or; Not; Eq int_sort; New int_sort; Del int_sort; Get int_sort; Set int_sort; Own int_sort ]
+    oneof_list [ Add; Mul; Sub; Div; Lt; Le; Gt; Ge; And; Or; Not; Eq int_sort; New int_sort; Del int_sort; Get int_sort; Set int_sort; Own int_sort ]
 
   let test = []
 end

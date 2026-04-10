@@ -83,9 +83,9 @@ module Test = struct
     ] in
     let* name = Dsort.Test.gen in
     let* n_params = 0 -- 2 in
-    let* params = list_repeat n_params Tvar.Test.gen in
+    let* params = list_size (return n_params) Tvar.Test.gen in
     let* n_ctors = 1 -- 3 in
-    let* ctors = list_repeat n_ctors (
+    let* ctors = list_size (return n_ctors) (
       let* l = Label.Test.gen in
       let* s = simple_sort in
       pure (l, s)
