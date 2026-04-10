@@ -45,6 +45,7 @@ let keyword_or_ident s =
   | "spec" -> Parser.SPEC
   | "sort" -> Parser.SORT
   | "take" -> Parser.TAKE
+  | "do" -> Parser.DO
   | "return" -> Parser.RETURN
   | "of" -> Parser.OF
   | "type" -> Parser.TYPE

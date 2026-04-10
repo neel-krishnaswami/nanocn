@@ -1016,8 +1016,8 @@ let () =
       (* Fix 2: RFunDecl body constraints are collected, not discarded *)
       Alcotest.test_case "rfundecl body constraints collected" `Quick (fun () ->
         let src = {|
-          rfun incr (p : Ptr Int, [res] r : (take x : Int = Own[Int](p)))
-            -> ([res] (take x' : Int = Own[Int](p))) [impure] =
+          rfun incr (p : Ptr Int, [res] r : (do x : Int = Own[Int](p)))
+            -> ([res] (do x' : Int = Own[Int](p))) [impure] =
             let (v, pf, r2) = Get[Int](p, res r);
             let (r3) = Set[Int](p, v + 1, res r2);
             (res r3)
@@ -1043,8 +1043,8 @@ let () =
       (* Fix 3: tuple checking uses entry effect for spec entries *)
       Alcotest.test_case "incr.rcn passes refined check" `Quick (fun () ->
         let src = {|
-          rfun incr (p : Ptr Int, [res] r : (take x : Int = Own[Int](p)))
-            -> ([res] (take x' : Int = Own[Int](p))) [impure] =
+          rfun incr (p : Ptr Int, [res] r : (do x : Int = Own[Int](p)))
+            -> ([res] (do x' : Int = Own[Int](p))) [impure] =
             let (v, pf, r2) = Get[Int](p, res r);
             let (r3) = Set[Int](p, v + 1, res r2);
             (res r3)

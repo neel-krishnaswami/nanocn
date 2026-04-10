@@ -41,7 +41,7 @@
 %token PURE IMPURE
 %token SET GET NEW DEL
 %token TRUE FALSE IF THEN ELSE NOT_KW
-%token SPEC SORT TYPE TAKE RETURN PRED OF OWN EQEQ EQ
+%token SPEC SORT TYPE TAKE DO RETURN PRED OF OWN EQEQ EQ
 %token PLUS MINUS STAR SLASH
 %token AMPAMP BARBAR
 %token LBRACKET RBRACKET LPAREN RPAREN LBRACE RBRACE
@@ -367,12 +367,12 @@ pf_entry:
   | LBRACKET; RES; RBRACKET; e1 = app_expr; AT; e2 = app_expr
     { ProofSort.Res { pred = e1; value = e2 } }
   | LBRACKET; RES; RBRACKET;
-    LPAREN; TAKE; y = ident_var; COLON; s = sort; EQUAL; e = app_expr; RPAREN
+    LPAREN; DO; y = ident_var; COLON; s = sort; EQUAL; e = app_expr; RPAREN
     { let pred_sort = mk_sort $startpos $endpos (Sort.Pred s) in
       let annot_e = mk_surfexpr $startpos $endpos (SurfExpr.Annot (e, pred_sort)) in
       ProofSort.DepRes { bound_var = y; pred = annot_e } }
   | LBRACKET; RES; RBRACKET;
-    LPAREN; TAKE; y = ident_var; EQUAL; e = app_expr; RPAREN
+    LPAREN; DO; y = ident_var; EQUAL; e = app_expr; RPAREN
     { ProofSort.DepRes { bound_var = y; pred = e } }
 
 pf_domain:
@@ -391,12 +391,12 @@ pf_domain_entry:
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON; e1 = app_expr; AT; e2 = app_expr
     { (RPat.Single x, ProofSort.Res { pred = e1; value = e2 }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON;
-    LPAREN; TAKE; y = ident_var; COLON; s = sort; EQUAL; e = app_expr; RPAREN
+    LPAREN; DO; y = ident_var; COLON; s = sort; EQUAL; e = app_expr; RPAREN
     { let pred_sort = mk_sort $startpos $endpos (Sort.Pred s) in
       let annot_e = mk_surfexpr $startpos $endpos (SurfExpr.Annot (e, pred_sort)) in
       (RPat.Pair (y, x), ProofSort.DepRes { bound_var = y; pred = annot_e }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON;
-    LPAREN; TAKE; y = ident_var; EQUAL; e = app_expr; RPAREN
+    LPAREN; DO; y = ident_var; EQUAL; e = app_expr; RPAREN
     { (RPat.Pair (y, x), ProofSort.DepRes { bound_var = y; pred = e }) }
 
 (* ===== Core refined terms ===== *)
@@ -418,10 +418,24 @@ crt_seq_expr:
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CCase (y, ce, bs)) }
   | EXFALSO
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos) RefinedExpr.CExfalso }
-  | OPEN_TAKE; r = rpf_expr
+  | OPEN_TAKE; LPAREN; r = rpf_expr; RPAREN
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.COpenTake r) }
+  | e = crt_spine_expr
+    { e }
   | e = crt_app_expr
     { e }
+
+(* Bare parenthesized tuple form: ( spine_arg,* ) → CTuple *)
+crt_spine_expr:
+  | LPAREN; args = separated_list(COMMA, spine_arg); RPAREN
+    { let loc = loc_obj $startpos $endpos in
+      let sp = List.fold_right (fun arg sp ->
+        match arg with
+        | `Core ce -> RefinedExpr.mk_spine loc (RefinedExpr.SCore (ce, sp))
+        | `Log lpf -> RefinedExpr.mk_spine loc (RefinedExpr.SLog (lpf, sp))
+        | `Res rpf -> RefinedExpr.mk_spine loc (RefinedExpr.SRes (rpf, sp)))
+        args (RefinedExpr.mk_spine loc RefinedExpr.SNil) in
+      RefinedExpr.mk_crt loc (RefinedExpr.CTuple sp) }
 
 crt_case_branch:
   | l = LABEL; x = ident_var; ARROW; e = crt_expr
@@ -432,14 +446,6 @@ crt_app_expr:
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CPrimApp (p t, sp)) }
   | f = ident_var; sp = spine_expr
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CCall (f, sp)) }
-  | sp = spine_expr
-    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CTuple sp) }
-  | e = crt_simple_expr
-    { e }
-
-crt_simple_expr:
-  | LPAREN; RPAREN
-    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CTuple (RefinedExpr.mk_spine (loc_obj $startpos $endpos) RefinedExpr.SNil)) }
 
 (* ===== Refined patterns ===== *)
 
@@ -492,7 +498,7 @@ lpf_atom_expr:
     { RefinedExpr.mk_lpf (loc_obj $startpos $endpos) RefinedExpr.LAuto }
   | UNFOLD; f = ident_var; LPAREN; ce = expr; RPAREN
     { RefinedExpr.mk_lpf (loc_obj $startpos $endpos) (RefinedExpr.LUnfold (f, ce)) }
-  | OPEN_RET; r = rpf_expr
+  | OPEN_RET; LPAREN; r = rpf_expr; RPAREN
     { RefinedExpr.mk_lpf (loc_obj $startpos $endpos) (RefinedExpr.LOpenRet r) }
 
 (* ===== Resource proof facts ===== *)
@@ -506,7 +512,7 @@ rpf_expr:
 rpf_atom_expr:
   | x = ident_var
     { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RVar x) }
-  | MAKE_RET; l = lpf_expr
+  | MAKE_RET; LPAREN; l = lpf_expr; RPAREN
     { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RMakeRet l) }
-  | MAKE_TAKE; e = crt_expr
+  | MAKE_TAKE; LPAREN; e = crt_expr; RPAREN
     { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RMakeTake e) }

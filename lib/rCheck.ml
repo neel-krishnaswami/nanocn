@@ -905,8 +905,8 @@ module Test = struct
     in
     [ check_program "delta monotonicity: incr (new/get/set/del)"
         {|
-          rfun incr (p : Ptr Int, [res] r : (take x : Int = Own[Int](p)))
-            -> ([res] (take x' : Int = Own[Int](p))) [impure] =
+          rfun incr (p : Ptr Int, [res] r : (do x : Int = Own[Int](p)))
+            -> ([res] (do x' : Int = Own[Int](p))) [impure] =
             let (v, pf, r2) = Get[Int](p, res r);
             let (r3) = Set[Int](p, v + 1, res r2);
             (res r3)

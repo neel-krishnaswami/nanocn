@@ -3,6 +3,7 @@
  (public_name nanocn)
  (libraries sedlex menhirLib qcheck-core)
  (preprocess (pps sedlex.ppx))
+ (flags (:standard -bin-annot))
  (wrapped false))
 
 (menhir

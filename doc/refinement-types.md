@@ -888,7 +888,7 @@ Eq[A] : (x:A[pure], y:A[pure]) ⊸ (z:bool[pure], z = x = y) [pure]
 
 
 New[A] : (x:A[pure]) ⊸ (p:Ptr A[pure], Own[A] p@x [res]) [impure]
-Del[A] : (p:Ptr A [pure], (take x = Own[A]p) [res]) ⊸ () [impure]
-Get[A] : (p:Ptr A [pure], (take x = Own[A]p) [res]) ⊸ (v:A[pure], v = x, Own[A]p@x [res]) [impure]
-Set[A] : (p:Ptr A [pure], v:A[pure], take x:A = Own[A]p [res]) ⊸ (Own[A] p@v [res]) [impure]
+Del[A] : (p:Ptr A [pure], (do x = Own[A]p) [res]) ⊸ () [impure]
+Get[A] : (p:Ptr A [pure], (do x = Own[A]p) [res]) ⊸ (v:A[pure], v = x, Own[A]p@x [res]) [impure]
+Set[A] : (p:Ptr A [pure], v:A[pure], do x:A = Own[A]p [res]) ⊸ (Own[A] p@v [res]) [impure]
 
