@@ -1,179 +1,192 @@
-# SMT Encoding
+# SMT encoding design documentation 
 
-## Datatype encoding
+## Building the S-expression library 
 
-### Base types
+### Preparation
 
-- Translate int to the SMT sort Int.
+Carefully read the SMT-LIB standard doc/smt-lib-reference-v2.7.pdf and learn the lexical 
+   syntax of SMTLIB. 
 
-- Translate bool to the SMT sort Bool. 
+### Planning 
 
-- Translate Ptr A with the following 
+Concisely specify the lexical syntax and grammar here, using regular expressions for
+each symbol class, and a BNF for the s-expression grammar: 
 
-(declare-datatype (Ptr 1) 
-   (par (X) ((null) 
-             (ptr (addr Int)))))
+#### Lexical syntax
 
-### Declare tuple types tuple2 through tuple16. 
-
-  (declare-datatypes ((Tuple2 2)) 
-    (par (X1 X2) (tuple2 (prj-2-1 X1) (prj-2-2 X2))))
-
-
-  (declare-datatypes ((Tuple3 3)) 
-    (par (X1 X2 X3) (tuple3 (prj-3-1 X1) (prj-3-2 X2) (prj-3-3 X3)))
-
-  and so on. 
-
-### Datatype declarations
-
-Go through a signature, and translate each CN datatype into the
-corresponding SMT datatype declaration. Translate CN tuples into SMT 
-tuples above. 
-
-
-### Declare an uninterpreted sort for the Pred monad, and polymorphic return and
-   bind operations 
-
-  (declare-sort pred 1)  ; unary sort of separation logic predicates 
-
-  (declare-sort-parameter A)
-  (declare-sort-parameter B)
-
-  (declare-fun return (A) (pred A))
-  (declare-fun take (A (-> A (pred B))) (pred B))
-
-#### Maybe
-
-Add quantified assertions (with a :pattern) to implement the monad laws? It's not clear
-how to orient them. 
-
-Otherwise we will need to add more syntax to simplify them manually.  
-
-### Nonrecursive functions
-
-Translate pure and nonrecursive spec functions f : (x : τ) → τ' = ce as
-
- (define-fun f (x τ) τ' [ce])
-
-where [ce] is the SMT-LIB translation of ce, defined below. 
-
-### Recursive functions 
-
-Translate a recursive spec functions f : τ \to τ' via 
-
-(declare-fun f (τ) τ') 
-
-We will **never** use `define-fun-rec`! All recursive functions are translated by 
-
-## Translating expressions 
-
-The syntax of core spec expressions is close to SMT-LIB 2.7 terms. If we start with the 
-core terms after elaboration, we will have all the type information we need to generate 
-the constraints. 
-
-- [n] = n
-- [b] => b
-- [x] => x
-- [prim e] => ([prim] [e])
-- [f e] => (f [e])
-- [e1 = e2] => (= [e1] [e2])
-- [let x = e1; e2] => (let ((x [e1])) [e2])
-- [(e1, ..., en)] => (tuplen [e1] ... [en])
-- [let (x1, ..., xn) = e1; e2] => (match [e1] ((tuplen x1 ... xn) [e2]))
-- [L e] => (L [e])
-- [case ce of {L1 x1 -> e1 ...}] => (match [ce] (((L1 x1) [e1]) ... ((Ln xn) [en])))
-- [if e1 then e2 else e3] => (ite [e1] [e2] [e3])
-- [return e] => (return [e])
-- [take x = e1; e2] => (bind [e1] (lambda (x τ1) [e2]))  where we get the type from the info
-- [e : τ] => [e] 
-
-Primitives get translated as follows:
-
-- Add => + 
-- Sub => - 
-- Lt => <
-- Le => <= 
-- Gt => > 
-– Ge => >= 
-- Eq[A] => = 
-
-We can also translate addition and multiplication, but these need special handling: 
-
-- Mul => * 
-- Div => div 
-
-Mul (n, ce) and Mul(ce, n), where n is a numeric literal, should be translated without
-issue, but there should be an error or warning when nonlinear multiplications are detected.
-
-Likewise, Div(ce, n) should be accepted, but uses of nonlinear
-division should be flagged to the user.
-
-## Translating constraints 
-
-The grammar of constraints is 
-
-C ::= 
-   | ⊤ 
-   |  C ∧ C 
-   | ∀x:τ. C 
-   | ϕ → C 
-   | ϕ 
-
-To translate a constraint, 
-
-1. Declare all the datatypes and toplevel functions. 
-
-Then, recursively translate the constraints as follows: 
-
-- Translating ⊤ 
-
-  Generate nothing
-
-- Translating ⊥ 
-
-  (check-sat)
-
-  If we get unsat, then the assumptions are unsatisfiable, and hence imply ⊥ 
-
-- Translating ϕ 
-
-  (assert (not [ϕ]))
-  (check-sat)
-
-If we get unsat, then ϕ is valid, and we return success. 
-
-- Translating C1 ∧ C2 
-
-  Translate C1. 
-  Trasnlate C2. 
-
-  We succeed if both C1 and C2 succeed. 
-
-- Translating ϕ → C 
-
-  (push)
-  (assert [ϕ])
-  Translate C 
-  (pop)
-
-- Translating [∀x:τ. C]:
-
-  (push)
-  (declare-const x τ)
-  Translate C 
-  (pop)
-
-
-  
-
-
-
-
-
-
-
-
-
-
-
+Source files are Unicode in any 8-bit encoding (e.g. UTF-8). Most tokens are
+restricted to printable US-ASCII (32–126); non-English letters from 128 up are
+permitted only inside string literals, quoted symbols, and comments.
+
+Whitespace and comments separate tokens but carry no semantic content:
+
+    whitespace ::= [ \t\n\r]+
+    comment    ::= ; [^\n\r]*
+
+Numeric and string literals:
+
+    digit       ::= [0-9]
+    letter      ::= [a-zA-Z]
+    numeral     ::= 0 | [1-9][0-9]*
+    decimal     ::= <numeral> \. [0-9]* <numeral>
+    hexadecimal ::= #x [0-9a-fA-F]+
+    binary      ::= #b [01]+
+    string      ::= " ( [^"] | "" )* "
+
+Inside a `<string>` the only escape sequence is `""`, which denotes a single
+`"`. Sequences like `\n` are *not* escapes — they stand for their literal
+characters. String literals may contain raw line breaks.
+
+Reserved words are tokenised as themselves and may not appear as simple
+symbols:
+
+    reserved ::= BINARY | DECIMAL | HEXADECIMAL | NUMERAL | STRING
+               | _ | ! | as | lambda | let | exists | forall | match | par
+               | <command_name>
+
+where `<command_name>` ranges over every command in the script language. Per
+Figure 3.7 of the standard, the full set is:
+
+    assert                  declare-sort-parameter   get-assignment       get-value
+    check-sat               define-const             get-info             pop
+    check-sat-assuming      define-fun               get-model            push
+    declare-const           define-fun-rec           get-option           reset
+    declare-datatype        define-funs-rec          get-proof            reset-assertions
+    declare-datatypes       define-sort              get-unsat-assumptions set-info
+    declare-fun             echo                     get-unsat-core       set-logic
+    declare-sort            exit                     get-assertions       set-option
+
+Symbols come in two flavours. A simple symbol is a non-empty sequence of
+letters, digits, and the punctuation characters `~ ! @ $ % ^ & * _ - + = < > . ? /`,
+that does not start with a digit and is not a reserved word. A quoted symbol
+is any run of printable/whitespace characters delimited by `|`, containing
+neither `|` nor `\`.
+
+    sym_punct     ::= [~!@$%^&*_+=<>.?/-]
+    sym_char      ::= <letter> | <digit> | <sym_punct>
+    simple_symbol ::= <sym_char>+   ; not starting with a digit, not a reserved word
+    quoted_symbol ::= \| [^|\\]* \|
+    symbol        ::= <simple_symbol> | <quoted_symbol>
+
+A keyword is a colon followed by a simple symbol; it lives in its own
+namespace, used for attribute and option names:
+
+    keyword ::= : <simple_symbol>
+
+Punctuation tokens:
+
+    lparen ::= (
+    rparen ::= )
+
+#### S-expression grammar
+
+Every SMT-LIB expression is an S-expression. Special constants and the
+five token classes (symbol, reserved, keyword, plus the parenthesised form)
+make up the whole grammar:
+
+    spec_constant ::= <numeral> | <decimal> | <hexadecimal> | <binary> | <string>
+
+    s_expr ::= <spec_constant>
+             | <symbol>
+             | <reserved>
+             | <keyword>
+             | ( <s_expr>* )
+
+### An OCaml s-exp library
+
+1. Define an AST for S-expressions. The atomic leaves of an s-expression
+   correspond one-for-one to the non-paren token classes from §3.1, so we
+   model them as a single sum type. The reserved-word class becomes its own
+   enumeration (no payload — each reserved word is a distinct constructor)
+   so that pattern matches over the SMT-LIB surface forms cannot mistype a
+   keyword.
+
+   ```ocaml
+   (* Reserved words from §3.1 of the SMT-LIB 2.7 standard. *)
+   type reserved =
+     (* meta-spec constants *)
+     | R_BINARY | R_DECIMAL | R_HEXADECIMAL | R_NUMERAL | R_STRING
+     (* punctuation / binders / qualifiers *)
+     | R_underscore       (* _ *)
+     | R_bang             (* ! *)
+     | R_as
+     | R_lambda
+     | R_let
+     | R_exists
+     | R_forall
+     | R_match
+     | R_par
+     (* script command names from Figure 3.7 *)
+     | R_assert
+     | R_check_sat
+     | R_check_sat_assuming
+     | R_declare_const
+     | R_declare_datatype
+     | R_declare_datatypes
+     | R_declare_fun
+     | R_declare_sort
+     | R_declare_sort_parameter
+     | R_define_const
+     | R_define_fun
+     | R_define_fun_rec
+     | R_define_funs_rec
+     | R_define_sort
+     | R_echo
+     | R_exit
+     | R_get_assertions
+     | R_get_assignment
+     | R_get_info
+     | R_get_model
+     | R_get_option
+     | R_get_proof
+     | R_get_unsat_assumptions
+     | R_get_unsat_core
+     | R_get_value
+     | R_pop
+     | R_push
+     | R_reset
+     | R_reset_assertions
+     | R_set_info
+     | R_set_logic
+     | R_set_option
+
+   (* Atoms — the leaves of an s-expression. Numeric literals are kept as
+      verbatim digit strings (no leading #x / #b for the based variants),
+      so the lexer commits to no numeric representation; clients can parse
+      them into Z.t / Q.t on demand.
+
+      For [Symbol], simple and quoted symbols are unified into a single
+      constructor holding the canonical contents (per §3.1, |abc| ≡ abc).
+      For [Keyword], the leading colon is stripped. For [String], the
+      contents are stored unescaped (the doubled-quote escape ""→" has
+      already been applied). *)
+   type atom =
+     | Numeral     of string
+     | Decimal     of string
+     | Hexadecimal of string
+     | Binary      of string
+     | String      of string
+     | Symbol      of string
+     | Keyword     of string
+     | Reserved    of reserved
+
+   type sexp =
+     | S of atom
+     | Nil
+     | Cons of sexp * sexp
+   ```
+
+   The `Atom` module exposes `type t = atom`, a `compare : t -> t -> int`,
+   and `print : Format.formatter -> t -> unit` that round-trips back to
+   valid SMT-LIB concrete syntax (re-quoting symbols whose contents are not
+   a legal `<simple_symbol>`, re-escaping `"` inside strings, re-prefixing
+   `#x` / `#b` on based numerals, and re-prefixing `:` on keywords).
+
+2. Define a Sedlex lexer for the lexical syntax above, producing symbols, open
+   parens, and close parens. Accept smt-lib comments, but elide them.
+
+3. Define a Menhir grammar following the above grammar. 
+
+
+## Translating nanocn constraints to SMT-LIB format. 
+ 
