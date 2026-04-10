@@ -564,6 +564,33 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CLet (pat, checked_crt1, checked_crt2)) in
       return (checked, delta_out, Constraint.conj pos ct1 ct2)
 
+  | RefinedExpr.CLetLog (x, lpf, body) ->
+    (* Synthesize the lpf, extend delta with x:ce[log], check the body
+       against pf, then drop the binding from the output context. *)
+    let* (checked_lpf, ce, delta', ct1) = synth_lpf rs delta lpf in
+    let delta_ext = RCtx.extend_log x ce delta' in
+    let* (checked_body, delta'', ct2) = check_crt rs delta_ext eff body pf in
+    let n = RCtx.length delta' in
+    let (delta_out, _delta_x) = RCtx.split n delta'' in
+    let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CLetLog (x, checked_lpf, checked_body)) in
+    return (checked, delta_out, Constraint.conj pos ct1 ct2)
+
+  | RefinedExpr.CLetRes (x, rpf, body) ->
+    (* Synthesize the rpf as ce@ce', extend delta with x:ce@ce'[res(avail)],
+       check the body against pf. The body's output context must have x in
+       state {Used, Opt} (the linear-resource consumption check). Then drop
+       the binding from the output context. *)
+    let* (checked_rpf, ce_pred, ce_val, delta', ct1) = synth_rpf rs delta rpf in
+    let delta_ext = RCtx.extend_res x ce_pred ce_val Usage.Avail delta' in
+    let* (checked_body, delta'', ct2) = check_crt rs delta_ext eff body pf in
+    let n = RCtx.length delta' in
+    let (delta_out, delta_x) = RCtx.split n delta'' in
+    if not (RCtx.zero delta_x) then
+      fail "let res: resource not fully consumed before going out of scope"
+    else
+      let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CLetRes (x, checked_rpf, checked_body)) in
+      return (checked, delta_out, Constraint.conj pos ct1 ct2)
+
   | RefinedExpr.CIf (_x, se, crt1, crt2) ->
     let eff' = Effect.purify eff in
     let gamma = RCtx.erase delta in
@@ -946,6 +973,28 @@ module Test = struct
               (Done (), res r3) : (z : Step(Int, ()), [res] Own[Step(Int, ())](p) @ z)
             };
             Del[Step(Int, ())](p, Done z_done, res r_done)
+        |};
+
+      (* let log / let res named-binder syntax *)
+      check_program "let log and let res with named binders"
+        {|
+          main : () [impure] =
+            let (p, r) = New[Int](0);
+            let res r2 = r;
+            let (v, pf, r3) = Get[Int](p, res r2);
+            let res r4 = r3;
+            Del[Int](p, v, res r4)
+        |};
+
+      (* let res x : ce@ce' = rpf; ... — annotation sugar *)
+      check_program "let res with type annotation sugar"
+        {|
+          main : () [impure] =
+            let (p, r) = New[Int](0);
+            let res r2 : Own[Int](p) @ 0 = r;
+            let (v, pf, r3) = Get[Int](p, res r2);
+            let res r4 = r3;
+            Del[Int](p, v, res r4)
         |};
     ]
 

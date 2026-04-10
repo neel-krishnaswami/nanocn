@@ -296,6 +296,20 @@ let rec resolve_crt env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string)
     let* e1' = resolve_crt env e1 in
     let* e2' = resolve_crt env' e2 in
     return (RefinedExpr.mk_crt b (RefinedExpr.CLet (q', e1', e2')))
+  | RefinedExpr.CLetLog (name, lpf, body) ->
+    (* Resolve the lpf in the OUTER env (x is not yet in scope), then
+       fresh-bind x for the body. *)
+    let* lpf' = resolve_lpf env lpf in
+    let* x = mk_var name b#loc in
+    let env' = (name, x) :: env in
+    let* body' = resolve_crt env' body in
+    return (RefinedExpr.mk_crt b (RefinedExpr.CLetLog (x, lpf', body')))
+  | RefinedExpr.CLetRes (name, rpf, body) ->
+    let* rpf' = resolve_rpf env rpf in
+    let* x = mk_var name b#loc in
+    let env' = (name, x) :: env in
+    let* body' = resolve_crt env' body in
+    return (RefinedExpr.mk_crt b (RefinedExpr.CLetRes (x, rpf', body')))
   | RefinedExpr.CAnnot (e, pf) ->
     let* e' = resolve_crt env e in
     let* (pf', _env') = resolve_pf env pf in

@@ -305,6 +305,8 @@ q :: 'RPat_' ::=                                     {{ com refined patterns }}
 
 crt :: 'CRT_' ::=                                    {{ com core refined terms }}
   | let q = crt1 ; crt2            :: :: Let
+  | let log x = lpf ; crt          :: :: LetLog       {{ tex \mathsf{let}\;\mathsf{log}\;[[x]] = [[lpf]]; [[crt]] }}
+  | let res x = rpf ; crt          :: :: LetRes       {{ tex \mathsf{let}\;\mathsf{res}\;[[x]] = [[rpf]]; [[crt]] }}
   | crt : Pf                        :: :: Annot
   | prim rsp                        :: :: PrimApp
   | f rsp                           :: :: Call
@@ -1686,6 +1688,17 @@ defns Jrefine :: '' ::=
     zero Delta''''
     ----------------------------------------------------------------------------- :: let
     RS ; Delta |- [ eff ] let q = crt1 ; crt2 r<== Pf -| Delta''' ~~> Ct1 cand Ct2
+
+    RS ; Delta |- lpf l==> ce -| Delta1 ~~> Ct
+    RS ; Delta1 , x : ce [ log ] |- [ eff ] crt r<== Pf -| Delta2 , x : ce [ log ] ~~> Ct'
+    ----------------------------------------------------------------------------- :: letlog
+    RS ; Delta |- [ eff ] let log x = lpf ; crt r<== Pf -| Delta2 ~~> Ct cand Ct'
+
+    RS ; Delta |- rpf r==> ce @ ce' -| Delta1 ~~> Ct
+    RS ; Delta1 , x : ce @ ce' [ res ( avail ) ] |- [ eff ] crt r<== Pf -| Delta2 , x : ce @ ce' [ res ( u ) ] ~~> Ct'
+    u in_zero
+    ----------------------------------------------------------------------------- :: letres
+    RS ; Delta |- [ eff ] let res x = rpf ; crt r<== Pf -| Delta2 ~~> Ct cand Ct'
 
     eff' = purify eff
     G = erase Delta    CS = comp RS    CS ; G |- [ eff' ] ce <== bool

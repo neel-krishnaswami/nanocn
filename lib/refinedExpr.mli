@@ -16,6 +16,8 @@
 
 type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) crtF =
   | CLet of 'var RPat.t * 'crt * 'crt
+  | CLetLog of 'var * 'lpf * 'crt
+  | CLetRes of 'var * 'rpf * 'crt
   | CAnnot of 'crt * ('e, 'var) ProofSort.t
   | CPrimApp of Prim.t * 'spine
   | CCall of string * 'spine

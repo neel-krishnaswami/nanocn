@@ -319,6 +319,8 @@ The grammar of core refined terms is as follows:
 
 crt ::=
     | let q = crt1; crt2 
+    | let res x = rpf; crt
+    | let log x = lpf; crt 
     | crt : Pf 
     | prim spine
     | f spine 
@@ -591,6 +593,19 @@ length(Δ') = length(Δ'')
 zero(Δ'')
 ————————————————————————————————————————————————————
 Σ; Δ0 ⊢[eff] let q = crt1; crt2 <== Pf ⊣ Δ2 ↝ C ∧ C'
+
+
+Σ; Δ0 ⊢ lpf ==> ϕ ⊣ Δ1 ↝ C 
+Σ; Δ1, x:ϕ [log] ⊢[eff] crt <== Pf ⊣ Δ2, x:ϕ [log] ↝ C'
+—————————————————————————————————————————————————————————————
+Σ; Δ0 ⊢[eff] let log x = lpf; crt <== Pf ⊣ Δ2 ↝ C ∧ C'
+
+
+Σ; Δ0 ⊢ rpf ==> ce@ce' ⊣ Δ1 ↝ C 
+Σ; Δ1, x:ce@ce' [res(1)] ⊢[eff] crt <== Pf ⊣ Δ2, x:ce@ce' [res(u)] ↝ C'
+u ∈ {0, ?}
+———————————————————————————————————————————————————————————————————————————
+Σ; Δ0 ⊢[eff] let res x = rpf; crt <== Pf ⊣ Δ2 ↝ C ∧ C'
 
 
 

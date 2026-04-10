@@ -349,6 +349,8 @@
 \newcommand{\ottcrt}{
 \ottrulehead{\ottnt{crt}}{::=}{\ottcom{core refined terms}}\ottprodnewline
 \ottfirstprodline{|}{\ottkw{let} \, \ottnt{q}  \ottsym{=}  \ottnt{crt_{{\mathrm{1}}}}  \ottsym{;}  \ottnt{crt_{{\mathrm{2}}}}}{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{let}\;\mathsf{log}\; \ottmv{x}  =  \ottnt{lpf} ;  \ottnt{crt} }{}{}{}{}\ottprodnewline
+\ottprodline{|}{ \mathsf{let}\;\mathsf{res}\; \ottmv{x}  =  \ottnt{rpf} ;  \ottnt{crt} }{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{crt}  \ottsym{:}  \ottnt{Pf}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottnt{prim} \, \ottnt{rsp}}{}{}{}{}\ottprodnewline
 \ottprodline{|}{\ottmv{f} \, \ottnt{rsp}}{}{}{}{}\ottprodnewline
@@ -2999,6 +3001,25 @@
 }}
 
 
+\newcommand{\ottdruleRCChkXXletlog}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_r  ;  \Delta  \vdash  \ottnt{lpf}  \Rightarrow  \ottnt{ce}  \dashv  \Delta_{{\mathrm{1}}}  \leadsto  \mathcal{C} }%
+\ottpremise{ \Sigma_r  ;   \Delta_{{\mathrm{1}}} ,  \ottmv{x}  \mathord{:}  \ottnt{ce}  \; [\mathsf{log}]   \vdash_{ \ottnt{eff} }  \ottnt{crt}  \Leftarrow  \ottnt{Pf}  \dashv   \Delta_{{\mathrm{2}}} ,  \ottmv{x}  \mathord{:}  \ottnt{ce}  \; [\mathsf{log}]   \leadsto  \mathcal{C}' }%
+}{
+ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }   \mathsf{let}\;\mathsf{log}\; \ottmv{x}  =  \ottnt{lpf} ;  \ottnt{crt}   \Leftarrow  \ottnt{Pf}  \dashv  \Delta_{{\mathrm{2}}}  \leadsto   \mathcal{C}  \wedge  \mathcal{C}'  }{%
+{\ottdrulename{RCChk\_letlog}}{}%
+}}
+
+
+\newcommand{\ottdruleRCChkXXletres}[1]{\ottdrule[#1]{%
+\ottpremise{ \Sigma_r  ;  \Delta  \vdash  \ottnt{rpf}  \Rightarrow  \ottnt{ce}  @  \ottnt{ce'}  \dashv  \Delta_{{\mathrm{1}}}  \leadsto  \mathcal{C} }%
+\ottpremise{ \Sigma_r  ;   \Delta_{{\mathrm{1}}} ,  \ottmv{x}  \mathord{:}  \ottnt{ce}  @  \ottnt{ce'}  \; [\mathsf{res}(  1  )]   \vdash_{ \ottnt{eff} }  \ottnt{crt}  \Leftarrow  \ottnt{Pf}  \dashv   \Delta_{{\mathrm{2}}} ,  \ottmv{x}  \mathord{:}  \ottnt{ce}  @  \ottnt{ce'}  \; [\mathsf{res}( \ottnt{u} )]   \leadsto  \mathcal{C}' }%
+\ottpremise{ \ottnt{u}  \in \{0, ?\} }%
+}{
+ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }   \mathsf{let}\;\mathsf{res}\; \ottmv{x}  =  \ottnt{rpf} ;  \ottnt{crt}   \Leftarrow  \ottnt{Pf}  \dashv  \Delta_{{\mathrm{2}}}  \leadsto   \mathcal{C}  \wedge  \mathcal{C}'  }{%
+{\ottdrulename{RCChk\_letres}}{}%
+}}
+
+
 \newcommand{\ottdruleRCChkXXif}[1]{\ottdrule[#1]{%
 \ottpremise{ \ottnt{eff'}  = \lfloor  \ottnt{eff}  \rfloor }%
 \ottpremise{ \Gamma  = | \Delta |  \quad  \Sigma_c  = \mathsf{Comp}( \Sigma_r )  \quad  \Sigma_c  ;  \Gamma  \vdash_{ \ottnt{eff'} }  \ottnt{ce}  \Leftarrow   \mathsf{Bool}  }%
@@ -3041,6 +3062,8 @@
 
 \newcommand{\ottdefnrcrtXXcheck}[1]{\begin{ottdefnblock}[#1]{$ \Sigma_r  ;  \Delta  \vdash_{ \ottnt{eff} }  \ottnt{crt}  \Leftarrow  \ottnt{Pf}  \dashv  \Delta'  \leadsto  \mathcal{C} $}{}
 \ottusedrule{\ottdruleRCChkXXlet{}}
+\ottusedrule{\ottdruleRCChkXXletlog{}}
+\ottusedrule{\ottdruleRCChkXXletres{}}
 \ottusedrule{\ottdruleRCChkXXif{}}
 \ottusedrule{\ottdruleRCChkXXcase{}}
 \ottusedrule{\ottdruleRCChkXXexfalso{}}
@@ -3297,7 +3320,7 @@
 \ottall
 
 \begin{verbatim}
-Definition rules:        276 good    0 bad
-Definition rule clauses: 597 good    0 bad
+Definition rules:        278 good    0 bad
+Definition rule clauses: 604 good    0 bad
 \end{verbatim}
 \end{document}
