@@ -122,6 +122,8 @@ let rec resolve_expr env (e : SurfExpr.parsed_se) : SurfExpr.se ElabM.t =
   | SurfExpr.Return e1 ->
     let* e1' = resolve_expr env e1 in
     mk (SurfExpr.Return e1')
+  | SurfExpr.Fail ->
+    mk SurfExpr.Fail
 
 and resolve_expr_list env = function
   | [] -> return []

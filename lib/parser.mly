@@ -41,7 +41,7 @@
 %token PURE IMPURE
 %token SET GET NEW DEL
 %token TRUE FALSE IF THEN ELSE NOT_KW
-%token SPEC SORT TYPE TAKE DO RETURN PRED OF OWN EQEQ EQ
+%token SPEC SORT TYPE TAKE DO RETURN FAIL PRED OF OWN EQEQ EQ
 %token PLUS MINUS STAR SLASH
 %token AMPAMP BARBAR
 %token LBRACKET RBRACKET LPAREN RPAREN LBRACE RBRACE
@@ -198,6 +198,8 @@ seq_expr:
     { mk_surfexpr $startpos $endpos (SurfExpr.Take (p, e1, e2)) }
   | RETURN; e = app_expr
     { mk_surfexpr $startpos $endpos (SurfExpr.Return e) }
+  | FAIL
+    { mk_surfexpr $startpos $endpos SurfExpr.Fail }
   | CASE; e = app_expr; OF; LBRACE; bs = separated_nonempty_list(BAR, case_branch); RBRACE
     { mk_surfexpr $startpos $endpos (SurfExpr.Case (e, bs)) }
   | ITER; LPAREN; p = pat; EQUAL; e1 = expr; RPAREN; LBRACE; e2 = expr; RBRACE

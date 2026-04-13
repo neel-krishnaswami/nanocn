@@ -27,6 +27,7 @@ type ('a, 'b, 'var) seF =
   | Not of 'a
   | Take of ('b, 'var) Pat.t * 'a * 'a
   | Return of 'a
+  | Fail
 
 val map_shape : ('a -> 'c) -> ('a, 'b, 'var) seF -> ('c, 'b, 'var) seF
 val map_info : ('b -> 'c) -> ('a, 'b, 'var) seF -> ('a, 'c, 'var) seF

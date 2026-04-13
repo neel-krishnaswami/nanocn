@@ -25,6 +25,7 @@ type ('a, 'b) ceF =
   | Not of 'a
   | Take of (Var.t * 'b) * 'a * 'a
   | Return of 'a
+  | Fail
 
 val map_shape : ('a -> 'c) -> ('a, 'b) ceF -> ('c, 'b) ceF
 val map_info : ('b -> 'c) -> ('a, 'b) ceF -> ('a, 'c) ceF

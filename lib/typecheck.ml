@@ -149,7 +149,7 @@ let rec synth sig_ ctx eff0 ce =
     let* ce' = check sig_ ctx ce s eff0 in
     Ok (mk ctx pos s eff0 (CoreExpr.Annot (ce', lift_sort s)))
 
-  | CoreExpr.Return _ | CoreExpr.Take _ | CoreExpr.Let _
+  | CoreExpr.Return _ | CoreExpr.Take _ | CoreExpr.Fail | CoreExpr.Let _
   | CoreExpr.Inject _ | CoreExpr.Case _ | CoreExpr.Tuple _
   | CoreExpr.LetTuple _ | CoreExpr.If _ | CoreExpr.Iter _ ->
     err_at pos "cannot synthesize sort; add a type annotation"
@@ -167,6 +167,15 @@ and check sig_ ctx ce sort eff0 =
        let* inner' = check sig_ ctx inner tau eff0 in
        Ok (mk ctx pos sort eff0 (CoreExpr.Return inner'))
      | _ -> err_at pos "return requires pred sort")
+
+  | CoreExpr.Fail ->
+    if not (Effect.sub Effect.Spec eff0) then
+      err_at pos "fail requires spec context"
+    else
+    (match Sort.shape sort with
+     | Sort.Pred _ ->
+       Ok (mk ctx pos sort eff0 CoreExpr.Fail)
+     | _ -> err_at pos "fail requires pred sort")
 
   | CoreExpr.Take ((x, _), ce1, ce2) ->
     if not (Effect.sub Effect.Spec eff0) then

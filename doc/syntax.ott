@@ -133,6 +133,7 @@ ce :: 'CE_' ::=                                               {{ com core expres
   | ce1 '==' ce2                       :: :: Eq            {{ tex [[ce1]] \doteq [[ce2]] }}
   | take x = ce1 ; ce2                :: :: Take
   | return ce                          :: :: Return
+  | fail                               :: :: Fail           {{ com failure }}
   | ( ce )                             :: :: Paren
   | app_s gamma ce                     :: M :: ExSubst   {{ tex \lbrack [[gamma]] \rbrack [[ce]] }}
 
@@ -156,6 +157,7 @@ se :: 'SE_' ::=                                            {{ com surface expres
   | se1 '==' se2                       :: :: Eq            {{ tex [[se1]] \doteq [[se2]] }}
   | take pat = se1 ; se2              :: :: Take
   | return se                          :: :: Return
+  | fail                               :: :: Fail           {{ com failure }}
 
 
 
@@ -819,6 +821,9 @@ defns Jtype :: '' ::=
     ---------------------------------- :: return
     CS ; G |- [ spec ] return ce <== pred tau
 
+    ---------------------------------- :: fail
+    CS ; G |- [ spec ] fail <== pred tau
+
     CS ; G |- [ spec ] ce1 ==> pred tau
     CS ; G , x : tau [ spec ] |- [ spec ] ce2 <== pred tau'
     -------------------------------------------------------------------------- :: take
@@ -980,6 +985,9 @@ defns Jelaborate :: '' ::=
     CS ; G |- [ spec ] se <== tau ~~> ce
     ---------------------------------- :: return
     CS ; G |- [ spec ] return se <== pred tau ~~> return ce
+
+    ---------------------------------- :: fail
+    CS ; G |- [ spec ] fail <== pred tau ~~> fail
 
     CS ; G |- [ spec ] se1 ==> pred tau ~~> ce1
     CS ; G |- [ spec ] [ spec ] y , noscrs ; pat : tau --> [ empty ] [ hole ] se2 <== pred tau' ~~> ce2

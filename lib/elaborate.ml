@@ -321,7 +321,7 @@ let rec synth sig_ ctx eff0 se =
     let* ce = check sig_ ctx se s eff0 in
     ElabM.return (mk_typed ctx pos s eff0 (CoreExpr.Annot (ce, lift_sort s)), s)
 
-  | SurfExpr.Return _ | SurfExpr.Take _ | SurfExpr.Let _
+  | SurfExpr.Return _ | SurfExpr.Take _ | SurfExpr.Fail | SurfExpr.Let _
   | SurfExpr.Tuple _ | SurfExpr.Inject _ | SurfExpr.Case _
   | SurfExpr.Iter _ | SurfExpr.If _ ->
     fail_at pos "cannot synthesize sort; add a type annotation"
@@ -338,6 +338,15 @@ and check sig_ ctx se sort eff0 =
        let* ce = check sig_ ctx inner tau eff0 in
        ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Return ce))
      | _ -> fail_at pos "return requires pred sort")
+
+  | SurfExpr.Fail ->
+    if not (Effect.sub Effect.Spec eff0) then
+      fail_at pos "fail requires spec context"
+    else
+    (match Sort.shape sort with
+     | Sort.Pred _ ->
+       ElabM.return (mk_typed ctx pos sort eff0 CoreExpr.Fail)
+     | _ -> fail_at pos "fail requires pred sort")
 
   | SurfExpr.Take (pat, se1, se2) ->
     if not (Effect.sub Effect.Spec eff0) then

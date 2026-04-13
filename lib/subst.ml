@@ -87,6 +87,8 @@ let rec apply_ce sub e =
     CoreExpr.mk b (CoreExpr.Take ((v, vb), e1', apply_ce sub' e2))
   | CoreExpr.Return e1 ->
     CoreExpr.mk b (CoreExpr.Return (apply_ce sub e1))
+  | CoreExpr.Fail ->
+    CoreExpr.mk b CoreExpr.Fail
 
 let of_lists tvars sorts =
   if List.length tvars <> List.length sorts then

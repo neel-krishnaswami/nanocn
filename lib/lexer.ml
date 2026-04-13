@@ -47,6 +47,7 @@ let keyword_or_ident s =
   | "take" -> Parser.TAKE
   | "do" -> Parser.DO
   | "return" -> Parser.RETURN
+  | "fail" -> Parser.FAIL
   | "of" -> Parser.OF
   | "type" -> Parser.TYPE
   | "exfalso" -> Parser.EXFALSO
