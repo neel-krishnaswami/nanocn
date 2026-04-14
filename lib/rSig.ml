@@ -74,6 +74,25 @@ let rec lookup_type_ctor label = function
      | None -> lookup_type_ctor label rest)
   | _ :: rest -> lookup_type_ctor label rest
 
+type listed_entry =
+  | LFun  of string * entry
+  | LSort of DsortDecl.t
+  | LType of DtypeDecl.t
+
+(* The internal representation prepends new entries, so the head of
+   the list is the most recently declared item. [entries] reverses
+   this so callers see declarations in source order. *)
+let entries sig_ =
+  let rec loop acc = function
+    | [] -> acc
+    | Named (_, SortDecl d) :: rest -> loop (LSort d :: acc) rest
+    | Named (_, TypeDecl d) :: rest -> loop (LType d :: acc) rest
+    | Named (name, entry)   :: rest -> loop (LFun (name, entry) :: acc) rest
+    | Sort d :: rest -> loop (LSort d :: acc) rest
+    | Type d :: rest -> loop (LType d :: acc) rest
+  in
+  loop [] sig_
+
 let comp sig_ =
   List.fold_right (fun ne acc ->
     match ne with

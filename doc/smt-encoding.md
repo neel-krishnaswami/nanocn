@@ -1,192 +1,276 @@
-# SMT encoding design documentation 
+# SMT encoding design documentation, part 2
 
-## Building the S-expression library 
+## Translating nanocn expressions to SMT-LIB format. 
 
-### Preparation
+Now, we want to extend nanoCN to turn constraints into SMT problems, and feed them to 
+Z3 and CVC5. 
 
-Carefully read the SMT-LIB standard doc/smt-lib-reference-v2.7.pdf and learn the lexical 
-   syntax of SMTLIB. 
-
-### Planning 
-
-Concisely specify the lexical syntax and grammar here, using regular expressions for
-each symbol class, and a BNF for the s-expression grammar: 
-
-#### Lexical syntax
-
-Source files are Unicode in any 8-bit encoding (e.g. UTF-8). Most tokens are
-restricted to printable US-ASCII (32–126); non-English letters from 128 up are
-permitted only inside string literals, quoted symbols, and comments.
-
-Whitespace and comments separate tokens but carry no semantic content:
-
-    whitespace ::= [ \t\n\r]+
-    comment    ::= ; [^\n\r]*
-
-Numeric and string literals:
-
-    digit       ::= [0-9]
-    letter      ::= [a-zA-Z]
-    numeral     ::= 0 | [1-9][0-9]*
-    decimal     ::= <numeral> \. [0-9]* <numeral>
-    hexadecimal ::= #x [0-9a-fA-F]+
-    binary      ::= #b [01]+
-    string      ::= " ( [^"] | "" )* "
-
-Inside a `<string>` the only escape sequence is `""`, which denotes a single
-`"`. Sequences like `\n` are *not* escapes — they stand for their literal
-characters. String literals may contain raw line breaks.
-
-Reserved words are tokenised as themselves and may not appear as simple
-symbols:
-
-    reserved ::= BINARY | DECIMAL | HEXADECIMAL | NUMERAL | STRING
-               | _ | ! | as | lambda | let | exists | forall | match | par
-               | <command_name>
-
-where `<command_name>` ranges over every command in the script language. Per
-Figure 3.7 of the standard, the full set is:
-
-    assert                  declare-sort-parameter   get-assignment       get-value
-    check-sat               define-const             get-info             pop
-    check-sat-assuming      define-fun               get-model            push
-    declare-const           define-fun-rec           get-option           reset
-    declare-datatype        define-funs-rec          get-proof            reset-assertions
-    declare-datatypes       define-sort              get-unsat-assumptions set-info
-    declare-fun             echo                     get-unsat-core       set-logic
-    declare-sort            exit                     get-assertions       set-option
-
-Symbols come in two flavours. A simple symbol is a non-empty sequence of
-letters, digits, and the punctuation characters `~ ! @ $ % ^ & * _ - + = < > . ? /`,
-that does not start with a digit and is not a reserved word. A quoted symbol
-is any run of printable/whitespace characters delimited by `|`, containing
-neither `|` nor `\`.
-
-    sym_punct     ::= [~!@$%^&*_+=<>.?/-]
-    sym_char      ::= <letter> | <digit> | <sym_punct>
-    simple_symbol ::= <sym_char>+   ; not starting with a digit, not a reserved word
-    quoted_symbol ::= \| [^|\\]* \|
-    symbol        ::= <simple_symbol> | <quoted_symbol>
-
-A keyword is a colon followed by a simple symbol; it lives in its own
-namespace, used for attribute and option names:
-
-    keyword ::= : <simple_symbol>
-
-Punctuation tokens:
-
-    lparen ::= (
-    rparen ::= )
-
-#### S-expression grammar
-
-Every SMT-LIB expression is an S-expression. Special constants and the
-five token classes (symbol, reserved, keyword, plus the parenthesised form)
-make up the whole grammar:
-
-    spec_constant ::= <numeral> | <decimal> | <hexadecimal> | <binary> | <string>
-
-    s_expr ::= <spec_constant>
-             | <symbol>
-             | <reserved>
-             | <keyword>
-             | ( <s_expr>* )
-
-### An OCaml s-exp library
-
-1. Define an AST for S-expressions. The atomic leaves of an s-expression
-   correspond one-for-one to the non-paren token classes from §3.1, so we
-   model them as a single sum type. The reserved-word class becomes its own
-   enumeration (no payload — each reserved word is a distinct constructor)
-   so that pattern matches over the SMT-LIB surface forms cannot mistype a
-   keyword.
-
-   ```ocaml
-   (* Reserved words from §3.1 of the SMT-LIB 2.7 standard. *)
-   type reserved =
-     (* meta-spec constants *)
-     | R_BINARY | R_DECIMAL | R_HEXADECIMAL | R_NUMERAL | R_STRING
-     (* punctuation / binders / qualifiers *)
-     | R_underscore       (* _ *)
-     | R_bang             (* ! *)
-     | R_as
-     | R_lambda
-     | R_let
-     | R_exists
-     | R_forall
-     | R_match
-     | R_par
-     (* script command names from Figure 3.7 *)
-     | R_assert
-     | R_check_sat
-     | R_check_sat_assuming
-     | R_declare_const
-     | R_declare_datatype
-     | R_declare_datatypes
-     | R_declare_fun
-     | R_declare_sort
-     | R_declare_sort_parameter
-     | R_define_const
-     | R_define_fun
-     | R_define_fun_rec
-     | R_define_funs_rec
-     | R_define_sort
-     | R_echo
-     | R_exit
-     | R_get_assertions
-     | R_get_assignment
-     | R_get_info
-     | R_get_model
-     | R_get_option
-     | R_get_proof
-     | R_get_unsat_assumptions
-     | R_get_unsat_core
-     | R_get_value
-     | R_pop
-     | R_push
-     | R_reset
-     | R_reset_assertions
-     | R_set_info
-     | R_set_logic
-     | R_set_option
-
-   (* Atoms — the leaves of an s-expression. Numeric literals are kept as
-      verbatim digit strings (no leading #x / #b for the based variants),
-      so the lexer commits to no numeric representation; clients can parse
-      them into Z.t / Q.t on demand.
-
-      For [Symbol], simple and quoted symbols are unified into a single
-      constructor holding the canonical contents (per §3.1, |abc| ≡ abc).
-      For [Keyword], the leading colon is stripped. For [String], the
-      contents are stored unescaped (the doubled-quote escape ""→" has
-      already been applied). *)
-   type atom =
-     | Numeral     of string
-     | Decimal     of string
-     | Hexadecimal of string
-     | Binary      of string
-     | String      of string
-     | Symbol      of string
-     | Keyword     of string
-     | Reserved    of reserved
-
-   type sexp =
-     | S of atom
-     | Nil
-     | Cons of sexp * sexp
-   ```
-
-   The `Atom` module exposes `type t = atom`, a `compare : t -> t -> int`,
-   and `print : Format.formatter -> t -> unit` that round-trips back to
-   valid SMT-LIB concrete syntax (re-quoting symbols whose contents are not
-   a legal `<simple_symbol>`, re-escaping `"` inside strings, re-prefixing
-   `#x` / `#b` on based numerals, and re-prefixing `:` on keywords).
-
-2. Define a Sedlex lexer for the lexical syntax above, producing symbols, open
-   parens, and close parens. Accept smt-lib comments, but elide them.
-
-3. Define a Menhir grammar following the above grammar. 
+Phase 1 is to extend nanocn to take a file "foo.cn", elaborate and typecheck it, and produce a file "foo-constraints.smt" as output, and then invoke Z3 on it. 
 
 
-## Translating nanocn constraints to SMT-LIB format. 
- 
+### The global part of the translation 
+
+Before any constraints are translated, we need to establish an
+environment in which translations of all nanoCN types are available,
+and declarations and definitions of spec and pure functions are
+available to the constraints.
+
+#### Translating Sorts 
+
+The CN grammar of sorts is translated to SMT sorts as follows: 
+
+##### Basic Types 
+
+We translate Int to Int and Bool to Bool, so no action is needed in the 
+prelude for these types. 
+
+##### Pointer Types
+
+We translate pointer types as: 
+
+(declare-datatype Ptr
+   (par (A)
+      ((loc (addr Int)))))
+
+This is a different type wrapping integers, to ensure that it is  a type error 
+if pointers and integers are mixed. 
+
+##### Tuple Types
+
+For n = 0, declare
+
+(declare-datatype Tuple-0
+  ((tuple-0)))
+
+FOr n=1, declare nothing. 
+
+For n = 2 to 16, we declare: 
+
+(declare-datatype Tuple-n 
+   (par (T1 ... Tn)
+     (tuple-n (prj-n-1 T1) ... (prj-n-n Tn))))
+
+All of these are declared after the Ptr declaration. If 16-tuples turn out to be insufficient, we can extend it later.
+
+##### Datatype declarations
+
+After the tuple types are available, we collect all the type and sort definitions 
+from the program, and translate them uniformly to SMT definitions.  
+
+type D(a1, ..., an) = { L1 : τ1 | ... | Lk : τk }
+
+gets translated to 
+
+(declare-datatype D
+   (par (a1 ... an)
+     ((L1 (get-L1 τ1))
+      ... 
+      (Lk (get-Lk τk)))))
+
+where the τi are the translated types of τ1 to τk. 
+
+##### Monadic types
+
+Last, we declare a sort
+
+```
+(declare-sort Pred 1)
+```
+
+in the prelude, after the translated datatypes, but before we give translations of
+any program code. 
+
+Then, let R be the set of types each return in the program occurs at,
+and let T be the set of pairs of types each take in the program is
+used at.
+
+take x = return 3;
+take y = return true; 
+if y then 
+  return "yes"
+else 
+  return "no"
+
+In this program, R = {Int, Bool}, and T = {(Int, String), (Bool, String)}. 
+Then let S = R ∪ {τ | (τ, _) ∈ T ∨ (_, τ) ∈ T} (that is, the set of all monadic
+types in the program). 
+
+Then, for each τ ∈ S, we add declarations:
+
+(declare-const fail-τ (Pred τ))
+
+(declare-fun return-τ (τ) (Pred τ))
+
+For each (τ,σ) ∈ S × S, we add the declaration 
+
+(declare-fun bind-τ-σ ((Pred τ) (-> τ (Pred σ))) (Pred σ))
+
+Then, we want to declare a collection of equations for the monad laws.
+
+For each τ ∈ S, we add the equation: 
+
+(assert (forall ((m (Pred τ)))
+  (! (= (bind-τ-τ m return-τ)
+     	m)
+     :pattern (bind-τ-τ m return-τ))))
+
+For each (τ, σ) ∈ S × S, we add the equation: 
+
+(assert (forall ((a τ) (f (-> τ (Pred σ))))
+  (! (= (bind-τ-σ (return-τ a) f) 
+     	(f a))
+     :pattern (bind-τ-σ (return-τ a) f))))
+
+For each (τ, σ, ρ) ∈ S³, we add the equation: 
+
+(assert (forall ((m (Pred τ)) (f (-> τ (Pred σ))) (g (-> σ (Pred ρ))))
+  (! (= (bind-σ-ρ (bind-τ-σ m f) g)
+     	(bind-τ-ρ m (lambda ((x τ)) (bind-σ-ρ (f x) g))))
+     :pattern (bind-σ-ρ (bind-τ-σ m f) g))))
+
+These 3 families of equations should ensure predicate terms satisfy the monad laws. 
+
+Additionally, we add the equations for each τ in S and (τ,σ) ∈ S²:
+
+(assert (forall ((m (Pred τ)))
+  (! (= (bind-τ-σ m (lambda ((x τ)) fail-σ))
+        fail-σ)
+     :pattern (bind-τ-σ m (lambda ((x τ)) fail-σ)))))
+
+(assert (forall ((f (-> τ (Pred σ))))
+  (! (= (bind-τ-σ fail-τ f)
+        fail-σ)
+     :pattern (bind-τ-σ fail-τ f))))
+
+These implement the monad-fail laws. 
+
+The pattern declarations orient the equations to rewrite programs to a normal 
+form. The critical pairs are all confluent (I think, after a quick check). 
+
+(As an aside, note that even though the arrow type is an array in Z3, we
+don't need to write select in Z3 because locally-bound arrays can be
+used as functions.)
+
+##### Ownership predicates
+
+Refined typechecking produces constraints that refer to the ownership
+predicate `Own[τ] p`, which takes a pointer of type `Ptr τ` and yields a
+predicate of type `Pred τ`. In SMT we model `Own` as a family of
+uninterpreted functions, one per pointee sort τ that reaches `Own[τ]` in
+the program:
+
+    (declare-fun own-τ ((Ptr τ)) (Pred τ))
+
+Let O be the set of pointee sorts τ such that `Own[τ]` occurs anywhere in
+the program (in function bodies, constraint atoms, or implications).
+For each τ ∈ O we emit one such declaration in the prelude, after the
+monad declarations and before the user-defined function definitions.
+Since `Own[τ] p` itself produces a `Pred τ`, τ is also added to S so
+that the corresponding `return-τ`, `fail-τ`, and `bind-τ-_` / `bind-_-τ`
+declarations are available.
+
+No equations are asserted about `own-τ`: it is a genuine uninterpreted
+symbol whose equational theory is provided by whatever refined-typing
+axioms the user asserts at the constraint level.
+
+#### Programs 
+
+Programs are translated definition-by-definition, in order, and add information to 
+the context.
+
+##### Type and sort declarations
+
+Remember that all of the type and sort definitions are hoisted from
+where they occur in the program text up to the front of the SMT
+prelude, after the tuple declarations.
+
+##### Function declarations 
+
+###### Impure functions
+
+We skip these!
+
+###### Pure functions
+
+For each function fun f(x : τ) : τ' [pure] = { ce } in the program, in the prelude
+we introduce a function definition: 
+
+(define-fun f (x τ) τ' SMT(ce))
+
+Because pure functions are nonrecursive, it is safe to make their whole definition
+visible. 
+
+###### Spec functions
+
+For each fun f(x : τ) : τ' [pure] = { ce } in the program
+
+we introduce a declaration: 
+
+(declare-fun f (x τ) τ')
+
+Because spec functions are possibly recursive, they have to be explicitly 
+unfolded by the user, so they are just declarations in the SMT format.
+
+## The local part of the translation. 
+
+Both the translation of the whole program and the translation of
+constraints uses the translation of expressions, which can be done
+locally and compositionallly.
+
+### Translating core terms to SMT terms. 
+
+Note that we will have the types of subterms available. 
+
+SMT(x : τ) = x 
+SMT(n) = n 
+SMT(b) = b 
+SMT(let x = ce1; ce2) = (let ((x SMT(ce1))) SMT(ce2))
+SMT((ce1, ..., cen)) = (tuple-n SMT(ce1) ... SMT(cen))
+SMT(let (x1, ..., xn) = ce1; ce2) = 
+  (match SMT(ce1) ((tuple-n x1 ... xn) SMT(ce2)))
+SMT(L ce) = (L SMT(ce))
+SMT(case ce of {L1 x1 → ce1 | ... Lk xk → cek}) = 
+  (match SMT(ce)
+    ((L1 x1) SMT(ce1))
+    ... 
+    ((Lk xk) SMT(cek)))
+SMT(if ce then ce1 else ce2) = (ite SMT(ce) SMT(ce1) SMT(ce2))
+SMT(prim ce) = (SMT(prim) ce)
+SMT(f ce)    = (f SMT(ce))
+SMT(ce1 = ce2) = (= SMT(ce1) SMT(ce2))
+SMT(return ce : Pred τ) = (return-τ SMT(ce))
+SMT(take x = (ce1 : Pred τ); (ce2 : Pred σ)) = 
+  (bind-τ-σ SMT(ce1) (lambda ((x τ)) SMT(ce2)))
+SMT(fail : Pred τ) = fail-τ
+SMT(Own[τ] ce) = (own-τ SMT(ce))
+
+
+## Translating constraints 
+
+The grammar of constraints is as follows:
+
+C ::= ⊤ | ⊥ | C1 ∧ C2 | ∀x :τ. C | ce ⇒ C | ce
+
+We are trying to check validity of these formulas, and C is valid if ¬C is satisfiable. 
+Here's how we translate each constraint into a list of SMT instructions. 
+
+SMT(⊤) = <emit nothing>
+
+SMT(⊥) = (check-sat)
+
+SMT(C1 ∧ C2) = SMT(C1)
+                SMT(C2)  
+
+SMT(ce ⇒ C) = (assert SMT(ce))
+              SMT(C)
+
+SMT(ce) = (assert (not SMT(ce)))
+          (check-sat)
+
+SMT(∀x:τ.C) = (push)
+              (declare-const x τ)
+              SMT(C)
+              (pop)
+
+In the implementation, ensure that you put source position information as a comment
+before each constraint. 

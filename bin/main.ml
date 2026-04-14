@@ -9,6 +9,7 @@ let help () =
     @   check <file.cn>            Typecheck a program@,\
     @   check --toplevel           Start interactive toplevel@,\
     @   check-refined <file.rcn>   Typecheck a refined program@,\
+    @   smt-check <file.rcn>       Emit SMT-LIB + run Z3 on a refined program@,\
     @   elaborate <file.cn>        Elaborate surface syntax and print core syntax@,\
     @   json <file.cn>             Typecheck and output core AST as JSON@]@."
 
@@ -191,12 +192,58 @@ let check_refined_file filename =
     Format.eprintf "@[<v>Error:@ %s@]@." msg;
     exit 1
 
+let smt_check_file filename =
+  let input =
+    let ic = In_channel.open_text filename in
+    let s = In_channel.input_all ic in
+    In_channel.close ic;
+    s
+  in
+  let run =
+    let open ElabM in
+    let* rprog = Parse.parse_rprog input ~file:filename in
+    RCheck.check_rprog rprog
+  in
+  match ElabM.run Var.empty_supply run with
+  | Error msg ->
+    Format.eprintf "@[<v>Error:@ %s@]@." msg;
+    exit 1
+  | Ok ((rsig, ct), _supply) ->
+    match SmtEncode.encode rsig ct with
+    | Error msg ->
+      Format.eprintf "@[<v>SMT encode error:@ %s@]@." msg;
+      exit 1
+    | Ok (prelude, constraints) ->
+      let smt_path =
+        Filename.remove_extension filename ^ "-constraints.smt"
+      in
+      let oc = Out_channel.open_text smt_path in
+      SmtEncode.write_file oc ~prelude ~constraints;
+      Out_channel.close oc;
+      Format.printf "Wrote %s@." smt_path;
+      let z3 = Option.value (Sys.getenv_opt "Z3") ~default:"z3" in
+      match SolverInvoke.run_z3 ~exe:z3 ~smt_path with
+      | Error msg ->
+        Format.eprintf "@[<v>Solver error:@ %s@]@." msg;
+        exit 1
+      | Ok answers ->
+        List.iteri (fun i a ->
+          match List.nth_opt constraints i with
+          | Some { SmtConstraint.pos; _ } ->
+            Format.printf "%a: %a@."
+              SourcePos.print pos SolverInvoke.print_answer a
+          | None ->
+            Format.printf "(extra answer %d): %a@."
+              i SolverInvoke.print_answer a
+        ) answers
+
 let () =
   match Sys.argv with
   | [| _; "help" |] -> help ()
   | [| _; "check"; "--toplevel" |] -> toplevel ()
   | [| _; "check"; file |] -> check_file file
   | [| _; "check-refined"; file |] -> check_refined_file file
+  | [| _; "smt-check"; file |] -> smt_check_file file
   | [| _; "elaborate"; file |] -> elaborate_file file
   | [| _; "json"; file |] -> json_file file
   | _ -> usage ()

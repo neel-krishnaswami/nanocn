@@ -31,6 +31,17 @@ val lookup_type : Dsort.t -> t -> DtypeDecl.t option
 val lookup_ctor : Label.t -> t -> (Dsort.t * DsortDecl.t) option
 val lookup_type_ctor : Label.t -> t -> (Dsort.t * DtypeDecl.t) option
 
+(** Source-order listing of all signature entries. Named function
+    entries are [LFun (name, entry)]; anonymous sort/type declarations
+    are [LSort]/[LType]. Used by consumers that need to iterate the
+    full signature (e.g. the SMT encoder). *)
+type listed_entry =
+  | LFun  of string * entry
+  | LSort of DsortDecl.t
+  | LType of DtypeDecl.t
+
+val entries : t -> listed_entry list
+
 val comp : t -> CoreExpr.typed_ce Sig.t
 (** [comp rs] erases refined entries to core signature.
     RFunSig entries become FunSig with product sorts. *)

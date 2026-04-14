@@ -1,11 +1,11 @@
 (library
  (name nanocn)
  (public_name nanocn)
- (libraries sedlex menhirLib qcheck-core)
+ (libraries sedlex menhirLib qcheck-core unix)
  (preprocess (pps sedlex.ppx))
  (flags (:standard -bin-annot))
  (wrapped false))
 
 (menhir
- (modules parser)
+ (modules parser smtParser)
  (flags --explain))

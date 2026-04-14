@@ -1,3 +1,46 @@
+(* SMT-LIB s-exp roundtrip properties. These sit here (rather than
+   inside SmtAtom.Test / SmtSexp.Test) because they depend on
+   SmtParse, which is higher in the dependency DAG than the modules
+   it exercises. *)
+let smt_roundtrip_tests =
+  let compare_ignore_info a b = SmtSexp.compare (fun _ _ -> 0) a b in
+  [
+    QCheck.Test.make ~name:"smtSexp print/parse roundtrip"
+      ~count:200
+      (QCheck.make SmtSexp.Test.gen)
+      (fun s ->
+         let printed = SmtSexp.to_string s in
+         match SmtParse.parse_sexp printed ~file:"roundtrip" with
+         | Ok s' -> compare_ignore_info s s' = 0
+         | Error _ -> false);
+
+    QCheck.Test.make ~name:"smtAtom print/parse roundtrip"
+      ~count:200
+      (QCheck.make SmtAtom.Test.gen)
+      (fun a ->
+         let printed = SmtAtom.to_string a in
+         match SmtParse.parse_sexp printed ~file:"roundtrip" with
+         | Ok s ->
+           (match SmtSexp.as_atom s with
+            | Some a' -> SmtAtom.compare a a' = 0
+            | None -> false)
+         | Error _ -> false);
+
+    QCheck.Test.make ~name:"smtSexp parse_sexps handles multiple top-level forms"
+      ~count:50
+      (QCheck.make QCheck.Gen.(list_size (0 -- 4) SmtSexp.Test.gen))
+      (fun ss ->
+         let printed =
+           String.concat " "
+             (List.map SmtSexp.to_string ss)
+         in
+         match SmtParse.parse_sexps printed ~file:"roundtrip" with
+         | Ok ss' ->
+           List.length ss = List.length ss'
+           && List.for_all2 (fun a b -> compare_ignore_info a b = 0) ss ss'
+         | Error _ -> false);
+  ]
+
 let qcheck_tests =
   List.concat [
     SourcePos.Test.test;
@@ -30,6 +73,11 @@ let qcheck_tests =
     RSig.Test.test;
     RProg.Test.test;
     RCheck.Test.test;
+    SmtAtom.Test.test;
+    SmtSexp.Test.test;
+    SmtSym.Test.test;
+    SmtExpr.Test.test;
+    smt_roundtrip_tests;
   ]
 
 (** Helper to extract sort from a typed core expr *)
