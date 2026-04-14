@@ -611,7 +611,24 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let (delta_out, delta_pat_out) = RCtx.split n delta'' in
     let _ = n_pat in
     if not (RCtx.zero delta_pat_out) then
-      fail "let: pattern resources not fully consumed"
+      let leftovers =
+        List.filter_map (function
+          | RCtx.Res { var; pred; value; usage } when not (Usage.is_zero usage) ->
+            Some (Format.asprintf "@[<hov 2>%a : %a @@ %a [%a]@]"
+                    Var.print var
+                    CoreExpr.print pred
+                    CoreExpr.print value
+                    Usage.print usage)
+          | _ -> None)
+          (RCtx.entries delta_pat_out)
+      in
+      fail (Format.asprintf
+              "@[<v>let: pattern resources not fully consumed.@ \
+               Unconsumed leftovers:@ %a@]"
+              (Format.pp_print_list
+                 ~pp_sep:(fun fmt () -> Format.fprintf fmt "@ ")
+                 Format.pp_print_string)
+              leftovers)
     else
       let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CLet (pat, checked_crt1, checked_crt2)) in
       return (checked, delta_out, Constraint.conj pos ct1 ct2)
