@@ -369,7 +369,8 @@ and check sig_ ctx se sort eff0 =
           let yb = (y, mk_bind_info y tau eff_b ctx_y) in
           ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Take (yb, ce1, ce2)))
         | _ -> fail_at pos "take scrutinee must have pred sort")
-     | _ -> fail_at pos "take requires pred sort as target")
+     | _ ->
+       fail_at_f pos "take requires target sort `Pred _`, got `%a`" Sort.print sort)
 
   | SurfExpr.Let (pat, se1, se2) ->
     let* (ce1, tau) = synth sig_ ctx eff0 se1 in

@@ -80,6 +80,32 @@ let mk_false = mk_bool false
 (* Make ce1 == ce2 as a typed core expression *)
 let mk_eq ce1 ce2 = CoreExpr.mk (mk_info bool_sort) (CoreExpr.Eq (ce1, ce2))
 
+(* Unwrap layers that obscure the monadic skeleton of a predicate
+   expression, leaving the underlying [Return] / [Take] / [Fail]
+   shape visible to pattern-matching code in [open-ret] / [open-take]
+   / [make-ret] / [make-take]. Two kinds of wrapper arise from
+   elaboration:
+
+   1. [CoreExpr.Annot] from [SurfExpr.Annot] elaboration.
+   2. [CoreExpr.Let (y, Var x, body)] introduced by [coverage_check]
+      when compiling a [Var] pattern (e.g. [take xs_tl = _; body]
+      elaborates to [Take(y, _, Let(xs_tl, Var y, body))]). When the
+      let's RHS is itself a variable, the let is a pure alias and
+      inlining it preserves semantics.
+
+   Other [Let] forms are left intact — their RHS might have side
+   effects or non-trivial structure we don't want to duplicate. *)
+let rec strip_annots ce =
+  match CoreExpr.shape ce with
+  | CoreExpr.Annot (inner, _) -> strip_annots inner
+  | CoreExpr.Let ((x, _), rhs, body) ->
+    (match CoreExpr.shape rhs with
+     | CoreExpr.Var v ->
+       let subst = Subst.extend_var x (CoreExpr.mk (CoreExpr.info rhs) (CoreExpr.Var v)) Subst.empty in
+       strip_annots (Subst.apply_ce subst body)
+     | _ -> ce)
+  | _ -> ce
+
 (* ---------- refined primitive signatures ---------- *)
 
 (* Helper constructors for building proof sorts *)
@@ -328,11 +354,14 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
 
   | RefinedExpr.LOpenRet rpf ->
     let* (checked_rpf, ce_pred, ce_val, delta', ct) = synth_rpf rs delta rpf in
-    (match CoreExpr.shape ce_pred with
+    (match CoreExpr.shape (strip_annots ce_pred) with
      | CoreExpr.Return ce1 ->
        let checked = RefinedExpr.mk_lpf binfo (RefinedExpr.LOpenRet checked_rpf) in
        return (checked, mk_eq ce1 ce_val, delta', ct)
-     | _ -> fail "open-ret: synthesized predicate is not a return")
+     | _ ->
+       fail (Format.asprintf
+               "open-ret: expected predicate of shape `return _`, got `%a`"
+               CoreExpr.print ce_pred))
 
 (* Logical fact checking: RS; Delta |- lpf <= ce -| Delta' ~> Ct *)
 and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce : CoreExpr.typed_ce) : (checked_lpf * RCtx.t * Constraint.typed_ct) ElabM.t =
@@ -358,9 +387,17 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (c
     return (checked, pred, value, delta', Constraint.top pos)
 
   | RefinedExpr.RAnnot (rpf', se1, se2) ->
+    (* Per the [res] well-formedness rule (doc/syntax.ott:1325-1327):
+       synth the value [ce2] to obtain τ, then check the predicate
+       [ce1] against sort [Pred τ]. Checking (not synth) gives
+       constructs like [take]/[case]/[return] enough context to
+       elaborate inside the annotation. *)
     let gamma = RCtx.erase delta in
-    let* (ce1, _sort1) = elab_se rs gamma Effect.Spec se1 in
-    let* (ce2, _sort2) = elab_se rs gamma Effect.Spec se2 in
+    let* (ce2, sort2) = elab_se rs gamma Effect.Spec se2 in
+    let pred_sort =
+      Sort.mk (object method loc = SourcePos.dummy end) (Sort.Pred sort2)
+    in
+    let* ce1 = elab_se_check rs gamma se1 pred_sort Effect.Spec in
     let* (checked_rpf', delta', ct) = check_rpf rs delta rpf' ce1 ce2 in
     let checked = RefinedExpr.mk_rpf binfo (RefinedExpr.RAnnot (checked_rpf', ce1, ce2)) in
     return (checked, ce1, ce2, delta', ct)
@@ -374,15 +411,18 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
   let pos = binfo#loc in
   match RefinedExpr.rpf_shape rpf with
   | RefinedExpr.RMakeRet lpf' ->
-    (match CoreExpr.shape ce1 with
+    (match CoreExpr.shape (strip_annots ce1) with
      | CoreExpr.Return ce_a ->
        let* (checked_lpf', delta', ct) = check_lpf rs delta lpf' (mk_eq ce_a ce2) in
        let checked = RefinedExpr.mk_rpf binfo (RefinedExpr.RMakeRet checked_lpf') in
        return (checked, delta', ct)
-     | _ -> fail "make-ret: expected return predicate")
+     | _ ->
+       fail (Format.asprintf
+               "make-ret: expected target predicate of shape `return _`, got `%a`"
+               CoreExpr.print ce1))
 
   | RefinedExpr.RMakeTake crt ->
-    (match CoreExpr.shape ce1 with
+    (match CoreExpr.shape (strip_annots ce1) with
      | CoreExpr.Take ((x, _), pred_expr, pred_body) ->
        let pred_sort = (CoreExpr.info pred_expr)#sort in
        (match Sort.shape pred_sort with
@@ -396,8 +436,14 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
           let* (checked_crt, delta', ct) = check_crt rs delta eff crt pf in
           let checked = RefinedExpr.mk_rpf binfo (RefinedExpr.RMakeTake checked_crt) in
           return (checked, delta', ct)
-        | _ -> fail "make-take: predicate must have pred sort")
-     | _ -> fail "make-take: expected take predicate")
+        | _ ->
+          fail (Format.asprintf
+                  "make-take: take's bound expression must have sort `Pred _`, got `%a`"
+                  Sort.print pred_sort))
+     | _ ->
+       fail (Format.asprintf
+               "make-take: expected target predicate of shape `take _ = _; _`, got `%a`"
+               CoreExpr.print ce1))
 
   | _ ->
     let* (checked_rpf, ce1_synth, ce2_synth, delta', ct) = synth_rpf rs delta rpf in
@@ -448,7 +494,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
 
   | RefinedExpr.COpenTake rpf ->
     let* (checked_rpf, ce_pred, ce_val, delta', ct) = synth_rpf rs delta rpf in
-    (match CoreExpr.shape ce_pred with
+    (match CoreExpr.shape (strip_annots ce_pred) with
      | CoreExpr.Take ((x, _), ce1, ce2) ->
        let pred_sort = (CoreExpr.info ce1)#sort in
        (match Sort.shape pred_sort with
@@ -460,8 +506,14 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           ] in
           let checked = RefinedExpr.mk_crt binfo (RefinedExpr.COpenTake checked_rpf) in
           return (checked, pf, delta', ct)
-        | _ -> fail "open-take: predicate must have pred sort")
-     | _ -> fail "open-take: expected take predicate")
+        | _ ->
+          fail (Format.asprintf
+                  "open-take: take's bound expression must have sort `Pred _`, got `%a`"
+                  Sort.print pred_sort))
+     | _ ->
+       fail (Format.asprintf
+               "open-take: expected predicate of shape `take _ = _; _`, got `%a`"
+               CoreExpr.print ce_pred))
 
   | RefinedExpr.CIter (se_pred, pat, crt1, crt2) ->
     (* iter requires impure effect *)
@@ -612,23 +664,38 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     return (checked, delta_merged, ct)
 
   | RefinedExpr.CCase (_y, se, branches) ->
-    let eff' = Effect.purify eff in
+    (* Scrutinee runs at the purified effect (cf. the surface [Case]
+       rule in [lib/elaborate.ml:410-422]); branch bodies inherit the
+       outer [eff] so impure work inside a case branch is permitted
+       when the enclosing refined term is impure. *)
+    let eff_scrut = Effect.purify eff in
     let gamma = RCtx.erase delta in
     let cs = RSig.comp rs in
-    let* (ce, ce_sort) = elab_se rs gamma eff' se in
+    let* (ce, ce_sort) = elab_se rs gamma eff_scrut se in
     (match Sort.shape ce_sort with
-     | Sort.App (dsort_name, _args) ->
+     | Sort.App (dsort_name, args) ->
        let decl_opt = Sig.lookup_sort dsort_name cs in
        let type_decl_opt = Sig.lookup_type dsort_name cs in
+       (* Instantiate the declared ctor sorts with the scrutinee's type
+          arguments so [Cons : (a * List(a))] on a [List(Int)] scrutinee
+          binds its payload at [(Int * List(Int))], not the generic
+          [(a * List(a))]. *)
+       let instantiate_ctors params ctors =
+         match Subst.of_lists params args with
+         | Ok subst ->
+           return (List.map (fun (l, s) -> (l, Subst.apply subst s)) ctors)
+         | Error msg ->
+           fail (Format.asprintf "case: type-parameter instantiation: %s" msg)
+       in
        (match decl_opt, type_decl_opt with
         | Some decl, _ ->
-          let ctors = decl.DsortDecl.ctors in
-          let* (checked_branches, delta', ct) = check_case_branches pos rs delta eff' ce ce_sort ctors branches pf in
+          let* ctors = instantiate_ctors decl.DsortDecl.params decl.DsortDecl.ctors in
+          let* (checked_branches, delta', ct) = check_case_branches pos rs delta eff ce ce_sort ctors branches pf in
           let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CCase (_y, ce, checked_branches)) in
           return (checked, delta', ct)
         | _, Some decl ->
-          let ctors = decl.DtypeDecl.ctors in
-          let* (checked_branches, delta', ct) = check_case_branches pos rs delta eff' ce ce_sort ctors branches pf in
+          let* ctors = instantiate_ctors decl.DtypeDecl.params decl.DtypeDecl.ctors in
+          let* (checked_branches, delta', ct) = check_case_branches pos rs delta eff ce ce_sort ctors branches pf in
           let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CCase (_y, ce, checked_branches)) in
           return (checked, delta', ct)
         | None, None ->
@@ -755,6 +822,10 @@ and check_case_branches pos rs delta eff ce ce_sort ctors branches pf =
   return (checked_branches, delta_merged, ct)
 
 and check_branches_list pos rs delta eff ce _ce_sort ctors branches pf =
+  (* Payload binders bind at the purified effect (they are
+     decompositions of a pure scrutinee value); branch bodies run at
+     the outer effect so they retain access to impure operations. *)
+  let eff_binder = Effect.purify eff in
   let rec go = function
     | [] -> return ([], [])
     | (label, ctor_sort) :: rest_ctors ->
@@ -765,7 +836,7 @@ and check_branches_list pos rs delta eff ce _ce_sort ctors branches pf =
          let ctor_sort' = ctor_sort in
          let* x_log = fresh SourcePos.dummy in
          let eq_prop = mk_eq ce (CoreExpr.mk (mk_info (CoreExpr.info ce)#sort) (CoreExpr.Inject (label, ce_of_var x ctor_sort'))) in
-         let delta_ext = RCtx.extend_comp x ctor_sort' eff
+         let delta_ext = RCtx.extend_comp x ctor_sort' eff_binder
                            (RCtx.extend_log x_log eq_prop delta) in
          let* (checked_body, delta_out, ct) = check_crt rs delta_ext eff body pf in
          let n = RCtx.length delta in
@@ -884,10 +955,14 @@ let check_rprog (prog : RProg.parsed) : (RSig.t * Constraint.typed_ct) ElabM.t =
         | _ -> rs
       in
       let* ce = elab_fundecl_body rs_for_body param arg_sort ret_sort eff body in
+      (* Spec functions retain their body in the signature so [unfold]
+         can generate the corresponding equation at proof time (see
+         [lib/rCheck.ml] LUnfold handler, ~line 307). Impure functions
+         have no spec-level meaning and get only a signature. *)
       let entry = match eff with
-        | Effect.Pure ->
+        | Effect.Pure | Effect.Spec ->
           RSig.FunDef { param; arg = arg_sort; ret = ret_sort; eff; body = ce }
-        | _ ->
+        | Effect.Impure ->
           RSig.FunSig { arg = arg_sort; ret = ret_sort; eff }
       in
       return (RSig.extend name entry rs, ct_acc)
