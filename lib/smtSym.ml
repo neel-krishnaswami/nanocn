@@ -4,7 +4,8 @@ let of_dsort d = Dsort.to_string d
 let of_tvar a = Tvar.to_string a
 let of_funname name = name
 
-let ctor_selector l = "get-" ^ Label.to_string l
+let ctor_name d l = Dsort.to_string d ^ "-" ^ Label.to_string l
+let ctor_selector d l = "get-" ^ Dsort.to_string d ^ "-" ^ Label.to_string l
 let tuple_sort n = Printf.sprintf "Tuple-%d" n
 let tuple_ctor n = Printf.sprintf "tuple-%d" n
 let tuple_proj n k = Printf.sprintf "prj-%d-%d" n k

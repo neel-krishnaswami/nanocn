@@ -120,21 +120,25 @@ let pred_decl =
 
 (* ---------- User datatype decls ---------- *)
 
-(* Render a single constructor declaration:
-   - nullary payload [Record []]   →  (L)
-   - any other payload            →  (L (get-L <sort>)) *)
-let ctor_decl (label, payload_sort) =
-  let l_sym = sym d (SmtSym.of_label label) in
+(* Render a single constructor declaration. The constructor and selector
+   names are datatype-prefixed per [doc/smt-encoding.md] §Datatype
+   declarations so that labels shared between datatypes (e.g.
+   [Seq.Nil] and [List.Nil]) don't collide in SMT-LIB's single global
+   constructor namespace.
+   - nullary payload [Record []]  →  (D-L)
+   - any other payload            →  (D-L (get-D-L <sort>)) *)
+let ctor_decl dsort (label, payload_sort) =
+  let l_sym = sym d (SmtSym.ctor_name dsort label) in
   match Sort.shape payload_sort with
   | Sort.Record [] ->
     list_of d [l_sym]
   | _ ->
-    let sel = sym d (SmtSym.ctor_selector label) in
+    let sel = sym d (SmtSym.ctor_selector dsort label) in
     list_of d [l_sym; list_of d [sel; SmtExpr.of_sort payload_sort]]
 
 let dsort_datatype_decl (d_decl : DsortDecl.t) =
   let name_sym = sym d (SmtSym.of_dsort d_decl.DsortDecl.name) in
-  let ctors = list_of d (List.map ctor_decl d_decl.DsortDecl.ctors) in
+  let ctors = list_of d (List.map (ctor_decl d_decl.DsortDecl.name) d_decl.DsortDecl.ctors) in
   let body =
     match d_decl.DsortDecl.params with
     | [] -> ctors
@@ -149,7 +153,7 @@ let dsort_datatype_decl (d_decl : DsortDecl.t) =
 
 let dtype_datatype_decl (d_decl : DtypeDecl.t) =
   let name_sym = sym d (SmtSym.of_dsort d_decl.DtypeDecl.name) in
-  let ctors = list_of d (List.map ctor_decl d_decl.DtypeDecl.ctors) in
+  let ctors = list_of d (List.map (ctor_decl d_decl.DtypeDecl.name) d_decl.DtypeDecl.ctors) in
   let body =
     match d_decl.DtypeDecl.params with
     | [] -> ctors

@@ -63,9 +63,9 @@ gets translated to
 
 (declare-datatype D
    (par (a1 ... an)
-     ((L1 (get-L1 τ1))
+     ((D-L1 (get-D-L1 τ1))
       ... 
-      (Lk (get-Lk τk)))))
+      (D-Lk (get-D-Lk τk)))))
 
 where the τi are the translated types of τ1 to τk. 
 

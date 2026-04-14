@@ -9,9 +9,16 @@ val of_dsort   : Dsort.t -> string
 val of_tvar    : Tvar.t -> string
 val of_funname : string -> string
 
-val ctor_selector : Label.t -> string
-(** [ctor_selector L] returns ["get-L"] — the SMT selector name for
-    the unique payload of constructor [L]. *)
+val ctor_name : Dsort.t -> Label.t -> string
+(** [ctor_name D L] returns ["D-L"] — the mangled SMT constructor name
+    for label [L] of datatype [D]. The [D-] prefix disambiguates
+    constructors shared between datatypes (e.g. [Seq.Nil] vs
+    [List.Nil]) since SMT-LIB datatype constructors live in a single
+    global namespace. *)
+
+val ctor_selector : Dsort.t -> Label.t -> string
+(** [ctor_selector D L] returns ["get-D-L"] — the SMT selector name
+    for the unique payload of constructor [L] of datatype [D]. *)
 
 val tuple_sort : int -> string
 (** [tuple_sort n] returns ["Tuple-n"] — the datatype constructor
