@@ -238,14 +238,15 @@ let rec of_ce ce =
       Error (Printf.sprintf "unsupported primitive %s" op)
 
   | CoreExpr.Call (f, arg) ->
+    (* nanoCN functions are unary at the core level — their parameter
+       sort is the (possibly tuple) sort, not a list of sorts. The
+       SMT [(declare-fun f ((<arg-sort>)) <ret-sort>)] therefore
+       takes one argument; we pass [arg] through verbatim and let
+       the [Tuple] case in [of_ce] build the [(tuple-n …)] value
+       when the argument happens to be a tuple expression. *)
     let fsym = sym_at loc (SmtSym.of_funname f) in
-    (match CoreExpr.shape arg with
-     | CoreExpr.Tuple args ->
-       let* args' = map_result of_ce args in
-       Ok (list_at loc (fsym :: args'))
-     | _ ->
-       let* a' = of_ce arg in
-       Ok (list_at loc [fsym; a']))
+    let* a' = of_ce arg in
+    Ok (list_at loc [fsym; a'])
 
   | CoreExpr.If (c, t, e) ->
     let* c' = of_ce c in
