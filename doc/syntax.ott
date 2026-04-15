@@ -309,6 +309,8 @@ crt :: 'CRT_' ::=                                    {{ com core refined terms }
   | let q = crt1 ; crt2            :: :: Let
   | let log x = lpf ; crt          :: :: LetLog       {{ tex \mathsf{let}\;\mathsf{log}\;[[x]] = [[lpf]]; [[crt]] }}
   | let res x = rpf ; crt          :: :: LetRes       {{ tex \mathsf{let}\;\mathsf{res}\;[[x]] = [[rpf]]; [[crt]] }}
+  | let core [ a ] x = ce ; crt    :: :: LetCore      {{ tex \mathsf{let}\;\mathsf{core}[[[a]]]\;[[x]] = [[ce]]; [[crt]] }}
+  | let core [ a ] ( x1 , .. , xn ) = ce ; crt  :: :: LetCoreTup  {{ tex \mathsf{let}\;\mathsf{core}[[[a]]]\;([[x1]], \ldots, [[xn]]) = [[ce]]; [[crt]] }}
   | crt : Pf                        :: :: Annot
   | prim rsp                        :: :: PrimApp
   | f rsp                           :: :: Call
@@ -1708,6 +1710,18 @@ defns Jrefine :: '' ::=
     u in_zero
     ----------------------------------------------------------------------------- :: letres
     RS ; Delta |- [ eff ] let res x = rpf ; crt r<== Pf -| Delta2 ~~> Ct cand Ct'
+
+    CS = comp RS    G = erase Delta    eff' = purify eff
+    CS ; G |- [ eff' ] ce ==> tau
+    RS ; Delta , x : tau [ eff' ] , a : x == ce [ log ] |- [ eff ] crt r<== Pf -| Delta1 , x : tau [ eff' ] , a : x == ce [ log ] ~~> Ct
+    ----------------------------------------------------------------------------- :: letcore
+    RS ; Delta |- [ eff ] let core [ a ] x = ce ; crt r<== Pf -| Delta1 ~~> forall x : tau . ( x == ce ) cimp Ct
+
+    CS = comp RS    G = erase Delta    eff' = purify eff
+    CS ; G |- [ eff' ] ce ==> ( tau1 * .. * taun )
+    RS ; Delta , x1 : tau1 [ eff' ] , .. , xn : taun [ eff' ] , a : ( x1 , .. , xn ) == ce [ log ] |- [ eff ] crt r<== Pf -| Delta1 , x1 : tau1 [ eff' ] , .. , xn : taun [ eff' ] , a : ( x1 , .. , xn ) == ce [ log ] ~~> Ct
+    ----------------------------------------------------------------------------- :: letcoretup
+    RS ; Delta |- [ eff ] let core [ a ] ( x1 , .. , xn ) = ce ; crt r<== Pf -| Delta1 ~~> forall x1 : tau1 .. forall xn : taun . ( ( x1 , .. , xn ) == ce ) cimp Ct
 
     eff' = purify eff
     G = erase Delta    CS = comp RS    CS ; G |- [ eff' ] ce <== bool

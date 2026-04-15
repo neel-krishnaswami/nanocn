@@ -18,6 +18,12 @@ type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) crtF =
   | CLet of 'var RPat.t * 'crt * 'crt
   | CLetLog of 'var * 'lpf * 'crt
   | CLetRes of 'var * 'rpf * 'crt
+  | CLetCore of 'var list * 'var * 'e * 'crt
+    (** [CLetCore (xs, a, ce, body)] is the source form
+        [let core[a] x = ce; body] when [xs = [x]] and
+        [let core[a] (x1, ..., xn) = ce; body] when [xs] has length
+        ≥ 2. The proof name [a] binds the equation
+        [x = ce] / [(x1, ..., xn) = ce] for downstream use. *)
   | CAnnot of 'crt * ('e, 'var) ProofSort.t
   | CPrimApp of Prim.t * 'spine
   | CCall of string * 'spine

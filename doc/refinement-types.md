@@ -283,6 +283,8 @@ crt ::=
     | let q = crt1; crt2 
     | let res x = rpf; crt
     | let log x = lpf; crt 
+	| let core[a] x = ce; crt
+	| let core[a] (x1, ..., xn) = ce; crt 
     | crt : Pf 
     | prim spine
     | f spine 
@@ -569,6 +571,19 @@ u ∈ {0, ?}
 ———————————————————————————————————————————————————————————————————————————
 Σ; Δ0 ⊢[eff] let res x = rpf; crt <== Pf ⊣ Δ2 ↝ C ∧ C'
 
+
+Σ; |Δ0| ⊢[⌊eff⌋] ce ==> τ 
+Σ; Δ0, x:τ[⌊eff⌋], a:x = ce[log] ⊢[eff] crt <== Pf ⊣ Δ1, x:τ[⌊eff⌋], a:x = ce[log] ↝ C
+—————————————————————————————————————————————————————————————————————————————————————————
+Σ; Δ0 ⊢[eff] let core[a] x = ce; crt <== Pf ⊣ Δ1 ↝ (∀x:τ. (x = ce) ⇒ C)
+
+
+Σ; |Δ0| ⊢[⌊eff⌋] ce ==> (τ1, ..., τn)
+Σ; Δ0, x1:τ1[⌊eff⌋], ..., xn:τn[⌊eff⌋], a:(x1, ...,xn) = ce[log] ⊢[eff] crt <== Pf 
+⊣ Δ1,  x1:τ1[⌊eff⌋], ..., xn:τn[⌊eff⌋], a:(x1, ...,xn) = ce[log] ↝ C
+—————————————————————————————————————————————————————————————————————————————————————————
+Σ; Δ0 ⊢[eff] let core[a] (x1, ...,xn) = ce; crt <== Pf ⊣ Δ1 
+↝ (∀x1:τ1...∀xn:τn. ((x1, ..., xn) = ce) ⇒ C)
 
 
 Σ ⊢ f : Pf1 ⊸ Pf2 [eff']   

@@ -764,6 +764,70 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let checked = RefinedExpr.mk_crt binfo RefinedExpr.CExfalso in
     return (checked, delta', Constraint.bot pos)
 
+  | RefinedExpr.CLetCore (xs, a, se_ce, body) ->
+    (* Per the [letcore]/[letcoretup] rule (doc/refinement-types.md
+       :574-587, doc/syntax.ott :: letcore / letcoretup):
+         Σ; |Δ0| ⊢[⌊eff⌋] ce ==> τ
+         Σ; Δ0, x:τ[⌊eff⌋], a:(x = ce)[log] ⊢[eff] crt ⇐ Pf ⊣ ... ↝ C
+         ─────────────────────────────────────────────────────────
+         Σ; Δ0 ⊢[eff] let core[a] x = ce; crt ⇐ Pf ⊣ Δ1
+                                    ↝ ∀x:τ. (x = ce) ⇒ C
+       (and similarly for the n-ary tuple variant). The closure
+       happens via [close_ctx] over the two new entries. *)
+    let eff_pure = Effect.purify eff in
+    let gamma = RCtx.erase delta in
+    let* (ce, sort) = elab_se rs gamma eff_pure se_ce in
+    (* Determine the per-binder sorts: singleton uses [sort] directly;
+       tuple unpacks [sort = Record [τ1; ...; τn]]. *)
+    let* binder_sorts =
+      match xs with
+      | [_] -> return [sort]
+      | _ ->
+        (match Sort.shape sort with
+         | Sort.Record sorts when List.length sorts = List.length xs ->
+           return sorts
+         | Sort.Record sorts ->
+           fail (Format.asprintf
+                   "let core: pattern binds %d variable(s) but expression has sort %a (%d component(s))"
+                   (List.length xs) Sort.print sort (List.length sorts))
+         | _ ->
+           fail (Format.asprintf
+                   "let core: tuple pattern requires record sort, got %a"
+                   Sort.print sort))
+    in
+    (* Build the equation [x = ce] (singleton) or
+       [(x1, ..., xn) = ce] (tuple) as the proposition bound to [a]. *)
+    let lhs_ce =
+      match xs, binder_sorts with
+      | [x], [s] -> ce_of_var x s
+      | xs, ss ->
+        let elems =
+          List.map2 (fun x s -> ce_of_var x s) xs ss
+        in
+        CoreExpr.mk (mk_info sort) (CoreExpr.Tuple elems)
+    in
+    let prop = mk_eq lhs_ce ce in
+    (* Extend delta with the new binders, in source order. *)
+    let delta_ext =
+      let with_xs =
+        List.fold_left2
+          (fun d x s -> RCtx.extend_comp x s eff_pure d)
+          delta xs binder_sorts
+      in
+      RCtx.extend_log a prop with_xs
+    in
+    let* (checked_body, delta'', ct_body) =
+      check_crt rs delta_ext eff body pf
+    in
+    let n = RCtx.length delta in
+    let (delta_out, delta_close) = RCtx.split n delta'' in
+    let ct_closed = close_ctx pos delta_close ct_body in
+    let checked =
+      RefinedExpr.mk_crt binfo
+        (RefinedExpr.CLetCore (xs, a, ce, checked_body))
+    in
+    return (checked, delta_out, ct_closed)
+
   | _ ->
     let* (checked_crt, pf', delta', ct) = synth_crt rs delta eff crt in
     let* ct' = pf_eq pos rs delta' pf' pf in

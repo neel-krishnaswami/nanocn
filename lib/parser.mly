@@ -47,7 +47,7 @@
 %token LBRACKET RBRACKET LPAREN RPAREN LBRACE RBRACE
 %token LESS LESSEQ GREATER GREATEREQ
 %token COMMA SEMICOLON EQUAL COLON ARROW BAR
-%token EXFALSO AUTO UNFOLD OPEN_RET OPEN_TAKE MAKE_RET MAKE_TAKE LOG RES FORALL AT
+%token EXFALSO AUTO UNFOLD OPEN_RET OPEN_TAKE MAKE_RET MAKE_TAKE LOG RES FORALL AT CORE
 %token EOF
 
 %start <SurfExpr.parsed_se> program
@@ -426,6 +426,14 @@ crt_seq_expr:
       let loc = loc_obj $startpos $endpos in
       let annot_r = RefinedExpr.mk_rpf loc (RefinedExpr.RAnnot (r, ce1, ce2)) in
       RefinedExpr.mk_crt loc (RefinedExpr.CLetRes (x, annot_r, e)) }
+  | LET; CORE; LBRACKET; a = ident_var; RBRACKET; x = ident_var; EQUAL; ce = expr; SEMICOLON; body = crt_seq_expr
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos)
+        (RefinedExpr.CLetCore ([x], a, ce, body)) }
+  | LET; CORE; LBRACKET; a = ident_var; RBRACKET;
+    LPAREN; xs = separated_nonempty_list(COMMA, ident_var); RPAREN;
+    EQUAL; ce = expr; SEMICOLON; body = crt_seq_expr
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos)
+        (RefinedExpr.CLetCore (xs, a, ce, body)) }
   | ITER; LBRACKET; ce = expr; RBRACKET; LPAREN; q = rpat; EQUAL; e1 = crt_expr; RPAREN; LBRACE; e2 = crt_expr; RBRACE
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CIter (ce, q, e1, e2)) }
   | IF; LBRACKET; x = ident_var; RBRACKET; ce = expr; THEN; e1 = crt_expr; ELSE; e2 = crt_seq_expr

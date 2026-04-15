@@ -312,6 +312,26 @@ let rec resolve_crt env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string)
     let env' = (name, x) :: env in
     let* body' = resolve_crt env' body in
     return (RefinedExpr.mk_crt b (RefinedExpr.CLetRes (x, rpf', body')))
+  | RefinedExpr.CLetCore (names, a_name, ce, body) ->
+    (* The core expression [ce] is a SurfExpr — resolve it in the
+       outer env (none of the binders are in scope yet). Then fresh-
+       bind each [xi] and the proof name [a] before checking the body. *)
+    let* ce' = resolve_expr env ce in
+    let rec mk_vars = function
+      | [] -> return []
+      | nm :: rest ->
+        let* v = mk_var nm b#loc in
+        let* vs = mk_vars rest in
+        return (v :: vs)
+    in
+    let* xs = mk_vars names in
+    let env_xs =
+      List.fold_left2 (fun e nm v -> (nm, v) :: e) env names xs
+    in
+    let* a = mk_var a_name b#loc in
+    let env' = (a_name, a) :: env_xs in
+    let* body' = resolve_crt env' body in
+    return (RefinedExpr.mk_crt b (RefinedExpr.CLetCore (xs, a, ce', body')))
   | RefinedExpr.CAnnot (e, pf) ->
     let* e' = resolve_crt env e in
     let* (pf', _env') = resolve_pf env pf in

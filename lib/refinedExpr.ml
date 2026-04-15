@@ -4,6 +4,7 @@ type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) crtF =
   | CLet of 'var RPat.t * 'crt * 'crt
   | CLetLog of 'var * 'lpf * 'crt
   | CLetRes of 'var * 'rpf * 'crt
+  | CLetCore of 'var list * 'var * 'e * 'crt
   | CAnnot of 'crt * ('e, 'var) ProofSort.t
   | CPrimApp of Prim.t * 'spine
   | CCall of string * 'spine
@@ -50,6 +51,8 @@ let map_crtF m = function
   | CLet (q, c1, c2) -> CLet (RPat.map_var m.var q, m.crt c1, m.crt c2)
   | CLetLog (x, l, c) -> CLetLog (m.var x, m.lpf l, m.crt c)
   | CLetRes (x, r, c) -> CLetRes (m.var x, m.rpf r, m.crt c)
+  | CLetCore (xs, a, e, c) ->
+    CLetCore (List.map m.var xs, m.var a, m.expr e, m.crt c)
   | CAnnot (c, pf) -> CAnnot (m.crt c, ProofSort.map m.expr (ProofSort.map_var m.var pf))
   | CPrimApp (p, s) -> CPrimApp (p, m.spine s)
   | CCall (f, s) -> CCall (f, m.spine s)
@@ -156,6 +159,16 @@ let rec print_gen_crt pp_var pp_e fmt t =
   | CLetRes (x, r, c) ->
     Format.fprintf fmt "@[<v>@[<hov 2>let res %a =@ %a;@]@ %a@]"
       pp_var x (print_gen_rpf pp_var pp_e) r (print_gen_crt pp_var pp_e) c
+  | CLetCore (xs, a, ce, c) ->
+    let lhs fmt =
+      match xs with
+      | [x] -> pp_var fmt x
+      | _ ->
+        Format.fprintf fmt "(%a)"
+          (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") pp_var) xs
+    in
+    Format.fprintf fmt "@[<v>@[<hov 2>let core[%a] %t =@ %a;@]@ %a@]"
+      pp_var a lhs pp_e ce (print_gen_crt pp_var pp_e) c
   | CAnnot (e, pf) ->
     Format.fprintf fmt "@[<hov 2>%a :@ %a@]" (print_gen_crt pp_var pp_e) e (ProofSort.print_gen pp_var pp_e) pf
   | CPrimApp (p, sp) ->
