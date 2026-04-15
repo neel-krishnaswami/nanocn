@@ -227,7 +227,20 @@ SMT(b) = b
 SMT(let x = ce1; ce2) = (let ((x SMT(ce1))) SMT(ce2))
 SMT((ce1, ..., cen)) = (tuple-n SMT(ce1) ... SMT(cen))
 SMT(let (x1, ..., xn) = ce1; ce2) = 
-  (match SMT(ce1) ((tuple-n x1 ... xn) SMT(ce2)))
+  (let ((x1 (prj-n-1 SMT(ce1)))
+        (x2 (prj-n-2 SMT(ce1)))
+        ...
+        (xn (prj-n-n SMT(ce1))))
+    SMT(ce2))
+
+(We use the per-field selectors `prj-n-k` rather than a single
+`(match SMT(ce1) ((tuple-n x1 ... xn) SMT(ce2)))`. Both are
+semantically equivalent, but the `match` form requires the SMT
+solver to resolve the polymorphic `tuple-n` constructor against
+the scrutinee's sort, which Z3 fails to do reliably when the
+scrutinee's sort is buried inside a chain of `let` bindings with
+no prior monomorphising `define-fun`. The selectors are first-order
+non-polymorphic functions, so this issue does not arise.)
 SMT(L ce) = (L SMT(ce))
 SMT(case ce of {L1 x1 → ce1 | ... Lk xk → cek}) = 
   (match SMT(ce)
