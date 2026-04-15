@@ -80,6 +80,32 @@ let mk_false = mk_bool false
 (* Make ce1 == ce2 as a typed core expression *)
 let mk_eq ce1 ce2 = CoreExpr.mk (mk_info bool_sort) (CoreExpr.Eq (ce1, ce2))
 
+(* The [close] auxiliary from [doc/refinement-types.md:157-162]:
+
+      ·                          ⇒ C  =  C
+      (Δ, x : τ [eff])           ⇒ C  =  Δ ⇒ ∀x:τ. C
+      (Δ, x : ϕ [log])           ⇒ C  =  Δ ⇒ ϕ ⇒ C
+      (Δ, x : ce@ce' [res(u)])   ⇒ C  =  Δ ⇒ C            (no contribution)
+
+   The spec writes Δ in extension order with the latest binding on the
+   right ([(Δ, x)] means Δ extended with x). [RCtx.entries] returns
+   our context in extension order too, but [rpat_match] builds the
+   pattern's delta by recursing first, so the pattern's *earliest*
+   binder is the LAST entry. That's the binder we want OUTERMOST in
+   the resulting closed constraint, since later pattern entries may
+   depend on it. A plain left-fold over [RCtx.entries] therefore puts
+   the earliest pattern binder outermost as required. *)
+let close_ctx pos delta_close ct =
+  List.fold_left (fun acc entry ->
+    match entry with
+    | RCtx.Comp { var; sort; eff = _ } ->
+      Constraint.forall_ pos var sort acc
+    | RCtx.Log { var = _; prop } ->
+      Constraint.impl pos prop acc
+    | RCtx.Res _ -> acc)
+    ct
+    (RCtx.entries delta_close)
+
 (* Unwrap layers that obscure the monadic skeleton of a predicate
    expression, leaving the underlying [Return] / [Take] / [Fail]
    shape visible to pattern-matching code in [open-ret] / [open-take]
@@ -600,6 +626,12 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
   let pos = binfo#loc in
   match RefinedExpr.crt_shape crt with
   | RefinedExpr.CLet (pat, crt1, crt2) ->
+    (* Per the [let] rule in [doc/syntax.ott] / [doc/refinement-types.md]:
+         RS;Δ₀ ⊢[eff] let q = crt1; crt2 ⇐ Pf ⊣ Δ₂ ↝ Ct1 ∧ Ct''
+       where  Ct'' = close Δ'''' Ct2.
+       The body's constraint is closed under the pattern's bindings
+       (Δ'''') so that comp/log entries introduced by the pattern act
+       as hypotheses for subsequent atoms. *)
     let* (checked_crt1, pf', delta', ct1) = synth_crt rs delta eff crt1 in
     let gamma = RCtx.erase delta' in
     let cs = RSig.comp rs in
@@ -630,19 +662,26 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
                  Format.pp_print_string)
               leftovers)
     else
+      let ct2_closed = close_ctx pos delta_pat_out ct2 in
       let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CLet (pat, checked_crt1, checked_crt2)) in
-      return (checked, delta_out, Constraint.conj pos ct1 ct2)
+      return (checked, delta_out, Constraint.conj pos ct1 ct2_closed)
 
   | RefinedExpr.CLetLog (x, lpf, body) ->
     (* Synthesize the lpf, extend delta with x:ce[log], check the body
-       against pf, then drop the binding from the output context. *)
+       against pf, then drop the binding from the output context.
+
+       Per the [letlog] rule in [doc/syntax.ott] / [doc/refinement-types.md]:
+         RS;Δ ⊢[eff] let log x = lpf; crt ⇐ Pf ⊣ Δ₂ ↝ Ct ∧ (ce ⇒ Ct')
+       The body's constraint is closed under the log fact [ce] so the
+       hypothesis is visible to subsequent atoms. *)
     let* (checked_lpf, ce, delta', ct1) = synth_lpf rs delta lpf in
     let delta_ext = RCtx.extend_log x ce delta' in
     let* (checked_body, delta'', ct2) = check_crt rs delta_ext eff body pf in
     let n = RCtx.length delta' in
     let (delta_out, _delta_x) = RCtx.split n delta'' in
     let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CLetLog (x, checked_lpf, checked_body)) in
-    return (checked, delta_out, Constraint.conj pos ct1 ct2)
+    return (checked, delta_out,
+            Constraint.conj pos ct1 (Constraint.impl pos ce ct2))
 
   | RefinedExpr.CLetRes (x, rpf, body) ->
     (* Synthesize the rpf as ce@ce', extend delta with x:ce@ce'[res(avail)],

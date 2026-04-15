@@ -154,7 +154,7 @@ They are checked for well-formedness relative to a simple signature Σ and erase
 ———————————————————————————————
 Σ; Γ ⊢ ϕ wf
 
-The auxiliary function Δ ⇒ C = C' is defined as follows:
+The auxiliary function (Δ ⇒ C) = C' is defined as follows:
 
 ·              	       ⇒ C = C
 (Δ, x:τ [eff]) 	       ⇒ C = (Δ ⇒ ∀x:τ.C)
@@ -223,44 +223,6 @@ We can also extract the binding content – the logical and computational bindin
 Σ; Γ ⊢ Bind(Pf) = Γ' adds the computational and spec variables bound in Pf to Γ. 
 
 
-<!--
-NOTE: PfToCtx is unnecessary! 
-
-
-Finally, we can append Pf sorts to refined contexts Δ as follows:
-
-——————————————————————
-Σ ⊢ PfToCtx(Δ; ·) = Δ
-
-
-Σ ⊢ PfToCtx(Δ, x:τ[eff]; Pf) = Δ'
-——————————————————————————————————
-Σ ⊢ PfToCtx(Δ; x:τ[eff], Pf)  = Δ'
-
-
-Σ ⊢ PfToCtx(Δ, x:ce[log]; Pf) = Δ'
-——————————————————————————————————
-Σ ⊢ PfToCtx(Δ; x:ce[log], Pf) = Δ'
-
-
-Σ ⊢ PfToCtx(Δ, x:ce@ce'[res(1)]; Pf) = Δ'
-——————————————————————————————————————————
-Σ ⊢ PfToCtx(Δ; x:ce@ce'[res], Pf) = Δ'
-
-
-Σ ⊢ PfToCtx(Δ, y:τ, x:ce@y[res(1)]; Pf) = Δ'
-—————————————————————————————————————————————
-Σ ⊢ PfToCtx(Δ; x:(y).ce[res], Pf) = Δ'
-
-The invariant of this is that if Σ ⊢ Δ wf and Σ; |Δ| ⊢ Pf wf, then Σ ⊢ PfToCtx(Δ; Pf) wf.
-
-A refined function type has the shape: 
-
-    RF ::= Pf1 ⊸ Pf2 [eff]
-
-The variables in Pf1 will be in scope in Pf2, like in a dependent function space. Because
-it mention terms, it also need a well-formedness check. 
--->
 
 * Σ; Γ ⊢[eff] Pf wf
 
@@ -584,21 +546,21 @@ succeeds if the usage is 1 or ?, and accessing it sets the usage to 0.
 #### Typechecking
 
 
-
 Σ; Δ0 ⊢[eff] crt ==> Pf' ⊣ Δ1 ↝ C
 Σ; |Δ1| ⊢ q : Pf' ⊣ Δ' 
 Σ; Δ1, Δ' ⊢[eff] crt2 <== Pf ⊣ Δ2, Δ'' ↝ C'
 length(Δ1) = length(Δ2) 
 length(Δ') = length(Δ'')
 zero(Δ'')
-————————————————————————————————————————————————————
-Σ; Δ0 ⊢[eff] let q = crt1; crt2 <== Pf ⊣ Δ2 ↝ C ∧ C'
+(Δ'' ⇒ C') = C''
+—————————————————————————————————————————————————————————
+Σ; Δ0 ⊢[eff] let q = crt1; crt2 <== Pf ⊣ Δ2 ↝ C ∧ C''
 
 
 Σ; Δ0 ⊢ lpf ==> ϕ ⊣ Δ1 ↝ C 
 Σ; Δ1, x:ϕ [log] ⊢[eff] crt <== Pf ⊣ Δ2, x:ϕ [log] ↝ C'
 —————————————————————————————————————————————————————————————
-Σ; Δ0 ⊢[eff] let log x = lpf; crt <== Pf ⊣ Δ2 ↝ C ∧ C'
+Σ; Δ0 ⊢[eff] let log x = lpf; crt <== Pf ⊣ Δ2 ↝ C ∧ (ϕ ⇒ C')
 
 
 Σ; Δ0 ⊢ rpf ==> ce@ce' ⊣ Δ1 ↝ C 
