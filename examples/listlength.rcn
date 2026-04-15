@@ -28,15 +28,6 @@ fun sequence (p : Ptr(List(Int))) -> Pred Lst(Int) [spec] =
                    return (Cons (x, xs))
   }
 
-// Spec projections: refined lets can't destructure a bare ident, only
-// function-call or primitive-application RHSs, so we factor tuple
-// projection through a couple of spec helpers.
-fun fst_cons (p : (Int * Ptr(List(Int)))) -> Int [pure] =
-  let (x, q) = p; x
-
-fun snd_cons (p : (Int * Ptr(List(Int)))) -> Ptr(List(Int)) [pure] =
-  let (x, q) = p; q
-
 // Refined length: walks the heap list, returns (len, proof, resource).
 rfun length
     (p : Ptr(List(Int)),
@@ -67,8 +58,7 @@ rfun length
          res make-ret(auto) : (return (Nil ()) : Pred Lst(Int))
                               @ (Nil () : Lst(Int)))
     | Cons pair ->
-        let x = fst_cons(pair);
-        let q = snd_cons(pair);
+        let core[pair_eq] (x, q) = pair;
         // Specialize rest to the Cons branch's take-continuation.
         let res rest_cons : (take xs_tl = (sequence(q) : Pred Lst(Int));
                              return (Cons (x, xs_tl))) @ xs = rest;
