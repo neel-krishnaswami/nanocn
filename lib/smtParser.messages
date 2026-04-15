@@ -8,7 +8,8 @@ sexp_eof: RPAREN
 ##
 ##
 
-PLACEHOLDER
+Expected an s-expression (atom or parenthesised list) at the top level.
+A bare `)` is not a valid start; there is no matching `(` to close.
 
 sexps_eof: LPAREN EOF
 ##
@@ -20,7 +21,8 @@ sexps_eof: LPAREN EOF
 ## LPAREN
 ##
 
-PLACEHOLDER
+Unterminated list: reached end of input while inside `(...)`. Expected
+more s-expressions or a closing `)`.
 
 sexps_eof: LPAREN BINARY EOF
 ##
@@ -39,7 +41,8 @@ sexps_eof: LPAREN BINARY EOF
 ## In state 11, spurious reduction of production list(sexp) -> sexp list(sexp)
 ##
 
-PLACEHOLDER
+Expected a closing `)` to end the parenthesised s-expression list, or
+another s-expression to extend it.
 
 sexp_eof: BINARY SYMBOL
 ##
@@ -51,7 +54,9 @@ sexp_eof: BINARY SYMBOL
 ## sexp
 ##
 
-PLACEHOLDER
+In single-s-expression mode, expected end of input after the
+s-expression; got another token. Use the multi-sexp entry point if
+you intended to parse several top-level forms.
 
 sexps_eof: RPAREN
 ##
@@ -63,7 +68,8 @@ sexps_eof: RPAREN
 ##
 ##
 
-PLACEHOLDER
+Expected one or more top-level s-expressions. A bare `)` is not a
+valid start; there is no matching `(` to close.
 
 sexps_eof: BINARY RPAREN
 ##
@@ -82,5 +88,6 @@ sexps_eof: BINARY RPAREN
 ## In state 11, spurious reduction of production list(sexp) -> sexp list(sexp)
 ##
 
-PLACEHOLDER
+Expected end of input or another top-level s-expression; got a `)`
+with no matching `(` in scope.
 

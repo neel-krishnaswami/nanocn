@@ -8,7 +8,7 @@ prog_eof: UNFOLD
 ##
 ##
 
-PLACEHOLDER
+Unexpected token at the start of input.
 
 repl_decl: TYPE UNFOLD
 ##
@@ -21,7 +21,7 @@ repl_decl: TYPE UNFOLD
 ## TYPE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE`, an unexpected token appeared.
 
 repl_decl: TYPE LABEL UNFOLD
 ##
@@ -34,7 +34,7 @@ repl_decl: TYPE LABEL UNFOLD
 ## TYPE LABEL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE LABEL`, an unexpected token appeared.
 
 repl_decl: TYPE LABEL LPAREN UNFOLD
 ##
@@ -46,7 +46,7 @@ repl_decl: TYPE LABEL LPAREN UNFOLD
 ## TYPE LABEL LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE LABEL LPAREN`, an unexpected token appeared.
 
 repl_decl: TYPE LABEL LPAREN IDENT UNFOLD
 ##
@@ -59,7 +59,7 @@ repl_decl: TYPE LABEL LPAREN IDENT UNFOLD
 ## IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IDENT`, an unexpected token appeared.
 
 repl_decl: TYPE LABEL LPAREN IDENT COMMA UNFOLD
 ##
@@ -71,7 +71,7 @@ repl_decl: TYPE LABEL LPAREN IDENT COMMA UNFOLD
 ## IDENT COMMA
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IDENT COMMA`, an unexpected token appeared.
 
 repl_decl: TYPE LABEL LPAREN IDENT RPAREN UNFOLD
 ##
@@ -83,7 +83,7 @@ repl_decl: TYPE LABEL LPAREN IDENT RPAREN UNFOLD
 ## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE LABEL LPAREN <type-params> RPAREN`, an unexpected token appeared.
 
 repl_decl: TYPE LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ##
@@ -95,7 +95,7 @@ repl_decl: TYPE LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE LABEL LPAREN <type-params> RPAREN EQUAL`, an unexpected token appeared.
 
 repl_decl: TYPE LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ##
@@ -107,7 +107,7 @@ repl_decl: TYPE LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE LABEL LPAREN <type-params> RPAREN EQUAL LBRACE`, an unexpected token appeared.
 
 rprog_eof: TYPE LABEL EQUAL LBRACE LABEL UNFOLD
 ##
@@ -119,7 +119,7 @@ rprog_eof: TYPE LABEL EQUAL LBRACE LABEL UNFOLD
 ## LABEL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LABEL`, an unexpected token appeared.
 
 rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON UNFOLD
 ##
@@ -131,7 +131,7 @@ rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON UNFOLD
 ## LABEL COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LABEL COLON`, an unexpected token appeared.
 
 sort_eof: PTR UNFOLD
 ##
@@ -143,7 +143,7 @@ sort_eof: PTR UNFOLD
 ## PTR
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `PTR`, an unexpected token appeared.
 
 sort_eof: LPAREN UNFOLD
 ##
@@ -157,7 +157,7 @@ sort_eof: LPAREN UNFOLD
 ## LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
 
 sort_eof: PRED UNFOLD
 ##
@@ -169,7 +169,7 @@ sort_eof: PRED UNFOLD
 ## PRED
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `PRED`, an unexpected token appeared.
 
 sort_eof: LABEL UNFOLD
 ##
@@ -182,7 +182,7 @@ sort_eof: LABEL UNFOLD
 ## LABEL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LABEL`, an unexpected token appeared.
 
 sort_eof: LABEL LPAREN UNFOLD
 ##
@@ -194,7 +194,7 @@ sort_eof: LABEL LPAREN UNFOLD
 ## LABEL LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LABEL LPAREN`, an unexpected token appeared.
 
 sort_eof: LABEL LPAREN BOOL_KW TYPE
 ##
@@ -207,7 +207,7 @@ sort_eof: LABEL LPAREN BOOL_KW TYPE
 ## sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `sort`, an unexpected token appeared.
 
 sort_eof: LABEL LPAREN BOOL_KW COMMA UNFOLD
 ##
@@ -219,7 +219,7 @@ sort_eof: LABEL LPAREN BOOL_KW COMMA UNFOLD
 ## sort COMMA
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `sort COMMA`, an unexpected token appeared.
 
 sort_eof: LPAREN BOOL_KW TYPE
 ##
@@ -232,7 +232,7 @@ sort_eof: LPAREN BOOL_KW TYPE
 ## LPAREN sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN sort`, an unexpected token appeared.
 
 sort_eof: LPAREN BOOL_KW STAR UNFOLD
 ##
@@ -244,7 +244,7 @@ sort_eof: LPAREN BOOL_KW STAR UNFOLD
 ## LPAREN sort STAR
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN sort STAR`, an unexpected token appeared.
 
 sort_eof: LPAREN BOOL_KW STAR BOOL_KW TYPE
 ##
@@ -257,7 +257,7 @@ sort_eof: LPAREN BOOL_KW STAR BOOL_KW TYPE
 ## sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `sort`, an unexpected token appeared.
 
 sort_eof: LPAREN BOOL_KW STAR BOOL_KW STAR UNFOLD
 ##
@@ -269,7 +269,7 @@ sort_eof: LPAREN BOOL_KW STAR BOOL_KW STAR UNFOLD
 ## sort STAR
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `sort STAR`, an unexpected token appeared.
 
 rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON BOOL_KW TYPE
 ##
@@ -282,7 +282,7 @@ rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON BOOL_KW TYPE
 ## type_ctor_decl
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `type_ctor_decl`, an unexpected token appeared.
 
 rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON BOOL_KW BAR UNFOLD
 ##
@@ -294,7 +294,7 @@ rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON BOOL_KW BAR UNFOLD
 ## type_ctor_decl BAR
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `type_ctor_decl BAR`, an unexpected token appeared.
 
 repl_decl: TYPE LABEL EQUAL UNFOLD
 ##
@@ -306,7 +306,7 @@ repl_decl: TYPE LABEL EQUAL UNFOLD
 ## TYPE LABEL EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE LABEL EQUAL`, an unexpected token appeared.
 
 repl_decl: TYPE LABEL EQUAL LBRACE UNFOLD
 ##
@@ -318,7 +318,7 @@ repl_decl: TYPE LABEL EQUAL LBRACE UNFOLD
 ## TYPE LABEL EQUAL LBRACE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE LABEL EQUAL LBRACE`, an unexpected token appeared.
 
 repl_decl: SORT UNFOLD
 ##
@@ -331,7 +331,7 @@ repl_decl: SORT UNFOLD
 ## SORT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT`, an unexpected token appeared.
 
 repl_decl: SORT LABEL UNFOLD
 ##
@@ -344,7 +344,7 @@ repl_decl: SORT LABEL UNFOLD
 ## SORT LABEL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT LABEL`, an unexpected token appeared.
 
 repl_decl: SORT LABEL LPAREN UNFOLD
 ##
@@ -356,7 +356,7 @@ repl_decl: SORT LABEL LPAREN UNFOLD
 ## SORT LABEL LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT LABEL LPAREN`, an unexpected token appeared.
 
 repl_decl: SORT LABEL LPAREN IDENT RPAREN UNFOLD
 ##
@@ -368,7 +368,7 @@ repl_decl: SORT LABEL LPAREN IDENT RPAREN UNFOLD
 ## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT LABEL LPAREN <type-params> RPAREN`, an unexpected token appeared.
 
 repl_decl: SORT LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ##
@@ -380,7 +380,7 @@ repl_decl: SORT LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT LABEL LPAREN <type-params> RPAREN EQUAL`, an unexpected token appeared.
 
 repl_decl: SORT LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ##
@@ -392,7 +392,7 @@ repl_decl: SORT LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT LABEL LPAREN <type-params> RPAREN EQUAL LBRACE`, an unexpected token appeared.
 
 rprog_eof: SORT LABEL EQUAL LBRACE LABEL UNFOLD
 ##
@@ -404,7 +404,7 @@ rprog_eof: SORT LABEL EQUAL LBRACE LABEL UNFOLD
 ## LABEL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LABEL`, an unexpected token appeared.
 
 rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON UNFOLD
 ##
@@ -416,7 +416,7 @@ rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON UNFOLD
 ## LABEL COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LABEL COLON`, an unexpected token appeared.
 
 rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW TYPE
 ##
@@ -429,7 +429,7 @@ rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW TYPE
 ## ctor_decl
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ctor_decl`, an unexpected token appeared.
 
 rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW BAR UNFOLD
 ##
@@ -441,7 +441,7 @@ rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW BAR UNFOLD
 ## ctor_decl BAR
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ctor_decl BAR`, an unexpected token appeared.
 
 repl_decl: SORT LABEL EQUAL UNFOLD
 ##
@@ -453,7 +453,7 @@ repl_decl: SORT LABEL EQUAL UNFOLD
 ## SORT LABEL EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT LABEL EQUAL`, an unexpected token appeared.
 
 repl_decl: SORT LABEL EQUAL LBRACE UNFOLD
 ##
@@ -465,7 +465,7 @@ repl_decl: SORT LABEL EQUAL LBRACE UNFOLD
 ## SORT LABEL EQUAL LBRACE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT LABEL EQUAL LBRACE`, an unexpected token appeared.
 
 repl_decl: FUN UNFOLD
 ##
@@ -477,7 +477,7 @@ repl_decl: FUN UNFOLD
 ## FUN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN`, an unexpected token appeared.
 
 repl_decl: FUN IDENT UNFOLD
 ##
@@ -489,7 +489,7 @@ repl_decl: FUN IDENT UNFOLD
 ## FUN IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT`, an unexpected token appeared.
 
 repl_decl: FUN IDENT COLON UNFOLD
 ##
@@ -501,7 +501,7 @@ repl_decl: FUN IDENT COLON UNFOLD
 ## FUN IDENT COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT COLON`, an unexpected token appeared.
 
 repl_decl: FUN IDENT COLON BOOL_KW TYPE
 ##
@@ -513,7 +513,7 @@ repl_decl: FUN IDENT COLON BOOL_KW TYPE
 ## FUN IDENT COLON sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT COLON sort`, an unexpected token appeared.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW UNFOLD
 ##
@@ -525,7 +525,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW UNFOLD
 ## FUN IDENT COLON sort ARROW
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT COLON sort ARROW`, an unexpected token appeared.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW TYPE
 ##
@@ -537,7 +537,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW TYPE
 ## FUN IDENT COLON sort ARROW sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT COLON sort ARROW sort`, an unexpected token appeared.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET UNFOLD
 ##
@@ -549,7 +549,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET UNFOLD
 ## FUN IDENT COLON sort ARROW sort LBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT COLON sort ARROW sort LBRACKET`, an unexpected token appeared.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE UNFOLD
 ##
@@ -561,7 +561,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE UNFOLD
 ## FUN IDENT COLON sort ARROW sort LBRACKET eff_level
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT COLON sort ARROW sort LBRACKET eff_level`, an unexpected token appeared.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET UNFOLD
 ##
@@ -573,7 +573,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET UNFOLD
 ## FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET`, an unexpected token appeared.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ##
@@ -585,7 +585,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL 
 ## FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET EQUAL`, an unexpected token appeared.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL LBRACE UNFOLD
 ##
@@ -597,7 +597,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL 
 ## FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET EQUAL LBRACE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET EQUAL LBRACE`, an unexpected token appeared.
 
 program: TAKE LPAREN UNFOLD
 ##
@@ -611,7 +611,7 @@ program: TAKE LPAREN UNFOLD
 ## LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
 
 program: TAKE LABEL UNFOLD
 ##
@@ -623,7 +623,7 @@ program: TAKE LABEL UNFOLD
 ## LABEL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LABEL`, an unexpected token appeared.
 
 program: TAKE LPAREN IDENT UNFOLD
 ##
@@ -636,7 +636,7 @@ program: TAKE LPAREN IDENT UNFOLD
 ## LPAREN pat
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN pat`, an unexpected token appeared.
 
 program: TAKE LPAREN IDENT COMMA UNFOLD
 ##
@@ -648,7 +648,7 @@ program: TAKE LPAREN IDENT COMMA UNFOLD
 ## LPAREN pat COMMA
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN pat COMMA`, an unexpected token appeared.
 
 program: TAKE LPAREN IDENT COMMA IDENT UNFOLD
 ##
@@ -661,7 +661,7 @@ program: TAKE LPAREN IDENT COMMA IDENT UNFOLD
 ## pat
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `pat`, an unexpected token appeared.
 
 program: TAKE LPAREN IDENT COMMA IDENT COMMA UNFOLD
 ##
@@ -673,7 +673,7 @@ program: TAKE LPAREN IDENT COMMA IDENT COMMA UNFOLD
 ## pat COMMA
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `pat COMMA`, an unexpected token appeared.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL LBRACE IDENT UNFOLD
 ##
@@ -685,7 +685,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL 
 ## pat
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `pat`, an unexpected token appeared.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL LBRACE IDENT ARROW UNFOLD
 ##
@@ -697,7 +697,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL 
 ## pat ARROW
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `pat ARROW`, an unexpected token appeared.
 
 program: TAKE UNFOLD
 ##
@@ -710,7 +710,7 @@ program: TAKE UNFOLD
 ## TAKE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TAKE`, an unexpected token appeared.
 
 program: TAKE IDENT UNFOLD
 ##
@@ -723,7 +723,7 @@ program: TAKE IDENT UNFOLD
 ## TAKE pat
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TAKE pat`, an unexpected token appeared.
 
 program: TAKE IDENT EQUAL UNFOLD
 ##
@@ -735,7 +735,7 @@ program: TAKE IDENT EQUAL UNFOLD
 ## TAKE pat EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TAKE pat EQUAL`, an unexpected token appeared.
 
 program: RETURN UNFOLD
 ##
@@ -747,7 +747,7 @@ program: RETURN UNFOLD
 ## RETURN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `RETURN`, an unexpected token appeared.
 
 program: NOT_KW UNFOLD
 ##
@@ -759,7 +759,7 @@ program: NOT_KW UNFOLD
 ## NOT_KW
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `NOT_KW`, an unexpected token appeared.
 
 program: LPAREN UNFOLD
 ##
@@ -773,7 +773,7 @@ program: LPAREN UNFOLD
 ## LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
 
 program: LET UNFOLD
 ##
@@ -786,7 +786,7 @@ program: LET UNFOLD
 ## LET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET`, an unexpected token appeared.
 
 program: LET IDENT UNFOLD
 ##
@@ -799,7 +799,7 @@ program: LET IDENT UNFOLD
 ## LET pat
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET pat`, an unexpected token appeared.
 
 program: LET IDENT EQUAL UNFOLD
 ##
@@ -811,7 +811,7 @@ program: LET IDENT EQUAL UNFOLD
 ## LET pat EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET pat EQUAL`, an unexpected token appeared.
 
 program: LABEL UNFOLD
 ##
@@ -823,7 +823,7 @@ program: LABEL UNFOLD
 ## LABEL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LABEL`, an unexpected token appeared.
 
 program: IDENT UNFOLD
 ##
@@ -836,7 +836,7 @@ program: IDENT UNFOLD
 ## IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IDENT`, an unexpected token appeared.
 
 program: DEL UNFOLD
 ##
@@ -848,7 +848,7 @@ program: DEL UNFOLD
 ## state_prim
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `state_prim`, an unexpected token appeared.
 
 program: DEL LBRACKET UNFOLD
 ##
@@ -860,7 +860,7 @@ program: DEL LBRACKET UNFOLD
 ## state_prim LBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `state_prim LBRACKET`, an unexpected token appeared.
 
 program: DEL LBRACKET BOOL_KW TYPE
 ##
@@ -872,7 +872,7 @@ program: DEL LBRACKET BOOL_KW TYPE
 ## state_prim LBRACKET sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `state_prim LBRACKET sort`, an unexpected token appeared.
 
 program: DEL LBRACKET BOOL_KW RBRACKET UNFOLD
 ##
@@ -884,7 +884,7 @@ program: DEL LBRACKET BOOL_KW RBRACKET UNFOLD
 ## state_prim LBRACKET sort RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `state_prim LBRACKET sort RBRACKET`, an unexpected token appeared.
 
 program: ITER UNFOLD
 ##
@@ -896,7 +896,7 @@ program: ITER UNFOLD
 ## ITER
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER`, an unexpected token appeared.
 
 program: ITER LPAREN UNFOLD
 ##
@@ -908,7 +908,7 @@ program: ITER LPAREN UNFOLD
 ## ITER LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LPAREN`, an unexpected token appeared.
 
 program: ITER LPAREN IDENT UNFOLD
 ##
@@ -920,7 +920,7 @@ program: ITER LPAREN IDENT UNFOLD
 ## ITER LPAREN pat
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LPAREN pat`, an unexpected token appeared.
 
 program: ITER LPAREN IDENT EQUAL UNFOLD
 ##
@@ -932,7 +932,7 @@ program: ITER LPAREN IDENT EQUAL UNFOLD
 ## ITER LPAREN pat EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LPAREN pat EQUAL`, an unexpected token appeared.
 
 program: IF UNFOLD
 ##
@@ -944,7 +944,7 @@ program: IF UNFOLD
 ## IF
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IF`, an unexpected token appeared.
 
 program: CASE UNFOLD
 ##
@@ -956,7 +956,7 @@ program: CASE UNFOLD
 ## CASE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `CASE`, an unexpected token appeared.
 
 program: CASE FALSE UNFOLD
 ##
@@ -968,7 +968,7 @@ program: CASE FALSE UNFOLD
 ## CASE app_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `CASE app_expr`, an unexpected token appeared.
 
 program: CASE FALSE OF UNFOLD
 ##
@@ -980,7 +980,7 @@ program: CASE FALSE OF UNFOLD
 ## CASE app_expr OF
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `CASE app_expr OF`, an unexpected token appeared.
 
 program: CASE FALSE OF LBRACE UNFOLD
 ##
@@ -992,7 +992,7 @@ program: CASE FALSE OF LBRACE UNFOLD
 ## CASE app_expr OF LBRACE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `CASE app_expr OF LBRACE`, an unexpected token appeared.
 
 program: CASE FALSE OF LBRACE IDENT UNFOLD
 ##
@@ -1004,7 +1004,7 @@ program: CASE FALSE OF LBRACE IDENT UNFOLD
 ## pat
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `pat`, an unexpected token appeared.
 
 program: CASE FALSE OF LBRACE IDENT ARROW UNFOLD
 ##
@@ -1016,7 +1016,7 @@ program: CASE FALSE OF LBRACE IDENT ARROW UNFOLD
 ## pat ARROW
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `pat ARROW`, an unexpected token appeared.
 
 program: FAIL UNFOLD
 ##
@@ -1029,7 +1029,7 @@ program: FAIL UNFOLD
 ## seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `seq_expr`, an unexpected token appeared.
 
 program: FALSE COLON UNFOLD
 ##
@@ -1041,7 +1041,7 @@ program: FALSE COLON UNFOLD
 ## seq_expr COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `seq_expr COLON`, an unexpected token appeared.
 
 program: FALSE BARBAR UNFOLD
 ##
@@ -1053,7 +1053,7 @@ program: FALSE BARBAR UNFOLD
 ## or_expr BARBAR
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `or_expr BARBAR`, an unexpected token appeared.
 
 program: FALSE UNFOLD
 ##
@@ -1067,7 +1067,7 @@ program: FALSE UNFOLD
 ## mul_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `mul_expr`, an unexpected token appeared.
 
 program: FALSE STAR UNFOLD
 ##
@@ -1079,7 +1079,7 @@ program: FALSE STAR UNFOLD
 ## mul_expr STAR
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `mul_expr STAR`, an unexpected token appeared.
 
 program: FALSE SLASH UNFOLD
 ##
@@ -1091,7 +1091,7 @@ program: FALSE SLASH UNFOLD
 ## mul_expr SLASH
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `mul_expr SLASH`, an unexpected token appeared.
 
 program: FALSE EQEQ UNFOLD
 ##
@@ -1103,7 +1103,7 @@ program: FALSE EQEQ UNFOLD
 ## cmp_expr EQEQ
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `cmp_expr EQEQ`, an unexpected token appeared.
 
 program: FALSE PLUS UNFOLD
 ##
@@ -1115,7 +1115,7 @@ program: FALSE PLUS UNFOLD
 ## add_expr PLUS
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `add_expr PLUS`, an unexpected token appeared.
 
 program: FALSE PLUS FALSE UNFOLD
 ##
@@ -1129,7 +1129,7 @@ program: FALSE PLUS FALSE UNFOLD
 ## add_expr PLUS mul_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `add_expr PLUS mul_expr`, an unexpected token appeared.
 
 program: FALSE MINUS UNFOLD
 ##
@@ -1141,7 +1141,7 @@ program: FALSE MINUS UNFOLD
 ## add_expr MINUS
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `add_expr MINUS`, an unexpected token appeared.
 
 program: FALSE MINUS FALSE UNFOLD
 ##
@@ -1155,7 +1155,7 @@ program: FALSE MINUS FALSE UNFOLD
 ## add_expr MINUS mul_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `add_expr MINUS mul_expr`, an unexpected token appeared.
 
 program: FALSE LESSEQ UNFOLD
 ##
@@ -1167,7 +1167,7 @@ program: FALSE LESSEQ UNFOLD
 ## add_expr LESSEQ
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `add_expr LESSEQ`, an unexpected token appeared.
 
 program: FALSE LESSEQ FALSE LESSEQ
 ##
@@ -1187,7 +1187,7 @@ program: FALSE LESSEQ FALSE LESSEQ
 ## In state 148, spurious reduction of production add_expr -> mul_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `add_expr LESSEQ add_expr`, an unexpected token appeared.
 
 program: FALSE LESS UNFOLD
 ##
@@ -1199,7 +1199,7 @@ program: FALSE LESS UNFOLD
 ## add_expr LESS
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `add_expr LESS`, an unexpected token appeared.
 
 program: FALSE LESS FALSE LESSEQ
 ##
@@ -1219,7 +1219,7 @@ program: FALSE LESS FALSE LESSEQ
 ## In state 148, spurious reduction of production add_expr -> mul_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `add_expr LESS add_expr`, an unexpected token appeared.
 
 program: FALSE GREATEREQ UNFOLD
 ##
@@ -1231,7 +1231,7 @@ program: FALSE GREATEREQ UNFOLD
 ## add_expr GREATEREQ
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `add_expr GREATEREQ`, an unexpected token appeared.
 
 program: FALSE GREATEREQ FALSE LESSEQ
 ##
@@ -1251,7 +1251,7 @@ program: FALSE GREATEREQ FALSE LESSEQ
 ## In state 148, spurious reduction of production add_expr -> mul_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `add_expr GREATEREQ add_expr`, an unexpected token appeared.
 
 program: FALSE GREATER UNFOLD
 ##
@@ -1263,7 +1263,7 @@ program: FALSE GREATER UNFOLD
 ## add_expr GREATER
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `add_expr GREATER`, an unexpected token appeared.
 
 program: FALSE GREATER FALSE LESSEQ
 ##
@@ -1283,7 +1283,7 @@ program: FALSE GREATER FALSE LESSEQ
 ## In state 148, spurious reduction of production add_expr -> mul_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `add_expr GREATER add_expr`, an unexpected token appeared.
 
 program: FALSE BARBAR FALSE EQEQ FALSE EQEQ
 ##
@@ -1305,7 +1305,7 @@ program: FALSE BARBAR FALSE EQEQ FALSE EQEQ
 ## In state 153, spurious reduction of production and_expr -> eq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `or_expr BARBAR and_expr`, an unexpected token appeared.
 
 program: FALSE AMPAMP UNFOLD
 ##
@@ -1317,7 +1317,7 @@ program: FALSE AMPAMP UNFOLD
 ## and_expr AMPAMP
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `and_expr AMPAMP`, an unexpected token appeared.
 
 program: FALSE EQEQ FALSE EQEQ
 ##
@@ -1339,7 +1339,7 @@ program: FALSE EQEQ FALSE EQEQ
 ## In state 153, spurious reduction of production and_expr -> eq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `and_expr`, an unexpected token appeared.
 
 program: CASE FALSE OF LBRACE IDENT ARROW FALSE TYPE
 ##
@@ -1365,7 +1365,7 @@ program: CASE FALSE OF LBRACE IDENT ARROW FALSE TYPE
 ## In state 174, spurious reduction of production case_branch -> pat ARROW expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `case_branch`, an unexpected token appeared.
 
 program: CASE FALSE OF LBRACE IDENT ARROW FALSE BAR UNFOLD
 ##
@@ -1377,7 +1377,7 @@ program: CASE FALSE OF LBRACE IDENT ARROW FALSE BAR UNFOLD
 ## case_branch BAR
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `case_branch BAR`, an unexpected token appeared.
 
 program: IF FALSE TYPE
 ##
@@ -1401,7 +1401,7 @@ program: IF FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IF expr`, an unexpected token appeared.
 
 program: IF FALSE THEN UNFOLD
 ##
@@ -1413,7 +1413,7 @@ program: IF FALSE THEN UNFOLD
 ## IF expr THEN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IF expr THEN`, an unexpected token appeared.
 
 program: IF FALSE THEN FALSE TYPE
 ##
@@ -1437,7 +1437,7 @@ program: IF FALSE THEN FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IF expr THEN expr`, an unexpected token appeared.
 
 program: IF FALSE THEN FALSE ELSE UNFOLD
 ##
@@ -1449,7 +1449,7 @@ program: IF FALSE THEN FALSE ELSE UNFOLD
 ## IF expr THEN expr ELSE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IF expr THEN expr ELSE`, an unexpected token appeared.
 
 program: ITER LPAREN IDENT EQUAL FALSE TYPE
 ##
@@ -1473,7 +1473,7 @@ program: ITER LPAREN IDENT EQUAL FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LPAREN pat EQUAL expr`, an unexpected token appeared.
 
 program: ITER LPAREN IDENT EQUAL FALSE RPAREN UNFOLD
 ##
@@ -1485,7 +1485,7 @@ program: ITER LPAREN IDENT EQUAL FALSE RPAREN UNFOLD
 ## ITER LPAREN pat EQUAL expr RPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LPAREN pat EQUAL expr RPAREN`, an unexpected token appeared.
 
 program: ITER LPAREN IDENT EQUAL FALSE RPAREN LBRACE UNFOLD
 ##
@@ -1497,7 +1497,7 @@ program: ITER LPAREN IDENT EQUAL FALSE RPAREN LBRACE UNFOLD
 ## ITER LPAREN pat EQUAL expr RPAREN LBRACE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LPAREN pat EQUAL expr RPAREN LBRACE`, an unexpected token appeared.
 
 program: ITER LPAREN IDENT EQUAL FALSE RPAREN LBRACE FALSE TYPE
 ##
@@ -1521,7 +1521,7 @@ program: ITER LPAREN IDENT EQUAL FALSE RPAREN LBRACE FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LPAREN pat EQUAL expr RPAREN LBRACE expr`, an unexpected token appeared.
 
 program: LET IDENT EQUAL FALSE TYPE
 ##
@@ -1545,7 +1545,7 @@ program: LET IDENT EQUAL FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET pat EQUAL expr`, an unexpected token appeared.
 
 program: LET IDENT EQUAL FALSE SEMICOLON UNFOLD
 ##
@@ -1557,7 +1557,7 @@ program: LET IDENT EQUAL FALSE SEMICOLON UNFOLD
 ## LET pat EQUAL expr SEMICOLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET pat EQUAL expr SEMICOLON`, an unexpected token appeared.
 
 program: LET IDENT COLON UNFOLD
 ##
@@ -1569,7 +1569,7 @@ program: LET IDENT COLON UNFOLD
 ## LET pat COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET pat COLON`, an unexpected token appeared.
 
 program: LET IDENT COLON BOOL_KW TYPE
 ##
@@ -1581,7 +1581,7 @@ program: LET IDENT COLON BOOL_KW TYPE
 ## LET pat COLON sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET pat COLON sort`, an unexpected token appeared.
 
 program: LET IDENT COLON BOOL_KW EQUAL UNFOLD
 ##
@@ -1593,7 +1593,7 @@ program: LET IDENT COLON BOOL_KW EQUAL UNFOLD
 ## LET pat COLON sort EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET pat COLON sort EQUAL`, an unexpected token appeared.
 
 program: LET IDENT COLON BOOL_KW EQUAL FALSE TYPE
 ##
@@ -1617,7 +1617,7 @@ program: LET IDENT COLON BOOL_KW EQUAL FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET pat COLON sort EQUAL expr`, an unexpected token appeared.
 
 program: LET IDENT COLON BOOL_KW EQUAL FALSE SEMICOLON UNFOLD
 ##
@@ -1629,7 +1629,7 @@ program: LET IDENT COLON BOOL_KW EQUAL FALSE SEMICOLON UNFOLD
 ## LET pat COLON sort EQUAL expr SEMICOLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET pat COLON sort EQUAL expr SEMICOLON`, an unexpected token appeared.
 
 program: LPAREN FALSE TYPE
 ##
@@ -1654,7 +1654,7 @@ program: LPAREN FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN expr`, an unexpected token appeared.
 
 program: LPAREN FALSE COMMA UNFOLD
 ##
@@ -1666,7 +1666,7 @@ program: LPAREN FALSE COMMA UNFOLD
 ## LPAREN expr COMMA
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN expr COMMA`, an unexpected token appeared.
 
 program: LPAREN FALSE COMMA FALSE TYPE
 ##
@@ -1691,7 +1691,7 @@ program: LPAREN FALSE COMMA FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `expr`, an unexpected token appeared.
 
 program: LPAREN FALSE COMMA FALSE COMMA UNFOLD
 ##
@@ -1703,7 +1703,7 @@ program: LPAREN FALSE COMMA FALSE COMMA UNFOLD
 ## expr COMMA
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `expr COMMA`, an unexpected token appeared.
 
 program: TAKE IDENT EQUAL FALSE TYPE
 ##
@@ -1727,7 +1727,7 @@ program: TAKE IDENT EQUAL FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TAKE pat EQUAL expr`, an unexpected token appeared.
 
 program: TAKE IDENT EQUAL FALSE SEMICOLON UNFOLD
 ##
@@ -1739,7 +1739,7 @@ program: TAKE IDENT EQUAL FALSE SEMICOLON UNFOLD
 ## TAKE pat EQUAL expr SEMICOLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TAKE pat EQUAL expr SEMICOLON`, an unexpected token appeared.
 
 program: TAKE IDENT COLON UNFOLD
 ##
@@ -1751,7 +1751,7 @@ program: TAKE IDENT COLON UNFOLD
 ## TAKE pat COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TAKE pat COLON`, an unexpected token appeared.
 
 program: TAKE IDENT COLON BOOL_KW TYPE
 ##
@@ -1763,7 +1763,7 @@ program: TAKE IDENT COLON BOOL_KW TYPE
 ## TAKE pat COLON sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TAKE pat COLON sort`, an unexpected token appeared.
 
 program: TAKE IDENT COLON BOOL_KW EQUAL UNFOLD
 ##
@@ -1775,7 +1775,7 @@ program: TAKE IDENT COLON BOOL_KW EQUAL UNFOLD
 ## TAKE pat COLON sort EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TAKE pat COLON sort EQUAL`, an unexpected token appeared.
 
 program: TAKE IDENT COLON BOOL_KW EQUAL FALSE TYPE
 ##
@@ -1799,7 +1799,7 @@ program: TAKE IDENT COLON BOOL_KW EQUAL FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TAKE pat COLON sort EQUAL expr`, an unexpected token appeared.
 
 program: TAKE IDENT COLON BOOL_KW EQUAL FALSE SEMICOLON UNFOLD
 ##
@@ -1811,7 +1811,7 @@ program: TAKE IDENT COLON BOOL_KW EQUAL FALSE SEMICOLON UNFOLD
 ## TAKE pat COLON sort EQUAL expr SEMICOLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TAKE pat COLON sort EQUAL expr SEMICOLON`, an unexpected token appeared.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL LBRACE IDENT ARROW FALSE TYPE
 ##
@@ -1837,7 +1837,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL 
 ## In state 217, spurious reduction of production branch -> pat ARROW expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `branch`, an unexpected token appeared.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL LBRACE IDENT ARROW FALSE BAR UNFOLD
 ##
@@ -1849,7 +1849,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL 
 ## branch BAR
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `branch BAR`, an unexpected token appeared.
 
 prog_eof: MAIN UNFOLD
 ##
@@ -1861,7 +1861,7 @@ prog_eof: MAIN UNFOLD
 ## list(decl) MAIN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `list(decl) MAIN`, an unexpected token appeared.
 
 prog_eof: MAIN COLON UNFOLD
 ##
@@ -1873,7 +1873,7 @@ prog_eof: MAIN COLON UNFOLD
 ## list(decl) MAIN COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `list(decl) MAIN COLON`, an unexpected token appeared.
 
 prog_eof: MAIN COLON BOOL_KW TYPE
 ##
@@ -1885,7 +1885,7 @@ prog_eof: MAIN COLON BOOL_KW TYPE
 ## list(decl) MAIN COLON sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `list(decl) MAIN COLON sort`, an unexpected token appeared.
 
 prog_eof: MAIN COLON BOOL_KW LBRACKET UNFOLD
 ##
@@ -1897,7 +1897,7 @@ prog_eof: MAIN COLON BOOL_KW LBRACKET UNFOLD
 ## list(decl) MAIN COLON sort LBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `list(decl) MAIN COLON sort LBRACKET`, an unexpected token appeared.
 
 prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE UNFOLD
 ##
@@ -1909,7 +1909,7 @@ prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE UNFOLD
 ## list(decl) MAIN COLON sort LBRACKET eff_level
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `list(decl) MAIN COLON sort LBRACKET eff_level`, an unexpected token appeared.
 
 prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET UNFOLD
 ##
@@ -1921,7 +1921,7 @@ prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET UNFOLD
 ## list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET`, an unexpected token appeared.
 
 prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ##
@@ -1933,7 +1933,7 @@ prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ## list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET EQUAL`, an unexpected token appeared.
 
 prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET EQUAL FALSE TYPE
 ##
@@ -1957,7 +1957,7 @@ prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET EQUAL FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET EQUAL expr`, an unexpected token appeared.
 
 prog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE UNFOLD
 ##
@@ -1969,7 +1969,7 @@ prog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE UNFOLD
 ## decl
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `decl`, an unexpected token appeared.
 
 program: UNFOLD
 ##
@@ -1981,7 +1981,7 @@ program: UNFOLD
 ##
 ##
 
-PLACEHOLDER
+Unexpected token at the start of input.
 
 program: FALSE TYPE
 ##
@@ -2005,7 +2005,7 @@ program: FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `expr`, an unexpected token appeared.
 
 repl_decl: UNFOLD
 ##
@@ -2017,7 +2017,7 @@ repl_decl: UNFOLD
 ##
 ##
 
-PLACEHOLDER
+Unexpected token at the start of input.
 
 repl_decl: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE UNFOLD
 ##
@@ -2029,7 +2029,7 @@ repl_decl: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE UNFOLD
 ## decl
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `decl`, an unexpected token appeared.
 
 repl_let: UNFOLD
 ##
@@ -2041,7 +2041,7 @@ repl_let: UNFOLD
 ##
 ##
 
-PLACEHOLDER
+Unexpected token at the start of input.
 
 repl_let: LET UNFOLD
 ##
@@ -2053,7 +2053,7 @@ repl_let: LET UNFOLD
 ## LET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET`, an unexpected token appeared.
 
 repl_let: LET IDENT UNFOLD
 ##
@@ -2065,7 +2065,7 @@ repl_let: LET IDENT UNFOLD
 ## LET IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET IDENT`, an unexpected token appeared.
 
 repl_let: LET IDENT EQUAL UNFOLD
 ##
@@ -2077,7 +2077,7 @@ repl_let: LET IDENT EQUAL UNFOLD
 ## LET IDENT EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET IDENT EQUAL`, an unexpected token appeared.
 
 repl_let: LET IDENT EQUAL FALSE TYPE
 ##
@@ -2101,7 +2101,7 @@ repl_let: LET IDENT EQUAL FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET IDENT EQUAL expr`, an unexpected token appeared.
 
 rprog_eof: UNFOLD
 ##
@@ -2113,7 +2113,7 @@ rprog_eof: UNFOLD
 ##
 ##
 
-PLACEHOLDER
+Unexpected token at the start of input.
 
 rprog_eof: TYPE UNFOLD
 ##
@@ -2126,7 +2126,7 @@ rprog_eof: TYPE UNFOLD
 ## TYPE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE`, an unexpected token appeared.
 
 rprog_eof: TYPE LABEL UNFOLD
 ##
@@ -2139,7 +2139,7 @@ rprog_eof: TYPE LABEL UNFOLD
 ## TYPE LABEL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE LABEL`, an unexpected token appeared.
 
 rprog_eof: TYPE LABEL LPAREN UNFOLD
 ##
@@ -2151,7 +2151,7 @@ rprog_eof: TYPE LABEL LPAREN UNFOLD
 ## TYPE LABEL LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE LABEL LPAREN`, an unexpected token appeared.
 
 rprog_eof: TYPE LABEL LPAREN IDENT RPAREN UNFOLD
 ##
@@ -2163,7 +2163,7 @@ rprog_eof: TYPE LABEL LPAREN IDENT RPAREN UNFOLD
 ## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE LABEL LPAREN <type-params> RPAREN`, an unexpected token appeared.
 
 rprog_eof: TYPE LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ##
@@ -2175,7 +2175,7 @@ rprog_eof: TYPE LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE LABEL LPAREN <type-params> RPAREN EQUAL`, an unexpected token appeared.
 
 rprog_eof: TYPE LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ##
@@ -2187,7 +2187,7 @@ rprog_eof: TYPE LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE LABEL LPAREN <type-params> RPAREN EQUAL LBRACE`, an unexpected token appeared.
 
 rprog_eof: TYPE LABEL EQUAL UNFOLD
 ##
@@ -2199,7 +2199,7 @@ rprog_eof: TYPE LABEL EQUAL UNFOLD
 ## TYPE LABEL EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE LABEL EQUAL`, an unexpected token appeared.
 
 rprog_eof: TYPE LABEL EQUAL LBRACE UNFOLD
 ##
@@ -2211,7 +2211,7 @@ rprog_eof: TYPE LABEL EQUAL LBRACE UNFOLD
 ## TYPE LABEL EQUAL LBRACE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `TYPE LABEL EQUAL LBRACE`, an unexpected token appeared.
 
 rprog_eof: SORT UNFOLD
 ##
@@ -2224,7 +2224,7 @@ rprog_eof: SORT UNFOLD
 ## SORT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT`, an unexpected token appeared.
 
 rprog_eof: SORT LABEL UNFOLD
 ##
@@ -2237,7 +2237,7 @@ rprog_eof: SORT LABEL UNFOLD
 ## SORT LABEL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT LABEL`, an unexpected token appeared.
 
 rprog_eof: SORT LABEL LPAREN UNFOLD
 ##
@@ -2249,7 +2249,7 @@ rprog_eof: SORT LABEL LPAREN UNFOLD
 ## SORT LABEL LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT LABEL LPAREN`, an unexpected token appeared.
 
 rprog_eof: SORT LABEL LPAREN IDENT RPAREN UNFOLD
 ##
@@ -2261,7 +2261,7 @@ rprog_eof: SORT LABEL LPAREN IDENT RPAREN UNFOLD
 ## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT LABEL LPAREN <type-params> RPAREN`, an unexpected token appeared.
 
 rprog_eof: SORT LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ##
@@ -2273,7 +2273,7 @@ rprog_eof: SORT LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT LABEL LPAREN <type-params> RPAREN EQUAL`, an unexpected token appeared.
 
 rprog_eof: SORT LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ##
@@ -2285,7 +2285,7 @@ rprog_eof: SORT LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT LABEL LPAREN <type-params> RPAREN EQUAL LBRACE`, an unexpected token appeared.
 
 rprog_eof: SORT LABEL EQUAL UNFOLD
 ##
@@ -2297,7 +2297,7 @@ rprog_eof: SORT LABEL EQUAL UNFOLD
 ## SORT LABEL EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT LABEL EQUAL`, an unexpected token appeared.
 
 rprog_eof: SORT LABEL EQUAL LBRACE UNFOLD
 ##
@@ -2309,7 +2309,7 @@ rprog_eof: SORT LABEL EQUAL LBRACE UNFOLD
 ## SORT LABEL EQUAL LBRACE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `SORT LABEL EQUAL LBRACE`, an unexpected token appeared.
 
 rprog_eof: RFUN UNFOLD
 ##
@@ -2321,7 +2321,7 @@ rprog_eof: RFUN UNFOLD
 ## RFUN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `RFUN`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT UNFOLD
 ##
@@ -2333,7 +2333,7 @@ rprog_eof: RFUN IDENT UNFOLD
 ## RFUN IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `RFUN IDENT`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN UNFOLD
 ##
@@ -2345,7 +2345,7 @@ rprog_eof: RFUN IDENT LPAREN UNFOLD
 ## LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET UNFOLD
 ##
@@ -2361,7 +2361,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET UNFOLD
 ## LBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES UNFOLD
 ##
@@ -2375,7 +2375,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES UNFOLD
 ## LBRACKET RES
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET UNFOLD
 ##
@@ -2389,7 +2389,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET UNFOLD
 ## LBRACKET RES RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT UNFOLD
 ##
@@ -2403,7 +2403,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT UNFOLD
 ## LBRACKET RES RBRACKET IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON UNFOLD
 ##
@@ -2417,7 +2417,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON UNFOLD
 ## LBRACKET RES RBRACKET IDENT COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN UNFOLD
 ##
@@ -2433,7 +2433,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN UNFOLD
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO UNFOLD
 ##
@@ -2446,7 +2446,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO UNFOLD
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT UNFOLD
 ##
@@ -2459,7 +2459,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT U
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL UNFOLD
 ##
@@ -2471,7 +2471,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT E
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL FALSE UNFOLD
 ##
@@ -2483,7 +2483,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT E
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL app_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL app_expr`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON UNFOLD
 ##
@@ -2495,7 +2495,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT C
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON BOOL_KW TYPE
 ##
@@ -2507,7 +2507,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT C
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON BOOL_KW EQUAL UNFOLD
 ##
@@ -2519,7 +2519,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT C
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort EQUAL`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON BOOL_KW EQUAL FALSE UNFOLD
 ##
@@ -2531,7 +2531,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT C
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort EQUAL app_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort EQUAL app_expr`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON FALSE UNFOLD
 ##
@@ -2543,7 +2543,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON FALSE UNFOLD
 ## LBRACKET RES RBRACKET IDENT COLON app_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON app_expr`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON FALSE AT UNFOLD
 ##
@@ -2555,7 +2555,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON FALSE AT UNFOLD
 ## LBRACKET RES RBRACKET IDENT COLON app_expr AT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON app_expr AT`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET LOG UNFOLD
 ##
@@ -2567,7 +2567,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET LOG UNFOLD
 ## LBRACKET LOG
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET LOG`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET UNFOLD
 ##
@@ -2579,7 +2579,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET UNFOLD
 ## LBRACKET LOG RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET LOG RBRACKET`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET IDENT UNFOLD
 ##
@@ -2591,7 +2591,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET IDENT UNFOLD
 ## LBRACKET LOG RBRACKET IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET LOG RBRACKET IDENT`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET IDENT COLON UNFOLD
 ##
@@ -2603,7 +2603,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET IDENT COLON UNFOLD
 ## LBRACKET LOG RBRACKET IDENT COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET LOG RBRACKET IDENT COLON`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE UNFOLD
 ##
@@ -2615,7 +2615,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE UNFOLD
 ## LBRACKET eff_level
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET eff_level`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ##
@@ -2627,7 +2627,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ## LBRACKET eff_level RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET eff_level RBRACKET`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET IDENT UNFOLD
 ##
@@ -2639,7 +2639,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET IDENT UNFOLD
 ## LBRACKET eff_level RBRACKET IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET eff_level RBRACKET IDENT`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET IDENT COLON UNFOLD
 ##
@@ -2651,7 +2651,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET IDENT COLON UNFOLD
 ## LBRACKET eff_level RBRACKET IDENT COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET eff_level RBRACKET IDENT COLON`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN IDENT UNFOLD
 ##
@@ -2663,7 +2663,7 @@ rprog_eof: RFUN IDENT LPAREN IDENT UNFOLD
 ## IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IDENT`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN IDENT COLON UNFOLD
 ##
@@ -2675,7 +2675,7 @@ rprog_eof: RFUN IDENT LPAREN IDENT COLON UNFOLD
 ## IDENT COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IDENT COLON`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN IDENT COLON BOOL_KW LBRACKET
 ##
@@ -2688,7 +2688,7 @@ rprog_eof: RFUN IDENT LPAREN IDENT COLON BOOL_KW LBRACKET
 ## pf_domain_entry
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `pf_domain_entry`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN IDENT COLON BOOL_KW COMMA UNFOLD
 ##
@@ -2700,7 +2700,7 @@ rprog_eof: RFUN IDENT LPAREN IDENT COLON BOOL_KW COMMA UNFOLD
 ## pf_domain_entry COMMA
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `pf_domain_entry COMMA`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN RPAREN UNFOLD
 ##
@@ -2712,7 +2712,7 @@ rprog_eof: RFUN IDENT LPAREN RPAREN UNFOLD
 ## RFUN IDENT pf_domain
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `RFUN IDENT pf_domain`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW UNFOLD
 ##
@@ -2724,7 +2724,7 @@ rprog_eof: RFUN IDENT LPAREN RPAREN ARROW UNFOLD
 ## RFUN IDENT pf_domain ARROW
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `RFUN IDENT pf_domain ARROW`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN UNFOLD
 ##
@@ -2736,7 +2736,7 @@ rprog_eof: MAIN COLON LPAREN UNFOLD
 ## LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET UNFOLD
 ##
@@ -2752,7 +2752,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET UNFOLD
 ## LBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES UNFOLD
 ##
@@ -2766,7 +2766,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES UNFOLD
 ## LBRACKET RES
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET UNFOLD
 ##
@@ -2780,7 +2780,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET UNFOLD
 ## LBRACKET RES RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN UNFOLD
 ##
@@ -2796,7 +2796,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN UNFOLD
 ## LBRACKET RES RBRACKET LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO UNFOLD
 ##
@@ -2809,7 +2809,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO UNFOLD
 ## LBRACKET RES RBRACKET LPAREN DO
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT UNFOLD
 ##
@@ -2822,7 +2822,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT UNFOLD
 ## LBRACKET RES RBRACKET LPAREN DO IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO IDENT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL UNFOLD
 ##
@@ -2834,7 +2834,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL UNFOLD
 ## LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL FALSE UNFOLD
 ##
@@ -2846,7 +2846,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL FALSE U
 ## LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL app_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL app_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON UNFOLD
 ##
@@ -2858,7 +2858,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON UNFOLD
 ## LBRACKET RES RBRACKET LPAREN DO IDENT COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO IDENT COLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW TYPE
 ##
@@ -2870,7 +2870,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW
 ## LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW EQUAL UNFOLD
 ##
@@ -2882,7 +2882,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW
 ## LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort EQUAL`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW EQUAL FALSE UNFOLD
 ##
@@ -2894,7 +2894,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW
 ## LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort EQUAL app_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort EQUAL app_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET FALSE UNFOLD
 ##
@@ -2906,7 +2906,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET FALSE UNFOLD
 ## LBRACKET RES RBRACKET app_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET app_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET FALSE AT UNFOLD
 ##
@@ -2918,7 +2918,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET FALSE AT UNFOLD
 ## LBRACKET RES RBRACKET app_expr AT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET RES RBRACKET app_expr AT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET LOG UNFOLD
 ##
@@ -2930,7 +2930,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET LOG UNFOLD
 ## LBRACKET LOG
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET LOG`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET LOG RBRACKET UNFOLD
 ##
@@ -2942,7 +2942,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET LOG RBRACKET UNFOLD
 ## LBRACKET LOG RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET LOG RBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE UNFOLD
 ##
@@ -2954,7 +2954,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE UNFOLD
 ## LBRACKET eff_level
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET eff_level`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ##
@@ -2966,7 +2966,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ## LBRACKET eff_level RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET eff_level RBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET IDENT UNFOLD
 ##
@@ -2978,7 +2978,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET IDENT UNFOLD
 ## LBRACKET eff_level RBRACKET IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET eff_level RBRACKET IDENT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET IDENT COLON UNFOLD
 ##
@@ -2990,7 +2990,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET IDENT COLON UNFOLD
 ## LBRACKET eff_level RBRACKET IDENT COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LBRACKET eff_level RBRACKET IDENT COLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN IDENT UNFOLD
 ##
@@ -3002,7 +3002,7 @@ rprog_eof: MAIN COLON LPAREN IDENT UNFOLD
 ## IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IDENT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN IDENT COLON UNFOLD
 ##
@@ -3014,7 +3014,7 @@ rprog_eof: MAIN COLON LPAREN IDENT COLON UNFOLD
 ## IDENT COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IDENT COLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN IDENT COLON BOOL_KW LBRACKET
 ##
@@ -3027,7 +3027,7 @@ rprog_eof: MAIN COLON LPAREN IDENT COLON BOOL_KW LBRACKET
 ## pf_entry
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `pf_entry`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN IDENT COLON BOOL_KW COMMA UNFOLD
 ##
@@ -3039,7 +3039,7 @@ rprog_eof: MAIN COLON LPAREN IDENT COLON BOOL_KW COMMA UNFOLD
 ## pf_entry COMMA
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `pf_entry COMMA`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN UNFOLD
 ##
@@ -3051,7 +3051,7 @@ rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN UNFOLD
 ## RFUN IDENT pf_domain ARROW pf_sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `RFUN IDENT pf_domain ARROW pf_sort`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET UNFOLD
 ##
@@ -3063,7 +3063,7 @@ rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET UNFOLD
 ## RFUN IDENT pf_domain ARROW pf_sort LBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `RFUN IDENT pf_domain ARROW pf_sort LBRACKET`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE UNFOLD
 ##
@@ -3075,7 +3075,7 @@ rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE UNFOLD
 ## RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ##
@@ -3087,7 +3087,7 @@ rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE RBRACKET
 ## RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ##
@@ -3099,7 +3099,7 @@ rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE RBRACKET
 ## RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE UNFOLD
 ##
@@ -3111,7 +3111,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE UNF
 ## OPEN_TAKE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `OPEN_TAKE`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE LPAREN UNFOLD
 ##
@@ -3123,7 +3123,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE LPA
 ## OPEN_TAKE LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `OPEN_TAKE LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_TAKE UNFOLD
 ##
@@ -3135,7 +3135,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MA
 ## MAKE_TAKE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `MAKE_TAKE`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_TAKE LPAREN UNFOLD
 ##
@@ -3147,7 +3147,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MA
 ## MAKE_TAKE LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `MAKE_TAKE LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN UNFOLD
 ##
@@ -3159,7 +3159,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN UNFOLD
 ## LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES UNFOLD
 ##
@@ -3171,7 +3171,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES UN
 ## RES
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `RES`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_RET UNFOLD
 ##
@@ -3183,7 +3183,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MA
 ## MAKE_RET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `MAKE_RET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_RET LPAREN TYPE
 ##
@@ -3195,7 +3195,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MA
 ## MAKE_RET LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `MAKE_RET LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD UNFOLD
 ##
@@ -3207,7 +3207,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UN
 ## UNFOLD
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `UNFOLD`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD IDENT UNFOLD
 ##
@@ -3219,7 +3219,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UN
 ## UNFOLD IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `UNFOLD IDENT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD IDENT LPAREN UNFOLD
 ##
@@ -3231,7 +3231,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UN
 ## UNFOLD IDENT LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `UNFOLD IDENT LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD IDENT LPAREN FALSE TYPE
 ##
@@ -3255,7 +3255,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UN
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `UNFOLD IDENT LPAREN expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OPEN_RET UNFOLD
 ##
@@ -3267,7 +3267,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OP
 ## OPEN_RET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `OPEN_RET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OPEN_RET LPAREN UNFOLD
 ##
@@ -3279,7 +3279,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OP
 ## OPEN_RET LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `OPEN_RET LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OPEN_RET LPAREN IDENT SEMICOLON
 ##
@@ -3297,7 +3297,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OP
 ## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `OPEN_RET LPAREN rpf_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT UNFOLD
 ##
@@ -3310,7 +3310,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES ID
 ## rpf_atom_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `rpf_atom_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT COLON UNFOLD
 ##
@@ -3322,7 +3322,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES ID
 ## rpf_atom_expr COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `rpf_atom_expr COLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT COLON FALSE UNFOLD
 ##
@@ -3334,7 +3334,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES ID
 ## rpf_atom_expr COLON simple_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `rpf_atom_expr COLON simple_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT COLON FALSE AT UNFOLD
 ##
@@ -3346,7 +3346,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES ID
 ## rpf_atom_expr COLON simple_expr AT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `rpf_atom_expr COLON simple_expr AT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_RET LPAREN AUTO SEMICOLON
 ##
@@ -3364,7 +3364,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MA
 ## In state 386, spurious reduction of production lpf_expr -> lpf_atom_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `MAKE_RET LPAREN lpf_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG AUTO UNFOLD
 ##
@@ -3377,7 +3377,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG AU
 ## lpf_atom_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `lpf_atom_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG AUTO COLON UNFOLD
 ##
@@ -3389,7 +3389,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG AU
 ## lpf_atom_expr COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `lpf_atom_expr COLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG TYPE
 ##
@@ -3401,7 +3401,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG TY
 ## LOG
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LOG`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN FALSE SEMICOLON
 ##
@@ -3427,7 +3427,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN FALSE 
 ## In state 395, spurious reduction of production spine_arg -> expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `spine_arg`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN FALSE COMMA UNFOLD
 ##
@@ -3439,7 +3439,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN FALSE 
 ## spine_arg COMMA
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `spine_arg COMMA`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET UNFOLD
 ##
@@ -3457,7 +3457,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET UNFOLD
 ## LET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES UNFOLD
 ##
@@ -3470,7 +3470,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES UNFOL
 ## LET RES
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET RES`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT UNFOLD
 ##
@@ -3483,7 +3483,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET RES IDENT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL UNFOLD
 ##
@@ -3495,7 +3495,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET RES IDENT EQUAL`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL IDENT RPAREN
 ##
@@ -3513,7 +3513,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET RES IDENT EQUAL rpf_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL IDENT SEMICOLON UNFOLD
 ##
@@ -3525,7 +3525,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT EQUAL rpf_expr SEMICOLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET RES IDENT EQUAL rpf_expr SEMICOLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER UNFOLD
 ##
@@ -3537,7 +3537,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER UNFOLD
 ## ITER
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET UNFOLD
 ##
@@ -3549,7 +3549,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## ITER LBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE TYPE
 ##
@@ -3573,7 +3573,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LBRACKET expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET UNFOLD
 ##
@@ -3585,7 +3585,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## ITER LBRACKET expr RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LBRACKET expr RBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN UNFOLD
 ##
@@ -3597,7 +3597,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## ITER LBRACKET expr RBRACKET LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LBRACKET expr RBRACKET LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN UNFOLD
 ##
@@ -3610,7 +3610,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN UN
 ## LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN UNFOLD
 ##
@@ -3622,7 +3622,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LP
 ## LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN IDENT UNFOLD
 ##
@@ -3634,7 +3634,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LP
 ## LPAREN IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN IDENT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN IDENT COMMA UNFOLD
 ##
@@ -3646,7 +3646,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LP
 ## LPAREN IDENT COMMA
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN IDENT COMMA`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN IDENT COMMA IDENT UNFOLD
 ##
@@ -3658,7 +3658,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LP
 ## LPAREN IDENT COMMA IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN IDENT COMMA IDENT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN IDENT UNFOLD
 ##
@@ -3671,7 +3671,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN ID
 ## rpat_elem
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `rpat_elem`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN IDENT COMMA UNFOLD
 ##
@@ -3683,7 +3683,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN ID
 ## rpat_elem COMMA
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `rpat_elem COMMA`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT UNFOLD
 ##
@@ -3695,7 +3695,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## ITER LBRACKET expr RBRACKET LPAREN rpat
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LBRACKET expr RBRACKET LPAREN rpat`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL UNFOLD
 ##
@@ -3707,7 +3707,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF UNFOLD
 ##
@@ -3719,7 +3719,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF UNFOLD
 ## IF
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IF`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET UNFOLD
 ##
@@ -3731,7 +3731,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET U
 ## IF LBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IF LBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT UNFOLD
 ##
@@ -3743,7 +3743,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 ## IF LBRACKET IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IF LBRACKET IDENT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET UNFOLD
 ##
@@ -3755,7 +3755,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 ## IF LBRACKET IDENT RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IF LBRACKET IDENT RBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE TYPE
 ##
@@ -3779,7 +3779,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IF LBRACKET IDENT RBRACKET expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE THEN UNFOLD
 ##
@@ -3791,7 +3791,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 ## IF LBRACKET IDENT RBRACKET expr THEN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IF LBRACKET IDENT RBRACKET expr THEN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IDENT UNFOLD
 ##
@@ -3803,7 +3803,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IDENT UNFOLD
 ## IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IDENT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IDENT LPAREN UNFOLD
 ##
@@ -3815,7 +3815,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IDENT LPAREN 
 ## LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE UNFOLD
 ##
@@ -3827,7 +3827,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE UNFOLD
 ## CASE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `CASE`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET UNFOLD
 ##
@@ -3839,7 +3839,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## CASE LBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `CASE LBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT UNFOLD
 ##
@@ -3851,7 +3851,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## CASE LBRACKET IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `CASE LBRACKET IDENT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET UNFOLD
 ##
@@ -3863,7 +3863,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## CASE LBRACKET IDENT RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `CASE LBRACKET IDENT RBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE TYPE
 ##
@@ -3887,7 +3887,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `CASE LBRACKET IDENT RBRACKET expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF UNFOLD
 ##
@@ -3899,7 +3899,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## CASE LBRACKET IDENT RBRACKET expr OF
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `CASE LBRACKET IDENT RBRACKET expr OF`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE UNFOLD
 ##
@@ -3911,7 +3911,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## CASE LBRACKET IDENT RBRACKET expr OF LBRACE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `CASE LBRACKET IDENT RBRACKET expr OF LBRACE`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL UNFOLD
 ##
@@ -3923,7 +3923,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## LABEL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LABEL`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT UNFOLD
 ##
@@ -3935,7 +3935,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## LABEL IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LABEL IDENT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT ARROW UNFOLD
 ##
@@ -3947,7 +3947,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## LABEL IDENT ARROW
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LABEL IDENT ARROW`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL UNFOLD
 ##
@@ -3959,7 +3959,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL UNFOLD
 ## state_prim
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `state_prim`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET UNFOLD
 ##
@@ -3971,7 +3971,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET 
 ## state_prim LBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `state_prim LBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET BOOL_KW TYPE
 ##
@@ -3983,7 +3983,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET 
 ## state_prim LBRACKET sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `state_prim LBRACKET sort`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET BOOL_KW RBRACKET UNFOLD
 ##
@@ -3995,7 +3995,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET 
 ## state_prim LBRACKET sort RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `state_prim LBRACKET sort RBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO UNFOLD
 ##
@@ -4008,7 +4008,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO UNFOL
 ## crt_seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `crt_seq_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO COLON UNFOLD
 ##
@@ -4020,7 +4020,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO COLON
 ## crt_seq_expr COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `crt_seq_expr COLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT ARROW EXFALSO TYPE
 ##
@@ -4040,7 +4040,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## In state 457, spurious reduction of production crt_case_branch -> LABEL IDENT ARROW crt_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `crt_case_branch`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT ARROW EXFALSO BAR UNFOLD
 ##
@@ -4052,7 +4052,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## crt_case_branch BAR
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `crt_case_branch BAR`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE THEN EXFALSO TYPE
 ##
@@ -4070,7 +4070,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 ## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IF LBRACKET IDENT RBRACKET expr THEN crt_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE THEN EXFALSO ELSE UNFOLD
 ##
@@ -4082,7 +4082,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 ## IF LBRACKET IDENT RBRACKET expr THEN crt_expr ELSE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IF LBRACKET IDENT RBRACKET expr THEN crt_expr ELSE`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO TYPE
 ##
@@ -4100,7 +4100,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO RPAREN UNFOLD
 ##
@@ -4112,7 +4112,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO RPAREN LBRACE UNFOLD
 ##
@@ -4124,7 +4124,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO RPAREN LBRACE EXFALSO TYPE
 ##
@@ -4142,7 +4142,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON UNFOLD
 ##
@@ -4154,7 +4154,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET RES IDENT COLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE UNFOLD
 ##
@@ -4166,7 +4166,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT COLON app_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET RES IDENT COLON app_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT UNFOLD
 ##
@@ -4178,7 +4178,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT COLON app_expr AT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET RES IDENT COLON app_expr AT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE UNFOLD
 ##
@@ -4190,7 +4190,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT COLON app_expr AT app_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET RES IDENT COLON app_expr AT app_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE EQUAL UNFOLD
 ##
@@ -4202,7 +4202,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT COLON app_expr AT app_expr EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET RES IDENT COLON app_expr AT app_expr EQUAL`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE EQUAL IDENT RPAREN
 ##
@@ -4220,7 +4220,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET RES IDENT COLON app_expr AT app_expr EQUAL rpf_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE EQUAL IDENT SEMICOLON UNFOLD
 ##
@@ -4232,7 +4232,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT COLON app_expr AT app_expr EQUAL rpf_expr SEMICOLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET RES IDENT COLON app_expr AT app_expr EQUAL rpf_expr SEMICOLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG UNFOLD
 ##
@@ -4245,7 +4245,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG UNFOL
 ## LET LOG
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET LOG`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT UNFOLD
 ##
@@ -4258,7 +4258,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## LET LOG IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET LOG IDENT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT EQUAL TYPE
 ##
@@ -4270,7 +4270,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## LET LOG IDENT EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET LOG IDENT EQUAL`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT EQUAL AUTO RPAREN
 ##
@@ -4288,7 +4288,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## In state 386, spurious reduction of production lpf_expr -> lpf_atom_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET LOG IDENT EQUAL lpf_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT EQUAL AUTO SEMICOLON UNFOLD
 ##
@@ -4300,7 +4300,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## LET LOG IDENT EQUAL lpf_expr SEMICOLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET LOG IDENT EQUAL lpf_expr SEMICOLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON UNFOLD
 ##
@@ -4312,7 +4312,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## LET LOG IDENT COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET LOG IDENT COLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE UNFOLD
 ##
@@ -4324,7 +4324,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## LET LOG IDENT COLON app_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET LOG IDENT COLON app_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE EQUAL TYPE
 ##
@@ -4336,7 +4336,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## LET LOG IDENT COLON app_expr EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET LOG IDENT COLON app_expr EQUAL`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE EQUAL AUTO RPAREN
 ##
@@ -4354,7 +4354,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## In state 386, spurious reduction of production lpf_expr -> lpf_atom_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET LOG IDENT COLON app_expr EQUAL lpf_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE EQUAL AUTO SEMICOLON UNFOLD
 ##
@@ -4366,7 +4366,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## LET LOG IDENT COLON app_expr EQUAL lpf_expr SEMICOLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET LOG IDENT COLON app_expr EQUAL lpf_expr SEMICOLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE UNFOLD
 ##
@@ -4379,7 +4379,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE UNFO
 ## LET CORE
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET CORE`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET UNFOLD
 ##
@@ -4392,7 +4392,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET CORE LBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT UNFOLD
 ##
@@ -4405,7 +4405,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET CORE LBRACKET IDENT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET UNFOLD
 ##
@@ -4418,7 +4418,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN UNFOLD
 ##
@@ -4430,7 +4430,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT UNFOLD
 ##
@@ -4443,7 +4443,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IDENT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT COMMA UNFOLD
 ##
@@ -4455,7 +4455,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## IDENT COMMA
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `IDENT COMMA`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT RPAREN UNFOLD
 ##
@@ -4467,7 +4467,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT RPAREN EQUAL UNFOLD
 ##
@@ -4479,7 +4479,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT RPAREN EQUAL FALSE TYPE
 ##
@@ -4503,7 +4503,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT RPAREN EQUAL FALSE SEMICOLON UNFOLD
 ##
@@ -4515,7 +4515,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET IDENT UNFOLD
 ##
@@ -4527,7 +4527,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET IDENT`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL UNFOLD
 ##
@@ -4539,7 +4539,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL FALSE TYPE
 ##
@@ -4563,7 +4563,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL FALSE SEMICOLON UNFOLD
 ##
@@ -4575,7 +4575,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL expr SEMICOLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL expr SEMICOLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT UNFOLD
 ##
@@ -4587,7 +4587,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT UNF
 ## LET rpat
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET rpat`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQUAL UNFOLD
 ##
@@ -4599,7 +4599,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQU
 ## LET rpat EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET rpat EQUAL`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQUAL EXFALSO TYPE
 ##
@@ -4617,7 +4617,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQU
 ## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET rpat EQUAL crt_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQUAL EXFALSO SEMICOLON UNFOLD
 ##
@@ -4629,7 +4629,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQU
 ## LET rpat EQUAL crt_expr SEMICOLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `LET rpat EQUAL crt_expr SEMICOLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_TAKE LPAREN EXFALSO TYPE
 ##
@@ -4647,7 +4647,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MA
 ## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `MAKE_TAKE LPAREN crt_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE LPAREN IDENT SEMICOLON
 ##
@@ -4665,7 +4665,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE LPA
 ## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `OPEN_TAKE LPAREN rpf_expr`, an unexpected token appeared.
 
 rprog_eof: FUN UNFOLD
 ##
@@ -4677,7 +4677,7 @@ rprog_eof: FUN UNFOLD
 ## FUN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN`, an unexpected token appeared.
 
 rprog_eof: FUN IDENT UNFOLD
 ##
@@ -4689,7 +4689,7 @@ rprog_eof: FUN IDENT UNFOLD
 ## FUN IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT`, an unexpected token appeared.
 
 rprog_eof: FUN IDENT LPAREN UNFOLD
 ##
@@ -4701,7 +4701,7 @@ rprog_eof: FUN IDENT LPAREN UNFOLD
 ## FUN IDENT LPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT LPAREN`, an unexpected token appeared.
 
 rprog_eof: FUN IDENT LPAREN IDENT UNFOLD
 ##
@@ -4713,7 +4713,7 @@ rprog_eof: FUN IDENT LPAREN IDENT UNFOLD
 ## FUN IDENT LPAREN IDENT
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT LPAREN IDENT`, an unexpected token appeared.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON UNFOLD
 ##
@@ -4725,7 +4725,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON UNFOLD
 ## FUN IDENT LPAREN IDENT COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON`, an unexpected token appeared.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW TYPE
 ##
@@ -4737,7 +4737,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW TYPE
 ## FUN IDENT LPAREN IDENT COLON sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort`, an unexpected token appeared.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN UNFOLD
 ##
@@ -4749,7 +4749,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN UNFOLD
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort RPAREN`, an unexpected token appeared.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW UNFOLD
 ##
@@ -4761,7 +4761,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW UNFOLD
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW`, an unexpected token appeared.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW TYPE
 ##
@@ -4773,7 +4773,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW TYPE
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort`, an unexpected token appeared.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET UNFOLD
 ##
@@ -4785,7 +4785,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET UN
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET`, an unexpected token appeared.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IMPURE UNFOLD
 ##
@@ -4797,7 +4797,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IM
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level`, an unexpected token appeared.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IMPURE RBRACKET UNFOLD
 ##
@@ -4809,7 +4809,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IM
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET`, an unexpected token appeared.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ##
@@ -4821,7 +4821,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IM
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL`, an unexpected token appeared.
 
 rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE SEMICOLON
 ##
@@ -4833,7 +4833,7 @@ rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE SEMICOLON
 ## rdecl
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `rdecl`, an unexpected token appeared.
 
 rprog_eof: MAIN UNFOLD
 ##
@@ -4845,7 +4845,7 @@ rprog_eof: MAIN UNFOLD
 ## list(rdecl) MAIN
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `<decl>... MAIN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON UNFOLD
 ##
@@ -4857,7 +4857,7 @@ rprog_eof: MAIN COLON UNFOLD
 ## list(rdecl) MAIN COLON
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `<decl>... MAIN COLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN UNFOLD
 ##
@@ -4869,7 +4869,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN UNFOLD
 ## list(rdecl) MAIN COLON pf_sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `<decl>... MAIN COLON pf_sort`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET UNFOLD
 ##
@@ -4881,7 +4881,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET UNFOLD
 ## list(rdecl) MAIN COLON pf_sort LBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `<decl>... MAIN COLON pf_sort LBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE UNFOLD
 ##
@@ -4893,7 +4893,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE UNFOLD
 ## list(rdecl) MAIN COLON pf_sort LBRACKET eff_level
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `<decl>... MAIN COLON pf_sort LBRACKET eff_level`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ##
@@ -4905,7 +4905,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ## list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `<decl>... MAIN COLON pf_sort LBRACKET eff_level RBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ##
@@ -4917,7 +4917,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ## list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET EQUAL
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `<decl>... MAIN COLON pf_sort LBRACKET eff_level RBRACKET EQUAL`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO TYPE
 ##
@@ -4935,7 +4935,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO TYPE
 ## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `<decl>... MAIN COLON pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr`, an unexpected token appeared.
 
 sort_eof: UNFOLD
 ##
@@ -4947,7 +4947,7 @@ sort_eof: UNFOLD
 ##
 ##
 
-PLACEHOLDER
+Unexpected token at the start of input.
 
 sort_eof: BOOL_KW TYPE
 ##
@@ -4959,5 +4959,5 @@ sort_eof: BOOL_KW TYPE
 ## sort
 ##
 
-PLACEHOLDER
+PLACEHOLDER: after `sort`, an unexpected token appeared.
 
