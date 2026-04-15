@@ -135,17 +135,32 @@ let rec of_ce ce =
       body';
     ])
   | CoreExpr.LetTuple (xs, bound, body) ->
+    (* Compile a tuple destructure to a parallel [let] over the
+       per-field selectors [prj-n-k], rather than a [match] over the
+       single [tuple-n] constructor. The match form requires Z3 to
+       resolve the polymorphic [tuple-n] against the scrutinee's
+       sort, which it can fail to do when the only context is a
+       chain of [let] bindings (no prior [define-fun] has pinned
+       down the [Tuple-n] instance). Selectors are first-order
+       monomorphic at the user level — the [(prj-n-k)] reference is
+       a non-polymorphic function call — so this avoids the
+       constructor-inference problem entirely. *)
     let n = List.length xs in
     let* b = of_ce bound in
     let* body' = of_ce body in
-    let var_syms =
-      List.map (fun (x, _) -> sym_at loc (SmtSym.of_var x)) xs
+    let bindings =
+      List.mapi (fun i (x, _) ->
+        let k = i + 1 in
+        list_at loc [
+          sym_at loc (SmtSym.of_var x);
+          list_at loc [sym_at loc (SmtSym.tuple_proj n k); b];
+        ])
+        xs
     in
-    let pat = list_at loc (sym_at loc (SmtSym.tuple_ctor n) :: var_syms) in
     Ok (list_at loc [
-      res_at loc SmtAtom.R_match;
-      b;
-      list_at loc [list_at loc [pat; body']];
+      res_at loc SmtAtom.R_let;
+      list_at loc bindings;
+      body';
     ])
 
   | CoreExpr.Inject (l, payload) ->
