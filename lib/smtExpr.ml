@@ -175,34 +175,43 @@ let rec of_ce ce =
      | Sort.App (dsort, _) ->
        let* s = of_ce scrut in
        let* cases =
-         map_result (fun (l, x, body, _) ->
-           let* body' = of_ce body in
+         map_result (fun (l, x, body, info) ->
            let label_sym = sym_at loc (SmtSym.ctor_name dsort l) in
-           let pat =
-             (* If the constructor's payload is unit ([Record []]) the
-                bound variable is trivial — we want a nullary match
-                pattern consisting of just the label. We detect this by
-                the var's binding-site annotation carrying the payload
-                sort via the branch's 'b info. But with the current
-                shape of ceF we only have access to the branch's
-                [info : 'b]; we can't inspect the constructor's declared
-                payload from here. Instead, emit the standard
-                [(L x)] form and let SMT bind [x] to the (unique) unit
-                value. This is a conservative choice — if nullary
-                constructors are compiled to [((D-L))] per the plan, the
-                [Inject] side never produces such a value, and
-                [LetTuple]/[Var] accesses to a bound unit variable in
-                the body are well-typed. *)
-             list_at loc [label_sym; sym_at loc (SmtSym.of_var x)]
-           in
-           Ok (list_at loc [pat; body']))
+           (* The branch's [info#sort] is the constructor's payload
+              sort (set by [build_sort_con_branches] /
+              [build_type_con_branches] in [lib/elaborate.ml]). When
+              the payload is [Record []] the constructor is nullary,
+              the SMT match pattern is just the bare label, and any
+              reference to the (notional) payload variable in the
+              body is rewritten to the unit constructor [tuple-0].
+              Otherwise the pattern is [(D-L x)] binding the payload
+              to [x]. *)
+           match Sort.shape info#sort with
+           | Sort.Record [] ->
+             let unit_ce =
+               CoreExpr.mk info (CoreExpr.Tuple [])
+             in
+             let body_subst =
+               Subst.apply_ce
+                 (Subst.extend_var x unit_ce Subst.empty)
+                 body
+             in
+             let* body' = of_ce body_subst in
+             Ok (list_at loc [label_sym; body'])
+           | _ ->
+             let* body' = of_ce body in
+             let pat = list_at loc [label_sym; sym_at loc (SmtSym.of_var x)] in
+             Ok (list_at loc [pat; body']))
            branches
        in
        Ok (list_at loc [res_at loc SmtAtom.R_match; s; list_at loc cases])
      | _ ->
        Error (Format.asprintf
-                "case: scrutinee sort must be a datatype application, got `%a`"
-                Sort.print (CoreExpr.info scrut)#sort))
+                "case at %a: scrutinee sort must be a datatype application, got `%a` (scrutinee: `%a`; outer case sort: `%a`)"
+                SourcePos.print (CoreExpr.info scrut)#loc
+                Sort.print (CoreExpr.info scrut)#sort
+                CoreExpr.print scrut
+                Sort.print (CoreExpr.info ce)#sort))
 
   | CoreExpr.Iter _ ->
     Error "iter is not expressible in SMT"
