@@ -45,27 +45,33 @@ let rec apply_ce sub e =
      | None -> e)
   | CoreExpr.IntLit _ | CoreExpr.BoolLit _ -> e
   | CoreExpr.Let ((v, vb), e1, e2) ->
+    (* Shadowing entries use the *binder's* info, not [b] — [b] is the
+       enclosing expression's info, whose sort is generally the let's
+       result sort, not the bound variable's. See regression uncovered
+       by examples/listlength.rcn. *)
     let e1' = apply_ce sub e1 in
-    let sub' = extend_var v (CoreExpr.mk b (CoreExpr.Var v)) sub in
+    let sub' = extend_var v (CoreExpr.mk vb (CoreExpr.Var v)) sub in
     CoreExpr.mk b (CoreExpr.Let ((v, vb), e1', apply_ce sub' e2))
   | CoreExpr.Tuple es ->
     CoreExpr.mk b (CoreExpr.Tuple (List.map (apply_ce sub) es))
   | CoreExpr.LetTuple (vs, e1, e2) ->
     let e1' = apply_ce sub e1 in
-    let sub' = List.fold_left (fun acc (v, _) ->
-      extend_var v (CoreExpr.mk b (CoreExpr.Var v)) acc) sub vs in
+    let sub' = List.fold_left (fun acc (v, vi) ->
+      extend_var v (CoreExpr.mk vi (CoreExpr.Var v)) acc) sub vs in
     CoreExpr.mk b (CoreExpr.LetTuple (vs, e1', apply_ce sub' e2))
   | CoreExpr.Inject (l, e1) ->
     CoreExpr.mk b (CoreExpr.Inject (l, apply_ce sub e1))
   | CoreExpr.Case (scrut, branches) ->
     let scrut' = apply_ce sub scrut in
     let branches' = List.map (fun (l, v, body, bi) ->
-      let sub' = extend_var v (CoreExpr.mk b (CoreExpr.Var v)) sub in
+      let sub' = extend_var v (CoreExpr.mk bi (CoreExpr.Var v)) sub in
       (l, v, apply_ce sub' body, bi)) branches in
     CoreExpr.mk b (CoreExpr.Case (scrut', branches'))
   | CoreExpr.Iter (v, e1, e2) ->
+    (* Iter has no explicit bind info for [v]; its sort matches the
+       init expression [e1]'s sort. *)
     let e1' = apply_ce sub e1 in
-    let sub' = extend_var v (CoreExpr.mk b (CoreExpr.Var v)) sub in
+    let sub' = extend_var v (CoreExpr.mk (CoreExpr.info e1) (CoreExpr.Var v)) sub in
     CoreExpr.mk b (CoreExpr.Iter (v, e1', apply_ce sub' e2))
   | CoreExpr.App (p, e1) ->
     CoreExpr.mk b (CoreExpr.App (p, apply_ce sub e1))
@@ -83,7 +89,7 @@ let rec apply_ce sub e =
     CoreExpr.mk b (CoreExpr.Not (apply_ce sub e1))
   | CoreExpr.Take ((v, vb), e1, e2) ->
     let e1' = apply_ce sub e1 in
-    let sub' = extend_var v (CoreExpr.mk b (CoreExpr.Var v)) sub in
+    let sub' = extend_var v (CoreExpr.mk vb (CoreExpr.Var v)) sub in
     CoreExpr.mk b (CoreExpr.Take ((v, vb), e1', apply_ce sub' e2))
   | CoreExpr.Return e1 ->
     CoreExpr.mk b (CoreExpr.Return (apply_ce sub e1))
