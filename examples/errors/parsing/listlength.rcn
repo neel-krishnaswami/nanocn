@@ -1,0 +1,80 @@
+// A refined function computing the length of a linked list,
+// specified against the pure `length` over the corresponding Lst.
+
+sort Lst(a) = {
+    Nil : ()
+  | Cons : (a * Lst(a))
+}
+
+type List(a) = {
+    Nil : ()
+  | Cons : (a * Ptr(List(a)))
+}
+
+// Pure length on a spec-level Lst.
+fun length (xs : Lst(Int)) -> Int [spec] =
+  case xs of {
+      Nil u -> 0
+    | Cons p -> let (x, xs') = p; 1 + length(xs')
+  }
+
+// Sequence the heap-allocated list into a spec Lst.
+fun sequence (p : Ptr(List(Int))) -> Pred Lst(Int) [spec] =
+  take v = Own[List(Int)](p);
+  case v of {
+      Nil u -> return (Nil ())
+    | Cons pair -> let (x, q) = pair;
+                   take xs = sequence(q);
+                   return (Cons (x, xs))
+  }
+
+// Refined length: walks the heap list, returns (len, proof, resource).
+rfun length
+    (p : Ptr(List(Int)),
+     [res] r : (do xs : Lst(Int) = sequence(p)))
+  -> (n : Int,
+      [log] (n == length(xs)),
+      [res] (do xs' : Lst(Int) = sequence(p)))
+  [impure] =
+  let log prop = unfold sequence(p);
+  // Refine r's type by ascribing the unfolded take-form of sequence(p).
+  // The SMT solver checks this ascription equals the original (do xs = sequence(p)) type.
+  let res r1 : (take v_in = (Own[List(Int)](p) : Pred List(Int));
+                case v_in of {
+                    Nil u -> return (Nil ())
+                  | Cons pair -> let (x, q) = pair;
+                                 take xs_tl = (sequence(q) : Pred Lst(Int));
+                                 return (Cons (x, xs_tl))
+                }) @ xs = r;
+  let (v0, own, rest) = open-take(r1);
+  let v = Get[List(Int)](p, res own);
+  case [a] v of {
+      Nil u ->
+        // Specialize rest to the Nil branch's take-continuation.
+        let res rest_nil : (return (Nil ()) : Pred Lst(Int)) @ xs = rest;
+        let log prop1 = open-ret(rest_nil);
+        (0,
+         log auto,
+         res make-ret(auto) : (return (Nil ()) : Pred Lst(Int))
+                              @ (Nil () : Lst(Int)))
+    | Cons pair ->
+        let core[pair_eq] (x, q) = pair;
+        // Specialize rest to the Cons branch's take-continuation.
+        let res rest_cons : (take xs_tl = (sequence(q) : Pred Lst(Int));
+                             return (Cons (x, xs_tl))) @ xs = rest;
+        let (xs0, rq, rret) = open-take(rest_cons);
+        let log prop2 = open-ret(rret);
+        let (m, prop3, (xs_new, rq2)) = length(q, res rq);
+        // rest2 : (take xs_tl = sequence(q); return (Cons(x, xs_tl))) @ (Cons(x, xs0))
+        let res rest2 : ((take xs_tl = (sequence(q) : Pred Lst(Int));
+                          return (Cons (x, xs_tl))) : Pred Lst(Int))
+                        @ (Cons (x, xs0) : Lst(Int))
+          = make-take((xs0,
+                       res rq2,
+                       res make-ret(auto)
+                         : (return (Cons (x, xs0)) : Pred Lst(Int))
+                           @ (Cons (x, xs0) : Lst(Int))));
+        (m + 1, log auto, res rest2)
+  }
+
+main : () [impure] = ()

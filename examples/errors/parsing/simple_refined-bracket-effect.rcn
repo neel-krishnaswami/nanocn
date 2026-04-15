@@ -1,0 +1,2 @@
+main : (x : Int) pure =
+  (42) : (x : Int)

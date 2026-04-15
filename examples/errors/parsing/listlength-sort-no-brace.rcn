@@ -1,0 +1,2 @@
+sort Lst(a) = Nil : () | Cons : (a * Lst(a))
+main : () [impure] = ()

@@ -1,0 +1,7 @@
+sort Lst(a) = { Nil : () | Cons : (a * Lst(a)) }
+fun length (xs : Lst(Int)) -> Int [spec] =
+  case xs of {
+      Nil u -> 0
+      Cons p -> let (x, xs') = p; 1 + length(xs')
+  }
+main : () [impure] = ()

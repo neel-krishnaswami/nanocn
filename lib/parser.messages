@@ -8,7 +8,7 @@ prog_eof: UNFOLD
 ##
 ##
 
-Unexpected token at the start of input.
+Expected the start of a top-level construct: a `fun`/`rfun` declaration, a `sort`/`type` declaration, or the `main` entry.
 
 repl_decl: TYPE UNFOLD
 ##
@@ -59,7 +59,7 @@ repl_decl: TYPE LABEL LPAREN IDENT UNFOLD
 ## IDENT
 ##
 
-PLACEHOLDER: after `IDENT`, an unexpected token appeared.
+In a type-parameter list `(a, b, c)`: expected `,` to continue or `)` to close.
 
 repl_decl: TYPE LABEL LPAREN IDENT COMMA UNFOLD
 ##
@@ -119,7 +119,7 @@ rprog_eof: TYPE LABEL EQUAL LBRACE LABEL UNFOLD
 ## LABEL
 ##
 
-PLACEHOLDER: after `LABEL`, an unexpected token appeared.
+After `type <Name>`: expected `(...)` for type parameters or `=` followed by `{ ... }` for the constructor list.
 
 rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON UNFOLD
 ##
@@ -182,7 +182,7 @@ sort_eof: LABEL UNFOLD
 ## LABEL
 ##
 
-PLACEHOLDER: after `LABEL`, an unexpected token appeared.
+After `type <Name>`: expected `(...)` for type parameters or `=` followed by `{ ... }` for the constructor list.
 
 sort_eof: LABEL LPAREN UNFOLD
 ##
@@ -232,7 +232,7 @@ sort_eof: LPAREN BOOL_KW TYPE
 ## LPAREN sort
 ##
 
-PLACEHOLDER: after `LPAREN sort`, an unexpected token appeared.
+Inside a parenthesised sort: expected `)`, `*` to extend a record sort, or end of the sort.
 
 sort_eof: LPAREN BOOL_KW STAR UNFOLD
 ##
@@ -404,7 +404,7 @@ rprog_eof: SORT LABEL EQUAL LBRACE LABEL UNFOLD
 ## LABEL
 ##
 
-PLACEHOLDER: after `LABEL`, an unexpected token appeared.
+After `sort <Name>`: expected `(...)` for type parameters or `=` followed by `{ ... }` for the constructor list.
 
 rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON UNFOLD
 ##
@@ -537,7 +537,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW TYPE
 ## FUN IDENT COLON sort ARROW sort
 ##
 
-PLACEHOLDER: after `FUN IDENT COLON sort ARROW sort`, an unexpected token appeared.
+After the return sort of a function: expected an effect annotation `[pure]`, `[impure]`, or `[spec]` in brackets.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET UNFOLD
 ##
@@ -623,7 +623,7 @@ program: TAKE LABEL UNFOLD
 ## LABEL
 ##
 
-PLACEHOLDER: after `LABEL`, an unexpected token appeared.
+After `sort <Name>`: expected `(...)` for type parameters or `=` followed by `{ ... }` for the constructor list.
 
 program: TAKE LPAREN IDENT UNFOLD
 ##
@@ -661,7 +661,7 @@ program: TAKE LPAREN IDENT COMMA IDENT UNFOLD
 ## pat
 ##
 
-PLACEHOLDER: after `pat`, an unexpected token appeared.
+In a pattern: expected `,` to continue a tuple pattern or `)` to close it.
 
 program: TAKE LPAREN IDENT COMMA IDENT COMMA UNFOLD
 ##
@@ -685,7 +685,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL 
 ## pat
 ##
 
-PLACEHOLDER: after `pat`, an unexpected token appeared.
+After a constructor pattern: expected an arrow `->` followed by the branch body, or another piece of the pattern.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL LBRACE IDENT ARROW UNFOLD
 ##
@@ -786,7 +786,7 @@ program: LET UNFOLD
 ## LET
 ##
 
-PLACEHOLDER: after `LET`, an unexpected token appeared.
+After `let`: expected a binder pattern (an identifier, a tuple `(x, y)`, or `()`).
 
 program: LET IDENT UNFOLD
 ##
@@ -823,7 +823,7 @@ program: LABEL UNFOLD
 ## LABEL
 ##
 
-PLACEHOLDER: after `LABEL`, an unexpected token appeared.
+After a constructor `Label`: expected an argument expression (literal, identifier, or parenthesised form).
 
 program: IDENT UNFOLD
 ##
@@ -836,7 +836,7 @@ program: IDENT UNFOLD
 ## IDENT
 ##
 
-PLACEHOLDER: after `IDENT`, an unexpected token appeared.
+After an identifier in expression position: expected either an argument (to call this as a function), an operator (`+`, `-`, `==`, ...), or a delimiter (`;`, `)`, `,`).
 
 program: DEL UNFOLD
 ##
@@ -848,7 +848,7 @@ program: DEL UNFOLD
 ## state_prim
 ##
 
-PLACEHOLDER: after `state_prim`, an unexpected token appeared.
+After a state primitive (`New`, `Del`, `Get`, `Set`, `Own`, `Eq`): expected `[<sort>]` giving the element sort, e.g. `New[Int] 0`.
 
 program: DEL LBRACKET UNFOLD
 ##
@@ -1004,7 +1004,7 @@ program: CASE FALSE OF LBRACE IDENT UNFOLD
 ## pat
 ##
 
-PLACEHOLDER: after `pat`, an unexpected token appeared.
+In a `case` branch: expected `->` followed by the branch body.
 
 program: CASE FALSE OF LBRACE IDENT ARROW UNFOLD
 ##
@@ -1067,7 +1067,7 @@ program: FALSE UNFOLD
 ## mul_expr
 ##
 
-PLACEHOLDER: after `mul_expr`, an unexpected token appeared.
+Expression complete: expected an operator (`+`, `-`, `*`, `/`, comparison, `&&`/`||`) or a delimiter (`;`, `)`, `,`, `:` for an annotation, or end of input).
 
 program: FALSE STAR UNFOLD
 ##
@@ -1545,7 +1545,7 @@ program: LET IDENT EQUAL FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER: after `LET pat EQUAL expr`, an unexpected token appeared.
+After the right-hand side of `let <pat> = ...`: expected `;` to end the binding (the body follows on the next line).
 
 program: LET IDENT EQUAL FALSE SEMICOLON UNFOLD
 ##
@@ -1654,7 +1654,7 @@ program: LPAREN FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER: after `LPAREN expr`, an unexpected token appeared.
+Inside `(...)`: expected `)` to close, `,` to make this a tuple, or `:` to add a sort annotation.
 
 program: LPAREN FALSE COMMA UNFOLD
 ##
@@ -2053,7 +2053,7 @@ repl_let: LET UNFOLD
 ## LET
 ##
 
-PLACEHOLDER: after `LET`, an unexpected token appeared.
+After `let` in a refined term: expected a pattern (`x`, `(x, y)`, `()`), or one of the qualified forms `let log`, `let res`, `let core[a] ...`.
 
 repl_let: LET IDENT UNFOLD
 ##
@@ -2663,7 +2663,7 @@ rprog_eof: RFUN IDENT LPAREN IDENT UNFOLD
 ## IDENT
 ##
 
-PLACEHOLDER: after `IDENT`, an unexpected token appeared.
+In an `rfun` parameter list, after a binder name: expected `:` followed by a sort, e.g. `x : Int`.
 
 rprog_eof: RFUN IDENT LPAREN IDENT COLON UNFOLD
 ##
@@ -3002,7 +3002,7 @@ rprog_eof: MAIN COLON LPAREN IDENT UNFOLD
 ## IDENT
 ##
 
-PLACEHOLDER: after `IDENT`, an unexpected token appeared.
+In a refined codomain or proof-sort, after a binder name: expected `:` followed by a sort.
 
 rprog_eof: MAIN COLON LPAREN IDENT COLON UNFOLD
 ##
@@ -3457,7 +3457,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET UNFOLD
 ## LET
 ##
 
-PLACEHOLDER: after `LET`, an unexpected token appeared.
+After `let` in a refined term: expected a pattern (`x`, `(x, y)`, `()`), or one of the qualified forms `let log`, `let res`, `let core[a] ...`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES UNFOLD
 ##
@@ -3803,7 +3803,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IDENT UNFOLD
 ## IDENT
 ##
 
-PLACEHOLDER: after `IDENT`, an unexpected token appeared.
+After a function name in a refined term: expected an argument spine `(<args>)`. Refined function calls require parentheses around the arguments, even when there is only one.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IDENT LPAREN UNFOLD
 ##
@@ -3923,7 +3923,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## LABEL
 ##
 
-PLACEHOLDER: after `LABEL`, an unexpected token appeared.
+After a constructor `Label` in a refined term: this label cannot stand alone here; provide an argument expression after it (`Label arg`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT UNFOLD
 ##
@@ -3959,7 +3959,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL UNFOLD
 ## state_prim
 ##
 
-PLACEHOLDER: after `state_prim`, an unexpected token appeared.
+After a state primitive (`New`, `Del`, `Get`, `Set`, `Own`, `Eq`) in a refined term: expected `[<sort>]` giving the element sort, e.g. `Get[Int](p, res r)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET UNFOLD
 ##
@@ -4443,7 +4443,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## IDENT
 ##
 
-PLACEHOLDER: after `IDENT`, an unexpected token appeared.
+In a `let core[a] (x1, ..., xn)` binder list: expected `,` to continue or `)` to close.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT COMMA UNFOLD
 ##

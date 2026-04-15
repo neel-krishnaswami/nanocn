@@ -1,0 +1,2 @@
+fun add x : Int -> Int [pure] = x
+main : (r : Int) [pure] = add(42) : (r : Int)

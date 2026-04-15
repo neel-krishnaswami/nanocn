@@ -1,0 +1,13 @@
+fun square : int -> int [spec] = {
+  x -> x * x
+}
+
+fun cube : int -> int [spec] = {
+  x -> x * x * x
+}
+
+fun diff : (int * int) -> int [spec] = {
+  (a, b) -> a - b
+}
+
+main : () [impure] = ()

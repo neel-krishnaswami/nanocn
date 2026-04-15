@@ -1,0 +1,3 @@
+// Refined program with exfalso
+main : (x : Int) [pure] =
+  exfalso

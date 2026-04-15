@@ -1,0 +1,15 @@
+fun double : int -> int [pure] = {
+  x -> x + x
+}
+
+fun sumPair : (int * int) -> int [pure] = {
+  (a, b) -> a + b
+}
+
+main : () [impure] =
+  let p = New[int] 0;
+  let v = double 21;
+  let u = Set[int] (p, v);
+  let r = Get[int] p;
+  let w = Del[int] p;
+  ()

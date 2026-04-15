@@ -1,0 +1,3 @@
+rfun incr (p : Ptr Int, [res] r : (do x : Int = Own[Int](p)))
+  -> ([res] r' : (do x' : Int = Own[Int](p))) [impure] = (res r)
+main : () [impure] = ()

@@ -1,0 +1,7 @@
+fun double : int -> int [pure] = {
+  x  x + x
+}
+
+main : () [impure] =
+  let v = double 21;
+  ()

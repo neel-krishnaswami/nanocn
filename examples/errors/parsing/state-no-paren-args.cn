@@ -1,0 +1,4 @@
+main : () [impure] =
+  let p = New[int] 0;
+  let u = Set[int] p, 5;
+  ()

@@ -1,0 +1,2 @@
+sort Map(k v) = { Empty : () | Bind : (k * v * Map(k, v)) }
+main : () [impure] = ()

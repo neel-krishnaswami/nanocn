@@ -1,0 +1,3 @@
+rfun identity x : Int -> y : Int [pure] =
+  (x) : (y : Int)
+main : (r : Int) [pure] = identity(42) : (r : Int)

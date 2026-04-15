@@ -1,0 +1,5 @@
+fun double : int -> int = {
+  x -> x + x
+}
+
+main : () [impure] = ()

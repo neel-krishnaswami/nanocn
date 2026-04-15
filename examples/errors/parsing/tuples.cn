@@ -1,0 +1,7 @@
+fun swap : (int * int) -> (int * int) [pure] = {
+  (x, y) -> (y, x)
+}
+
+main : () [impure] =
+  let p = swap (3, 4);
+  ()

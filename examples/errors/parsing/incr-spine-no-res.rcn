@@ -1,0 +1,3 @@
+main : () [impure] =
+  let (v, pf, r2) = Get[Int](p, r);
+  ()
