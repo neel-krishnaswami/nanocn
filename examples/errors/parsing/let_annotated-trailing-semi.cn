@@ -1,0 +1,6 @@
+fun f : Int -> Int [pure] = {
+  n ->
+  let x : Int = n + 1;
+}
+
+main : () [impure] = ()

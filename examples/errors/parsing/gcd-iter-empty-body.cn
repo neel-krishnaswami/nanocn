@@ -1,0 +1,7 @@
+fun gcd : (Int * Int) -> Int [impure] = {
+  (x, y) ->
+  iter ((a, b) = ((x, y) : (Int * Int))) {
+  }
+}
+
+main : () [impure] = ()

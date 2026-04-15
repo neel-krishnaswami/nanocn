@@ -1,0 +1,13 @@
+sort List(a) = { Nil : () | Cons : (a * List(a)) }
+
+fun listsum : List(Int) -> Int [impure] = {
+  xs ->
+  iter ((ys, acc) = ((xs, 0) : (List(Int) * Int))) {
+    case ys of {
+      Nil u -> Done acc : Step((List(Int) * Int), Int)
+    | Cons (h, t) -> Next (t, acc + h) : Step((List(Int) * Int), Int)
+    };
+  }
+}
+
+main : () [impure] = ()

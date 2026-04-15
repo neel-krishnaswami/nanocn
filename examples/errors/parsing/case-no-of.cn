@@ -1,0 +1,2 @@
+main : () [impure] =
+  case 5 { x -> x }

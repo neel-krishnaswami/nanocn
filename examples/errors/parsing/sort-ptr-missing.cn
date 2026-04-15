@@ -1,0 +1,5 @@
+fun f : Ptr -> Int [pure] = {
+  p -> 0
+}
+
+main : () [impure] = ()

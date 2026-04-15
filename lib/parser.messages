@@ -21,7 +21,7 @@ repl_decl: TYPE UNFOLD
 ## TYPE
 ##
 
-PLACEHOLDER: after `TYPE`, an unexpected token appeared.
+After `type`: expected a constructor-style name beginning with an uppercase letter (e.g. `type List(a) = ...`, `type Option(a) = ...`). Lowercase names are reserved for variables and sort parameters.
 
 repl_decl: TYPE LABEL UNFOLD
 ##
@@ -34,7 +34,7 @@ repl_decl: TYPE LABEL UNFOLD
 ## TYPE LABEL
 ##
 
-PLACEHOLDER: after `TYPE LABEL`, an unexpected token appeared.
+After `type <Name>`: expected `(<params>)` for a parametric type (e.g. `type List(a) = { ... }`) or `=` to begin the constructor block (e.g. `type Direction = { N : () | S : () }`).
 
 repl_decl: TYPE LABEL LPAREN UNFOLD
 ##
@@ -46,7 +46,7 @@ repl_decl: TYPE LABEL LPAREN UNFOLD
 ## TYPE LABEL LPAREN
 ##
 
-PLACEHOLDER: after `TYPE LABEL LPAREN`, an unexpected token appeared.
+After `type <Name>(`: expected at least one lowercase type parameter (e.g. `type Pair(a, b) = { ... }`). Parameter lists are comma-separated and cannot be empty — for a non-parametric type, omit the `(...)` entirely: `type Direction = { ... }`.
 
 repl_decl: TYPE LABEL LPAREN IDENT UNFOLD
 ##
@@ -71,7 +71,7 @@ repl_decl: TYPE LABEL LPAREN IDENT COMMA UNFOLD
 ## IDENT COMMA
 ##
 
-PLACEHOLDER: after `IDENT COMMA`, an unexpected token appeared.
+After `,` in a type-parameter list: expected the next lowercase parameter name (e.g. `type Map(k, v) = ...`). Trailing commas are not allowed.
 
 repl_decl: TYPE LABEL LPAREN IDENT RPAREN UNFOLD
 ##
@@ -83,7 +83,7 @@ repl_decl: TYPE LABEL LPAREN IDENT RPAREN UNFOLD
 ## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN
 ##
 
-PLACEHOLDER: after `TYPE LABEL LPAREN <type-params> RPAREN`, an unexpected token appeared.
+After `type <Name>(<params>)`: expected `=` followed by the constructor block `{ ... }` (e.g. `type List(a) = { Nil : () | Cons : (a * List(a)) }`).
 
 repl_decl: TYPE LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ##
@@ -95,7 +95,7 @@ repl_decl: TYPE LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL
 ##
 
-PLACEHOLDER: after `TYPE LABEL LPAREN <type-params> RPAREN EQUAL`, an unexpected token appeared.
+After `=` in a `type` declaration: expected `{` to open the constructor block. The block is mandatory — use `{ <Ctor1> : <payload1> | <Ctor2> : <payload2> ... }`.
 
 repl_decl: TYPE LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ##
@@ -107,7 +107,7 @@ repl_decl: TYPE LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE
 ##
 
-PLACEHOLDER: after `TYPE LABEL LPAREN <type-params> RPAREN EQUAL LBRACE`, an unexpected token appeared.
+After `= {` in a `type` declaration: expected at least one constructor declaration `<Ctor> : <payload-sort>`. Empty constructor lists are not allowed — every type has at least one variant.
 
 rprog_eof: TYPE LABEL EQUAL LBRACE LABEL UNFOLD
 ##
@@ -119,7 +119,7 @@ rprog_eof: TYPE LABEL EQUAL LBRACE LABEL UNFOLD
 ## LABEL
 ##
 
-After `type <Name>`: expected `(...)` for type parameters or `=` followed by `{ ... }` for the constructor list.
+After a constructor name in a `type { ... }` body: expected `:` followed by the payload sort, e.g. `Cons : (a * List(a))`. Use `: ()` for a nullary constructor.
 
 rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON UNFOLD
 ##
@@ -131,7 +131,7 @@ rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON UNFOLD
 ## LABEL COLON
 ##
 
-PLACEHOLDER: after `LABEL COLON`, an unexpected token appeared.
+After `<Ctor> :` in a `type { ... }` body: expected the constructor's payload sort (e.g. `: a`, `: (Int * Bool)`, `: ()` for a nullary constructor). Every constructor needs a payload — use `: ()` for ones with no arguments.
 
 sort_eof: PTR UNFOLD
 ##
@@ -143,7 +143,7 @@ sort_eof: PTR UNFOLD
 ## PTR
 ##
 
-PLACEHOLDER: after `PTR`, an unexpected token appeared.
+After `Ptr`: expected an atomic sort giving the pointer's element type (e.g. `Ptr Int`, `Ptr List(Int)`, `Ptr (Int * Bool)`). The element sort must be atomic — wrap function or parenthesised sorts in parentheses.
 
 sort_eof: LPAREN UNFOLD
 ##
@@ -157,7 +157,7 @@ sort_eof: LPAREN UNFOLD
 ## LPAREN
 ##
 
-PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
+After `(` in a sort: expected `)` to form the unit sort `()`, or a sort followed by `)` (parenthesised), or a `*`-separated record sort `(τ₁ * τ₂ * ...)`.
 
 sort_eof: PRED UNFOLD
 ##
@@ -169,7 +169,7 @@ sort_eof: PRED UNFOLD
 ## PRED
 ##
 
-PLACEHOLDER: after `PRED`, an unexpected token appeared.
+After `Pred`: expected an atomic sort giving the predicate's payload type (e.g. `Pred Int`, `Pred List(Int)`). The payload sort must be atomic — wrap compound sorts in parentheses.
 
 sort_eof: LABEL UNFOLD
 ##
@@ -182,7 +182,7 @@ sort_eof: LABEL UNFOLD
 ## LABEL
 ##
 
-After `type <Name>`: expected `(...)` for type parameters or `=` followed by `{ ... }` for the constructor list.
+After a datasort name used as a sort: expected either `(<sort>, ...)` to give type arguments (e.g. `List(Int)`, `Tree(a, b)`), or end of sort (e.g. `->`, `)`, `,`, `*`) for a nullary datasort (e.g. `Color`).
 
 sort_eof: LABEL LPAREN UNFOLD
 ##
@@ -194,7 +194,7 @@ sort_eof: LABEL LPAREN UNFOLD
 ## LABEL LPAREN
 ##
 
-PLACEHOLDER: after `LABEL LPAREN`, an unexpected token appeared.
+After `<Datasort>(` in a sort position: expected at least one sort argument (e.g. `List(Int)`, `Tree(a, b)`). For a nullary datasort, write the name alone without parentheses (e.g. `Color`, not `Color()`).
 
 sort_eof: LABEL LPAREN BOOL_KW TYPE
 ##
@@ -207,7 +207,7 @@ sort_eof: LABEL LPAREN BOOL_KW TYPE
 ## sort
 ##
 
-PLACEHOLDER: after `sort`, an unexpected token appeared.
+Inside a datasort argument list (e.g. `List(...)`, `Tree(...)`): expected `,` to continue with another sort argument or `)` to close the application.
 
 sort_eof: LABEL LPAREN BOOL_KW COMMA UNFOLD
 ##
@@ -219,7 +219,7 @@ sort_eof: LABEL LPAREN BOOL_KW COMMA UNFOLD
 ## sort COMMA
 ##
 
-PLACEHOLDER: after `sort COMMA`, an unexpected token appeared.
+After `,` in a datasort argument list: expected another sort (e.g. `Tree(a, b)`). Trailing commas are not allowed.
 
 sort_eof: LPAREN BOOL_KW TYPE
 ##
@@ -244,7 +244,7 @@ sort_eof: LPAREN BOOL_KW STAR UNFOLD
 ## LPAREN sort STAR
 ##
 
-PLACEHOLDER: after `LPAREN sort STAR`, an unexpected token appeared.
+After `*` in a record sort: expected another sort (e.g. `(Int * Bool)`, `(Int * Bool * String)`). Trailing `*` is not allowed.
 
 sort_eof: LPAREN BOOL_KW STAR BOOL_KW TYPE
 ##
@@ -257,7 +257,7 @@ sort_eof: LPAREN BOOL_KW STAR BOOL_KW TYPE
 ## sort
 ##
 
-PLACEHOLDER: after `sort`, an unexpected token appeared.
+Inside a record sort `(τ * τ * ...)`: expected `*` to add another field or `)` to close.
 
 sort_eof: LPAREN BOOL_KW STAR BOOL_KW STAR UNFOLD
 ##
@@ -269,7 +269,7 @@ sort_eof: LPAREN BOOL_KW STAR BOOL_KW STAR UNFOLD
 ## sort STAR
 ##
 
-PLACEHOLDER: after `sort STAR`, an unexpected token appeared.
+After `*` in a record sort: expected the next field sort (e.g. `(Int * Bool * String)`).
 
 rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON BOOL_KW TYPE
 ##
@@ -282,7 +282,7 @@ rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON BOOL_KW TYPE
 ## type_ctor_decl
 ##
 
-PLACEHOLDER: after `type_ctor_decl`, an unexpected token appeared.
+After a `type` constructor declaration: expected `|` to separate it from the next constructor, or `}` to close the constructor list. Constructors are separated by `|`, not `,` or `;`.
 
 rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON BOOL_KW BAR UNFOLD
 ##
@@ -294,7 +294,7 @@ rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON BOOL_KW BAR UNFOLD
 ## type_ctor_decl BAR
 ##
 
-PLACEHOLDER: after `type_ctor_decl BAR`, an unexpected token appeared.
+After `|` in a `type { ... }` body: expected the next constructor declaration — an uppercase constructor name followed by `: <payload-sort>` (use `: ()` for nullary). No leading or doubled `|`s are allowed.
 
 repl_decl: TYPE LABEL EQUAL UNFOLD
 ##
@@ -306,7 +306,7 @@ repl_decl: TYPE LABEL EQUAL UNFOLD
 ## TYPE LABEL EQUAL
 ##
 
-PLACEHOLDER: after `TYPE LABEL EQUAL`, an unexpected token appeared.
+After `type <Name> =`: expected `{` to open the constructor block (e.g. `type Direction = { N : () | S : () }`). The block is mandatory even for a single constructor.
 
 repl_decl: TYPE LABEL EQUAL LBRACE UNFOLD
 ##
@@ -318,7 +318,7 @@ repl_decl: TYPE LABEL EQUAL LBRACE UNFOLD
 ## TYPE LABEL EQUAL LBRACE
 ##
 
-PLACEHOLDER: after `TYPE LABEL EQUAL LBRACE`, an unexpected token appeared.
+After `= {` in a `type` declaration: expected at least one constructor declaration `<Ctor> : <payload-sort>`. Empty constructor lists are not allowed.
 
 repl_decl: SORT UNFOLD
 ##
@@ -331,7 +331,7 @@ repl_decl: SORT UNFOLD
 ## SORT
 ##
 
-PLACEHOLDER: after `SORT`, an unexpected token appeared.
+After `sort`: expected a constructor-style name beginning with an uppercase letter (e.g. `sort List(a) = ...`, `sort Color = ...`). Lowercase names are reserved for variables and sort parameters.
 
 repl_decl: SORT LABEL UNFOLD
 ##
@@ -344,7 +344,7 @@ repl_decl: SORT LABEL UNFOLD
 ## SORT LABEL
 ##
 
-PLACEHOLDER: after `SORT LABEL`, an unexpected token appeared.
+After `sort <Name>`: expected `(<params>)` for a parametric sort (e.g. `sort List(a) = { ... }`) or `=` to begin the constructor block (e.g. `sort Direction = { N : () | S : () }`).
 
 repl_decl: SORT LABEL LPAREN UNFOLD
 ##
@@ -356,7 +356,7 @@ repl_decl: SORT LABEL LPAREN UNFOLD
 ## SORT LABEL LPAREN
 ##
 
-PLACEHOLDER: after `SORT LABEL LPAREN`, an unexpected token appeared.
+After `sort <Name>(`: expected at least one lowercase type parameter (e.g. `sort Pair(a, b) = { ... }`). For a non-parametric sort, omit the `(...)` entirely: `sort Direction = { ... }`.
 
 repl_decl: SORT LABEL LPAREN IDENT RPAREN UNFOLD
 ##
@@ -368,7 +368,7 @@ repl_decl: SORT LABEL LPAREN IDENT RPAREN UNFOLD
 ## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN
 ##
 
-PLACEHOLDER: after `SORT LABEL LPAREN <type-params> RPAREN`, an unexpected token appeared.
+After `sort <Name>(<params>)`: expected `=` followed by the constructor block `{ ... }` (e.g. `sort List(a) = { Nil : () | Cons : (a * List(a)) }`).
 
 repl_decl: SORT LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ##
@@ -380,7 +380,7 @@ repl_decl: SORT LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL
 ##
 
-PLACEHOLDER: after `SORT LABEL LPAREN <type-params> RPAREN EQUAL`, an unexpected token appeared.
+After `=` in a `sort` declaration: expected `{` to open the constructor block.
 
 repl_decl: SORT LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ##
@@ -392,7 +392,7 @@ repl_decl: SORT LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE
 ##
 
-PLACEHOLDER: after `SORT LABEL LPAREN <type-params> RPAREN EQUAL LBRACE`, an unexpected token appeared.
+After `= {` in a `sort` declaration: expected at least one constructor declaration `<Ctor> : <payload-sort>`. Empty constructor lists are not allowed.
 
 rprog_eof: SORT LABEL EQUAL LBRACE LABEL UNFOLD
 ##
@@ -404,7 +404,7 @@ rprog_eof: SORT LABEL EQUAL LBRACE LABEL UNFOLD
 ## LABEL
 ##
 
-After `sort <Name>`: expected `(...)` for type parameters or `=` followed by `{ ... }` for the constructor list.
+After a constructor name in a `sort { ... }` body: expected `:` followed by the payload sort, e.g. `Cons : (a * List(a))`. Use `: ()` for a nullary constructor.
 
 rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON UNFOLD
 ##
@@ -416,7 +416,7 @@ rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON UNFOLD
 ## LABEL COLON
 ##
 
-PLACEHOLDER: after `LABEL COLON`, an unexpected token appeared.
+After `<Ctor> :` in a `sort { ... }` body: expected the constructor's payload sort (e.g. `: a`, `: (a * List(a))`, `: ()` for a nullary constructor). Every constructor needs a payload — use `: ()` for ones with no arguments.
 
 rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW TYPE
 ##
@@ -429,7 +429,7 @@ rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW TYPE
 ## ctor_decl
 ##
 
-PLACEHOLDER: after `ctor_decl`, an unexpected token appeared.
+After a `sort` constructor declaration: expected `|` to separate it from the next constructor, or `}` to close the constructor list. Constructors are separated by `|`, not `,` or `;`.
 
 rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW BAR UNFOLD
 ##
@@ -441,7 +441,7 @@ rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW BAR UNFOLD
 ## ctor_decl BAR
 ##
 
-PLACEHOLDER: after `ctor_decl BAR`, an unexpected token appeared.
+After `|` in a `sort { ... }` body: expected the next constructor declaration — an uppercase constructor name followed by `: <payload-sort>` (use `: ()` for nullary). No leading or doubled `|`s are allowed.
 
 repl_decl: SORT LABEL EQUAL UNFOLD
 ##
@@ -453,7 +453,7 @@ repl_decl: SORT LABEL EQUAL UNFOLD
 ## SORT LABEL EQUAL
 ##
 
-PLACEHOLDER: after `SORT LABEL EQUAL`, an unexpected token appeared.
+After `sort <Name> =`: expected `{` to open the constructor block. The block is mandatory even for a single constructor.
 
 repl_decl: SORT LABEL EQUAL LBRACE UNFOLD
 ##
@@ -465,7 +465,7 @@ repl_decl: SORT LABEL EQUAL LBRACE UNFOLD
 ## SORT LABEL EQUAL LBRACE
 ##
 
-PLACEHOLDER: after `SORT LABEL EQUAL LBRACE`, an unexpected token appeared.
+After `= {` in a `sort` declaration: expected at least one constructor declaration `<Ctor> : <payload-sort>`. Empty constructor lists are not allowed.
 
 repl_decl: FUN UNFOLD
 ##
@@ -477,7 +477,7 @@ repl_decl: FUN UNFOLD
 ## FUN
 ##
 
-PLACEHOLDER: after `FUN`, an unexpected token appeared.
+After `fun`: expected the function's name — a lowercase identifier (e.g. `fun identity : ... = { ... }`). Use `rfun` for refined-type function declarations.
 
 repl_decl: FUN IDENT UNFOLD
 ##
@@ -489,7 +489,7 @@ repl_decl: FUN IDENT UNFOLD
 ## FUN IDENT
 ##
 
-PLACEHOLDER: after `FUN IDENT`, an unexpected token appeared.
+After the function name: expected `:` followed by the signature (e.g. `fun f : Int -> Int [pure] = { ... }`).
 
 repl_decl: FUN IDENT COLON UNFOLD
 ##
@@ -501,7 +501,7 @@ repl_decl: FUN IDENT COLON UNFOLD
 ## FUN IDENT COLON
 ##
 
-PLACEHOLDER: after `FUN IDENT COLON`, an unexpected token appeared.
+After `fun <name> :`: expected the argument sort, e.g. `Int`, `Bool`, `(Int * Bool)`, `List(Int)`. Functions are unary; for multiple arguments, use a tuple sort (e.g. `(Int * Int) -> Int`).
 
 repl_decl: FUN IDENT COLON BOOL_KW TYPE
 ##
@@ -513,7 +513,7 @@ repl_decl: FUN IDENT COLON BOOL_KW TYPE
 ## FUN IDENT COLON sort
 ##
 
-PLACEHOLDER: after `FUN IDENT COLON sort`, an unexpected token appeared.
+After the argument sort: expected `->` followed by the return sort. nanoCN functions are unary; to take multiple arguments, bundle them in a tuple sort (e.g. `fun f : (Int * Int) -> Int [pure] = { (x, y) -> x + y }`) — a second `->` is not a curried-argument form.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW UNFOLD
 ##
@@ -525,7 +525,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW UNFOLD
 ## FUN IDENT COLON sort ARROW
 ##
 
-PLACEHOLDER: after `FUN IDENT COLON sort ARROW`, an unexpected token appeared.
+After `fun <name> : <arg-sort> ->`: expected the return sort, e.g. `Int`, `Bool`, `()`, `List(Int)`. The return sort is followed by an effect annotation `[pure]`, `[impure]`, or `[spec]`.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW TYPE
 ##
@@ -549,7 +549,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET UNFOLD
 ## FUN IDENT COLON sort ARROW sort LBRACKET
 ##
 
-PLACEHOLDER: after `FUN IDENT COLON sort ARROW sort LBRACKET`, an unexpected token appeared.
+After `[` in a function signature: expected an effect level — one of `pure`, `impure`, or `spec` — followed by `]` and then `= { ... }`.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE UNFOLD
 ##
@@ -561,7 +561,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE UNFOLD
 ## FUN IDENT COLON sort ARROW sort LBRACKET eff_level
 ##
 
-PLACEHOLDER: after `FUN IDENT COLON sort ARROW sort LBRACKET eff_level`, an unexpected token appeared.
+After the effect level: expected `]` to close the effect bracket (`[pure]`, `[impure]`, or `[spec]`).
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET UNFOLD
 ##
@@ -573,7 +573,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET UNFOLD
 ## FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET
 ##
 
-PLACEHOLDER: after `FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET`, an unexpected token appeared.
+After the effect annotation: expected `=` followed by `{ <branches> }` giving the function body.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ##
@@ -585,7 +585,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL 
 ## FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET EQUAL
 ##
 
-PLACEHOLDER: after `FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET EQUAL`, an unexpected token appeared.
+After `=` in a function declaration: expected `{` to open the branch block. The body of a `fun` declaration is `{ <pat> -> <body> | <pat> -> <body> ... }` — the braces are required, even if there is a single branch.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL LBRACE UNFOLD
 ##
@@ -597,7 +597,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL 
 ## FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET EQUAL LBRACE
 ##
 
-PLACEHOLDER: after `FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET EQUAL LBRACE`, an unexpected token appeared.
+After `= {` in a function declaration: expected at least one branch of the form `<pat> -> <body>`. Multiple branches are separated by `|` and the block is closed by `}`.
 
 program: TAKE LPAREN UNFOLD
 ##
@@ -611,7 +611,7 @@ program: TAKE LPAREN UNFOLD
 ## LPAREN
 ##
 
-PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
+After `(` in a pattern: expected `)` to form the unit pattern `()`, or a pattern followed by `)` / `,` (e.g. `(x)`, `(x, y)`, `(Cons (h, t), 0)`).
 
 program: TAKE LABEL UNFOLD
 ##
@@ -623,7 +623,7 @@ program: TAKE LABEL UNFOLD
 ## LABEL
 ##
 
-After `sort <Name>`: expected `(...)` for type parameters or `=` followed by `{ ... }` for the constructor list.
+After a constructor name in a pattern: expected an argument pattern — an identifier (`x`), unit (`()`), or a parenthesised pattern (`(x, y)`). Nullary constructors must be written `L ()`, not bare `L`.
 
 program: TAKE LPAREN IDENT UNFOLD
 ##
@@ -636,7 +636,7 @@ program: TAKE LPAREN IDENT UNFOLD
 ## LPAREN pat
 ##
 
-PLACEHOLDER: after `LPAREN pat`, an unexpected token appeared.
+Inside a parenthesised pattern: expected `)` to close, or `,` to continue into a tuple pattern (e.g. `(x, y)`, `(Cons (h, t), rest)`).
 
 program: TAKE LPAREN IDENT COMMA UNFOLD
 ##
@@ -648,7 +648,7 @@ program: TAKE LPAREN IDENT COMMA UNFOLD
 ## LPAREN pat COMMA
 ##
 
-PLACEHOLDER: after `LPAREN pat COMMA`, an unexpected token appeared.
+After `,` in a tuple pattern: expected the next pattern (e.g. `(x, y)`, `(Cons (h, t), rest)`). Trailing commas are not allowed.
 
 program: TAKE LPAREN IDENT COMMA IDENT UNFOLD
 ##
@@ -673,7 +673,7 @@ program: TAKE LPAREN IDENT COMMA IDENT COMMA UNFOLD
 ## pat COMMA
 ##
 
-PLACEHOLDER: after `pat COMMA`, an unexpected token appeared.
+After `,` in a tuple pattern of arity ≥ 3: expected the next pattern (e.g. `(x, y, z)`). Trailing commas are not allowed.
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL LBRACE IDENT UNFOLD
 ##
@@ -697,7 +697,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL 
 ## pat ARROW
 ##
 
-PLACEHOLDER: after `pat ARROW`, an unexpected token appeared.
+After `<pat> ->` in a function branch: expected the branch body expression. The body can be any expression (literal, call, `let`-chain, `case`, etc.) — empty branches are not allowed.
 
 program: TAKE UNFOLD
 ##
@@ -710,7 +710,7 @@ program: TAKE UNFOLD
 ## TAKE
 ##
 
-PLACEHOLDER: after `TAKE`, an unexpected token appeared.
+After `take`: expected a binder pattern (an identifier, a tuple `(x, y)`, or `()`). A `take` has the shape `take <pat> = <spec-rhs>; <body>` and is only legal inside a `[spec]` function — it unwraps a `Pred <payload>` computation, binding the payload.
 
 program: TAKE IDENT UNFOLD
 ##
@@ -723,7 +723,7 @@ program: TAKE IDENT UNFOLD
 ## TAKE pat
 ##
 
-PLACEHOLDER: after `TAKE pat`, an unexpected token appeared.
+After `take <pat>`: expected `=` to give the right-hand side, or `:` followed by a sort to annotate the payload (e.g. `take x = incP n;` or `take x : Int = incP n;`). The annotation is the *payload* type; the RHS itself has sort `Pred <payload>`.
 
 program: TAKE IDENT EQUAL UNFOLD
 ##
@@ -735,7 +735,7 @@ program: TAKE IDENT EQUAL UNFOLD
 ## TAKE pat EQUAL
 ##
 
-PLACEHOLDER: after `TAKE pat EQUAL`, an unexpected token appeared.
+After `take <pat> =`: expected a spec-level expression of sort `Pred <payload>` — typically a call to a `[spec]` function or a `return <e>` form.
 
 program: RETURN UNFOLD
 ##
@@ -747,7 +747,7 @@ program: RETURN UNFOLD
 ## RETURN
 ##
 
-PLACEHOLDER: after `RETURN`, an unexpected token appeared.
+After `return`: expected an argument expression (e.g. `return 5`, `return (x + 1)`, `return ()`). `return` wraps its argument in `Pred <sort>` and is legal in `[spec]` contexts.
 
 program: NOT_KW UNFOLD
 ##
@@ -759,7 +759,7 @@ program: NOT_KW UNFOLD
 ## NOT_KW
 ##
 
-PLACEHOLDER: after `NOT_KW`, an unexpected token appeared.
+After `not`: expected a simple expression to negate (e.g. `not b`, `not (x == 0)`).
 
 program: LPAREN UNFOLD
 ##
@@ -773,7 +773,7 @@ program: LPAREN UNFOLD
 ## LPAREN
 ##
 
-PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
+After `(` in an expression: expected `)` to form the unit value `()`, or an expression followed by `)` / `,` (e.g. `(1)`, `(x, y)`, `(e : <sort>)`).
 
 program: LET UNFOLD
 ##
@@ -799,7 +799,7 @@ program: LET IDENT UNFOLD
 ## LET pat
 ##
 
-PLACEHOLDER: after `LET pat`, an unexpected token appeared.
+After `let <pat>`: expected `=` to give the right-hand side, or `:` followed by a sort to annotate the binding (e.g. `let x = 5;` or `let x : Int = 5;`).
 
 program: LET IDENT EQUAL UNFOLD
 ##
@@ -811,7 +811,7 @@ program: LET IDENT EQUAL UNFOLD
 ## LET pat EQUAL
 ##
 
-PLACEHOLDER: after `LET pat EQUAL`, an unexpected token appeared.
+After `let <pat> =`: expected the right-hand side expression (a literal, identifier, constructor application, or parenthesised expression). Note that `fun` is a top-level declaration keyword — nanoCN does not have anonymous-function (`fun x -> e`) expressions.
 
 program: LABEL UNFOLD
 ##
@@ -860,7 +860,7 @@ program: DEL LBRACKET UNFOLD
 ## state_prim LBRACKET
 ##
 
-PLACEHOLDER: after `state_prim LBRACKET`, an unexpected token appeared.
+After `<prim>[`: expected the element sort (e.g. `New[Int] 5`, `Get[List(Int)] p`). The bracketed sort instantiates the primitive's generic element type.
 
 program: DEL LBRACKET BOOL_KW TYPE
 ##
@@ -872,7 +872,7 @@ program: DEL LBRACKET BOOL_KW TYPE
 ## state_prim LBRACKET sort
 ##
 
-PLACEHOLDER: after `state_prim LBRACKET sort`, an unexpected token appeared.
+After `<prim>[<sort>`: expected `]` to close the sort bracket, followed by the argument (e.g. `New[Int] 5`).
 
 program: DEL LBRACKET BOOL_KW RBRACKET UNFOLD
 ##
@@ -884,7 +884,7 @@ program: DEL LBRACKET BOOL_KW RBRACKET UNFOLD
 ## state_prim LBRACKET sort RBRACKET
 ##
 
-PLACEHOLDER: after `state_prim LBRACKET sort RBRACKET`, an unexpected token appeared.
+After `<prim>[<sort>]`: expected the argument expression — state primitives are applied to exactly one argument (use a tuple for multi-argument forms like `Set[τ](p, v)`, `Eq[τ](a, b)`).
 
 program: ITER UNFOLD
 ##
@@ -896,7 +896,7 @@ program: ITER UNFOLD
 ## ITER
 ##
 
-PLACEHOLDER: after `ITER`, an unexpected token appeared.
+After `iter`: expected `(<pat> = <init>)` introducing the loop's state binder. An iter has the shape `iter (<pat> = <init>) { <body> }` where `<init>` is the starting value and `<body>` returns a `Step(...)` on each iteration.
 
 program: ITER LPAREN UNFOLD
 ##
@@ -908,7 +908,7 @@ program: ITER LPAREN UNFOLD
 ## ITER LPAREN
 ##
 
-PLACEHOLDER: after `ITER LPAREN`, an unexpected token appeared.
+After `iter (`: expected a pattern binding the loop's state variable, e.g. `i`, `(a, b)`, or `()`. The binder is followed by `= <init>` and then `)`.
 
 program: ITER LPAREN IDENT UNFOLD
 ##
@@ -920,7 +920,7 @@ program: ITER LPAREN IDENT UNFOLD
 ## ITER LPAREN pat
 ##
 
-PLACEHOLDER: after `ITER LPAREN pat`, an unexpected token appeared.
+After the iter binder pattern: expected `=` followed by the initial value, e.g. `iter (i = 0) { ... }`. The iter form takes exactly one binder; for multiple pieces of state, use a tuple pattern (e.g. `(a, b) = (...)`).
 
 program: ITER LPAREN IDENT EQUAL UNFOLD
 ##
@@ -932,7 +932,7 @@ program: ITER LPAREN IDENT EQUAL UNFOLD
 ## ITER LPAREN pat EQUAL
 ##
 
-PLACEHOLDER: after `ITER LPAREN pat EQUAL`, an unexpected token appeared.
+After `iter (<pat> =`: expected the initial-value expression, e.g. `iter (i = 0) { ... }` or `iter ((a, b) = ((x, y) : (Int * Int))) { ... }`. The initial value is evaluated in a pure context, so it may need a sort annotation if it is a bare tuple or constructor literal.
 
 program: IF UNFOLD
 ##
@@ -944,7 +944,7 @@ program: IF UNFOLD
 ## IF
 ##
 
-PLACEHOLDER: after `IF`, an unexpected token appeared.
+After `if`: expected a condition expression of sort `Bool`, followed by `then <e>` and `else <e>` branches. Example: `if x == 0 then 1 else x + 1`.
 
 program: CASE UNFOLD
 ##
@@ -956,7 +956,7 @@ program: CASE UNFOLD
 ## CASE
 ##
 
-PLACEHOLDER: after `CASE`, an unexpected token appeared.
+After `case`: expected the scrutinee expression to match against — an atomic or constructor-applied expression (e.g. `case x of { ... }`, `case (head xs) of { ... }`). Complex expressions like `let`-chains must be parenthesised.
 
 program: CASE FALSE UNFOLD
 ##
@@ -968,7 +968,7 @@ program: CASE FALSE UNFOLD
 ## CASE app_expr
 ##
 
-PLACEHOLDER: after `CASE app_expr`, an unexpected token appeared.
+After the `case` scrutinee: expected the keyword `of` introducing the branch block.
 
 program: CASE FALSE OF UNFOLD
 ##
@@ -980,7 +980,7 @@ program: CASE FALSE OF UNFOLD
 ## CASE app_expr OF
 ##
 
-PLACEHOLDER: after `CASE app_expr OF`, an unexpected token appeared.
+After `case <scrutinee> of`: expected `{` to open the branch list. A `case` expression in nanoCN is written `case e of { <pat> -> <body> | <pat> -> <body> ... }` — the braces are required.
 
 program: CASE FALSE OF LBRACE UNFOLD
 ##
@@ -992,7 +992,7 @@ program: CASE FALSE OF LBRACE UNFOLD
 ## CASE app_expr OF LBRACE
 ##
 
-PLACEHOLDER: after `CASE app_expr OF LBRACE`, an unexpected token appeared.
+After `case <e> of {`: expected at least one branch of the form `<pat> -> <body>`. Empty case blocks are not allowed.
 
 program: CASE FALSE OF LBRACE IDENT UNFOLD
 ##
@@ -1016,7 +1016,7 @@ program: CASE FALSE OF LBRACE IDENT ARROW UNFOLD
 ## pat ARROW
 ##
 
-PLACEHOLDER: after `pat ARROW`, an unexpected token appeared.
+After `<pat> ->` in a `case` branch: expected the branch body expression. The body can be any expression (literal, call, `let`-chain, nested `case`, etc.) — empty branches are not allowed.
 
 program: FAIL UNFOLD
 ##
@@ -1365,7 +1365,7 @@ program: CASE FALSE OF LBRACE IDENT ARROW FALSE TYPE
 ## In state 174, spurious reduction of production case_branch -> pat ARROW expr
 ##
 
-PLACEHOLDER: after `case_branch`, an unexpected token appeared.
+After a `case` branch `<pat> -> <body>`: expected `|` to begin another branch, or `}` to end the `case` expression. (Note: expression-level sort annotations `e : <sort>` take a sort only — no `[<eff>]` suffix.)
 
 program: CASE FALSE OF LBRACE IDENT ARROW FALSE BAR UNFOLD
 ##
@@ -1377,7 +1377,7 @@ program: CASE FALSE OF LBRACE IDENT ARROW FALSE BAR UNFOLD
 ## case_branch BAR
 ##
 
-PLACEHOLDER: after `case_branch BAR`, an unexpected token appeared.
+After `|` in a `case` expression: expected the next branch, which starts with a pattern (e.g. `x`, `(x, y)`, `Nil ()`, `Cons (h, t)`).
 
 program: IF FALSE TYPE
 ##
@@ -1413,7 +1413,7 @@ program: IF FALSE THEN UNFOLD
 ## IF expr THEN
 ##
 
-PLACEHOLDER: after `IF expr THEN`, an unexpected token appeared.
+After `if <cond> then`: expected the then-branch expression (e.g. `if x == 0 then 1 else x`).
 
 program: IF FALSE THEN FALSE TYPE
 ##
@@ -1423,7 +1423,7 @@ program: IF FALSE THEN FALSE TYPE
 ##
 ## The known suffix of the stack is as follows:
 ## IF expr THEN expr
-##
+## (if-then body complete; expecting ELSE)
 ## WARNING: This example involves spurious reductions.
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
@@ -1437,7 +1437,7 @@ program: IF FALSE THEN FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER: after `IF expr THEN expr`, an unexpected token appeared.
+After the `then`-branch expression: expected `else` followed by the else-branch. An `if` without `else` is not allowed — both branches are required.
 
 program: IF FALSE THEN FALSE ELSE UNFOLD
 ##
@@ -1449,7 +1449,7 @@ program: IF FALSE THEN FALSE ELSE UNFOLD
 ## IF expr THEN expr ELSE
 ##
 
-PLACEHOLDER: after `IF expr THEN expr ELSE`, an unexpected token appeared.
+After `else`: expected the else-branch expression.
 
 program: ITER LPAREN IDENT EQUAL FALSE TYPE
 ##
@@ -1473,7 +1473,7 @@ program: ITER LPAREN IDENT EQUAL FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER: after `ITER LPAREN pat EQUAL expr`, an unexpected token appeared.
+After the iter init-value expression: expected `)` to close the binder. An iter takes a single binder `(<pat> = <init>)`; if you need multiple pieces of state, use a tuple pattern and tuple initial value (e.g. `iter ((a, b) = ((x, y) : (Int * Int))) { ... }`).
 
 program: ITER LPAREN IDENT EQUAL FALSE RPAREN UNFOLD
 ##
@@ -1485,7 +1485,7 @@ program: ITER LPAREN IDENT EQUAL FALSE RPAREN UNFOLD
 ## ITER LPAREN pat EQUAL expr RPAREN
 ##
 
-PLACEHOLDER: after `ITER LPAREN pat EQUAL expr RPAREN`, an unexpected token appeared.
+After `iter (<pat> = <init>)`: expected `{` to open the loop body. The body is a block expression returning a `Step(<state-sort>, <result-sort>)` — either `Next <v>` to continue with new state `v`, or `Done <r>` to exit with result `r`.
 
 program: ITER LPAREN IDENT EQUAL FALSE RPAREN LBRACE UNFOLD
 ##
@@ -1497,7 +1497,7 @@ program: ITER LPAREN IDENT EQUAL FALSE RPAREN LBRACE UNFOLD
 ## ITER LPAREN pat EQUAL expr RPAREN LBRACE
 ##
 
-PLACEHOLDER: after `ITER LPAREN pat EQUAL expr RPAREN LBRACE`, an unexpected token appeared.
+After `iter (<pat> = <init>) {`: expected the body expression. The body must return a `Step(<state>, <result>)` — typically an `if` choosing between `Next <new-state> : Step(...)` to continue and `Done <result> : Step(...)` to exit.
 
 program: ITER LPAREN IDENT EQUAL FALSE RPAREN LBRACE FALSE TYPE
 ##
@@ -1521,7 +1521,7 @@ program: ITER LPAREN IDENT EQUAL FALSE RPAREN LBRACE FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER: after `ITER LPAREN pat EQUAL expr RPAREN LBRACE expr`, an unexpected token appeared.
+After the iter body expression: expected `}` to close the loop body. The iter body is a single block expression (use `if`/`case` inside it to choose between `Next` and `Done` branches) — no trailing `;` or `|`-separated alternatives at the top level of the body.
 
 program: LET IDENT EQUAL FALSE TYPE
 ##
@@ -1557,7 +1557,7 @@ program: LET IDENT EQUAL FALSE SEMICOLON UNFOLD
 ## LET pat EQUAL expr SEMICOLON
 ##
 
-PLACEHOLDER: after `LET pat EQUAL expr SEMICOLON`, an unexpected token appeared.
+After `let <pat> = <rhs>;`: expected the *body* expression — `let ... ;` is a sequencer, so a following expression is required (typically another `let`, or the value returned by the block). If this was the last binding, return `()` or the value you meant.
 
 program: LET IDENT COLON UNFOLD
 ##
@@ -1569,7 +1569,7 @@ program: LET IDENT COLON UNFOLD
 ## LET pat COLON
 ##
 
-PLACEHOLDER: after `LET pat COLON`, an unexpected token appeared.
+After `let <pat> :`: expected a sort for the binding's type annotation, e.g. `Int`, `Bool`, `(Int * Bool)`, `List(Int)`, `Ptr Int`.
 
 program: LET IDENT COLON BOOL_KW TYPE
 ##
@@ -1581,7 +1581,7 @@ program: LET IDENT COLON BOOL_KW TYPE
 ## LET pat COLON sort
 ##
 
-PLACEHOLDER: after `LET pat COLON sort`, an unexpected token appeared.
+After `let <pat> : <sort>`: expected `=` followed by the right-hand side. (Note: a `let`-bound sort annotation takes a sort only — no `[<eff>]` suffix — since the bound expression's effect is inferred from context.)
 
 program: LET IDENT COLON BOOL_KW EQUAL UNFOLD
 ##
@@ -1593,7 +1593,7 @@ program: LET IDENT COLON BOOL_KW EQUAL UNFOLD
 ## LET pat COLON sort EQUAL
 ##
 
-PLACEHOLDER: after `LET pat COLON sort EQUAL`, an unexpected token appeared.
+After `let <pat> : <sort> =`: expected the right-hand side expression (a literal, identifier, constructor application, or parenthesised form).
 
 program: LET IDENT COLON BOOL_KW EQUAL FALSE TYPE
 ##
@@ -1629,7 +1629,7 @@ program: LET IDENT COLON BOOL_KW EQUAL FALSE SEMICOLON UNFOLD
 ## LET pat COLON sort EQUAL expr SEMICOLON
 ##
 
-PLACEHOLDER: after `LET pat COLON sort EQUAL expr SEMICOLON`, an unexpected token appeared.
+After `let <pat> : <sort> = <rhs>;`: expected the *body* expression — `let ... ;` is a sequencer, so a following expression is required. If this was the last binding, return `()` or the value you meant.
 
 program: LPAREN FALSE TYPE
 ##
@@ -1654,7 +1654,7 @@ program: LPAREN FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-Inside `(...)`: expected `)` to close, `,` to make this a tuple, or `:` to add a sort annotation.
+Inside `(...)`: expected `)` to close, `,` to make this a tuple, or `:` to add a sort annotation. (Note: an expression-level sort annotation `e : <sort>` takes a sort only — no `[<eff>]` suffix — since an expression's effect is inferred from context.)
 
 program: LPAREN FALSE COMMA UNFOLD
 ##
@@ -1666,7 +1666,7 @@ program: LPAREN FALSE COMMA UNFOLD
 ## LPAREN expr COMMA
 ##
 
-PLACEHOLDER: after `LPAREN expr COMMA`, an unexpected token appeared.
+After `,` in a tuple expression: expected another expression (e.g. `(a, b)`, `(a, b, c)`). Trailing commas are not allowed.
 
 program: LPAREN FALSE COMMA FALSE TYPE
 ##
@@ -1703,7 +1703,7 @@ program: LPAREN FALSE COMMA FALSE COMMA UNFOLD
 ## expr COMMA
 ##
 
-PLACEHOLDER: after `expr COMMA`, an unexpected token appeared.
+After `,` in a tuple expression of arity ≥ 3: expected another expression. Trailing commas are not allowed.
 
 program: TAKE IDENT EQUAL FALSE TYPE
 ##
@@ -1739,7 +1739,7 @@ program: TAKE IDENT EQUAL FALSE SEMICOLON UNFOLD
 ## TAKE pat EQUAL expr SEMICOLON
 ##
 
-PLACEHOLDER: after `TAKE pat EQUAL expr SEMICOLON`, an unexpected token appeared.
+After `take <pat> = <rhs>;`: expected the *body* expression — `take ... ;` is a sequencer, so a following expression is required (often another `take` or a final `return <e>`).
 
 program: TAKE IDENT COLON UNFOLD
 ##
@@ -1751,7 +1751,7 @@ program: TAKE IDENT COLON UNFOLD
 ## TAKE pat COLON
 ##
 
-PLACEHOLDER: after `TAKE pat COLON`, an unexpected token appeared.
+After `take <pat> :`: expected a sort — the *payload* type that the pattern binds to (e.g. `Int`, `Bool`, `List(Int)`). You do not write `Pred <τ>` here; the parser wraps it for you.
 
 program: TAKE IDENT COLON BOOL_KW TYPE
 ##
@@ -1763,7 +1763,7 @@ program: TAKE IDENT COLON BOOL_KW TYPE
 ## TAKE pat COLON sort
 ##
 
-PLACEHOLDER: after `TAKE pat COLON sort`, an unexpected token appeared.
+After `take <pat> : <sort>`: expected `=` followed by the right-hand side (an expression of sort `Pred <sort>`).
 
 program: TAKE IDENT COLON BOOL_KW EQUAL UNFOLD
 ##
@@ -1775,7 +1775,7 @@ program: TAKE IDENT COLON BOOL_KW EQUAL UNFOLD
 ## TAKE pat COLON sort EQUAL
 ##
 
-PLACEHOLDER: after `TAKE pat COLON sort EQUAL`, an unexpected token appeared.
+After `take <pat> : <sort> =`: expected a spec-level expression of sort `Pred <sort>` — typically a call to a `[spec]` function or a `return <e>` form.
 
 program: TAKE IDENT COLON BOOL_KW EQUAL FALSE TYPE
 ##
@@ -1811,7 +1811,7 @@ program: TAKE IDENT COLON BOOL_KW EQUAL FALSE SEMICOLON UNFOLD
 ## TAKE pat COLON sort EQUAL expr SEMICOLON
 ##
 
-PLACEHOLDER: after `TAKE pat COLON sort EQUAL expr SEMICOLON`, an unexpected token appeared.
+After `take <pat> : <sort> = <rhs>;`: expected the *body* expression — `take ... ;` is a sequencer, so a following expression is required (often another `take` or a final `return <e>`).
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL LBRACE IDENT ARROW FALSE TYPE
 ##
@@ -1837,7 +1837,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL 
 ## In state 217, spurious reduction of production branch -> pat ARROW expr
 ##
 
-PLACEHOLDER: after `branch`, an unexpected token appeared.
+After a function branch `<pat> -> <body>`: expected `|` to begin another branch, or `}` to end the function definition. (Note: expression-level sort annotations `e : <sort>` take a sort only — no `[<eff>]` suffix — since an expression's effect is inferred from context.)
 
 repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL LBRACE IDENT ARROW FALSE BAR UNFOLD
 ##
@@ -1849,7 +1849,7 @@ repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL 
 ## branch BAR
 ##
 
-PLACEHOLDER: after `branch BAR`, an unexpected token appeared.
+After `|` in a function body: expected the next branch, which starts with a pattern (e.g. `x`, `(x, y)`, `Nil ()`, `Cons (h, t)`).
 
 prog_eof: MAIN UNFOLD
 ##
@@ -1861,7 +1861,7 @@ prog_eof: MAIN UNFOLD
 ## list(decl) MAIN
 ##
 
-PLACEHOLDER: after `list(decl) MAIN`, an unexpected token appeared.
+After `main`: expected `:` followed by the program's return sort and effect (e.g. `main : () [impure] = ()`). `main` is an entry, not a function declaration — no parentheses on the name.
 
 prog_eof: MAIN COLON UNFOLD
 ##
@@ -1873,7 +1873,7 @@ prog_eof: MAIN COLON UNFOLD
 ## list(decl) MAIN COLON
 ##
 
-PLACEHOLDER: after `list(decl) MAIN COLON`, an unexpected token appeared.
+After `main :`: expected the program's return sort (typically `()`). Example: `main : () [impure] = ()`.
 
 prog_eof: MAIN COLON BOOL_KW TYPE
 ##
@@ -1885,7 +1885,7 @@ prog_eof: MAIN COLON BOOL_KW TYPE
 ## list(decl) MAIN COLON sort
 ##
 
-PLACEHOLDER: after `list(decl) MAIN COLON sort`, an unexpected token appeared.
+After the `main` return sort: expected an effect annotation in brackets — `[pure]`, `[impure]`, or `[spec]`. `main` typically uses `[impure]`: `main : () [impure] = ...`.
 
 prog_eof: MAIN COLON BOOL_KW LBRACKET UNFOLD
 ##
@@ -1897,7 +1897,7 @@ prog_eof: MAIN COLON BOOL_KW LBRACKET UNFOLD
 ## list(decl) MAIN COLON sort LBRACKET
 ##
 
-PLACEHOLDER: after `list(decl) MAIN COLON sort LBRACKET`, an unexpected token appeared.
+After `[` in the `main` declaration: expected an effect level — one of `pure`, `impure`, or `spec`.
 
 prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE UNFOLD
 ##
@@ -1909,7 +1909,7 @@ prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE UNFOLD
 ## list(decl) MAIN COLON sort LBRACKET eff_level
 ##
 
-PLACEHOLDER: after `list(decl) MAIN COLON sort LBRACKET eff_level`, an unexpected token appeared.
+After the `main` effect level: expected `]` to close the effect bracket.
 
 prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET UNFOLD
 ##
@@ -1921,7 +1921,7 @@ prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET UNFOLD
 ## list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET
 ##
 
-PLACEHOLDER: after `list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET`, an unexpected token appeared.
+After the `main` effect annotation: expected `=` followed by the program's body expression.
 
 prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ##
@@ -1933,7 +1933,7 @@ prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ## list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET EQUAL
 ##
 
-PLACEHOLDER: after `list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET EQUAL`, an unexpected token appeared.
+After `=` in the `main` declaration: expected the program's body expression (e.g. `main : () [impure] = ()`, or `main : () [impure] = let x = 5; ()`).
 
 prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET EQUAL FALSE TYPE
 ##
@@ -1943,6 +1943,7 @@ prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET EQUAL FALSE TYPE
 ##
 ## The known suffix of the stack is as follows:
 ## list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET EQUAL expr
+## (after main body; expecting EOF)
 ##
 ## WARNING: This example involves spurious reductions.
 ## This implies that, although the LR(1) items shown above provide an
@@ -1957,7 +1958,7 @@ prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET EQUAL FALSE TYPE
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER: after `list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET EQUAL expr`, an unexpected token appeared.
+After the `main` body: expected end of file. `main` must be the last declaration in the program — no additional `fun`/`sort`/`type` declarations may follow it.
 
 prog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE UNFOLD
 ##
@@ -1969,7 +1970,7 @@ prog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE UNFOLD
 ## decl
 ##
 
-PLACEHOLDER: after `decl`, an unexpected token appeared.
+After a top-level declaration: expected another declaration (`fun`, `sort`, `type`) or the `main` entry. Only declarations are allowed at the top level — top-level `let`, expression statements, etc. are not supported.
 
 program: UNFOLD
 ##
@@ -2126,7 +2127,7 @@ rprog_eof: TYPE UNFOLD
 ## TYPE
 ##
 
-PLACEHOLDER: after `TYPE`, an unexpected token appeared.
+After `type`: expected a constructor-style name beginning with an uppercase letter (e.g. `type List(a) = ...`, `type Option(a) = ...`). Lowercase names are reserved for variables and sort parameters.
 
 rprog_eof: TYPE LABEL UNFOLD
 ##
@@ -2139,7 +2140,7 @@ rprog_eof: TYPE LABEL UNFOLD
 ## TYPE LABEL
 ##
 
-PLACEHOLDER: after `TYPE LABEL`, an unexpected token appeared.
+After `type <Name>`: expected `(<params>)` for a parametric type (e.g. `type List(a) = { ... }`) or `=` to begin the constructor block (e.g. `type Direction = { N : () | S : () }`).
 
 rprog_eof: TYPE LABEL LPAREN UNFOLD
 ##
@@ -2151,7 +2152,7 @@ rprog_eof: TYPE LABEL LPAREN UNFOLD
 ## TYPE LABEL LPAREN
 ##
 
-PLACEHOLDER: after `TYPE LABEL LPAREN`, an unexpected token appeared.
+After `type <Name>(`: expected at least one lowercase type parameter (e.g. `type Pair(a, b) = { ... }`). Parameter lists are comma-separated and cannot be empty — for a non-parametric type, omit the `(...)` entirely.
 
 rprog_eof: TYPE LABEL LPAREN IDENT RPAREN UNFOLD
 ##
@@ -2163,7 +2164,7 @@ rprog_eof: TYPE LABEL LPAREN IDENT RPAREN UNFOLD
 ## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN
 ##
 
-PLACEHOLDER: after `TYPE LABEL LPAREN <type-params> RPAREN`, an unexpected token appeared.
+After `type <Name>(<params>)`: expected `=` followed by the constructor block `{ ... }`.
 
 rprog_eof: TYPE LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ##
@@ -2175,7 +2176,7 @@ rprog_eof: TYPE LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL
 ##
 
-PLACEHOLDER: after `TYPE LABEL LPAREN <type-params> RPAREN EQUAL`, an unexpected token appeared.
+After `=` in a `type` declaration: expected `{` to open the constructor block.
 
 rprog_eof: TYPE LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ##
@@ -2187,7 +2188,7 @@ rprog_eof: TYPE LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE
 ##
 
-PLACEHOLDER: after `TYPE LABEL LPAREN <type-params> RPAREN EQUAL LBRACE`, an unexpected token appeared.
+After `= {` in a `type` declaration: expected at least one constructor declaration `<Ctor> : <payload-sort>`. Empty constructor lists are not allowed.
 
 rprog_eof: TYPE LABEL EQUAL UNFOLD
 ##
@@ -2199,7 +2200,7 @@ rprog_eof: TYPE LABEL EQUAL UNFOLD
 ## TYPE LABEL EQUAL
 ##
 
-PLACEHOLDER: after `TYPE LABEL EQUAL`, an unexpected token appeared.
+After `type <Name> =`: expected `{` to open the constructor block.
 
 rprog_eof: TYPE LABEL EQUAL LBRACE UNFOLD
 ##
@@ -2211,7 +2212,7 @@ rprog_eof: TYPE LABEL EQUAL LBRACE UNFOLD
 ## TYPE LABEL EQUAL LBRACE
 ##
 
-PLACEHOLDER: after `TYPE LABEL EQUAL LBRACE`, an unexpected token appeared.
+After `= {` in a `type` declaration: expected at least one constructor declaration `<Ctor> : <payload-sort>`. Empty constructor lists are not allowed.
 
 rprog_eof: SORT UNFOLD
 ##
@@ -2224,7 +2225,7 @@ rprog_eof: SORT UNFOLD
 ## SORT
 ##
 
-PLACEHOLDER: after `SORT`, an unexpected token appeared.
+After `sort`: expected a constructor-style name beginning with an uppercase letter (e.g. `sort List(a) = ...`, `sort Color = ...`). Lowercase names are reserved for variables and sort parameters.
 
 rprog_eof: SORT LABEL UNFOLD
 ##
@@ -2237,7 +2238,7 @@ rprog_eof: SORT LABEL UNFOLD
 ## SORT LABEL
 ##
 
-PLACEHOLDER: after `SORT LABEL`, an unexpected token appeared.
+After `sort <Name>`: expected `(<params>)` for a parametric sort (e.g. `sort List(a) = { ... }`) or `=` to begin the constructor block.
 
 rprog_eof: SORT LABEL LPAREN UNFOLD
 ##
@@ -2249,7 +2250,7 @@ rprog_eof: SORT LABEL LPAREN UNFOLD
 ## SORT LABEL LPAREN
 ##
 
-PLACEHOLDER: after `SORT LABEL LPAREN`, an unexpected token appeared.
+After `sort <Name>(`: expected at least one lowercase type parameter (e.g. `sort Pair(a, b) = { ... }`). For a non-parametric sort, omit the `(...)` entirely.
 
 rprog_eof: SORT LABEL LPAREN IDENT RPAREN UNFOLD
 ##
@@ -2261,7 +2262,7 @@ rprog_eof: SORT LABEL LPAREN IDENT RPAREN UNFOLD
 ## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN
 ##
 
-PLACEHOLDER: after `SORT LABEL LPAREN <type-params> RPAREN`, an unexpected token appeared.
+After `sort <Name>(<params>)`: expected `=` followed by the constructor block `{ ... }`.
 
 rprog_eof: SORT LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ##
@@ -2273,7 +2274,7 @@ rprog_eof: SORT LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL
 ##
 
-PLACEHOLDER: after `SORT LABEL LPAREN <type-params> RPAREN EQUAL`, an unexpected token appeared.
+After `=` in a `sort` declaration: expected `{` to open the constructor block.
 
 rprog_eof: SORT LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ##
@@ -2285,7 +2286,7 @@ rprog_eof: SORT LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE
 ##
 
-PLACEHOLDER: after `SORT LABEL LPAREN <type-params> RPAREN EQUAL LBRACE`, an unexpected token appeared.
+After `= {` in a `sort` declaration: expected at least one constructor declaration `<Ctor> : <payload-sort>`. Empty constructor lists are not allowed.
 
 rprog_eof: SORT LABEL EQUAL UNFOLD
 ##
@@ -2297,7 +2298,7 @@ rprog_eof: SORT LABEL EQUAL UNFOLD
 ## SORT LABEL EQUAL
 ##
 
-PLACEHOLDER: after `SORT LABEL EQUAL`, an unexpected token appeared.
+After `sort <Name> =`: expected `{` to open the constructor block.
 
 rprog_eof: SORT LABEL EQUAL LBRACE UNFOLD
 ##
@@ -2309,7 +2310,7 @@ rprog_eof: SORT LABEL EQUAL LBRACE UNFOLD
 ## SORT LABEL EQUAL LBRACE
 ##
 
-PLACEHOLDER: after `SORT LABEL EQUAL LBRACE`, an unexpected token appeared.
+After `= {` in a `sort` declaration: expected at least one constructor declaration `<Ctor> : <payload-sort>`. Empty constructor lists are not allowed.
 
 rprog_eof: RFUN UNFOLD
 ##
@@ -2321,7 +2322,7 @@ rprog_eof: RFUN UNFOLD
 ## RFUN
 ##
 
-PLACEHOLDER: after `RFUN`, an unexpected token appeared.
+After `rfun`: expected the refined function's name (a lowercase identifier). An `rfun` has shape `rfun <name> (<pf_domain>) -> (<pf_sort>) [eff] = <crt>`.
 
 rprog_eof: RFUN IDENT UNFOLD
 ##
@@ -2333,7 +2334,7 @@ rprog_eof: RFUN IDENT UNFOLD
 ## RFUN IDENT
 ##
 
-PLACEHOLDER: after `RFUN IDENT`, an unexpected token appeared.
+After the rfun name: expected `(` to begin the domain `pf_domain` — a comma-separated list of binders `(x : τ, [log] p : φ, [res] r : π @ v, ...)`.
 
 rprog_eof: RFUN IDENT LPAREN UNFOLD
 ##
@@ -2375,7 +2376,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES UNFOLD
 ## LBRACKET RES
 ##
 
-PLACEHOLDER: after `LBRACKET RES`, an unexpected token appeared.
+After `[res`: expected `]` to close, followed by the resource binder (in an rfun domain: `<name> : <pred> @ <value>` or `<name> : (do <y> : <sort> = <e>)`; in a codomain: `<pred> @ <value>` or `(do <y> : <sort> = <e>)`).
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET UNFOLD
 ##
@@ -2389,7 +2390,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET UNFOLD
 ## LBRACKET RES RBRACKET
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET`, an unexpected token appeared.
+After `[res]`: expected either `<name> : <pred> @ <value>` (in a domain), `<pred> @ <value>` (in a codomain), or `(do <binder> = <e>)` (for DepRes).
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT UNFOLD
 ##
@@ -2403,7 +2404,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT UNFOLD
 ## LBRACKET RES RBRACKET IDENT
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT`, an unexpected token appeared.
+After `[res] <name>` in an rfun domain: expected `:` followed by the resource sort (e.g. `[res] r : Own[Int](p) @ x`).
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON UNFOLD
 ##
@@ -2417,7 +2418,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON UNFOLD
 ## LBRACKET RES RBRACKET IDENT COLON
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON`, an unexpected token appeared.
+After `[res] <name> :`: expected the resource sort (an `app_expr`) followed by `@ <value>`, or a parenthesised `(do <binder> = <e>)` for a DepRes binder.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN UNFOLD
 ##
@@ -2433,7 +2434,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN UNFOLD
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN`, an unexpected token appeared.
+After `[res] <name> : (`: expected the keyword `do` to begin a DepRes binder: `(do <y> [: <sort>] = <expr>)`.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO UNFOLD
 ##
@@ -2446,7 +2447,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO UNFOLD
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO`, an unexpected token appeared.
+After `[res] <name> : (do`: expected a lowercase binder name for the DepRes's dependent binder.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT UNFOLD
 ##
@@ -2459,7 +2460,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT U
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT`, an unexpected token appeared.
+After `(do <y>`: expected `=` (bare form) or `:` followed by a sort annotation and then `=`.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL UNFOLD
 ##
@@ -2471,7 +2472,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT E
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL`, an unexpected token appeared.
+After `(do <y> =`: expected the `Pred`-sort expression whose payload is bound to `y`.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL FALSE UNFOLD
 ##
@@ -2483,7 +2484,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT E
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL app_expr
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL app_expr`, an unexpected token appeared.
+After `(do <y> = <e>`: expected `)` to close the DepRes binder.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON UNFOLD
 ##
@@ -2495,7 +2496,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT C
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON`, an unexpected token appeared.
+After `(do <y> :`: expected the payload sort of the `Pred`-wrapped term.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON BOOL_KW TYPE
 ##
@@ -2507,7 +2508,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT C
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort`, an unexpected token appeared.
+After `(do <y> : <sort>`: expected `=` followed by the `Pred`-sort expression.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON BOOL_KW EQUAL UNFOLD
 ##
@@ -2519,7 +2520,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT C
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort EQUAL
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort EQUAL`, an unexpected token appeared.
+After `(do <y> : <sort> =`: expected the `Pred`-sort expression whose payload is bound to `y`.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON BOOL_KW EQUAL FALSE UNFOLD
 ##
@@ -2531,7 +2532,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT C
 ## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort EQUAL app_expr
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort EQUAL app_expr`, an unexpected token appeared.
+After the `(do <y> : <sort> = <e>` body: expected `)` to close the DepRes binder.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON FALSE UNFOLD
 ##
@@ -2543,7 +2544,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON FALSE UNFOLD
 ## LBRACKET RES RBRACKET IDENT COLON app_expr
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON app_expr`, an unexpected token appeared.
+After `[res] <name> : <sort>`: expected `@` followed by the logical-index value.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON FALSE AT UNFOLD
 ##
@@ -2555,7 +2556,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON FALSE AT UNFOLD
 ## LBRACKET RES RBRACKET IDENT COLON app_expr AT
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET IDENT COLON app_expr AT`, an unexpected token appeared.
+After `[res] <name> : <sort> @`: expected the logical-index value.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET LOG UNFOLD
 ##
@@ -2567,7 +2568,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET LOG UNFOLD
 ## LBRACKET LOG
 ##
 
-PLACEHOLDER: after `LBRACKET LOG`, an unexpected token appeared.
+After `[log`: expected `]` to close, followed by the log-variable binder (in an rfun domain: `<name> : <prop>`; in a codomain: just the `<prop>`).
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET UNFOLD
 ##
@@ -2579,7 +2580,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET UNFOLD
 ## LBRACKET LOG RBRACKET
 ##
 
-PLACEHOLDER: after `LBRACKET LOG RBRACKET`, an unexpected token appeared.
+After `[log]`: expected a log-variable binder (e.g. `[log] p : x >= 0` in a pf_domain, or `[log] x >= 0` in a pf_sort).
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET IDENT UNFOLD
 ##
@@ -2591,7 +2592,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET IDENT UNFOLD
 ## LBRACKET LOG RBRACKET IDENT
 ##
 
-PLACEHOLDER: after `LBRACKET LOG RBRACKET IDENT`, an unexpected token appeared.
+After `[log] <name>` in an rfun domain: expected `:` followed by the proposition (e.g. `[log] p : x >= 0`).
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET IDENT COLON UNFOLD
 ##
@@ -2603,7 +2604,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET IDENT COLON UNFOLD
 ## LBRACKET LOG RBRACKET IDENT COLON
 ##
 
-PLACEHOLDER: after `LBRACKET LOG RBRACKET IDENT COLON`, an unexpected token appeared.
+After `[log] <name> :`: expected the proposition (an `app_expr`).
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE UNFOLD
 ##
@@ -2615,7 +2616,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE UNFOLD
 ## LBRACKET eff_level
 ##
 
-PLACEHOLDER: after `LBRACKET eff_level`, an unexpected token appeared.
+After the effect level in a `[eff]` annotation: expected `]` to close the bracket, followed by `<name> : <sort>` (in a pf_domain) or just `<name> : <sort>` (in a pf_entry).
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ##
@@ -2627,7 +2628,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ## LBRACKET eff_level RBRACKET
 ##
 
-PLACEHOLDER: after `LBRACKET eff_level RBRACKET`, an unexpected token appeared.
+After `[<eff>]` in a refined signature: expected a binder name followed by `: <sort>`.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET IDENT UNFOLD
 ##
@@ -2639,7 +2640,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET IDENT UNFOLD
 ## LBRACKET eff_level RBRACKET IDENT
 ##
 
-PLACEHOLDER: after `LBRACKET eff_level RBRACKET IDENT`, an unexpected token appeared.
+After `[<eff>] <name>`: expected `:` followed by the binder's sort.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET IDENT COLON UNFOLD
 ##
@@ -2651,7 +2652,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET IDENT COLON UNFOLD
 ## LBRACKET eff_level RBRACKET IDENT COLON
 ##
 
-PLACEHOLDER: after `LBRACKET eff_level RBRACKET IDENT COLON`, an unexpected token appeared.
+After `[<eff>] <name> :`: expected the binder's sort.
 
 rprog_eof: RFUN IDENT LPAREN IDENT UNFOLD
 ##
@@ -2688,7 +2689,7 @@ rprog_eof: RFUN IDENT LPAREN IDENT COLON BOOL_KW LBRACKET
 ## pf_domain_entry
 ##
 
-PLACEHOLDER: after `pf_domain_entry`, an unexpected token appeared.
+After an rfun-domain entry: expected `,` to separate another entry, or `)` to close the domain.
 
 rprog_eof: RFUN IDENT LPAREN IDENT COLON BOOL_KW COMMA UNFOLD
 ##
@@ -2700,7 +2701,7 @@ rprog_eof: RFUN IDENT LPAREN IDENT COLON BOOL_KW COMMA UNFOLD
 ## pf_domain_entry COMMA
 ##
 
-PLACEHOLDER: after `pf_domain_entry COMMA`, an unexpected token appeared.
+After `,` in an rfun domain: expected the next entry — a binder (`<name> : <sort>`, `[eff] <name> : <sort>`, `[log] <name> : <prop>`, `[res] <name> : <pred> @ <value>`, or `[res] <name> : (do ... = ...)`).
 
 rprog_eof: RFUN IDENT LPAREN RPAREN UNFOLD
 ##
@@ -2712,7 +2713,7 @@ rprog_eof: RFUN IDENT LPAREN RPAREN UNFOLD
 ## RFUN IDENT pf_domain
 ##
 
-PLACEHOLDER: after `RFUN IDENT pf_domain`, an unexpected token appeared.
+After the `rfun` domain: expected `->` followed by the codomain `pf_sort` in parentheses.
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW UNFOLD
 ##
@@ -2724,7 +2725,7 @@ rprog_eof: RFUN IDENT LPAREN RPAREN ARROW UNFOLD
 ## RFUN IDENT pf_domain ARROW
 ##
 
-PLACEHOLDER: after `RFUN IDENT pf_domain ARROW`, an unexpected token appeared.
+After `rfun <name>(<dom>) ->`: expected the codomain `pf_sort` — a parenthesised, comma-separated list of result entries (e.g. `(y : Int, [log] p : y >= 0, [res] Own[Int](p) @ y)`).
 
 rprog_eof: MAIN COLON LPAREN UNFOLD
 ##
@@ -2766,7 +2767,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES UNFOLD
 ## LBRACKET RES
 ##
 
-PLACEHOLDER: after `LBRACKET RES`, an unexpected token appeared.
+After `[res`: expected `]` to close, followed by the resource binder (in an rfun domain: `<name> : <pred> @ <value>` or `<name> : (do <y> : <sort> = <e>)`; in a codomain: `<pred> @ <value>` or `(do <y> : <sort> = <e>)`).
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET UNFOLD
 ##
@@ -2780,7 +2781,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET UNFOLD
 ## LBRACKET RES RBRACKET
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET`, an unexpected token appeared.
+After `[res]`: expected either `<name> : <pred> @ <value>` (in a domain), `<pred> @ <value>` (in a codomain), or `(do <binder> = <e>)` (for DepRes).
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN UNFOLD
 ##
@@ -2796,7 +2797,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN UNFOLD
 ## LBRACKET RES RBRACKET LPAREN
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN`, an unexpected token appeared.
+After `[res] (` in an rfun codomain: expected `do` to begin a DepRes entry: `[res] (do <y> [: <sort>] = <e>)`.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO UNFOLD
 ##
@@ -2809,7 +2810,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO UNFOLD
 ## LBRACKET RES RBRACKET LPAREN DO
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO`, an unexpected token appeared.
+After `[res] (do`: expected the DepRes dependent-binder name.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT UNFOLD
 ##
@@ -2822,7 +2823,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT UNFOLD
 ## LBRACKET RES RBRACKET LPAREN DO IDENT
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO IDENT`, an unexpected token appeared.
+After `[res] (do <y>`: expected `=` or `:` followed by `<sort> = <e>`.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL UNFOLD
 ##
@@ -2834,7 +2835,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL UNFOLD
 ## LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL`, an unexpected token appeared.
+After `[res] (do <y> =`: expected the `Pred`-sort expression.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL FALSE UNFOLD
 ##
@@ -2846,7 +2847,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL FALSE U
 ## LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL app_expr
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL app_expr`, an unexpected token appeared.
+After `[res] (do <y> = <e>`: expected `)` to close the DepRes entry.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON UNFOLD
 ##
@@ -2858,7 +2859,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON UNFOLD
 ## LBRACKET RES RBRACKET LPAREN DO IDENT COLON
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO IDENT COLON`, an unexpected token appeared.
+After `[res] (do <y> :`: expected the payload sort.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW TYPE
 ##
@@ -2870,7 +2871,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW
 ## LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort`, an unexpected token appeared.
+After `[res] (do <y> : <sort>`: expected `=` followed by the `Pred`-sort expression.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW EQUAL UNFOLD
 ##
@@ -2882,7 +2883,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW
 ## LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort EQUAL
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort EQUAL`, an unexpected token appeared.
+After `[res] (do <y> : <sort> =`: expected the `Pred`-sort expression.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW EQUAL FALSE UNFOLD
 ##
@@ -2894,7 +2895,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW
 ## LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort EQUAL app_expr
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort EQUAL app_expr`, an unexpected token appeared.
+After `[res] (do <y> : <sort> = <e>`: expected `)` to close the DepRes entry.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET FALSE UNFOLD
 ##
@@ -2906,7 +2907,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET FALSE UNFOLD
 ## LBRACKET RES RBRACKET app_expr
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET app_expr`, an unexpected token appeared.
+After `[res] <pred>`: expected `@` followed by the resource's logical-index value (e.g. `[res] Own[Int](p) @ x`).
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET FALSE AT UNFOLD
 ##
@@ -2918,7 +2919,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET FALSE AT UNFOLD
 ## LBRACKET RES RBRACKET app_expr AT
 ##
 
-PLACEHOLDER: after `LBRACKET RES RBRACKET app_expr AT`, an unexpected token appeared.
+After `[res] <pred> @`: expected the resource's logical-index value.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET LOG UNFOLD
 ##
@@ -2930,7 +2931,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET LOG UNFOLD
 ## LBRACKET LOG
 ##
 
-PLACEHOLDER: after `LBRACKET LOG`, an unexpected token appeared.
+After `[log`: expected `]` to close, followed by the log-variable binder (in an rfun domain: `<name> : <prop>`; in a codomain: just the `<prop>`).
 
 rprog_eof: MAIN COLON LPAREN LBRACKET LOG RBRACKET UNFOLD
 ##
@@ -2942,7 +2943,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET LOG RBRACKET UNFOLD
 ## LBRACKET LOG RBRACKET
 ##
 
-PLACEHOLDER: after `LBRACKET LOG RBRACKET`, an unexpected token appeared.
+After `[log]`: expected a log-variable binder (e.g. `[log] p : x >= 0` in a pf_domain, or `[log] x >= 0` in a pf_sort).
 
 rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE UNFOLD
 ##
@@ -2954,7 +2955,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE UNFOLD
 ## LBRACKET eff_level
 ##
 
-PLACEHOLDER: after `LBRACKET eff_level`, an unexpected token appeared.
+After the effect level in a `[eff]` annotation: expected `]` to close the bracket, followed by `<name> : <sort>` (in a pf_domain) or just `<name> : <sort>` (in a pf_entry).
 
 rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ##
@@ -2966,7 +2967,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ## LBRACKET eff_level RBRACKET
 ##
 
-PLACEHOLDER: after `LBRACKET eff_level RBRACKET`, an unexpected token appeared.
+After `[<eff>]` in a refined signature: expected a binder name followed by `: <sort>`.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET IDENT UNFOLD
 ##
@@ -2978,7 +2979,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET IDENT UNFOLD
 ## LBRACKET eff_level RBRACKET IDENT
 ##
 
-PLACEHOLDER: after `LBRACKET eff_level RBRACKET IDENT`, an unexpected token appeared.
+After `[<eff>] <name>`: expected `:` followed by the binder's sort.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET IDENT COLON UNFOLD
 ##
@@ -2990,7 +2991,7 @@ rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET IDENT COLON UNFOLD
 ## LBRACKET eff_level RBRACKET IDENT COLON
 ##
 
-PLACEHOLDER: after `LBRACKET eff_level RBRACKET IDENT COLON`, an unexpected token appeared.
+After `[<eff>] <name> :`: expected the binder's sort.
 
 rprog_eof: MAIN COLON LPAREN IDENT UNFOLD
 ##
@@ -3027,7 +3028,7 @@ rprog_eof: MAIN COLON LPAREN IDENT COLON BOOL_KW LBRACKET
 ## pf_entry
 ##
 
-PLACEHOLDER: after `pf_entry`, an unexpected token appeared.
+After an rfun-codomain entry: expected `,` to separate another entry, or `)` to close the codomain.
 
 rprog_eof: MAIN COLON LPAREN IDENT COLON BOOL_KW COMMA UNFOLD
 ##
@@ -3039,7 +3040,7 @@ rprog_eof: MAIN COLON LPAREN IDENT COLON BOOL_KW COMMA UNFOLD
 ## pf_entry COMMA
 ##
 
-PLACEHOLDER: after `pf_entry COMMA`, an unexpected token appeared.
+After `,` in an rfun codomain: expected the next entry (result binder, log-prop, res-predicate, or DepRes).
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN UNFOLD
 ##
@@ -3051,7 +3052,7 @@ rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN UNFOLD
 ## RFUN IDENT pf_domain ARROW pf_sort
 ##
 
-PLACEHOLDER: after `RFUN IDENT pf_domain ARROW pf_sort`, an unexpected token appeared.
+After the `rfun` codomain: expected an effect annotation `[pure]`, `[impure]`, or `[spec]`.
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET UNFOLD
 ##
@@ -3063,7 +3064,7 @@ rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET UNFOLD
 ## RFUN IDENT pf_domain ARROW pf_sort LBRACKET
 ##
 
-PLACEHOLDER: after `RFUN IDENT pf_domain ARROW pf_sort LBRACKET`, an unexpected token appeared.
+After `[` in the rfun effect annotation: expected an effect level (`pure`, `impure`, or `spec`).
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE UNFOLD
 ##
@@ -3075,7 +3076,7 @@ rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE UNFOLD
 ## RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level
 ##
 
-PLACEHOLDER: after `RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level`, an unexpected token appeared.
+After the rfun effect level: expected `]` to close the effect bracket.
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ##
@@ -3087,7 +3088,7 @@ rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE RBRACKET
 ## RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET
 ##
 
-PLACEHOLDER: after `RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET`, an unexpected token appeared.
+After the rfun effect annotation: expected `=` followed by the refined body term (`crt_expr`).
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ##
@@ -3099,7 +3100,7 @@ rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE RBRACKET
 ## RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL
 ##
 
-PLACEHOLDER: after `RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL`, an unexpected token appeared.
+After `= ` in an rfun declaration: expected the refined body term (`crt_expr`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE UNFOLD
 ##
@@ -3111,7 +3112,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE UNF
 ## OPEN_TAKE
 ##
 
-PLACEHOLDER: after `OPEN_TAKE`, an unexpected token appeared.
+After `open_take`: expected `(<rpf>)` — the resource proof term to open. Example: `open_take(r)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE LPAREN UNFOLD
 ##
@@ -3123,7 +3124,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE LPA
 ## OPEN_TAKE LPAREN
 ##
 
-PLACEHOLDER: after `OPEN_TAKE LPAREN`, an unexpected token appeared.
+After `open_take(`: expected a resource proof term (`rpf`), followed by `)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_TAKE UNFOLD
 ##
@@ -3135,7 +3136,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MA
 ## MAKE_TAKE
 ##
 
-PLACEHOLDER: after `MAKE_TAKE`, an unexpected token appeared.
+After `make_take`: expected `(<crt>)` — the refined term to package as a resource proof.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_TAKE LPAREN UNFOLD
 ##
@@ -3147,7 +3148,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MA
 ## MAKE_TAKE LPAREN
 ##
 
-PLACEHOLDER: after `MAKE_TAKE LPAREN`, an unexpected token appeared.
+After `make_take(`: expected a refined term (`crt`), followed by `)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN UNFOLD
 ##
@@ -3171,7 +3172,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES UN
 ## RES
 ##
 
-PLACEHOLDER: after `RES`, an unexpected token appeared.
+After `res` in a refined pattern: expected the resource-variable name (an identifier). Refined patterns write resource-bindings as `res r`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_RET UNFOLD
 ##
@@ -3183,7 +3184,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MA
 ## MAKE_RET
 ##
 
-PLACEHOLDER: after `MAKE_RET`, an unexpected token appeared.
+After `make_ret`: expected `(<lpf>)` — the logical proof term to package as a resource proof.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_RET LPAREN TYPE
 ##
@@ -3195,7 +3196,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MA
 ## MAKE_RET LPAREN
 ##
 
-PLACEHOLDER: after `MAKE_RET LPAREN`, an unexpected token appeared.
+After `make_ret(`: expected a logical proof term (`lpf`), followed by `)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD UNFOLD
 ##
@@ -3207,7 +3208,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UN
 ## UNFOLD
 ##
 
-PLACEHOLDER: after `UNFOLD`, an unexpected token appeared.
+After `unfold`: expected the function name to unfold, followed by `(<args>)` — e.g. `unfold length(xs)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD IDENT UNFOLD
 ##
@@ -3219,7 +3220,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UN
 ## UNFOLD IDENT
 ##
 
-PLACEHOLDER: after `UNFOLD IDENT`, an unexpected token appeared.
+After `unfold <name>`: expected `(` followed by the argument expression and `)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD IDENT LPAREN UNFOLD
 ##
@@ -3231,7 +3232,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UN
 ## UNFOLD IDENT LPAREN
 ##
 
-PLACEHOLDER: after `UNFOLD IDENT LPAREN`, an unexpected token appeared.
+After `unfold <name>(`: expected the argument core expression.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD IDENT LPAREN FALSE TYPE
 ##
@@ -3255,7 +3256,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UN
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER: after `UNFOLD IDENT LPAREN expr`, an unexpected token appeared.
+After `unfold <name>(<arg>`: expected `)` to close.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OPEN_RET UNFOLD
 ##
@@ -3267,7 +3268,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OP
 ## OPEN_RET
 ##
 
-PLACEHOLDER: after `OPEN_RET`, an unexpected token appeared.
+After `open_ret`: expected `(<rpf>)` — the resource proof term whose `ret`-shape to unpack. Example: `open_ret(r)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OPEN_RET LPAREN UNFOLD
 ##
@@ -3279,7 +3280,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OP
 ## OPEN_RET LPAREN
 ##
 
-PLACEHOLDER: after `OPEN_RET LPAREN`, an unexpected token appeared.
+After `open_ret(`: expected a resource proof term (`rpf`) followed by `)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OPEN_RET LPAREN IDENT SEMICOLON
 ##
@@ -3297,7 +3298,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OP
 ## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
 ##
 
-PLACEHOLDER: after `OPEN_RET LPAREN rpf_expr`, an unexpected token appeared.
+After `open_ret(<rpf>`: expected `)` to close.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT UNFOLD
 ##
@@ -3310,7 +3311,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES ID
 ## rpf_atom_expr
 ##
 
-PLACEHOLDER: after `rpf_atom_expr`, an unexpected token appeared.
+After a resource-proof atom: expected either a sort/index annotation `: <sort> @ <value>` or end of the expression (delimiter like `;`, `)`, `,`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT COLON UNFOLD
 ##
@@ -3322,7 +3323,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES ID
 ## rpf_atom_expr COLON
 ##
 
-PLACEHOLDER: after `rpf_atom_expr COLON`, an unexpected token appeared.
+After `<rpf> :`: expected the resource sort annotation (e.g. `r : Own[Int](p) @ x`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT COLON FALSE UNFOLD
 ##
@@ -3334,7 +3335,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES ID
 ## rpf_atom_expr COLON simple_expr
 ##
 
-PLACEHOLDER: after `rpf_atom_expr COLON simple_expr`, an unexpected token appeared.
+After `<rpf> : <sort>`: expected `@` followed by the resource's logical-index value.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT COLON FALSE AT UNFOLD
 ##
@@ -3346,7 +3347,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES ID
 ## rpf_atom_expr COLON simple_expr AT
 ##
 
-PLACEHOLDER: after `rpf_atom_expr COLON simple_expr AT`, an unexpected token appeared.
+After `<rpf> : <sort> @`: expected the logical-index value.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_RET LPAREN AUTO SEMICOLON
 ##
@@ -3364,7 +3365,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MA
 ## In state 386, spurious reduction of production lpf_expr -> lpf_atom_expr
 ##
 
-PLACEHOLDER: after `MAKE_RET LPAREN lpf_expr`, an unexpected token appeared.
+After `make_ret(<lpf>`: expected `)` to close.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG AUTO UNFOLD
 ##
@@ -3377,7 +3378,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG AU
 ## lpf_atom_expr
 ##
 
-PLACEHOLDER: after `lpf_atom_expr`, an unexpected token appeared.
+After a logical-proof atom: expected either a sort annotation `: <sort>` or end of the expression.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG AUTO COLON UNFOLD
 ##
@@ -3389,7 +3390,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG AU
 ## lpf_atom_expr COLON
 ##
 
-PLACEHOLDER: after `lpf_atom_expr COLON`, an unexpected token appeared.
+After `<lpf> :`: expected the sort annotation for the logical proof term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG TYPE
 ##
@@ -3401,7 +3402,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG TY
 ## LOG
 ##
 
-PLACEHOLDER: after `LOG`, an unexpected token appeared.
+After `log` in a refined pattern: expected the log-variable name (an identifier). Refined patterns write log-bindings as `log x`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN FALSE SEMICOLON
 ##
@@ -3427,7 +3428,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN FALSE 
 ## In state 395, spurious reduction of production spine_arg -> expr
 ##
 
-PLACEHOLDER: after `spine_arg`, an unexpected token appeared.
+After a spine argument: expected `,` for another argument or `)` to close the call. Refined-call arguments include core expressions, `log <x>`, `res <r>`, etc.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN FALSE COMMA UNFOLD
 ##
@@ -3439,7 +3440,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN FALSE 
 ## spine_arg COMMA
 ##
 
-PLACEHOLDER: after `spine_arg COMMA`, an unexpected token appeared.
+After `,` in a call-argument spine: expected the next argument.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET UNFOLD
 ##
@@ -3470,7 +3471,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES UNFOL
 ## LET RES
 ##
 
-PLACEHOLDER: after `LET RES`, an unexpected token appeared.
+After `let res`: expected a lowercase identifier for the resource-variable binder, optionally followed by `: <sort> @ <index>` to annotate its shape (e.g. `let res r = <rpf>;` or `let res r : Own[List(Int)](p) @ xs = <rpf>;`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT UNFOLD
 ##
@@ -3483,7 +3484,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT
 ##
 
-PLACEHOLDER: after `LET RES IDENT`, an unexpected token appeared.
+After `let res <name>`: expected `=` to give the right-hand side, or `:` followed by the resource sort (with `@ <index>`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL UNFOLD
 ##
@@ -3495,7 +3496,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT EQUAL
 ##
 
-PLACEHOLDER: after `LET RES IDENT EQUAL`, an unexpected token appeared.
+After `let res <name> =`: expected a resource proof term (`rpf`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL IDENT RPAREN
 ##
@@ -3513,7 +3514,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
 ##
 
-PLACEHOLDER: after `LET RES IDENT EQUAL rpf_expr`, an unexpected token appeared.
+After `let res <name> = <rpf>`: expected `;` to end the binding, followed by the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL IDENT SEMICOLON UNFOLD
 ##
@@ -3525,7 +3526,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT EQUAL rpf_expr SEMICOLON
 ##
 
-PLACEHOLDER: after `LET RES IDENT EQUAL rpf_expr SEMICOLON`, an unexpected token appeared.
+After `let res <name> = <rpf>;`: expected the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER UNFOLD
 ##
@@ -3537,7 +3538,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER UNFOLD
 ## ITER
 ##
 
-PLACEHOLDER: after `ITER`, an unexpected token appeared.
+After `iter` in a refined term: expected `[<res>]` — a resource precondition in brackets — followed by `(<rpat> = <init>) { <body> }`. The refined `iter` has shape `iter [r] (rpat = init) { body }`, where `r` is the resource invariant threaded through each iteration.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET UNFOLD
 ##
@@ -3549,10 +3550,11 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## ITER LBRACKET
 ##
 
-PLACEHOLDER: after `ITER LBRACKET`, an unexpected token appeared.
+After `iter [`: expected the resource-invariant expression (e.g. `iter [Own[List(Int)](p)] (...) { ... }`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE TYPE
 ##
+## (refined-iter resource-invariant complete; expecting RBRACKET)
 ## Ends in an error in state: 407.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr . RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
@@ -3573,7 +3575,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER: after `ITER LBRACKET expr`, an unexpected token appeared.
+After the resource-invariant expression in `iter [<res>`: expected `]` to close the bracket, then `(<rpat> = <init>) { <body> }`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET UNFOLD
 ##
@@ -3585,7 +3587,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## ITER LBRACKET expr RBRACKET
 ##
 
-PLACEHOLDER: after `ITER LBRACKET expr RBRACKET`, an unexpected token appeared.
+After `iter [<res>]`: expected `(` to begin the state binder `(<rpat> = <init>)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN UNFOLD
 ##
@@ -3597,7 +3599,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## ITER LBRACKET expr RBRACKET LPAREN
 ##
 
-PLACEHOLDER: after `ITER LBRACKET expr RBRACKET LPAREN`, an unexpected token appeared.
+After `iter [<res>](`: expected a refined pattern (`rpat`) binding the loop's state variable — e.g. `x`, `(a, b)`, `(log l, x, res r)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN UNFOLD
 ##
@@ -3610,7 +3612,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN UN
 ## LPAREN
 ##
 
-PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
+After `(` in a refined pattern: expected `)` to form the unit pattern, or a comma-separated list of refined-pattern elements — identifiers (`x`), `log <x>`, `res <r>`, or paired refined-binders `(x, y)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN UNFOLD
 ##
@@ -3622,7 +3624,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LP
 ## LPAREN
 ##
 
-PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
+After `(` in a refined-pattern element (DepRes pair form): expected two comma-separated identifiers and then `)` — the shape is `(<log-binder>, <res-binder>)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN IDENT UNFOLD
 ##
@@ -3634,7 +3636,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LP
 ## LPAREN IDENT
 ##
 
-PLACEHOLDER: after `LPAREN IDENT`, an unexpected token appeared.
+After `(<log-binder>` in a DepRes pair pattern: expected `,` followed by the resource-binder name and then `)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN IDENT COMMA UNFOLD
 ##
@@ -3646,7 +3648,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LP
 ## LPAREN IDENT COMMA
 ##
 
-PLACEHOLDER: after `LPAREN IDENT COMMA`, an unexpected token appeared.
+After `(<log-binder>,` in a DepRes pair pattern: expected the resource-binder name.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN IDENT COMMA IDENT UNFOLD
 ##
@@ -3658,7 +3660,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LP
 ## LPAREN IDENT COMMA IDENT
 ##
 
-PLACEHOLDER: after `LPAREN IDENT COMMA IDENT`, an unexpected token appeared.
+After the second identifier in a DepRes pair pattern: expected `)` to close.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN IDENT UNFOLD
 ##
@@ -3671,7 +3673,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN ID
 ## rpat_elem
 ##
 
-PLACEHOLDER: after `rpat_elem`, an unexpected token appeared.
+After a refined-pattern element: expected `,` for another element or `)` to close the pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN IDENT COMMA UNFOLD
 ##
@@ -3683,7 +3685,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN ID
 ## rpat_elem COMMA
 ##
 
-PLACEHOLDER: after `rpat_elem COMMA`, an unexpected token appeared.
+After `,` in a refined pattern: expected the next element — an identifier, `log <x>`, `res <r>`, or a parenthesised rpat.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT UNFOLD
 ##
@@ -3695,7 +3697,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## ITER LBRACKET expr RBRACKET LPAREN rpat
 ##
 
-PLACEHOLDER: after `ITER LBRACKET expr RBRACKET LPAREN rpat`, an unexpected token appeared.
+After the refined-iter pattern: expected `=` followed by the initial-value refined term (e.g. `iter [r] ((x, res r_loop) = (0, res r)) { ... }`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL UNFOLD
 ##
@@ -3707,7 +3709,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL
 ##
 
-PLACEHOLDER: after `ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL`, an unexpected token appeared.
+After `iter [<res>](<rpat> =`: expected the initial-value refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF UNFOLD
 ##
@@ -3719,7 +3721,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF UNFOLD
 ## IF
 ##
 
-PLACEHOLDER: after `IF`, an unexpected token appeared.
+After `if` in a refined term: expected `[<log-name>]` — a log variable that refines to the boolean outcome — followed by `<cond> then <crt> else <crt>`. Refined `if` has shape `if[b] cond then t else e`, where `b` is bound to the `Bool` condition in each branch.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET UNFOLD
 ##
@@ -3731,7 +3733,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET U
 ## IF LBRACKET
 ##
 
-PLACEHOLDER: after `IF LBRACKET`, an unexpected token appeared.
+After `if [` in a refined term: expected a lowercase identifier for the log-binder that refines to the boolean outcome of the condition (e.g. `if[b] x == 0 then ... else ...`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT UNFOLD
 ##
@@ -3743,7 +3745,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 ## IF LBRACKET IDENT
 ##
 
-PLACEHOLDER: after `IF LBRACKET IDENT`, an unexpected token appeared.
+After `if [<name>`: expected `]` to close the bracket.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET UNFOLD
 ##
@@ -3755,7 +3757,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 ## IF LBRACKET IDENT RBRACKET
 ##
 
-PLACEHOLDER: after `IF LBRACKET IDENT RBRACKET`, an unexpected token appeared.
+After `if [<name>]`: expected the condition expression (a core expression of sort `Bool`, written in the surface-expression grammar).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE TYPE
 ##
@@ -3779,7 +3781,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER: after `IF LBRACKET IDENT RBRACKET expr`, an unexpected token appeared.
+After the condition in a refined `if`: expected the keyword `then` followed by the then-branch refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE THEN UNFOLD
 ##
@@ -3791,7 +3793,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 ## IF LBRACKET IDENT RBRACKET expr THEN
 ##
 
-PLACEHOLDER: after `IF LBRACKET IDENT RBRACKET expr THEN`, an unexpected token appeared.
+After `if[<name>] <cond> then`: expected the then-branch refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IDENT UNFOLD
 ##
@@ -3827,7 +3829,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE UNFOLD
 ## CASE
 ##
 
-PLACEHOLDER: after `CASE`, an unexpected token appeared.
+After `case` in a refined term: expected `[<log-name>]` — a log variable that refines to the scrutinee in each branch — followed by `<scrutinee> of { <branches> }`. Refined `case` has shape `case[z] e of { <Ctor> x -> <crt> | ... }`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET UNFOLD
 ##
@@ -3839,7 +3841,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## CASE LBRACKET
 ##
 
-PLACEHOLDER: after `CASE LBRACKET`, an unexpected token appeared.
+After `case [` in a refined term: expected a lowercase identifier for the log-binder that refines to the scrutinee's value in each branch (e.g. `case[z] xs of { Nil u -> ... | Cons (h, t) -> ... }`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT UNFOLD
 ##
@@ -3851,7 +3853,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## CASE LBRACKET IDENT
 ##
 
-PLACEHOLDER: after `CASE LBRACKET IDENT`, an unexpected token appeared.
+After `case [<name>`: expected `]` to close the bracket.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET UNFOLD
 ##
@@ -3863,7 +3865,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## CASE LBRACKET IDENT RBRACKET
 ##
 
-PLACEHOLDER: after `CASE LBRACKET IDENT RBRACKET`, an unexpected token appeared.
+After `case [<name>]`: expected the scrutinee expression (a core expression whose sort is a datatype).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE TYPE
 ##
@@ -3887,7 +3889,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## In state 143, spurious reduction of production expr -> seq_expr
 ##
 
-PLACEHOLDER: after `CASE LBRACKET IDENT RBRACKET expr`, an unexpected token appeared.
+After the scrutinee of a refined `case`: expected the keyword `of` followed by `{ <branches> }`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF UNFOLD
 ##
@@ -3899,7 +3901,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## CASE LBRACKET IDENT RBRACKET expr OF
 ##
 
-PLACEHOLDER: after `CASE LBRACKET IDENT RBRACKET expr OF`, an unexpected token appeared.
+After `case[<name>] <e> of`: expected `{` to open the branch block.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE UNFOLD
 ##
@@ -3907,11 +3909,12 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ##
 ## crt_seq_expr -> CASE LBRACKET IDENT RBRACKET expr OF LBRACE . separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
+## After `{` in a refined `case`: expected at least one branch `<Ctor> <var> -> <crt>`.
 ## The known suffix of the stack is as follows:
 ## CASE LBRACKET IDENT RBRACKET expr OF LBRACE
 ##
 
-PLACEHOLDER: after `CASE LBRACKET IDENT RBRACKET expr OF LBRACE`, an unexpected token appeared.
+After `case[<name>] <e> of {`: expected at least one branch `<Ctor> <var> -> <crt>`. Refined-case branches take exactly one variable (the payload) — use `Ctor u` when the payload is `()`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL UNFOLD
 ##
@@ -3935,7 +3938,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## LABEL IDENT
 ##
 
-PLACEHOLDER: after `LABEL IDENT`, an unexpected token appeared.
+After `<Ctor> <var>` in a refined-case branch: expected `->` followed by the branch body (e.g. `Cons p -> let core[a] (h, t) = p; ...`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT ARROW UNFOLD
 ##
@@ -3947,7 +3950,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## LABEL IDENT ARROW
 ##
 
-PLACEHOLDER: after `LABEL IDENT ARROW`, an unexpected token appeared.
+After `<Ctor> <var> ->` in a refined-case branch: expected the branch body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL UNFOLD
 ##
@@ -3971,7 +3974,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET 
 ## state_prim LBRACKET
 ##
 
-PLACEHOLDER: after `state_prim LBRACKET`, an unexpected token appeared.
+After `<prim>[`: expected the element sort (e.g. `New[Int] 5`, `Get[List(Int)] p`). The bracketed sort instantiates the primitive's generic element type.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET BOOL_KW TYPE
 ##
@@ -3983,7 +3986,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET 
 ## state_prim LBRACKET sort
 ##
 
-PLACEHOLDER: after `state_prim LBRACKET sort`, an unexpected token appeared.
+After `<prim>[<sort>`: expected `]` to close the sort bracket, followed by the argument (e.g. `New[Int] 5`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET BOOL_KW RBRACKET UNFOLD
 ##
@@ -3995,7 +3998,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET 
 ## state_prim LBRACKET sort RBRACKET
 ##
 
-PLACEHOLDER: after `state_prim LBRACKET sort RBRACKET`, an unexpected token appeared.
+After `<prim>[<sort>]`: expected the argument expression — state primitives take exactly one argument (use a tuple for multi-argument forms like `Set[τ](p, v)`, `Eq[τ](a, b)`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO UNFOLD
 ##
@@ -4008,7 +4011,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO UNFOL
 ## crt_seq_expr
 ##
 
-PLACEHOLDER: after `crt_seq_expr`, an unexpected token appeared.
+After a refined term: expected a delimiter (`;`, `)`, `,`, `|`, `}`) or `:` to annotate it with a `pf_sort`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO COLON UNFOLD
 ##
@@ -4020,7 +4023,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO COLON
 ## crt_seq_expr COLON
 ##
 
-PLACEHOLDER: after `crt_seq_expr COLON`, an unexpected token appeared.
+After `<crt> :`: expected a refined sort annotation — `pf_sort` — describing the term's result (e.g. `<crt> : (y : Int, [log] x > 0)`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT ARROW EXFALSO TYPE
 ##
@@ -4040,7 +4043,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## In state 457, spurious reduction of production crt_case_branch -> LABEL IDENT ARROW crt_expr
 ##
 
-PLACEHOLDER: after `crt_case_branch`, an unexpected token appeared.
+After a refined-case branch: expected `|` to begin another branch, or `}` to close the case block.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT ARROW EXFALSO BAR UNFOLD
 ##
@@ -4052,7 +4055,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## crt_case_branch BAR
 ##
 
-PLACEHOLDER: after `crt_case_branch BAR`, an unexpected token appeared.
+After `|` in a refined-case block: expected the next branch `<Ctor> <var> -> <crt>`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE THEN EXFALSO TYPE
 ##
@@ -4070,7 +4073,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 ## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
-PLACEHOLDER: after `IF LBRACKET IDENT RBRACKET expr THEN crt_expr`, an unexpected token appeared.
+After the then-branch of a refined `if`: expected `else` followed by the else-branch refined term. Both branches are required.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE THEN EXFALSO ELSE UNFOLD
 ##
@@ -4082,7 +4085,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 ## IF LBRACKET IDENT RBRACKET expr THEN crt_expr ELSE
 ##
 
-PLACEHOLDER: after `IF LBRACKET IDENT RBRACKET expr THEN crt_expr ELSE`, an unexpected token appeared.
+After `else` in a refined `if`: expected the else-branch refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO TYPE
 ##
@@ -4100,7 +4103,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
-PLACEHOLDER: after `ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr`, an unexpected token appeared.
+After the refined-iter init-value term: expected `)` to close the binder, then `{ <body> }`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO RPAREN UNFOLD
 ##
@@ -4112,7 +4115,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN
 ##
 
-PLACEHOLDER: after `ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN`, an unexpected token appeared.
+After `iter [<res>](<rpat> = <init>)`: expected `{` to open the loop body.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO RPAREN LBRACE UNFOLD
 ##
@@ -4124,7 +4127,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE
 ##
 
-PLACEHOLDER: after `ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE`, an unexpected token appeared.
+After `iter [<res>](<rpat> = <init>) {`: expected the refined body term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO RPAREN LBRACE EXFALSO TYPE
 ##
@@ -4142,7 +4145,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
-PLACEHOLDER: after `ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr`, an unexpected token appeared.
+After the refined-iter body term: expected `}` to close the loop body.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON UNFOLD
 ##
@@ -4154,7 +4157,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT COLON
 ##
 
-PLACEHOLDER: after `LET RES IDENT COLON`, an unexpected token appeared.
+After `let res <name> :`: expected the resource sort (e.g. `Own[List(Int)](p)`) followed by `@ <index>`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE UNFOLD
 ##
@@ -4166,7 +4169,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT COLON app_expr
 ##
 
-PLACEHOLDER: after `LET RES IDENT COLON app_expr`, an unexpected token appeared.
+After `let res <name> : <sort>`: expected `@ <index>` giving the resource's logical-index (e.g. `let res r : Own[List(Int)](p) @ xs = ...;`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT UNFOLD
 ##
@@ -4178,7 +4181,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT COLON app_expr AT
 ##
 
-PLACEHOLDER: after `LET RES IDENT COLON app_expr AT`, an unexpected token appeared.
+After `let res <name> : <sort> @`: expected the logical-index expression (typically a log variable or a core expression).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE UNFOLD
 ##
@@ -4190,7 +4193,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT COLON app_expr AT app_expr
 ##
 
-PLACEHOLDER: after `LET RES IDENT COLON app_expr AT app_expr`, an unexpected token appeared.
+After `let res <name> : <sort> @ <index>`: expected `=` followed by the resource proof term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE EQUAL UNFOLD
 ##
@@ -4202,7 +4205,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT COLON app_expr AT app_expr EQUAL
 ##
 
-PLACEHOLDER: after `LET RES IDENT COLON app_expr AT app_expr EQUAL`, an unexpected token appeared.
+After `let res <name> : <sort> @ <index> =`: expected the resource proof term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE EQUAL IDENT RPAREN
 ##
@@ -4220,7 +4223,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
 ##
 
-PLACEHOLDER: after `LET RES IDENT COLON app_expr AT app_expr EQUAL rpf_expr`, an unexpected token appeared.
+After `let res <name> : <sort> @ <index> = <rpf>`: expected `;` followed by the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE EQUAL IDENT SEMICOLON UNFOLD
 ##
@@ -4232,7 +4235,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES IDENT COLON app_expr AT app_expr EQUAL rpf_expr SEMICOLON
 ##
 
-PLACEHOLDER: after `LET RES IDENT COLON app_expr AT app_expr EQUAL rpf_expr SEMICOLON`, an unexpected token appeared.
+After `let res <name> : <sort> @ <index> = <rpf>;`: expected the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG UNFOLD
 ##
@@ -4245,7 +4248,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG UNFOL
 ## LET LOG
 ##
 
-PLACEHOLDER: after `LET LOG`, an unexpected token appeared.
+After `let log`: expected a lowercase identifier for the log-variable binder, optionally followed by `: <sort>` to annotate its sort (e.g. `let log x = <lpf>;` or `let log x : Int = <lpf>;`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT UNFOLD
 ##
@@ -4258,7 +4261,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## LET LOG IDENT
 ##
 
-PLACEHOLDER: after `LET LOG IDENT`, an unexpected token appeared.
+After `let log <name>`: expected `=` to give the right-hand side, or `:` followed by a sort to annotate.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT EQUAL TYPE
 ##
@@ -4270,7 +4273,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## LET LOG IDENT EQUAL
 ##
 
-PLACEHOLDER: after `LET LOG IDENT EQUAL`, an unexpected token appeared.
+After `let log <name> =`: expected a logical proof term (`lpf`) of the appropriate sort.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT EQUAL AUTO RPAREN
 ##
@@ -4288,7 +4291,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## In state 386, spurious reduction of production lpf_expr -> lpf_atom_expr
 ##
 
-PLACEHOLDER: after `LET LOG IDENT EQUAL lpf_expr`, an unexpected token appeared.
+After `let log <name> = <lpf>`: expected `;` to end the binding, followed by the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT EQUAL AUTO SEMICOLON UNFOLD
 ##
@@ -4300,7 +4303,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## LET LOG IDENT EQUAL lpf_expr SEMICOLON
 ##
 
-PLACEHOLDER: after `LET LOG IDENT EQUAL lpf_expr SEMICOLON`, an unexpected token appeared.
+After `let log <name> = <lpf>;`: expected the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON UNFOLD
 ##
@@ -4312,7 +4315,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## LET LOG IDENT COLON
 ##
 
-PLACEHOLDER: after `LET LOG IDENT COLON`, an unexpected token appeared.
+After `let log <name> :`: expected the sort (an `app_expr` in the grammar; typically `Int`, `Bool`, `List(Int)`, etc.).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE UNFOLD
 ##
@@ -4324,7 +4327,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## LET LOG IDENT COLON app_expr
 ##
 
-PLACEHOLDER: after `LET LOG IDENT COLON app_expr`, an unexpected token appeared.
+After `let log <name> : <sort>`: expected `=` followed by the logical proof term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE EQUAL TYPE
 ##
@@ -4336,7 +4339,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## LET LOG IDENT COLON app_expr EQUAL
 ##
 
-PLACEHOLDER: after `LET LOG IDENT COLON app_expr EQUAL`, an unexpected token appeared.
+After `let log <name> : <sort> =`: expected the logical proof term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE EQUAL AUTO RPAREN
 ##
@@ -4354,7 +4357,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## In state 386, spurious reduction of production lpf_expr -> lpf_atom_expr
 ##
 
-PLACEHOLDER: after `LET LOG IDENT COLON app_expr EQUAL lpf_expr`, an unexpected token appeared.
+After `let log <name> : <sort> = <lpf>`: expected `;` to end the binding, followed by the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE EQUAL AUTO SEMICOLON UNFOLD
 ##
@@ -4366,7 +4369,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## LET LOG IDENT COLON app_expr EQUAL lpf_expr SEMICOLON
 ##
 
-PLACEHOLDER: after `LET LOG IDENT COLON app_expr EQUAL lpf_expr SEMICOLON`, an unexpected token appeared.
+After `let log <name> : <sort> = <lpf>;`: expected the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE UNFOLD
 ##
@@ -4379,7 +4382,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE UNFO
 ## LET CORE
 ##
 
-PLACEHOLDER: after `LET CORE`, an unexpected token appeared.
+After `let core`: expected `[<sort-name>]` — the sort of the core term — followed by either a binder name (`let core[Int] x = ...`) or a tuple of names (`let core[Int] (a, b) = ...`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET UNFOLD
 ##
@@ -4392,7 +4395,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET
 ##
 
-PLACEHOLDER: after `LET CORE LBRACKET`, an unexpected token appeared.
+After `let core [`: expected a lowercase sort-parameter name (e.g. `let core[a] x = ...`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT UNFOLD
 ##
@@ -4405,7 +4408,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT
 ##
 
-PLACEHOLDER: after `LET CORE LBRACKET IDENT`, an unexpected token appeared.
+After `let core[<name>`: expected `]` to close the sort bracket.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET UNFOLD
 ##
@@ -4418,7 +4421,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET
 ##
 
-PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET`, an unexpected token appeared.
+After `let core[<sort>]`: expected a binder — either an identifier (`let core[a] x = ...`) or a parenthesised tuple of identifiers (`let core[a] (x, y) = ...`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN UNFOLD
 ##
@@ -4430,7 +4433,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET LPAREN
 ##
 
-PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET LPAREN`, an unexpected token appeared.
+After `let core[<sort>] (`: expected at least one binder name (e.g. `let core[a] (x, y) = ...`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT UNFOLD
 ##
@@ -4455,7 +4458,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## IDENT COMMA
 ##
 
-PLACEHOLDER: after `IDENT COMMA`, an unexpected token appeared.
+After `,` in a `let core[a] (x1, ..., xn)` binder list: expected another identifier. Trailing commas are not allowed.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT RPAREN UNFOLD
 ##
@@ -4467,7 +4470,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN
 ##
 
-PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN`, an unexpected token appeared.
+After `let core[<sort>] (<binders>)`: expected `=` followed by the right-hand side core expression.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT RPAREN EQUAL UNFOLD
 ##
@@ -4479,7 +4482,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL
 ##
 
-PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL`, an unexpected token appeared.
+After `let core[<sort>] (<binders>) =`: expected the right-hand side core expression.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT RPAREN EQUAL FALSE TYPE
 ##
@@ -4515,7 +4518,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON
 ##
 
-PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON`, an unexpected token appeared.
+After `let core[<sort>] (<binders>) = <rhs>;`: expected the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET IDENT UNFOLD
 ##
@@ -4527,7 +4530,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET IDENT
 ##
 
-PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET IDENT`, an unexpected token appeared.
+After `let core[<sort>] <binder>`: expected `=` followed by the right-hand side core expression.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL UNFOLD
 ##
@@ -4539,7 +4542,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL
 ##
 
-PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL`, an unexpected token appeared.
+After `let core[<sort>] <binder> =`: expected the right-hand side core expression.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL FALSE TYPE
 ##
@@ -4575,7 +4578,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL expr SEMICOLON
 ##
 
-PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL expr SEMICOLON`, an unexpected token appeared.
+After `let core[<sort>] <binder> = <rhs>;`: expected the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT UNFOLD
 ##
@@ -4587,7 +4590,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT UNF
 ## LET rpat
 ##
 
-PLACEHOLDER: after `LET rpat`, an unexpected token appeared.
+After `let <rpat>` in a refined term: expected `=` followed by the right-hand side refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQUAL UNFOLD
 ##
@@ -4599,7 +4602,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQU
 ## LET rpat EQUAL
 ##
 
-PLACEHOLDER: after `LET rpat EQUAL`, an unexpected token appeared.
+After `let <rpat> =` in a refined term: expected the right-hand side refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQUAL EXFALSO TYPE
 ##
@@ -4629,7 +4632,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQU
 ## LET rpat EQUAL crt_expr SEMICOLON
 ##
 
-PLACEHOLDER: after `LET rpat EQUAL crt_expr SEMICOLON`, an unexpected token appeared.
+After `let <rpat> = <rhs>;` in a refined term: expected the body refined term — `let ...;` is a sequencer, so a following term is required.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_TAKE LPAREN EXFALSO TYPE
 ##
@@ -4647,7 +4650,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MA
 ## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
-PLACEHOLDER: after `MAKE_TAKE LPAREN crt_expr`, an unexpected token appeared.
+After `make_take(<crt>`: expected `)` to close.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE LPAREN IDENT SEMICOLON
 ##
@@ -4665,7 +4668,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE LPA
 ## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
 ##
 
-PLACEHOLDER: after `OPEN_TAKE LPAREN rpf_expr`, an unexpected token appeared.
+After `open_take(<rpf>`: expected `)` to close.
 
 rprog_eof: FUN UNFOLD
 ##
@@ -4677,7 +4680,7 @@ rprog_eof: FUN UNFOLD
 ## FUN
 ##
 
-PLACEHOLDER: after `FUN`, an unexpected token appeared.
+After `fun` in a refined program: expected the function's name — a lowercase identifier. Refined-program `fun` declarations have a simpler shape than surface ones: `fun f (x : τ) -> σ [eff] = body` (one parameter, expression body, no branches).
 
 rprog_eof: FUN IDENT UNFOLD
 ##
@@ -4689,7 +4692,7 @@ rprog_eof: FUN IDENT UNFOLD
 ## FUN IDENT
 ##
 
-PLACEHOLDER: after `FUN IDENT`, an unexpected token appeared.
+After the function name in a refined-program `fun`: expected `(` to begin the parameter binder `(x : τ)`. Refined-program `fun` takes a single parenthesised parameter (not a `: τ -> σ` signature as in surface programs).
 
 rprog_eof: FUN IDENT LPAREN UNFOLD
 ##
@@ -4701,7 +4704,7 @@ rprog_eof: FUN IDENT LPAREN UNFOLD
 ## FUN IDENT LPAREN
 ##
 
-PLACEHOLDER: after `FUN IDENT LPAREN`, an unexpected token appeared.
+After `fun <name>(`: expected the parameter name (a lowercase identifier), followed by `: <sort>` and `)`. Refined-program `fun` takes exactly one parameter.
 
 rprog_eof: FUN IDENT LPAREN IDENT UNFOLD
 ##
@@ -4713,7 +4716,7 @@ rprog_eof: FUN IDENT LPAREN IDENT UNFOLD
 ## FUN IDENT LPAREN IDENT
 ##
 
-PLACEHOLDER: after `FUN IDENT LPAREN IDENT`, an unexpected token appeared.
+After the parameter name: expected `:` followed by the parameter's sort (e.g. `fun f (x : Int) -> ...`).
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON UNFOLD
 ##
@@ -4725,7 +4728,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON UNFOLD
 ## FUN IDENT LPAREN IDENT COLON
 ##
 
-PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON`, an unexpected token appeared.
+After `<name> :` in the parameter binder: expected the parameter's sort (e.g. `Int`, `List(Int)`, `Ptr Int`).
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW TYPE
 ##
@@ -4737,7 +4740,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW TYPE
 ## FUN IDENT LPAREN IDENT COLON sort
 ##
 
-PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort`, an unexpected token appeared.
+After the parameter's sort: expected `)` to close the parameter binder. Refined-program `fun` takes a single parameter; to pass multiple values, use a tuple sort (e.g. `fun f (p : (Int * Int)) -> ...`) or use `rfun` for a refined signature with multiple log/res binders.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN UNFOLD
 ##
@@ -4749,7 +4752,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN UNFOLD
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN
 ##
 
-PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort RPAREN`, an unexpected token appeared.
+After `fun <name>(<param>)`: expected `->` followed by the return sort.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW UNFOLD
 ##
@@ -4761,7 +4764,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW UNFOLD
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW
 ##
 
-PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW`, an unexpected token appeared.
+After `->`: expected the return sort (e.g. `Int`, `Bool`, `()`, `Pred Int`).
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW TYPE
 ##
@@ -4773,7 +4776,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW TYPE
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort
 ##
 
-PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort`, an unexpected token appeared.
+After the return sort: expected an effect annotation `[pure]`, `[impure]`, or `[spec]` in brackets.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET UNFOLD
 ##
@@ -4785,7 +4788,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET UN
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET
 ##
 
-PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET`, an unexpected token appeared.
+After `[`: expected an effect level — one of `pure`, `impure`, or `spec`.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IMPURE UNFOLD
 ##
@@ -4797,7 +4800,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IM
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level
 ##
 
-PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level`, an unexpected token appeared.
+After the effect level: expected `]` to close the effect bracket.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IMPURE RBRACKET UNFOLD
 ##
@@ -4809,7 +4812,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IM
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET
 ##
 
-PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET`, an unexpected token appeared.
+After the effect annotation: expected `=` followed by the body expression.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ##
@@ -4821,7 +4824,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IM
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL
 ##
 
-PLACEHOLDER: after `FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL`, an unexpected token appeared.
+After `=` in a refined-program `fun`: expected the body expression. Unlike surface `fun` declarations, the body is a single expression (not a `{ branches }` block).
 
 rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE SEMICOLON
 ##
@@ -4833,7 +4836,7 @@ rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE SEMICOLON
 ## rdecl
 ##
 
-PLACEHOLDER: after `rdecl`, an unexpected token appeared.
+After a top-level declaration in a refined program: expected another declaration (`fun`, `rfun`, `sort`, `type`) or the `main` entry. Only declarations are allowed at the top level.
 
 rprog_eof: MAIN UNFOLD
 ##
@@ -4845,7 +4848,7 @@ rprog_eof: MAIN UNFOLD
 ## list(rdecl) MAIN
 ##
 
-PLACEHOLDER: after `<decl>... MAIN`, an unexpected token appeared.
+After `main` in a refined program: expected `:` followed by the program's refined return sort (`pf_sort`) and effect.
 
 rprog_eof: MAIN COLON UNFOLD
 ##
@@ -4857,7 +4860,7 @@ rprog_eof: MAIN COLON UNFOLD
 ## list(rdecl) MAIN COLON
 ##
 
-PLACEHOLDER: after `<decl>... MAIN COLON`, an unexpected token appeared.
+After `main :` in a refined program: expected the refined return sort (`pf_sort`) — a parenthesised list of entries (typically `()` for programs returning unit).
 
 rprog_eof: MAIN COLON LPAREN RPAREN UNFOLD
 ##
@@ -4869,7 +4872,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN UNFOLD
 ## list(rdecl) MAIN COLON pf_sort
 ##
 
-PLACEHOLDER: after `<decl>... MAIN COLON pf_sort`, an unexpected token appeared.
+After the refined-main return sort: expected `[` followed by an effect level (typically `[impure]`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET UNFOLD
 ##
@@ -4881,7 +4884,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET UNFOLD
 ## list(rdecl) MAIN COLON pf_sort LBRACKET
 ##
 
-PLACEHOLDER: after `<decl>... MAIN COLON pf_sort LBRACKET`, an unexpected token appeared.
+After `[` in the refined-main effect annotation: expected an effect level (`pure`, `impure`, or `spec`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE UNFOLD
 ##
@@ -4893,7 +4896,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE UNFOLD
 ## list(rdecl) MAIN COLON pf_sort LBRACKET eff_level
 ##
 
-PLACEHOLDER: after `<decl>... MAIN COLON pf_sort LBRACKET eff_level`, an unexpected token appeared.
+After the refined-main effect level: expected `]` to close the effect bracket.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ##
@@ -4905,7 +4908,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ## list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET
 ##
 
-PLACEHOLDER: after `<decl>... MAIN COLON pf_sort LBRACKET eff_level RBRACKET`, an unexpected token appeared.
+After the refined-main effect annotation: expected `=` followed by the program's refined body (`crt_expr`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ##
@@ -4917,7 +4920,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ## list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET EQUAL
 ##
 
-PLACEHOLDER: after `<decl>... MAIN COLON pf_sort LBRACKET eff_level RBRACKET EQUAL`, an unexpected token appeared.
+After `=` in refined-main: expected the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO TYPE
 ##
@@ -4935,7 +4938,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO TYPE
 ## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
-PLACEHOLDER: after `<decl>... MAIN COLON pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr`, an unexpected token appeared.
+After the refined-main body: expected end of file. `main` must be the last declaration in the program.
 
 sort_eof: UNFOLD
 ##

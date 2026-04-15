@@ -1,0 +1,11 @@
+fun gcd : (Int * Int) -> Int [impure] = {
+  (x, y) ->
+  iter (a = x, b = y) {
+    if b == 0 then
+      Done a : Step(Int, Int)
+    else
+      Next (a - b) : Step(Int, Int)
+  }
+}
+
+main : () [impure] = ()

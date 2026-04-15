@@ -1,0 +1,2 @@
+main : () [impure] =
+  if then 1 else 2

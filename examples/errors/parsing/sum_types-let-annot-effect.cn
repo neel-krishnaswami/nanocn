@@ -1,0 +1,10 @@
+type Option(a) = { Some : a | None : () }
+
+fun toInt : Option(Int) -> Int [pure] = {
+    Some n -> n
+  | None u -> 0
+}
+
+main : () [impure] =
+  let a : Int [pure] = toInt (Some 42 : Option(Int));
+  ()

@@ -192,7 +192,8 @@ seq_expr:
   | LET; p = pat; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
     { mk_surfexpr $startpos $endpos (SurfExpr.Let (p, e1, e2)) }
   | TAKE; p = pat; COLON; s = sort; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
-    { let annot_e1 = mk_surfexpr $startpos $endpos (SurfExpr.Annot (e1, s)) in
+    { let pred_s = mk_sort $startpos(s) $endpos(s) (Sort.Pred s) in
+      let annot_e1 = mk_surfexpr $startpos $endpos (SurfExpr.Annot (e1, pred_s)) in
       mk_surfexpr $startpos $endpos (SurfExpr.Take (p, annot_e1, e2)) }
   | TAKE; p = pat; EQUAL; e1 = expr; SEMICOLON; e2 = seq_expr
     { mk_surfexpr $startpos $endpos (SurfExpr.Take (p, e1, e2)) }

@@ -1,0 +1,9 @@
+fun identity : Int -> Int [pure] = {
+  n -> n
+}
+
+fun negate : Bool -> Bool [pure] = {
+  b -> not b
+}
+
+main : () [impure] = ()

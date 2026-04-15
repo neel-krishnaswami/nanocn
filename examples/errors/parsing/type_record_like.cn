@@ -1,0 +1,9 @@
+type Pair(a, b) = { MkPair : (a * b) }
+
+fun swapPair : Pair(Int, Bool) -> Pair(Bool, Int) [pure] = {
+  p -> case p of {
+    MkPair (x, y) -> MkPair (y, x) : Pair(Bool, Int)
+  }
+}
+
+main : () [impure] = ()

@@ -1,0 +1,5 @@
+fun f : List() -> Int [pure] = {
+  xs -> 0
+}
+
+main : () [impure] = ()

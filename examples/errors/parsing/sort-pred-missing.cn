@@ -1,0 +1,5 @@
+fun f : Pred -> Int [spec] = {
+  p -> 0
+}
+
+main : () [impure] = ()

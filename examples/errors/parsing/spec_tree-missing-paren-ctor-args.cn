@@ -1,0 +1,8 @@
+sort Tree(a) = { Leaf : a | Node : (Tree(a) * Tree(a)) }
+
+fun size : Tree(Int) -> Int [spec] = {
+    Leaf x -> 1
+  | Node l, r -> size l + size r
+}
+
+main : () [impure] = ()

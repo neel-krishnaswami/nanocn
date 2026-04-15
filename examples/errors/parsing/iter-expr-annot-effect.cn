@@ -1,0 +1,8 @@
+fun countdown : Int -> Step(Int, ()) [impure] = {
+  x -> Done () : Step(Int, ()) [impure]
+}
+
+main : () [impure] =
+  iter (x = 10) {
+    countdown x
+  }

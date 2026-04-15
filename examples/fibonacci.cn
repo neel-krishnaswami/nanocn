@@ -1,0 +1,13 @@
+fun fib : Int -> Int [impure] = {
+  n ->
+  iter ((i, a, b) = ((n, 0, 1) : (Int * Int * Int))) {
+    if i == 0 then
+      Done a : Step((Int * Int * Int), Int)
+    else
+      Next (i - 1, b, a + b) : Step((Int * Int * Int), Int)
+  }
+}
+
+main : () [impure] =
+  let r = fib 10;
+  ()

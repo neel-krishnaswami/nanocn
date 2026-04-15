@@ -1,0 +1,8 @@
+fun fib : Int -> Int [impure] = {
+  n ->
+  iter (i 0) {
+    Done i : Step(Int, Int)
+  }
+}
+
+main : () [impure] = ()

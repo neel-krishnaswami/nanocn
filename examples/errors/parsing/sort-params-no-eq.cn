@@ -1,0 +1,3 @@
+sort Foo(a) { Bar : a }
+
+main : () [impure] = ()

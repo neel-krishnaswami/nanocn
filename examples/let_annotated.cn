@@ -1,0 +1,6 @@
+main : () [impure] =
+  let a : Int = 1;
+  let b : Int = 2;
+  let c : Int = a + b;
+  let d : Bool = c == 3;
+  ()

@@ -1,0 +1,5 @@
+main : () [impure] =
+  let pair = ((3, 4) : (Int * Int));
+  let (x, y) = pair;
+  let z : Int = x + y;
+  ()

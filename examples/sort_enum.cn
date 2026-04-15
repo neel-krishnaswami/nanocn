@@ -1,0 +1,10 @@
+sort Direction = { North : () | South : () | East : () | West : () }
+
+fun isVertical : Direction -> Bool [spec] = {
+    North u -> true
+  | South u -> true
+  | East u  -> false
+  | West u  -> false
+}
+
+main : () [impure] = ()

@@ -1,0 +1,15 @@
+fun gcd : (Int * Int) -> Int [impure] = {
+  (x, y) ->
+  iter ((a, b) = ((x, y) : (Int * Int))) {
+    if b == 0 then
+      Done a : Step((Int * Int), Int)
+    else if a >= b then
+      Next (a - b, b) : Step((Int * Int), Int)
+    else
+      Next (b, a) : Step((Int * Int), Int)
+  }
+}
+
+main : () [impure] =
+  let r = gcd (48, 18);
+  ()

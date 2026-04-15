@@ -1,0 +1,7 @@
+fun f : Int -> Int [pure] = {
+  n -> n
+}
+
+let garbage = 5;
+
+main : () [impure] = ()

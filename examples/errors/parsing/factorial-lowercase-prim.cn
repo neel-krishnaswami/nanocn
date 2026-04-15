@@ -1,0 +1,8 @@
+fun factorial : Int -> Int [impure] = {
+  n ->
+  let acc = new[Int] 1;
+  let u = del[Int] acc;
+  n
+}
+
+main : () [impure] = ()

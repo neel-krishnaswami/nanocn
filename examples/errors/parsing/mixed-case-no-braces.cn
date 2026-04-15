@@ -1,0 +1,16 @@
+sort Option(a) = { Some : a | None : () }
+
+type OptionT(a) = { Some : a | None : () }
+
+fun fromOpt : Option(Int) -> Int [spec] = {
+    Some x -> x
+  | None () -> 0
+}
+
+fun unwrap : OptionT(Int) -> Int [pure] = {
+  o -> case o of
+    Some n -> n
+  | None u -> 0
+}
+
+main : () [impure] = ()

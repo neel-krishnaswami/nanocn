@@ -1,0 +1,9 @@
+sort Traffic = { Red : () | Yellow : () | Green : () }
+
+fun goAction : Traffic -> Bool [pure] = {
+    Red u    -> false
+  | Yellow u -> false
+  | Green u  -> true
+}
+
+main : () [impure] = ()

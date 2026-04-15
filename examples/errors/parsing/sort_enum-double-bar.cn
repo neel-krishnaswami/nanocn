@@ -1,0 +1,3 @@
+sort Direction = { North : () | | South : () | East : () | West : () }
+
+main : () [impure] = ()

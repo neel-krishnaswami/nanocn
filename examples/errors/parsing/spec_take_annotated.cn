@@ -1,0 +1,13 @@
+fun incP : Int -> Pred Int [spec] = {
+  n -> return (n + 1)
+}
+
+fun thrice : Int -> Pred Int [spec] = {
+  n ->
+  take x : Int = incP n;
+  take y : Int = incP x;
+  take z : Int = incP y;
+  return z
+}
+
+main : () [impure] = ()

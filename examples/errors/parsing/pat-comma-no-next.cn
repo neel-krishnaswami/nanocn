@@ -1,0 +1,5 @@
+fun f : (Int * Int) -> Int [pure] = {
+  (x, ) -> x
+}
+
+main : () [impure] = ()

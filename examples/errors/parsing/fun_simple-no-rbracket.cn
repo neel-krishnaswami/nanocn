@@ -1,0 +1,5 @@
+fun identity : Int -> Int [pure = {
+  n -> n
+}
+
+main : () [impure] = ()

@@ -1,0 +1,5 @@
+fun isAlias : (ptr Int * ptr Int) -> Bool [pure] = {
+  (a, b) -> Eq[ptr Int] (a, b)
+}
+
+main : () [impure] = ()
