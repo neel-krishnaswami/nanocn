@@ -1,3 +1,10 @@
 (test
  (name test_main)
  (libraries nanocn qcheck qcheck-alcotest alcotest))
+
+; Chain the parser-message coverage check into [dune runtest] so a
+; grammar change that adds a new reachable error state fails CI
+; until someone updates parser.messages / smtParser.messages.
+(alias
+ (name runtest)
+ (deps (alias ../lib/check-messages)))

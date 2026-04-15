@@ -8,4 +8,46 @@
 
 (menhir
  (modules parser smtParser)
- (flags --explain))
+ (flags --explain --table))
+
+(rule
+ (targets parser_messages.ml)
+ (deps parser.messages parser.mly)
+ (action
+  (with-stdout-to %{targets}
+    (run menhir --compile-errors %{dep:parser.messages} %{dep:parser.mly}))))
+
+(rule
+ (targets smtParser_messages.ml)
+ (deps smtParser.messages smtParser.mly)
+ (action
+  (with-stdout-to %{targets}
+    (run menhir --compile-errors %{dep:smtParser.messages} %{dep:smtParser.mly}))))
+
+; CI gate: fail if parser.messages doesn't cover every error state
+; reachable in the grammar, and fail if any committed entry is stale.
+(rule
+ (alias check-messages)
+ (deps parser.messages parser.mly smtParser.messages smtParser.mly)
+ (action
+  (progn
+   (with-stdout-to parser.fresh.messages
+     (run menhir --list-errors %{dep:parser.mly}))
+   (run menhir
+        --compare-errors %{dep:parser.messages}
+        --compare-errors parser.fresh.messages
+        %{dep:parser.mly})
+   (run menhir
+        --compare-errors parser.fresh.messages
+        --compare-errors %{dep:parser.messages}
+        %{dep:parser.mly})
+   (with-stdout-to smtParser.fresh.messages
+     (run menhir --list-errors %{dep:smtParser.mly}))
+   (run menhir
+        --compare-errors %{dep:smtParser.messages}
+        --compare-errors smtParser.fresh.messages
+        %{dep:smtParser.mly})
+   (run menhir
+        --compare-errors smtParser.fresh.messages
+        --compare-errors %{dep:smtParser.messages}
+        %{dep:smtParser.mly}))))

@@ -1,0 +1,86 @@
+sexp_eof: RPAREN
+##
+## Ends in an error in state: 0.
+##
+## sexp_eof' -> . sexp_eof [ # ]
+##
+## The known suffix of the stack is as follows:
+##
+##
+
+PLACEHOLDER
+
+sexps_eof: LPAREN EOF
+##
+## Ends in an error in state: 5.
+##
+## sexp -> LPAREN . list(sexp) RPAREN [ SYMBOL STRING RPAREN RESERVED NUMERAL LPAREN KEYWORD HEXADECIMAL EOF DECIMAL BINARY ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+PLACEHOLDER
+
+sexps_eof: LPAREN BINARY EOF
+##
+## Ends in an error in state: 13.
+##
+## sexp -> LPAREN list(sexp) . RPAREN [ SYMBOL STRING RPAREN RESERVED NUMERAL LPAREN KEYWORD HEXADECIMAL EOF DECIMAL BINARY ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN list(sexp)
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 10, spurious reduction of production list(sexp) ->
+## In state 11, spurious reduction of production list(sexp) -> sexp list(sexp)
+##
+
+PLACEHOLDER
+
+sexp_eof: BINARY SYMBOL
+##
+## Ends in an error in state: 16.
+##
+## sexp_eof -> sexp . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## sexp
+##
+
+PLACEHOLDER
+
+sexps_eof: RPAREN
+##
+## Ends in an error in state: 18.
+##
+## sexps_eof' -> . sexps_eof [ # ]
+##
+## The known suffix of the stack is as follows:
+##
+##
+
+PLACEHOLDER
+
+sexps_eof: BINARY RPAREN
+##
+## Ends in an error in state: 20.
+##
+## sexps_eof -> list(sexp) . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(sexp)
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 10, spurious reduction of production list(sexp) ->
+## In state 11, spurious reduction of production list(sexp) -> sexp list(sexp)
+##
+
+PLACEHOLDER
+

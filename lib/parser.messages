@@ -1,0 +1,4963 @@
+prog_eof: UNFOLD
+##
+## Ends in an error in state: 0.
+##
+## prog_eof' -> . prog_eof [ # ]
+##
+## The known suffix of the stack is as follows:
+##
+##
+
+PLACEHOLDER
+
+repl_decl: TYPE UNFOLD
+##
+## Ends in an error in state: 1.
+##
+## decl -> TYPE . LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+## decl -> TYPE . LABEL EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## TYPE
+##
+
+PLACEHOLDER
+
+repl_decl: TYPE LABEL UNFOLD
+##
+## Ends in an error in state: 2.
+##
+## decl -> TYPE LABEL . LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+## decl -> TYPE LABEL . EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## TYPE LABEL
+##
+
+PLACEHOLDER
+
+repl_decl: TYPE LABEL LPAREN UNFOLD
+##
+## Ends in an error in state: 3.
+##
+## decl -> TYPE LABEL LPAREN . separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## TYPE LABEL LPAREN
+##
+
+PLACEHOLDER
+
+repl_decl: TYPE LABEL LPAREN IDENT UNFOLD
+##
+## Ends in an error in state: 4.
+##
+## separated_nonempty_list(COMMA,IDENT) -> IDENT . [ RPAREN ]
+## separated_nonempty_list(COMMA,IDENT) -> IDENT . COMMA separated_nonempty_list(COMMA,IDENT) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## IDENT
+##
+
+PLACEHOLDER
+
+repl_decl: TYPE LABEL LPAREN IDENT COMMA UNFOLD
+##
+## Ends in an error in state: 5.
+##
+## separated_nonempty_list(COMMA,IDENT) -> IDENT COMMA . separated_nonempty_list(COMMA,IDENT) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## IDENT COMMA
+##
+
+PLACEHOLDER
+
+repl_decl: TYPE LABEL LPAREN IDENT RPAREN UNFOLD
+##
+## Ends in an error in state: 8.
+##
+## decl -> TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN . EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN
+##
+
+PLACEHOLDER
+
+repl_decl: TYPE LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
+##
+## Ends in an error in state: 9.
+##
+## decl -> TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL . LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL
+##
+
+PLACEHOLDER
+
+repl_decl: TYPE LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
+##
+## Ends in an error in state: 10.
+##
+## decl -> TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE . separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE
+##
+
+PLACEHOLDER
+
+rprog_eof: TYPE LABEL EQUAL LBRACE LABEL UNFOLD
+##
+## Ends in an error in state: 11.
+##
+## type_ctor_decl -> LABEL . COLON sort [ RBRACE BAR ]
+##
+## The known suffix of the stack is as follows:
+## LABEL
+##
+
+PLACEHOLDER
+
+rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON UNFOLD
+##
+## Ends in an error in state: 12.
+##
+## type_ctor_decl -> LABEL COLON . sort [ RBRACE BAR ]
+##
+## The known suffix of the stack is as follows:
+## LABEL COLON
+##
+
+PLACEHOLDER
+
+sort_eof: PTR UNFOLD
+##
+## Ends in an error in state: 13.
+##
+## sort -> PTR . atomic_sort [ TYPE THEN STAR SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN LBRACKET FUN EQUAL EOF ELSE COMMA BAR ARROW ]
+##
+## The known suffix of the stack is as follows:
+## PTR
+##
+
+PLACEHOLDER
+
+sort_eof: LPAREN UNFOLD
+##
+## Ends in an error in state: 14.
+##
+## atomic_sort -> LPAREN . RPAREN [ TYPE THEN STAR SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN LBRACKET FUN EQUAL EOF ELSE COMMA BAR ARROW ]
+## atomic_sort -> LPAREN . sort RPAREN [ TYPE THEN STAR SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN LBRACKET FUN EQUAL EOF ELSE COMMA BAR ARROW ]
+## atomic_sort -> LPAREN . sort STAR separated_nonempty_list(STAR,sort) RPAREN [ TYPE THEN STAR SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN LBRACKET FUN EQUAL EOF ELSE COMMA BAR ARROW ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+PLACEHOLDER
+
+sort_eof: PRED UNFOLD
+##
+## Ends in an error in state: 16.
+##
+## sort -> PRED . atomic_sort [ TYPE THEN STAR SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN LBRACKET FUN EQUAL EOF ELSE COMMA BAR ARROW ]
+##
+## The known suffix of the stack is as follows:
+## PRED
+##
+
+PLACEHOLDER
+
+sort_eof: LABEL UNFOLD
+##
+## Ends in an error in state: 17.
+##
+## atomic_sort -> LABEL . LPAREN separated_nonempty_list(COMMA,sort) RPAREN [ TYPE THEN STAR SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN LBRACKET FUN EQUAL EOF ELSE COMMA BAR ARROW ]
+## atomic_sort -> LABEL . [ TYPE THEN STAR SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN LBRACKET FUN EQUAL EOF ELSE COMMA BAR ARROW ]
+##
+## The known suffix of the stack is as follows:
+## LABEL
+##
+
+PLACEHOLDER
+
+sort_eof: LABEL LPAREN UNFOLD
+##
+## Ends in an error in state: 18.
+##
+## atomic_sort -> LABEL LPAREN . separated_nonempty_list(COMMA,sort) RPAREN [ TYPE THEN STAR SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN LBRACKET FUN EQUAL EOF ELSE COMMA BAR ARROW ]
+##
+## The known suffix of the stack is as follows:
+## LABEL LPAREN
+##
+
+PLACEHOLDER
+
+sort_eof: LABEL LPAREN BOOL_KW TYPE
+##
+## Ends in an error in state: 22.
+##
+## separated_nonempty_list(COMMA,sort) -> sort . [ RPAREN ]
+## separated_nonempty_list(COMMA,sort) -> sort . COMMA separated_nonempty_list(COMMA,sort) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## sort
+##
+
+PLACEHOLDER
+
+sort_eof: LABEL LPAREN BOOL_KW COMMA UNFOLD
+##
+## Ends in an error in state: 23.
+##
+## separated_nonempty_list(COMMA,sort) -> sort COMMA . separated_nonempty_list(COMMA,sort) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## sort COMMA
+##
+
+PLACEHOLDER
+
+sort_eof: LPAREN BOOL_KW TYPE
+##
+## Ends in an error in state: 29.
+##
+## atomic_sort -> LPAREN sort . RPAREN [ TYPE THEN STAR SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN LBRACKET FUN EQUAL EOF ELSE COMMA BAR ARROW ]
+## atomic_sort -> LPAREN sort . STAR separated_nonempty_list(STAR,sort) RPAREN [ TYPE THEN STAR SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN LBRACKET FUN EQUAL EOF ELSE COMMA BAR ARROW ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN sort
+##
+
+PLACEHOLDER
+
+sort_eof: LPAREN BOOL_KW STAR UNFOLD
+##
+## Ends in an error in state: 30.
+##
+## atomic_sort -> LPAREN sort STAR . separated_nonempty_list(STAR,sort) RPAREN [ TYPE THEN STAR SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN LBRACKET FUN EQUAL EOF ELSE COMMA BAR ARROW ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN sort STAR
+##
+
+PLACEHOLDER
+
+sort_eof: LPAREN BOOL_KW STAR BOOL_KW TYPE
+##
+## Ends in an error in state: 31.
+##
+## separated_nonempty_list(STAR,sort) -> sort . [ RPAREN ]
+## separated_nonempty_list(STAR,sort) -> sort . STAR separated_nonempty_list(STAR,sort) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## sort
+##
+
+PLACEHOLDER
+
+sort_eof: LPAREN BOOL_KW STAR BOOL_KW STAR UNFOLD
+##
+## Ends in an error in state: 32.
+##
+## separated_nonempty_list(STAR,sort) -> sort STAR . separated_nonempty_list(STAR,sort) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## sort STAR
+##
+
+PLACEHOLDER
+
+rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON BOOL_KW TYPE
+##
+## Ends in an error in state: 39.
+##
+## separated_nonempty_list(BAR,type_ctor_decl) -> type_ctor_decl . [ RBRACE ]
+## separated_nonempty_list(BAR,type_ctor_decl) -> type_ctor_decl . BAR separated_nonempty_list(BAR,type_ctor_decl) [ RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## type_ctor_decl
+##
+
+PLACEHOLDER
+
+rprog_eof: TYPE LABEL EQUAL LBRACE LABEL COLON BOOL_KW BAR UNFOLD
+##
+## Ends in an error in state: 40.
+##
+## separated_nonempty_list(BAR,type_ctor_decl) -> type_ctor_decl BAR . separated_nonempty_list(BAR,type_ctor_decl) [ RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## type_ctor_decl BAR
+##
+
+PLACEHOLDER
+
+repl_decl: TYPE LABEL EQUAL UNFOLD
+##
+## Ends in an error in state: 44.
+##
+## decl -> TYPE LABEL EQUAL . LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## TYPE LABEL EQUAL
+##
+
+PLACEHOLDER
+
+repl_decl: TYPE LABEL EQUAL LBRACE UNFOLD
+##
+## Ends in an error in state: 45.
+##
+## decl -> TYPE LABEL EQUAL LBRACE . separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## TYPE LABEL EQUAL LBRACE
+##
+
+PLACEHOLDER
+
+repl_decl: SORT UNFOLD
+##
+## Ends in an error in state: 48.
+##
+## decl -> SORT . LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+## decl -> SORT . LABEL EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## SORT
+##
+
+PLACEHOLDER
+
+repl_decl: SORT LABEL UNFOLD
+##
+## Ends in an error in state: 49.
+##
+## decl -> SORT LABEL . LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+## decl -> SORT LABEL . EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## SORT LABEL
+##
+
+PLACEHOLDER
+
+repl_decl: SORT LABEL LPAREN UNFOLD
+##
+## Ends in an error in state: 50.
+##
+## decl -> SORT LABEL LPAREN . separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## SORT LABEL LPAREN
+##
+
+PLACEHOLDER
+
+repl_decl: SORT LABEL LPAREN IDENT RPAREN UNFOLD
+##
+## Ends in an error in state: 52.
+##
+## decl -> SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN . EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN
+##
+
+PLACEHOLDER
+
+repl_decl: SORT LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
+##
+## Ends in an error in state: 53.
+##
+## decl -> SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL . LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL
+##
+
+PLACEHOLDER
+
+repl_decl: SORT LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
+##
+## Ends in an error in state: 54.
+##
+## decl -> SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE . separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE
+##
+
+PLACEHOLDER
+
+rprog_eof: SORT LABEL EQUAL LBRACE LABEL UNFOLD
+##
+## Ends in an error in state: 55.
+##
+## ctor_decl -> LABEL . COLON sort [ RBRACE BAR ]
+##
+## The known suffix of the stack is as follows:
+## LABEL
+##
+
+PLACEHOLDER
+
+rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON UNFOLD
+##
+## Ends in an error in state: 56.
+##
+## ctor_decl -> LABEL COLON . sort [ RBRACE BAR ]
+##
+## The known suffix of the stack is as follows:
+## LABEL COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW TYPE
+##
+## Ends in an error in state: 60.
+##
+## separated_nonempty_list(BAR,ctor_decl) -> ctor_decl . [ RBRACE ]
+## separated_nonempty_list(BAR,ctor_decl) -> ctor_decl . BAR separated_nonempty_list(BAR,ctor_decl) [ RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## ctor_decl
+##
+
+PLACEHOLDER
+
+rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW BAR UNFOLD
+##
+## Ends in an error in state: 61.
+##
+## separated_nonempty_list(BAR,ctor_decl) -> ctor_decl BAR . separated_nonempty_list(BAR,ctor_decl) [ RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## ctor_decl BAR
+##
+
+PLACEHOLDER
+
+repl_decl: SORT LABEL EQUAL UNFOLD
+##
+## Ends in an error in state: 63.
+##
+## decl -> SORT LABEL EQUAL . LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## SORT LABEL EQUAL
+##
+
+PLACEHOLDER
+
+repl_decl: SORT LABEL EQUAL LBRACE UNFOLD
+##
+## Ends in an error in state: 64.
+##
+## decl -> SORT LABEL EQUAL LBRACE . separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## SORT LABEL EQUAL LBRACE
+##
+
+PLACEHOLDER
+
+repl_decl: FUN UNFOLD
+##
+## Ends in an error in state: 67.
+##
+## decl -> FUN . IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET EQUAL LBRACE separated_nonempty_list(BAR,branch) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## FUN
+##
+
+PLACEHOLDER
+
+repl_decl: FUN IDENT UNFOLD
+##
+## Ends in an error in state: 68.
+##
+## decl -> FUN IDENT . COLON sort ARROW sort LBRACKET eff_level RBRACKET EQUAL LBRACE separated_nonempty_list(BAR,branch) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT
+##
+
+PLACEHOLDER
+
+repl_decl: FUN IDENT COLON UNFOLD
+##
+## Ends in an error in state: 69.
+##
+## decl -> FUN IDENT COLON . sort ARROW sort LBRACKET eff_level RBRACKET EQUAL LBRACE separated_nonempty_list(BAR,branch) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT COLON
+##
+
+PLACEHOLDER
+
+repl_decl: FUN IDENT COLON BOOL_KW TYPE
+##
+## Ends in an error in state: 70.
+##
+## decl -> FUN IDENT COLON sort . ARROW sort LBRACKET eff_level RBRACKET EQUAL LBRACE separated_nonempty_list(BAR,branch) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT COLON sort
+##
+
+PLACEHOLDER
+
+repl_decl: FUN IDENT COLON BOOL_KW ARROW UNFOLD
+##
+## Ends in an error in state: 71.
+##
+## decl -> FUN IDENT COLON sort ARROW . sort LBRACKET eff_level RBRACKET EQUAL LBRACE separated_nonempty_list(BAR,branch) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT COLON sort ARROW
+##
+
+PLACEHOLDER
+
+repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW TYPE
+##
+## Ends in an error in state: 72.
+##
+## decl -> FUN IDENT COLON sort ARROW sort . LBRACKET eff_level RBRACKET EQUAL LBRACE separated_nonempty_list(BAR,branch) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT COLON sort ARROW sort
+##
+
+PLACEHOLDER
+
+repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET UNFOLD
+##
+## Ends in an error in state: 73.
+##
+## decl -> FUN IDENT COLON sort ARROW sort LBRACKET . eff_level RBRACKET EQUAL LBRACE separated_nonempty_list(BAR,branch) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT COLON sort ARROW sort LBRACKET
+##
+
+PLACEHOLDER
+
+repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE UNFOLD
+##
+## Ends in an error in state: 77.
+##
+## decl -> FUN IDENT COLON sort ARROW sort LBRACKET eff_level . RBRACKET EQUAL LBRACE separated_nonempty_list(BAR,branch) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT COLON sort ARROW sort LBRACKET eff_level
+##
+
+PLACEHOLDER
+
+repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET UNFOLD
+##
+## Ends in an error in state: 78.
+##
+## decl -> FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET . EQUAL LBRACE separated_nonempty_list(BAR,branch) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET
+##
+
+PLACEHOLDER
+
+repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL UNFOLD
+##
+## Ends in an error in state: 79.
+##
+## decl -> FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET EQUAL . LBRACE separated_nonempty_list(BAR,branch) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET EQUAL
+##
+
+PLACEHOLDER
+
+repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL LBRACE UNFOLD
+##
+## Ends in an error in state: 80.
+##
+## decl -> FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET EQUAL LBRACE . separated_nonempty_list(BAR,branch) RBRACE [ TYPE SORT MAIN FUN EOF ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT COLON sort ARROW sort LBRACKET eff_level RBRACKET EQUAL LBRACE
+##
+
+PLACEHOLDER
+
+program: TAKE LPAREN UNFOLD
+##
+## Ends in an error in state: 81.
+##
+## atomic_pat -> LPAREN . RPAREN [ RPAREN EQUAL COMMA COLON ARROW ]
+## atomic_pat -> LPAREN . pat RPAREN [ RPAREN EQUAL COMMA COLON ARROW ]
+## atomic_pat -> LPAREN . pat COMMA separated_nonempty_list(COMMA,pat) RPAREN [ RPAREN EQUAL COMMA COLON ARROW ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+PLACEHOLDER
+
+program: TAKE LABEL UNFOLD
+##
+## Ends in an error in state: 83.
+##
+## pat -> LABEL . atomic_pat [ RPAREN EQUAL COMMA COLON ARROW ]
+##
+## The known suffix of the stack is as follows:
+## LABEL
+##
+
+PLACEHOLDER
+
+program: TAKE LPAREN IDENT UNFOLD
+##
+## Ends in an error in state: 86.
+##
+## atomic_pat -> LPAREN pat . RPAREN [ RPAREN EQUAL COMMA COLON ARROW ]
+## atomic_pat -> LPAREN pat . COMMA separated_nonempty_list(COMMA,pat) RPAREN [ RPAREN EQUAL COMMA COLON ARROW ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN pat
+##
+
+PLACEHOLDER
+
+program: TAKE LPAREN IDENT COMMA UNFOLD
+##
+## Ends in an error in state: 88.
+##
+## atomic_pat -> LPAREN pat COMMA . separated_nonempty_list(COMMA,pat) RPAREN [ RPAREN EQUAL COMMA COLON ARROW ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN pat COMMA
+##
+
+PLACEHOLDER
+
+program: TAKE LPAREN IDENT COMMA IDENT UNFOLD
+##
+## Ends in an error in state: 91.
+##
+## separated_nonempty_list(COMMA,pat) -> pat . [ RPAREN ]
+## separated_nonempty_list(COMMA,pat) -> pat . COMMA separated_nonempty_list(COMMA,pat) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## pat
+##
+
+PLACEHOLDER
+
+program: TAKE LPAREN IDENT COMMA IDENT COMMA UNFOLD
+##
+## Ends in an error in state: 92.
+##
+## separated_nonempty_list(COMMA,pat) -> pat COMMA . separated_nonempty_list(COMMA,pat) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## pat COMMA
+##
+
+PLACEHOLDER
+
+repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL LBRACE IDENT UNFOLD
+##
+## Ends in an error in state: 97.
+##
+## branch -> pat . ARROW expr [ RBRACE BAR ]
+##
+## The known suffix of the stack is as follows:
+## pat
+##
+
+PLACEHOLDER
+
+repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL LBRACE IDENT ARROW UNFOLD
+##
+## Ends in an error in state: 98.
+##
+## branch -> pat ARROW . expr [ RBRACE BAR ]
+##
+## The known suffix of the stack is as follows:
+## pat ARROW
+##
+
+PLACEHOLDER
+
+program: TAKE UNFOLD
+##
+## Ends in an error in state: 100.
+##
+## seq_expr -> TAKE . pat COLON sort EQUAL expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+## seq_expr -> TAKE . pat EQUAL expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## TAKE
+##
+
+PLACEHOLDER
+
+program: TAKE IDENT UNFOLD
+##
+## Ends in an error in state: 101.
+##
+## seq_expr -> TAKE pat . COLON sort EQUAL expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+## seq_expr -> TAKE pat . EQUAL expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## TAKE pat
+##
+
+PLACEHOLDER
+
+program: TAKE IDENT EQUAL UNFOLD
+##
+## Ends in an error in state: 102.
+##
+## seq_expr -> TAKE pat EQUAL . expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## TAKE pat EQUAL
+##
+
+PLACEHOLDER
+
+program: RETURN UNFOLD
+##
+## Ends in an error in state: 104.
+##
+## seq_expr -> RETURN . app_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## RETURN
+##
+
+PLACEHOLDER
+
+program: NOT_KW UNFOLD
+##
+## Ends in an error in state: 106.
+##
+## app_expr -> NOT_KW . simple_expr [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQUAL EQEQ EOF ELSE COMMA COLON BARBAR BAR AT AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## NOT_KW
+##
+
+PLACEHOLDER
+
+program: LPAREN UNFOLD
+##
+## Ends in an error in state: 107.
+##
+## simple_expr -> LPAREN . RPAREN [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQUAL EQEQ EOF ELSE COMMA COLON BARBAR BAR AT AMPAMP ]
+## simple_expr -> LPAREN . expr RPAREN [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQUAL EQEQ EOF ELSE COMMA COLON BARBAR BAR AT AMPAMP ]
+## simple_expr -> LPAREN . expr COMMA separated_nonempty_list(COMMA,expr) RPAREN [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQUAL EQEQ EOF ELSE COMMA COLON BARBAR BAR AT AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+PLACEHOLDER
+
+program: LET UNFOLD
+##
+## Ends in an error in state: 110.
+##
+## seq_expr -> LET . pat COLON sort EQUAL expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+## seq_expr -> LET . pat EQUAL expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET
+##
+
+PLACEHOLDER
+
+program: LET IDENT UNFOLD
+##
+## Ends in an error in state: 111.
+##
+## seq_expr -> LET pat . COLON sort EQUAL expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+## seq_expr -> LET pat . EQUAL expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET pat
+##
+
+PLACEHOLDER
+
+program: LET IDENT EQUAL UNFOLD
+##
+## Ends in an error in state: 112.
+##
+## seq_expr -> LET pat EQUAL . expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET pat EQUAL
+##
+
+PLACEHOLDER
+
+program: LABEL UNFOLD
+##
+## Ends in an error in state: 113.
+##
+## app_expr -> LABEL . app_expr [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQUAL EQEQ EOF ELSE COMMA COLON BARBAR BAR AT AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## LABEL
+##
+
+PLACEHOLDER
+
+program: IDENT UNFOLD
+##
+## Ends in an error in state: 115.
+##
+## app_expr -> IDENT . simple_expr [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQUAL EQEQ EOF ELSE COMMA COLON BARBAR BAR AT AMPAMP ]
+## simple_expr -> IDENT . [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQUAL EQEQ EOF ELSE COMMA COLON BARBAR BAR AT AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## IDENT
+##
+
+PLACEHOLDER
+
+program: DEL UNFOLD
+##
+## Ends in an error in state: 122.
+##
+## app_expr -> state_prim . LBRACKET sort RBRACKET simple_expr [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQUAL EQEQ EOF ELSE COMMA COLON BARBAR BAR AT AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## state_prim
+##
+
+PLACEHOLDER
+
+program: DEL LBRACKET UNFOLD
+##
+## Ends in an error in state: 123.
+##
+## app_expr -> state_prim LBRACKET . sort RBRACKET simple_expr [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQUAL EQEQ EOF ELSE COMMA COLON BARBAR BAR AT AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## state_prim LBRACKET
+##
+
+PLACEHOLDER
+
+program: DEL LBRACKET BOOL_KW TYPE
+##
+## Ends in an error in state: 124.
+##
+## app_expr -> state_prim LBRACKET sort . RBRACKET simple_expr [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQUAL EQEQ EOF ELSE COMMA COLON BARBAR BAR AT AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## state_prim LBRACKET sort
+##
+
+PLACEHOLDER
+
+program: DEL LBRACKET BOOL_KW RBRACKET UNFOLD
+##
+## Ends in an error in state: 125.
+##
+## app_expr -> state_prim LBRACKET sort RBRACKET . simple_expr [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQUAL EQEQ EOF ELSE COMMA COLON BARBAR BAR AT AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## state_prim LBRACKET sort RBRACKET
+##
+
+PLACEHOLDER
+
+program: ITER UNFOLD
+##
+## Ends in an error in state: 129.
+##
+## seq_expr -> ITER . LPAREN pat EQUAL expr RPAREN LBRACE expr RBRACE [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER
+##
+
+PLACEHOLDER
+
+program: ITER LPAREN UNFOLD
+##
+## Ends in an error in state: 130.
+##
+## seq_expr -> ITER LPAREN . pat EQUAL expr RPAREN LBRACE expr RBRACE [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LPAREN
+##
+
+PLACEHOLDER
+
+program: ITER LPAREN IDENT UNFOLD
+##
+## Ends in an error in state: 131.
+##
+## seq_expr -> ITER LPAREN pat . EQUAL expr RPAREN LBRACE expr RBRACE [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LPAREN pat
+##
+
+PLACEHOLDER
+
+program: ITER LPAREN IDENT EQUAL UNFOLD
+##
+## Ends in an error in state: 132.
+##
+## seq_expr -> ITER LPAREN pat EQUAL . expr RPAREN LBRACE expr RBRACE [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LPAREN pat EQUAL
+##
+
+PLACEHOLDER
+
+program: IF UNFOLD
+##
+## Ends in an error in state: 133.
+##
+## seq_expr -> IF . expr THEN expr ELSE seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## IF
+##
+
+PLACEHOLDER
+
+program: CASE UNFOLD
+##
+## Ends in an error in state: 135.
+##
+## seq_expr -> CASE . app_expr OF LBRACE separated_nonempty_list(BAR,case_branch) RBRACE [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## CASE
+##
+
+PLACEHOLDER
+
+program: CASE FALSE UNFOLD
+##
+## Ends in an error in state: 136.
+##
+## seq_expr -> CASE app_expr . OF LBRACE separated_nonempty_list(BAR,case_branch) RBRACE [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## CASE app_expr
+##
+
+PLACEHOLDER
+
+program: CASE FALSE OF UNFOLD
+##
+## Ends in an error in state: 137.
+##
+## seq_expr -> CASE app_expr OF . LBRACE separated_nonempty_list(BAR,case_branch) RBRACE [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## CASE app_expr OF
+##
+
+PLACEHOLDER
+
+program: CASE FALSE OF LBRACE UNFOLD
+##
+## Ends in an error in state: 138.
+##
+## seq_expr -> CASE app_expr OF LBRACE . separated_nonempty_list(BAR,case_branch) RBRACE [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## CASE app_expr OF LBRACE
+##
+
+PLACEHOLDER
+
+program: CASE FALSE OF LBRACE IDENT UNFOLD
+##
+## Ends in an error in state: 141.
+##
+## case_branch -> pat . ARROW expr [ RBRACE BAR ]
+##
+## The known suffix of the stack is as follows:
+## pat
+##
+
+PLACEHOLDER
+
+program: CASE FALSE OF LBRACE IDENT ARROW UNFOLD
+##
+## Ends in an error in state: 142.
+##
+## case_branch -> pat ARROW . expr [ RBRACE BAR ]
+##
+## The known suffix of the stack is as follows:
+## pat ARROW
+##
+
+PLACEHOLDER
+
+program: FAIL UNFOLD
+##
+## Ends in an error in state: 143.
+##
+## expr -> seq_expr . COLON sort [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA BAR ]
+## expr -> seq_expr . [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA BAR ]
+##
+## The known suffix of the stack is as follows:
+## seq_expr
+##
+
+PLACEHOLDER
+
+program: FALSE COLON UNFOLD
+##
+## Ends in an error in state: 144.
+##
+## expr -> seq_expr COLON . sort [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA BAR ]
+##
+## The known suffix of the stack is as follows:
+## seq_expr COLON
+##
+
+PLACEHOLDER
+
+program: FALSE BARBAR UNFOLD
+##
+## Ends in an error in state: 147.
+##
+## or_expr -> or_expr BARBAR . and_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BARBAR BAR ]
+##
+## The known suffix of the stack is as follows:
+## or_expr BARBAR
+##
+
+PLACEHOLDER
+
+program: FALSE UNFOLD
+##
+## Ends in an error in state: 148.
+##
+## add_expr -> mul_expr . [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## mul_expr -> mul_expr . STAR app_expr [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## mul_expr -> mul_expr . SLASH app_expr [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## mul_expr
+##
+
+PLACEHOLDER
+
+program: FALSE STAR UNFOLD
+##
+## Ends in an error in state: 149.
+##
+## mul_expr -> mul_expr STAR . app_expr [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## mul_expr STAR
+##
+
+PLACEHOLDER
+
+program: FALSE SLASH UNFOLD
+##
+## Ends in an error in state: 151.
+##
+## mul_expr -> mul_expr SLASH . app_expr [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## mul_expr SLASH
+##
+
+PLACEHOLDER
+
+program: FALSE EQEQ UNFOLD
+##
+## Ends in an error in state: 155.
+##
+## eq_expr -> cmp_expr EQEQ . cmp_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## cmp_expr EQEQ
+##
+
+PLACEHOLDER
+
+program: FALSE PLUS UNFOLD
+##
+## Ends in an error in state: 159.
+##
+## add_expr -> add_expr PLUS . mul_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## add_expr PLUS
+##
+
+PLACEHOLDER
+
+program: FALSE PLUS FALSE UNFOLD
+##
+## Ends in an error in state: 160.
+##
+## add_expr -> add_expr PLUS mul_expr . [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## mul_expr -> mul_expr . STAR app_expr [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## mul_expr -> mul_expr . SLASH app_expr [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## add_expr PLUS mul_expr
+##
+
+PLACEHOLDER
+
+program: FALSE MINUS UNFOLD
+##
+## Ends in an error in state: 161.
+##
+## add_expr -> add_expr MINUS . mul_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## add_expr MINUS
+##
+
+PLACEHOLDER
+
+program: FALSE MINUS FALSE UNFOLD
+##
+## Ends in an error in state: 162.
+##
+## add_expr -> add_expr MINUS mul_expr . [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## mul_expr -> mul_expr . STAR app_expr [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## mul_expr -> mul_expr . SLASH app_expr [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## add_expr MINUS mul_expr
+##
+
+PLACEHOLDER
+
+program: FALSE LESSEQ UNFOLD
+##
+## Ends in an error in state: 163.
+##
+## cmp_expr -> add_expr LESSEQ . add_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## add_expr LESSEQ
+##
+
+PLACEHOLDER
+
+program: FALSE LESSEQ FALSE LESSEQ
+##
+## Ends in an error in state: 164.
+##
+## add_expr -> add_expr . PLUS mul_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## add_expr -> add_expr . MINUS mul_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## cmp_expr -> add_expr LESSEQ add_expr . [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## add_expr LESSEQ add_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+##
+
+PLACEHOLDER
+
+program: FALSE LESS UNFOLD
+##
+## Ends in an error in state: 165.
+##
+## cmp_expr -> add_expr LESS . add_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## add_expr LESS
+##
+
+PLACEHOLDER
+
+program: FALSE LESS FALSE LESSEQ
+##
+## Ends in an error in state: 166.
+##
+## add_expr -> add_expr . PLUS mul_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## add_expr -> add_expr . MINUS mul_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## cmp_expr -> add_expr LESS add_expr . [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## add_expr LESS add_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+##
+
+PLACEHOLDER
+
+program: FALSE GREATEREQ UNFOLD
+##
+## Ends in an error in state: 167.
+##
+## cmp_expr -> add_expr GREATEREQ . add_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## add_expr GREATEREQ
+##
+
+PLACEHOLDER
+
+program: FALSE GREATEREQ FALSE LESSEQ
+##
+## Ends in an error in state: 168.
+##
+## add_expr -> add_expr . PLUS mul_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## add_expr -> add_expr . MINUS mul_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## cmp_expr -> add_expr GREATEREQ add_expr . [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## add_expr GREATEREQ add_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+##
+
+PLACEHOLDER
+
+program: FALSE GREATER UNFOLD
+##
+## Ends in an error in state: 169.
+##
+## cmp_expr -> add_expr GREATER . add_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## add_expr GREATER
+##
+
+PLACEHOLDER
+
+program: FALSE GREATER FALSE LESSEQ
+##
+## Ends in an error in state: 170.
+##
+## add_expr -> add_expr . PLUS mul_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## add_expr -> add_expr . MINUS mul_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## cmp_expr -> add_expr GREATER add_expr . [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EQEQ EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## add_expr GREATER add_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+##
+
+PLACEHOLDER
+
+program: FALSE BARBAR FALSE EQEQ FALSE EQEQ
+##
+## Ends in an error in state: 171.
+##
+## and_expr -> and_expr . AMPAMP eq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## or_expr -> or_expr BARBAR and_expr . [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BARBAR BAR ]
+##
+## The known suffix of the stack is as follows:
+## or_expr BARBAR and_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 156, spurious reduction of production eq_expr -> cmp_expr EQEQ cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+##
+
+PLACEHOLDER
+
+program: FALSE AMPAMP UNFOLD
+##
+## Ends in an error in state: 172.
+##
+## and_expr -> and_expr AMPAMP . eq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## and_expr AMPAMP
+##
+
+PLACEHOLDER
+
+program: FALSE EQEQ FALSE EQEQ
+##
+## Ends in an error in state: 175.
+##
+## and_expr -> and_expr . AMPAMP eq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BARBAR BAR AMPAMP ]
+## or_expr -> and_expr . [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BARBAR BAR ]
+##
+## The known suffix of the stack is as follows:
+## and_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 156, spurious reduction of production eq_expr -> cmp_expr EQEQ cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+##
+
+PLACEHOLDER
+
+program: CASE FALSE OF LBRACE IDENT ARROW FALSE TYPE
+##
+## Ends in an error in state: 176.
+##
+## separated_nonempty_list(BAR,case_branch) -> case_branch . [ RBRACE ]
+## separated_nonempty_list(BAR,case_branch) -> case_branch . BAR separated_nonempty_list(BAR,case_branch) [ RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## case_branch
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+## In state 174, spurious reduction of production case_branch -> pat ARROW expr
+##
+
+PLACEHOLDER
+
+program: CASE FALSE OF LBRACE IDENT ARROW FALSE BAR UNFOLD
+##
+## Ends in an error in state: 177.
+##
+## separated_nonempty_list(BAR,case_branch) -> case_branch BAR . separated_nonempty_list(BAR,case_branch) [ RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## case_branch BAR
+##
+
+PLACEHOLDER
+
+program: IF FALSE TYPE
+##
+## Ends in an error in state: 179.
+##
+## seq_expr -> IF expr . THEN expr ELSE seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## IF expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+program: IF FALSE THEN UNFOLD
+##
+## Ends in an error in state: 180.
+##
+## seq_expr -> IF expr THEN . expr ELSE seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## IF expr THEN
+##
+
+PLACEHOLDER
+
+program: IF FALSE THEN FALSE TYPE
+##
+## Ends in an error in state: 181.
+##
+## seq_expr -> IF expr THEN expr . ELSE seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## IF expr THEN expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+program: IF FALSE THEN FALSE ELSE UNFOLD
+##
+## Ends in an error in state: 182.
+##
+## seq_expr -> IF expr THEN expr ELSE . seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## IF expr THEN expr ELSE
+##
+
+PLACEHOLDER
+
+program: ITER LPAREN IDENT EQUAL FALSE TYPE
+##
+## Ends in an error in state: 184.
+##
+## seq_expr -> ITER LPAREN pat EQUAL expr . RPAREN LBRACE expr RBRACE [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LPAREN pat EQUAL expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+program: ITER LPAREN IDENT EQUAL FALSE RPAREN UNFOLD
+##
+## Ends in an error in state: 185.
+##
+## seq_expr -> ITER LPAREN pat EQUAL expr RPAREN . LBRACE expr RBRACE [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LPAREN pat EQUAL expr RPAREN
+##
+
+PLACEHOLDER
+
+program: ITER LPAREN IDENT EQUAL FALSE RPAREN LBRACE UNFOLD
+##
+## Ends in an error in state: 186.
+##
+## seq_expr -> ITER LPAREN pat EQUAL expr RPAREN LBRACE . expr RBRACE [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LPAREN pat EQUAL expr RPAREN LBRACE
+##
+
+PLACEHOLDER
+
+program: ITER LPAREN IDENT EQUAL FALSE RPAREN LBRACE FALSE TYPE
+##
+## Ends in an error in state: 187.
+##
+## seq_expr -> ITER LPAREN pat EQUAL expr RPAREN LBRACE expr . RBRACE [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LPAREN pat EQUAL expr RPAREN LBRACE expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+program: LET IDENT EQUAL FALSE TYPE
+##
+## Ends in an error in state: 189.
+##
+## seq_expr -> LET pat EQUAL expr . SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET pat EQUAL expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+program: LET IDENT EQUAL FALSE SEMICOLON UNFOLD
+##
+## Ends in an error in state: 190.
+##
+## seq_expr -> LET pat EQUAL expr SEMICOLON . seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET pat EQUAL expr SEMICOLON
+##
+
+PLACEHOLDER
+
+program: LET IDENT COLON UNFOLD
+##
+## Ends in an error in state: 192.
+##
+## seq_expr -> LET pat COLON . sort EQUAL expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET pat COLON
+##
+
+PLACEHOLDER
+
+program: LET IDENT COLON BOOL_KW TYPE
+##
+## Ends in an error in state: 193.
+##
+## seq_expr -> LET pat COLON sort . EQUAL expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET pat COLON sort
+##
+
+PLACEHOLDER
+
+program: LET IDENT COLON BOOL_KW EQUAL UNFOLD
+##
+## Ends in an error in state: 194.
+##
+## seq_expr -> LET pat COLON sort EQUAL . expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET pat COLON sort EQUAL
+##
+
+PLACEHOLDER
+
+program: LET IDENT COLON BOOL_KW EQUAL FALSE TYPE
+##
+## Ends in an error in state: 195.
+##
+## seq_expr -> LET pat COLON sort EQUAL expr . SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET pat COLON sort EQUAL expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+program: LET IDENT COLON BOOL_KW EQUAL FALSE SEMICOLON UNFOLD
+##
+## Ends in an error in state: 196.
+##
+## seq_expr -> LET pat COLON sort EQUAL expr SEMICOLON . seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET pat COLON sort EQUAL expr SEMICOLON
+##
+
+PLACEHOLDER
+
+program: LPAREN FALSE TYPE
+##
+## Ends in an error in state: 198.
+##
+## simple_expr -> LPAREN expr . RPAREN [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQUAL EQEQ EOF ELSE COMMA COLON BARBAR BAR AT AMPAMP ]
+## simple_expr -> LPAREN expr . COMMA separated_nonempty_list(COMMA,expr) RPAREN [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQUAL EQEQ EOF ELSE COMMA COLON BARBAR BAR AT AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+program: LPAREN FALSE COMMA UNFOLD
+##
+## Ends in an error in state: 200.
+##
+## simple_expr -> LPAREN expr COMMA . separated_nonempty_list(COMMA,expr) RPAREN [ TYPE THEN STAR SORT SLASH SEMICOLON RPAREN RFUN RBRACKET RBRACE PLUS OF MINUS MAIN LESSEQ LESS GREATEREQ GREATER FUN EQUAL EQEQ EOF ELSE COMMA COLON BARBAR BAR AT AMPAMP ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN expr COMMA
+##
+
+PLACEHOLDER
+
+program: LPAREN FALSE COMMA FALSE TYPE
+##
+## Ends in an error in state: 203.
+##
+## separated_nonempty_list(COMMA,expr) -> expr . [ RPAREN ]
+## separated_nonempty_list(COMMA,expr) -> expr . COMMA separated_nonempty_list(COMMA,expr) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+program: LPAREN FALSE COMMA FALSE COMMA UNFOLD
+##
+## Ends in an error in state: 204.
+##
+## separated_nonempty_list(COMMA,expr) -> expr COMMA . separated_nonempty_list(COMMA,expr) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## expr COMMA
+##
+
+PLACEHOLDER
+
+program: TAKE IDENT EQUAL FALSE TYPE
+##
+## Ends in an error in state: 208.
+##
+## seq_expr -> TAKE pat EQUAL expr . SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## TAKE pat EQUAL expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+program: TAKE IDENT EQUAL FALSE SEMICOLON UNFOLD
+##
+## Ends in an error in state: 209.
+##
+## seq_expr -> TAKE pat EQUAL expr SEMICOLON . seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## TAKE pat EQUAL expr SEMICOLON
+##
+
+PLACEHOLDER
+
+program: TAKE IDENT COLON UNFOLD
+##
+## Ends in an error in state: 211.
+##
+## seq_expr -> TAKE pat COLON . sort EQUAL expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## TAKE pat COLON
+##
+
+PLACEHOLDER
+
+program: TAKE IDENT COLON BOOL_KW TYPE
+##
+## Ends in an error in state: 212.
+##
+## seq_expr -> TAKE pat COLON sort . EQUAL expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## TAKE pat COLON sort
+##
+
+PLACEHOLDER
+
+program: TAKE IDENT COLON BOOL_KW EQUAL UNFOLD
+##
+## Ends in an error in state: 213.
+##
+## seq_expr -> TAKE pat COLON sort EQUAL . expr SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## TAKE pat COLON sort EQUAL
+##
+
+PLACEHOLDER
+
+program: TAKE IDENT COLON BOOL_KW EQUAL FALSE TYPE
+##
+## Ends in an error in state: 214.
+##
+## seq_expr -> TAKE pat COLON sort EQUAL expr . SEMICOLON seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## TAKE pat COLON sort EQUAL expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+program: TAKE IDENT COLON BOOL_KW EQUAL FALSE SEMICOLON UNFOLD
+##
+## Ends in an error in state: 215.
+##
+## seq_expr -> TAKE pat COLON sort EQUAL expr SEMICOLON . seq_expr [ TYPE THEN SORT SEMICOLON RPAREN RFUN RBRACKET RBRACE OF MAIN FUN EOF ELSE COMMA COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## TAKE pat COLON sort EQUAL expr SEMICOLON
+##
+
+PLACEHOLDER
+
+repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL LBRACE IDENT ARROW FALSE TYPE
+##
+## Ends in an error in state: 218.
+##
+## separated_nonempty_list(BAR,branch) -> branch . [ RBRACE ]
+## separated_nonempty_list(BAR,branch) -> branch . BAR separated_nonempty_list(BAR,branch) [ RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## branch
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+## In state 217, spurious reduction of production branch -> pat ARROW expr
+##
+
+PLACEHOLDER
+
+repl_decl: FUN IDENT COLON BOOL_KW ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL LBRACE IDENT ARROW FALSE BAR UNFOLD
+##
+## Ends in an error in state: 219.
+##
+## separated_nonempty_list(BAR,branch) -> branch BAR . separated_nonempty_list(BAR,branch) [ RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## branch BAR
+##
+
+PLACEHOLDER
+
+prog_eof: MAIN UNFOLD
+##
+## Ends in an error in state: 223.
+##
+## prog_eof -> list(decl) MAIN . COLON sort LBRACKET eff_level RBRACKET EQUAL expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(decl) MAIN
+##
+
+PLACEHOLDER
+
+prog_eof: MAIN COLON UNFOLD
+##
+## Ends in an error in state: 224.
+##
+## prog_eof -> list(decl) MAIN COLON . sort LBRACKET eff_level RBRACKET EQUAL expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(decl) MAIN COLON
+##
+
+PLACEHOLDER
+
+prog_eof: MAIN COLON BOOL_KW TYPE
+##
+## Ends in an error in state: 225.
+##
+## prog_eof -> list(decl) MAIN COLON sort . LBRACKET eff_level RBRACKET EQUAL expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(decl) MAIN COLON sort
+##
+
+PLACEHOLDER
+
+prog_eof: MAIN COLON BOOL_KW LBRACKET UNFOLD
+##
+## Ends in an error in state: 226.
+##
+## prog_eof -> list(decl) MAIN COLON sort LBRACKET . eff_level RBRACKET EQUAL expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(decl) MAIN COLON sort LBRACKET
+##
+
+PLACEHOLDER
+
+prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE UNFOLD
+##
+## Ends in an error in state: 227.
+##
+## prog_eof -> list(decl) MAIN COLON sort LBRACKET eff_level . RBRACKET EQUAL expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(decl) MAIN COLON sort LBRACKET eff_level
+##
+
+PLACEHOLDER
+
+prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET UNFOLD
+##
+## Ends in an error in state: 228.
+##
+## prog_eof -> list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET . EQUAL expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET
+##
+
+PLACEHOLDER
+
+prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET EQUAL UNFOLD
+##
+## Ends in an error in state: 229.
+##
+## prog_eof -> list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET EQUAL . expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET EQUAL
+##
+
+PLACEHOLDER
+
+prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET EQUAL FALSE TYPE
+##
+## Ends in an error in state: 230.
+##
+## prog_eof -> list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET EQUAL expr . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET EQUAL expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+prog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE UNFOLD
+##
+## Ends in an error in state: 232.
+##
+## list(decl) -> decl . list(decl) [ MAIN ]
+##
+## The known suffix of the stack is as follows:
+## decl
+##
+
+PLACEHOLDER
+
+program: UNFOLD
+##
+## Ends in an error in state: 234.
+##
+## program' -> . program [ # ]
+##
+## The known suffix of the stack is as follows:
+##
+##
+
+PLACEHOLDER
+
+program: FALSE TYPE
+##
+## Ends in an error in state: 236.
+##
+## program -> expr . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+repl_decl: UNFOLD
+##
+## Ends in an error in state: 238.
+##
+## repl_decl' -> . repl_decl [ # ]
+##
+## The known suffix of the stack is as follows:
+##
+##
+
+PLACEHOLDER
+
+repl_decl: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE UNFOLD
+##
+## Ends in an error in state: 240.
+##
+## repl_decl -> decl . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## decl
+##
+
+PLACEHOLDER
+
+repl_let: UNFOLD
+##
+## Ends in an error in state: 242.
+##
+## repl_let' -> . repl_let [ # ]
+##
+## The known suffix of the stack is as follows:
+##
+##
+
+PLACEHOLDER
+
+repl_let: LET UNFOLD
+##
+## Ends in an error in state: 243.
+##
+## repl_let -> LET . IDENT EQUAL expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## LET
+##
+
+PLACEHOLDER
+
+repl_let: LET IDENT UNFOLD
+##
+## Ends in an error in state: 244.
+##
+## repl_let -> LET IDENT . EQUAL expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## LET IDENT
+##
+
+PLACEHOLDER
+
+repl_let: LET IDENT EQUAL UNFOLD
+##
+## Ends in an error in state: 245.
+##
+## repl_let -> LET IDENT EQUAL . expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## LET IDENT EQUAL
+##
+
+PLACEHOLDER
+
+repl_let: LET IDENT EQUAL FALSE TYPE
+##
+## Ends in an error in state: 246.
+##
+## repl_let -> LET IDENT EQUAL expr . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## LET IDENT EQUAL expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: UNFOLD
+##
+## Ends in an error in state: 249.
+##
+## rprog_eof' -> . rprog_eof [ # ]
+##
+## The known suffix of the stack is as follows:
+##
+##
+
+PLACEHOLDER
+
+rprog_eof: TYPE UNFOLD
+##
+## Ends in an error in state: 250.
+##
+## rdecl -> TYPE . LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> TYPE . LABEL EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## TYPE
+##
+
+PLACEHOLDER
+
+rprog_eof: TYPE LABEL UNFOLD
+##
+## Ends in an error in state: 251.
+##
+## rdecl -> TYPE LABEL . LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> TYPE LABEL . EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## TYPE LABEL
+##
+
+PLACEHOLDER
+
+rprog_eof: TYPE LABEL LPAREN UNFOLD
+##
+## Ends in an error in state: 252.
+##
+## rdecl -> TYPE LABEL LPAREN . separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## TYPE LABEL LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: TYPE LABEL LPAREN IDENT RPAREN UNFOLD
+##
+## Ends in an error in state: 254.
+##
+## rdecl -> TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN . EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: TYPE LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
+##
+## Ends in an error in state: 255.
+##
+## rdecl -> TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL . LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: TYPE LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
+##
+## Ends in an error in state: 256.
+##
+## rdecl -> TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE . separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE
+##
+
+PLACEHOLDER
+
+rprog_eof: TYPE LABEL EQUAL UNFOLD
+##
+## Ends in an error in state: 259.
+##
+## rdecl -> TYPE LABEL EQUAL . LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## TYPE LABEL EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: TYPE LABEL EQUAL LBRACE UNFOLD
+##
+## Ends in an error in state: 260.
+##
+## rdecl -> TYPE LABEL EQUAL LBRACE . separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## TYPE LABEL EQUAL LBRACE
+##
+
+PLACEHOLDER
+
+rprog_eof: SORT UNFOLD
+##
+## Ends in an error in state: 263.
+##
+## rdecl -> SORT . LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> SORT . LABEL EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## SORT
+##
+
+PLACEHOLDER
+
+rprog_eof: SORT LABEL UNFOLD
+##
+## Ends in an error in state: 264.
+##
+## rdecl -> SORT LABEL . LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> SORT LABEL . EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## SORT LABEL
+##
+
+PLACEHOLDER
+
+rprog_eof: SORT LABEL LPAREN UNFOLD
+##
+## Ends in an error in state: 265.
+##
+## rdecl -> SORT LABEL LPAREN . separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## SORT LABEL LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: SORT LABEL LPAREN IDENT RPAREN UNFOLD
+##
+## Ends in an error in state: 267.
+##
+## rdecl -> SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN . EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: SORT LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
+##
+## Ends in an error in state: 268.
+##
+## rdecl -> SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL . LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: SORT LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
+##
+## Ends in an error in state: 269.
+##
+## rdecl -> SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE . separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE
+##
+
+PLACEHOLDER
+
+rprog_eof: SORT LABEL EQUAL UNFOLD
+##
+## Ends in an error in state: 272.
+##
+## rdecl -> SORT LABEL EQUAL . LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## SORT LABEL EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: SORT LABEL EQUAL LBRACE UNFOLD
+##
+## Ends in an error in state: 273.
+##
+## rdecl -> SORT LABEL EQUAL LBRACE . separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## SORT LABEL EQUAL LBRACE
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN UNFOLD
+##
+## Ends in an error in state: 276.
+##
+## rdecl -> RFUN . IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## RFUN
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT UNFOLD
+##
+## Ends in an error in state: 277.
+##
+## rdecl -> RFUN IDENT . pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## RFUN IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN UNFOLD
+##
+## Ends in an error in state: 278.
+##
+## pf_domain -> LPAREN . loption(separated_nonempty_list(COMMA,pf_domain_entry)) RPAREN [ ARROW ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET UNFOLD
+##
+## Ends in an error in state: 279.
+##
+## pf_domain_entry -> LBRACKET . eff_level RBRACKET IDENT COLON sort [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET . LOG RBRACKET IDENT COLON app_expr [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET . RES RBRACKET IDENT COLON app_expr AT app_expr [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET . RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET . RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET RES UNFOLD
+##
+## Ends in an error in state: 280.
+##
+## pf_domain_entry -> LBRACKET RES . RBRACKET IDENT COLON app_expr AT app_expr [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET RES . RBRACKET IDENT COLON LPAREN DO IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET RES . RBRACKET IDENT COLON LPAREN DO IDENT EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET UNFOLD
+##
+## Ends in an error in state: 281.
+##
+## pf_domain_entry -> LBRACKET RES RBRACKET . IDENT COLON app_expr AT app_expr [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET RES RBRACKET . IDENT COLON LPAREN DO IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET RES RBRACKET . IDENT COLON LPAREN DO IDENT EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT UNFOLD
+##
+## Ends in an error in state: 282.
+##
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT . COLON app_expr AT app_expr [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT . COLON LPAREN DO IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT . COLON LPAREN DO IDENT EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON UNFOLD
+##
+## Ends in an error in state: 283.
+##
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON . app_expr AT app_expr [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON . LPAREN DO IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON . LPAREN DO IDENT EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET IDENT COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN UNFOLD
+##
+## Ends in an error in state: 284.
+##
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON LPAREN . DO IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON LPAREN . DO IDENT EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## simple_expr -> LPAREN . RPAREN [ AT ]
+## simple_expr -> LPAREN . expr RPAREN [ AT ]
+## simple_expr -> LPAREN . expr COMMA separated_nonempty_list(COMMA,expr) RPAREN [ AT ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET IDENT COLON LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO UNFOLD
+##
+## Ends in an error in state: 285.
+##
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON LPAREN DO . IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON LPAREN DO . IDENT EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET IDENT COLON LPAREN DO
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT UNFOLD
+##
+## Ends in an error in state: 286.
+##
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT . COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT . EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL UNFOLD
+##
+## Ends in an error in state: 287.
+##
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL . app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL FALSE UNFOLD
+##
+## Ends in an error in state: 288.
+##
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL app_expr . RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL app_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON UNFOLD
+##
+## Ends in an error in state: 290.
+##
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON . sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON BOOL_KW TYPE
+##
+## Ends in an error in state: 291.
+##
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort . EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON BOOL_KW EQUAL UNFOLD
+##
+## Ends in an error in state: 292.
+##
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort EQUAL . app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON BOOL_KW EQUAL FALSE UNFOLD
+##
+## Ends in an error in state: 293.
+##
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort EQUAL app_expr . RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort EQUAL app_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON FALSE UNFOLD
+##
+## Ends in an error in state: 295.
+##
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON app_expr . AT app_expr [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET IDENT COLON app_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET RES RBRACKET IDENT COLON FALSE AT UNFOLD
+##
+## Ends in an error in state: 296.
+##
+## pf_domain_entry -> LBRACKET RES RBRACKET IDENT COLON app_expr AT . app_expr [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET IDENT COLON app_expr AT
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET LOG UNFOLD
+##
+## Ends in an error in state: 298.
+##
+## pf_domain_entry -> LBRACKET LOG . RBRACKET IDENT COLON app_expr [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET LOG
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET UNFOLD
+##
+## Ends in an error in state: 299.
+##
+## pf_domain_entry -> LBRACKET LOG RBRACKET . IDENT COLON app_expr [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET LOG RBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET IDENT UNFOLD
+##
+## Ends in an error in state: 300.
+##
+## pf_domain_entry -> LBRACKET LOG RBRACKET IDENT . COLON app_expr [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET LOG RBRACKET IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET IDENT COLON UNFOLD
+##
+## Ends in an error in state: 301.
+##
+## pf_domain_entry -> LBRACKET LOG RBRACKET IDENT COLON . app_expr [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET LOG RBRACKET IDENT COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE UNFOLD
+##
+## Ends in an error in state: 303.
+##
+## pf_domain_entry -> LBRACKET eff_level . RBRACKET IDENT COLON sort [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET eff_level
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET UNFOLD
+##
+## Ends in an error in state: 304.
+##
+## pf_domain_entry -> LBRACKET eff_level RBRACKET . IDENT COLON sort [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET eff_level RBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET IDENT UNFOLD
+##
+## Ends in an error in state: 305.
+##
+## pf_domain_entry -> LBRACKET eff_level RBRACKET IDENT . COLON sort [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET eff_level RBRACKET IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET IDENT COLON UNFOLD
+##
+## Ends in an error in state: 306.
+##
+## pf_domain_entry -> LBRACKET eff_level RBRACKET IDENT COLON . sort [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET eff_level RBRACKET IDENT COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN IDENT UNFOLD
+##
+## Ends in an error in state: 308.
+##
+## pf_domain_entry -> IDENT . COLON sort [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN IDENT COLON UNFOLD
+##
+## Ends in an error in state: 309.
+##
+## pf_domain_entry -> IDENT COLON . sort [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## IDENT COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN IDENT COLON BOOL_KW LBRACKET
+##
+## Ends in an error in state: 312.
+##
+## separated_nonempty_list(COMMA,pf_domain_entry) -> pf_domain_entry . [ RPAREN ]
+## separated_nonempty_list(COMMA,pf_domain_entry) -> pf_domain_entry . COMMA separated_nonempty_list(COMMA,pf_domain_entry) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## pf_domain_entry
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN IDENT COLON BOOL_KW COMMA UNFOLD
+##
+## Ends in an error in state: 313.
+##
+## separated_nonempty_list(COMMA,pf_domain_entry) -> pf_domain_entry COMMA . separated_nonempty_list(COMMA,pf_domain_entry) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## pf_domain_entry COMMA
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN RPAREN UNFOLD
+##
+## Ends in an error in state: 317.
+##
+## rdecl -> RFUN IDENT pf_domain . ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## RFUN IDENT pf_domain
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN RPAREN ARROW UNFOLD
+##
+## Ends in an error in state: 318.
+##
+## rdecl -> RFUN IDENT pf_domain ARROW . pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## RFUN IDENT pf_domain ARROW
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN UNFOLD
+##
+## Ends in an error in state: 319.
+##
+## pf_sort -> LPAREN . loption(separated_nonempty_list(COMMA,pf_entry)) RPAREN [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN LBRACKET FUN EOF ELSE BAR ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET UNFOLD
+##
+## Ends in an error in state: 320.
+##
+## pf_entry -> LBRACKET . eff_level RBRACKET IDENT COLON sort [ RPAREN COMMA ]
+## pf_entry -> LBRACKET . LOG RBRACKET app_expr [ RPAREN COMMA ]
+## pf_entry -> LBRACKET . RES RBRACKET app_expr AT app_expr [ RPAREN COMMA ]
+## pf_entry -> LBRACKET . RES RBRACKET LPAREN DO IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## pf_entry -> LBRACKET . RES RBRACKET LPAREN DO IDENT EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET RES UNFOLD
+##
+## Ends in an error in state: 321.
+##
+## pf_entry -> LBRACKET RES . RBRACKET app_expr AT app_expr [ RPAREN COMMA ]
+## pf_entry -> LBRACKET RES . RBRACKET LPAREN DO IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## pf_entry -> LBRACKET RES . RBRACKET LPAREN DO IDENT EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET UNFOLD
+##
+## Ends in an error in state: 322.
+##
+## pf_entry -> LBRACKET RES RBRACKET . app_expr AT app_expr [ RPAREN COMMA ]
+## pf_entry -> LBRACKET RES RBRACKET . LPAREN DO IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## pf_entry -> LBRACKET RES RBRACKET . LPAREN DO IDENT EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN UNFOLD
+##
+## Ends in an error in state: 323.
+##
+## pf_entry -> LBRACKET RES RBRACKET LPAREN . DO IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## pf_entry -> LBRACKET RES RBRACKET LPAREN . DO IDENT EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## simple_expr -> LPAREN . RPAREN [ AT ]
+## simple_expr -> LPAREN . expr RPAREN [ AT ]
+## simple_expr -> LPAREN . expr COMMA separated_nonempty_list(COMMA,expr) RPAREN [ AT ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO UNFOLD
+##
+## Ends in an error in state: 324.
+##
+## pf_entry -> LBRACKET RES RBRACKET LPAREN DO . IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## pf_entry -> LBRACKET RES RBRACKET LPAREN DO . IDENT EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET LPAREN DO
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT UNFOLD
+##
+## Ends in an error in state: 325.
+##
+## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT . COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT . EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET LPAREN DO IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL UNFOLD
+##
+## Ends in an error in state: 326.
+##
+## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL . app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL FALSE UNFOLD
+##
+## Ends in an error in state: 327.
+##
+## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL app_expr . RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL app_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON UNFOLD
+##
+## Ends in an error in state: 329.
+##
+## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT COLON . sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET LPAREN DO IDENT COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW TYPE
+##
+## Ends in an error in state: 330.
+##
+## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort . EQUAL app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW EQUAL UNFOLD
+##
+## Ends in an error in state: 331.
+##
+## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort EQUAL . app_expr RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW EQUAL FALSE UNFOLD
+##
+## Ends in an error in state: 332.
+##
+## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort EQUAL app_expr . RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort EQUAL app_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET FALSE UNFOLD
+##
+## Ends in an error in state: 334.
+##
+## pf_entry -> LBRACKET RES RBRACKET app_expr . AT app_expr [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET app_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET FALSE AT UNFOLD
+##
+## Ends in an error in state: 335.
+##
+## pf_entry -> LBRACKET RES RBRACKET app_expr AT . app_expr [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET RES RBRACKET app_expr AT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET LOG UNFOLD
+##
+## Ends in an error in state: 337.
+##
+## pf_entry -> LBRACKET LOG . RBRACKET app_expr [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET LOG
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET LOG RBRACKET UNFOLD
+##
+## Ends in an error in state: 338.
+##
+## pf_entry -> LBRACKET LOG RBRACKET . app_expr [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET LOG RBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE UNFOLD
+##
+## Ends in an error in state: 340.
+##
+## pf_entry -> LBRACKET eff_level . RBRACKET IDENT COLON sort [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET eff_level
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET UNFOLD
+##
+## Ends in an error in state: 341.
+##
+## pf_entry -> LBRACKET eff_level RBRACKET . IDENT COLON sort [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET eff_level RBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET IDENT UNFOLD
+##
+## Ends in an error in state: 342.
+##
+## pf_entry -> LBRACKET eff_level RBRACKET IDENT . COLON sort [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET eff_level RBRACKET IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET IDENT COLON UNFOLD
+##
+## Ends in an error in state: 343.
+##
+## pf_entry -> LBRACKET eff_level RBRACKET IDENT COLON . sort [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET eff_level RBRACKET IDENT COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN IDENT UNFOLD
+##
+## Ends in an error in state: 345.
+##
+## pf_entry -> IDENT . COLON sort [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN IDENT COLON UNFOLD
+##
+## Ends in an error in state: 346.
+##
+## pf_entry -> IDENT COLON . sort [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## IDENT COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN IDENT COLON BOOL_KW LBRACKET
+##
+## Ends in an error in state: 349.
+##
+## separated_nonempty_list(COMMA,pf_entry) -> pf_entry . [ RPAREN ]
+## separated_nonempty_list(COMMA,pf_entry) -> pf_entry . COMMA separated_nonempty_list(COMMA,pf_entry) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## pf_entry
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN IDENT COLON BOOL_KW COMMA UNFOLD
+##
+## Ends in an error in state: 350.
+##
+## separated_nonempty_list(COMMA,pf_entry) -> pf_entry COMMA . separated_nonempty_list(COMMA,pf_entry) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## pf_entry COMMA
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN UNFOLD
+##
+## Ends in an error in state: 354.
+##
+## rdecl -> RFUN IDENT pf_domain ARROW pf_sort . LBRACKET eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## RFUN IDENT pf_domain ARROW pf_sort
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET UNFOLD
+##
+## Ends in an error in state: 355.
+##
+## rdecl -> RFUN IDENT pf_domain ARROW pf_sort LBRACKET . eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## RFUN IDENT pf_domain ARROW pf_sort LBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE UNFOLD
+##
+## Ends in an error in state: 356.
+##
+## rdecl -> RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level . RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE RBRACKET UNFOLD
+##
+## Ends in an error in state: 357.
+##
+## rdecl -> RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET . EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL UNFOLD
+##
+## Ends in an error in state: 358.
+##
+## rdecl -> RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL . crt_expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE UNFOLD
+##
+## Ends in an error in state: 359.
+##
+## crt_seq_expr -> OPEN_TAKE . LPAREN rpf_expr RPAREN [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## OPEN_TAKE
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE LPAREN UNFOLD
+##
+## Ends in an error in state: 360.
+##
+## crt_seq_expr -> OPEN_TAKE LPAREN . rpf_expr RPAREN [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## OPEN_TAKE LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_TAKE UNFOLD
+##
+## Ends in an error in state: 361.
+##
+## rpf_atom_expr -> MAKE_TAKE . LPAREN crt_expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## MAKE_TAKE
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_TAKE LPAREN UNFOLD
+##
+## Ends in an error in state: 362.
+##
+## rpf_atom_expr -> MAKE_TAKE LPAREN . crt_expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## MAKE_TAKE LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN UNFOLD
+##
+## Ends in an error in state: 363.
+##
+## crt_spine_expr -> LPAREN . loption(separated_nonempty_list(COMMA,spine_arg)) RPAREN [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES UNFOLD
+##
+## Ends in an error in state: 364.
+##
+## spine_arg -> RES . rpf_expr [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## RES
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_RET UNFOLD
+##
+## Ends in an error in state: 365.
+##
+## rpf_atom_expr -> MAKE_RET . LPAREN lpf_expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## MAKE_RET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_RET LPAREN TYPE
+##
+## Ends in an error in state: 366.
+##
+## rpf_atom_expr -> MAKE_RET LPAREN . lpf_expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## MAKE_RET LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD UNFOLD
+##
+## Ends in an error in state: 367.
+##
+## lpf_atom_expr -> UNFOLD . IDENT LPAREN expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## UNFOLD
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD IDENT UNFOLD
+##
+## Ends in an error in state: 368.
+##
+## lpf_atom_expr -> UNFOLD IDENT . LPAREN expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## UNFOLD IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD IDENT LPAREN UNFOLD
+##
+## Ends in an error in state: 369.
+##
+## lpf_atom_expr -> UNFOLD IDENT LPAREN . expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## UNFOLD IDENT LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD IDENT LPAREN FALSE TYPE
+##
+## Ends in an error in state: 370.
+##
+## lpf_atom_expr -> UNFOLD IDENT LPAREN expr . RPAREN [ SEMICOLON RPAREN COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## UNFOLD IDENT LPAREN expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OPEN_RET UNFOLD
+##
+## Ends in an error in state: 372.
+##
+## lpf_atom_expr -> OPEN_RET . LPAREN rpf_expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## OPEN_RET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OPEN_RET LPAREN UNFOLD
+##
+## Ends in an error in state: 373.
+##
+## lpf_atom_expr -> OPEN_RET LPAREN . rpf_expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## OPEN_RET LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OPEN_RET LPAREN IDENT SEMICOLON
+##
+## Ends in an error in state: 375.
+##
+## lpf_atom_expr -> OPEN_RET LPAREN rpf_expr . RPAREN [ SEMICOLON RPAREN COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## OPEN_RET LPAREN rpf_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT UNFOLD
+##
+## Ends in an error in state: 377.
+##
+## rpf_expr -> rpf_atom_expr . COLON simple_expr AT simple_expr [ SEMICOLON RPAREN COMMA ]
+## rpf_expr -> rpf_atom_expr . [ SEMICOLON RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## rpf_atom_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT COLON UNFOLD
+##
+## Ends in an error in state: 378.
+##
+## rpf_expr -> rpf_atom_expr COLON . simple_expr AT simple_expr [ SEMICOLON RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## rpf_atom_expr COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT COLON FALSE UNFOLD
+##
+## Ends in an error in state: 379.
+##
+## rpf_expr -> rpf_atom_expr COLON simple_expr . AT simple_expr [ SEMICOLON RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## rpf_atom_expr COLON simple_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT COLON FALSE AT UNFOLD
+##
+## Ends in an error in state: 380.
+##
+## rpf_expr -> rpf_atom_expr COLON simple_expr AT . simple_expr [ SEMICOLON RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## rpf_atom_expr COLON simple_expr AT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_RET LPAREN AUTO SEMICOLON
+##
+## Ends in an error in state: 384.
+##
+## rpf_atom_expr -> MAKE_RET LPAREN lpf_expr . RPAREN [ SEMICOLON RPAREN COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## MAKE_RET LPAREN lpf_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 386, spurious reduction of production lpf_expr -> lpf_atom_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG AUTO UNFOLD
+##
+## Ends in an error in state: 386.
+##
+## lpf_expr -> lpf_atom_expr . COLON expr [ SEMICOLON RPAREN COMMA ]
+## lpf_expr -> lpf_atom_expr . [ SEMICOLON RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## lpf_atom_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG AUTO COLON UNFOLD
+##
+## Ends in an error in state: 387.
+##
+## lpf_expr -> lpf_atom_expr COLON . expr [ SEMICOLON RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## lpf_atom_expr COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG TYPE
+##
+## Ends in an error in state: 390.
+##
+## spine_arg -> LOG . lpf_expr [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LOG
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN FALSE SEMICOLON
+##
+## Ends in an error in state: 392.
+##
+## separated_nonempty_list(COMMA,spine_arg) -> spine_arg . [ RPAREN ]
+## separated_nonempty_list(COMMA,spine_arg) -> spine_arg . COMMA separated_nonempty_list(COMMA,spine_arg) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## spine_arg
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+## In state 395, spurious reduction of production spine_arg -> expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN FALSE COMMA UNFOLD
+##
+## Ends in an error in state: 393.
+##
+## separated_nonempty_list(COMMA,spine_arg) -> spine_arg COMMA . separated_nonempty_list(COMMA,spine_arg) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## spine_arg COMMA
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET UNFOLD
+##
+## Ends in an error in state: 399.
+##
+## crt_seq_expr -> LET . rpat EQUAL crt_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+## crt_seq_expr -> LET . LOG IDENT EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+## crt_seq_expr -> LET . LOG IDENT COLON app_expr EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+## crt_seq_expr -> LET . RES IDENT EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+## crt_seq_expr -> LET . RES IDENT COLON app_expr AT app_expr EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+## crt_seq_expr -> LET . CORE LBRACKET IDENT RBRACKET IDENT EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+## crt_seq_expr -> LET . CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES UNFOLD
+##
+## Ends in an error in state: 400.
+##
+## crt_seq_expr -> LET RES . IDENT EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+## crt_seq_expr -> LET RES . IDENT COLON app_expr AT app_expr EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET RES
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT UNFOLD
+##
+## Ends in an error in state: 401.
+##
+## crt_seq_expr -> LET RES IDENT . EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+## crt_seq_expr -> LET RES IDENT . COLON app_expr AT app_expr EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET RES IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL UNFOLD
+##
+## Ends in an error in state: 402.
+##
+## crt_seq_expr -> LET RES IDENT EQUAL . rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET RES IDENT EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL IDENT RPAREN
+##
+## Ends in an error in state: 403.
+##
+## crt_seq_expr -> LET RES IDENT EQUAL rpf_expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET RES IDENT EQUAL rpf_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL IDENT SEMICOLON UNFOLD
+##
+## Ends in an error in state: 404.
+##
+## crt_seq_expr -> LET RES IDENT EQUAL rpf_expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET RES IDENT EQUAL rpf_expr SEMICOLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER UNFOLD
+##
+## Ends in an error in state: 405.
+##
+## crt_seq_expr -> ITER . LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET UNFOLD
+##
+## Ends in an error in state: 406.
+##
+## crt_seq_expr -> ITER LBRACKET . expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE TYPE
+##
+## Ends in an error in state: 407.
+##
+## crt_seq_expr -> ITER LBRACKET expr . RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LBRACKET expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET UNFOLD
+##
+## Ends in an error in state: 408.
+##
+## crt_seq_expr -> ITER LBRACKET expr RBRACKET . LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LBRACKET expr RBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN UNFOLD
+##
+## Ends in an error in state: 409.
+##
+## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN . rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LBRACKET expr RBRACKET LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN UNFOLD
+##
+## Ends in an error in state: 410.
+##
+## rpat -> LPAREN . RPAREN [ EQUAL ]
+## rpat -> LPAREN . separated_nonempty_list(COMMA,rpat_elem) RPAREN [ EQUAL ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN UNFOLD
+##
+## Ends in an error in state: 412.
+##
+## rpat_elem -> LPAREN . IDENT COMMA IDENT RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN IDENT UNFOLD
+##
+## Ends in an error in state: 413.
+##
+## rpat_elem -> LPAREN IDENT . COMMA IDENT RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN IDENT COMMA UNFOLD
+##
+## Ends in an error in state: 414.
+##
+## rpat_elem -> LPAREN IDENT COMMA . IDENT RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN IDENT COMMA
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN IDENT COMMA IDENT UNFOLD
+##
+## Ends in an error in state: 415.
+##
+## rpat_elem -> LPAREN IDENT COMMA IDENT . RPAREN [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN IDENT COMMA IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN IDENT UNFOLD
+##
+## Ends in an error in state: 420.
+##
+## separated_nonempty_list(COMMA,rpat_elem) -> rpat_elem . [ RPAREN ]
+## separated_nonempty_list(COMMA,rpat_elem) -> rpat_elem . COMMA separated_nonempty_list(COMMA,rpat_elem) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## rpat_elem
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN IDENT COMMA UNFOLD
+##
+## Ends in an error in state: 421.
+##
+## separated_nonempty_list(COMMA,rpat_elem) -> rpat_elem COMMA . separated_nonempty_list(COMMA,rpat_elem) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## rpat_elem COMMA
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT UNFOLD
+##
+## Ends in an error in state: 424.
+##
+## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat . EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LBRACKET expr RBRACKET LPAREN rpat
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL UNFOLD
+##
+## Ends in an error in state: 425.
+##
+## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL . crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF UNFOLD
+##
+## Ends in an error in state: 426.
+##
+## crt_seq_expr -> IF . LBRACKET IDENT RBRACKET expr THEN crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## IF
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET UNFOLD
+##
+## Ends in an error in state: 427.
+##
+## crt_seq_expr -> IF LBRACKET . IDENT RBRACKET expr THEN crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## IF LBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT UNFOLD
+##
+## Ends in an error in state: 428.
+##
+## crt_seq_expr -> IF LBRACKET IDENT . RBRACKET expr THEN crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## IF LBRACKET IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET UNFOLD
+##
+## Ends in an error in state: 429.
+##
+## crt_seq_expr -> IF LBRACKET IDENT RBRACKET . expr THEN crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## IF LBRACKET IDENT RBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE TYPE
+##
+## Ends in an error in state: 430.
+##
+## crt_seq_expr -> IF LBRACKET IDENT RBRACKET expr . THEN crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## IF LBRACKET IDENT RBRACKET expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE THEN UNFOLD
+##
+## Ends in an error in state: 431.
+##
+## crt_seq_expr -> IF LBRACKET IDENT RBRACKET expr THEN . crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## IF LBRACKET IDENT RBRACKET expr THEN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IDENT UNFOLD
+##
+## Ends in an error in state: 432.
+##
+## crt_app_expr -> IDENT . spine_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IDENT LPAREN UNFOLD
+##
+## Ends in an error in state: 433.
+##
+## spine_expr -> LPAREN . loption(separated_nonempty_list(COMMA,spine_arg)) RPAREN [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE UNFOLD
+##
+## Ends in an error in state: 438.
+##
+## crt_seq_expr -> CASE . LBRACKET IDENT RBRACKET expr OF LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## CASE
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET UNFOLD
+##
+## Ends in an error in state: 439.
+##
+## crt_seq_expr -> CASE LBRACKET . IDENT RBRACKET expr OF LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## CASE LBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT UNFOLD
+##
+## Ends in an error in state: 440.
+##
+## crt_seq_expr -> CASE LBRACKET IDENT . RBRACKET expr OF LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## CASE LBRACKET IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET UNFOLD
+##
+## Ends in an error in state: 441.
+##
+## crt_seq_expr -> CASE LBRACKET IDENT RBRACKET . expr OF LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## CASE LBRACKET IDENT RBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE TYPE
+##
+## Ends in an error in state: 442.
+##
+## crt_seq_expr -> CASE LBRACKET IDENT RBRACKET expr . OF LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## CASE LBRACKET IDENT RBRACKET expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF UNFOLD
+##
+## Ends in an error in state: 443.
+##
+## crt_seq_expr -> CASE LBRACKET IDENT RBRACKET expr OF . LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## CASE LBRACKET IDENT RBRACKET expr OF
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE UNFOLD
+##
+## Ends in an error in state: 444.
+##
+## crt_seq_expr -> CASE LBRACKET IDENT RBRACKET expr OF LBRACE . separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## CASE LBRACKET IDENT RBRACKET expr OF LBRACE
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL UNFOLD
+##
+## Ends in an error in state: 445.
+##
+## crt_case_branch -> LABEL . IDENT ARROW crt_expr [ RBRACE BAR ]
+##
+## The known suffix of the stack is as follows:
+## LABEL
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT UNFOLD
+##
+## Ends in an error in state: 446.
+##
+## crt_case_branch -> LABEL IDENT . ARROW crt_expr [ RBRACE BAR ]
+##
+## The known suffix of the stack is as follows:
+## LABEL IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT ARROW UNFOLD
+##
+## Ends in an error in state: 447.
+##
+## crt_case_branch -> LABEL IDENT ARROW . crt_expr [ RBRACE BAR ]
+##
+## The known suffix of the stack is as follows:
+## LABEL IDENT ARROW
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL UNFOLD
+##
+## Ends in an error in state: 448.
+##
+## crt_app_expr -> state_prim . LBRACKET sort RBRACKET spine_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## state_prim
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET UNFOLD
+##
+## Ends in an error in state: 449.
+##
+## crt_app_expr -> state_prim LBRACKET . sort RBRACKET spine_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## state_prim LBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET BOOL_KW TYPE
+##
+## Ends in an error in state: 450.
+##
+## crt_app_expr -> state_prim LBRACKET sort . RBRACKET spine_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## state_prim LBRACKET sort
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET BOOL_KW RBRACKET UNFOLD
+##
+## Ends in an error in state: 451.
+##
+## crt_app_expr -> state_prim LBRACKET sort RBRACKET . spine_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## state_prim LBRACKET sort RBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO UNFOLD
+##
+## Ends in an error in state: 454.
+##
+## crt_expr -> crt_seq_expr . COLON pf_sort [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE BAR ]
+## crt_expr -> crt_seq_expr . [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE BAR ]
+##
+## The known suffix of the stack is as follows:
+## crt_seq_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO COLON UNFOLD
+##
+## Ends in an error in state: 455.
+##
+## crt_expr -> crt_seq_expr COLON . pf_sort [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE BAR ]
+##
+## The known suffix of the stack is as follows:
+## crt_seq_expr COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT ARROW EXFALSO TYPE
+##
+## Ends in an error in state: 461.
+##
+## separated_nonempty_list(BAR,crt_case_branch) -> crt_case_branch . [ RBRACE ]
+## separated_nonempty_list(BAR,crt_case_branch) -> crt_case_branch . BAR separated_nonempty_list(BAR,crt_case_branch) [ RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## crt_case_branch
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
+## In state 457, spurious reduction of production crt_case_branch -> LABEL IDENT ARROW crt_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT ARROW EXFALSO BAR UNFOLD
+##
+## Ends in an error in state: 462.
+##
+## separated_nonempty_list(BAR,crt_case_branch) -> crt_case_branch BAR . separated_nonempty_list(BAR,crt_case_branch) [ RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## crt_case_branch BAR
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE THEN EXFALSO TYPE
+##
+## Ends in an error in state: 464.
+##
+## crt_seq_expr -> IF LBRACKET IDENT RBRACKET expr THEN crt_expr . ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## IF LBRACKET IDENT RBRACKET expr THEN crt_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE THEN EXFALSO ELSE UNFOLD
+##
+## Ends in an error in state: 465.
+##
+## crt_seq_expr -> IF LBRACKET IDENT RBRACKET expr THEN crt_expr ELSE . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## IF LBRACKET IDENT RBRACKET expr THEN crt_expr ELSE
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO TYPE
+##
+## Ends in an error in state: 467.
+##
+## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr . RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO RPAREN UNFOLD
+##
+## Ends in an error in state: 468.
+##
+## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN . LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO RPAREN LBRACE UNFOLD
+##
+## Ends in an error in state: 469.
+##
+## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE . crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO RPAREN LBRACE EXFALSO TYPE
+##
+## Ends in an error in state: 470.
+##
+## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr . RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON UNFOLD
+##
+## Ends in an error in state: 473.
+##
+## crt_seq_expr -> LET RES IDENT COLON . app_expr AT app_expr EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET RES IDENT COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE UNFOLD
+##
+## Ends in an error in state: 474.
+##
+## crt_seq_expr -> LET RES IDENT COLON app_expr . AT app_expr EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET RES IDENT COLON app_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT UNFOLD
+##
+## Ends in an error in state: 475.
+##
+## crt_seq_expr -> LET RES IDENT COLON app_expr AT . app_expr EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET RES IDENT COLON app_expr AT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE UNFOLD
+##
+## Ends in an error in state: 476.
+##
+## crt_seq_expr -> LET RES IDENT COLON app_expr AT app_expr . EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET RES IDENT COLON app_expr AT app_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE EQUAL UNFOLD
+##
+## Ends in an error in state: 477.
+##
+## crt_seq_expr -> LET RES IDENT COLON app_expr AT app_expr EQUAL . rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET RES IDENT COLON app_expr AT app_expr EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE EQUAL IDENT RPAREN
+##
+## Ends in an error in state: 478.
+##
+## crt_seq_expr -> LET RES IDENT COLON app_expr AT app_expr EQUAL rpf_expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET RES IDENT COLON app_expr AT app_expr EQUAL rpf_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE EQUAL IDENT SEMICOLON UNFOLD
+##
+## Ends in an error in state: 479.
+##
+## crt_seq_expr -> LET RES IDENT COLON app_expr AT app_expr EQUAL rpf_expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET RES IDENT COLON app_expr AT app_expr EQUAL rpf_expr SEMICOLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG UNFOLD
+##
+## Ends in an error in state: 481.
+##
+## crt_seq_expr -> LET LOG . IDENT EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+## crt_seq_expr -> LET LOG . IDENT COLON app_expr EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET LOG
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT UNFOLD
+##
+## Ends in an error in state: 482.
+##
+## crt_seq_expr -> LET LOG IDENT . EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+## crt_seq_expr -> LET LOG IDENT . COLON app_expr EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET LOG IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT EQUAL TYPE
+##
+## Ends in an error in state: 483.
+##
+## crt_seq_expr -> LET LOG IDENT EQUAL . lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET LOG IDENT EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT EQUAL AUTO RPAREN
+##
+## Ends in an error in state: 484.
+##
+## crt_seq_expr -> LET LOG IDENT EQUAL lpf_expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET LOG IDENT EQUAL lpf_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 386, spurious reduction of production lpf_expr -> lpf_atom_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT EQUAL AUTO SEMICOLON UNFOLD
+##
+## Ends in an error in state: 485.
+##
+## crt_seq_expr -> LET LOG IDENT EQUAL lpf_expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET LOG IDENT EQUAL lpf_expr SEMICOLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON UNFOLD
+##
+## Ends in an error in state: 487.
+##
+## crt_seq_expr -> LET LOG IDENT COLON . app_expr EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET LOG IDENT COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE UNFOLD
+##
+## Ends in an error in state: 488.
+##
+## crt_seq_expr -> LET LOG IDENT COLON app_expr . EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET LOG IDENT COLON app_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE EQUAL TYPE
+##
+## Ends in an error in state: 489.
+##
+## crt_seq_expr -> LET LOG IDENT COLON app_expr EQUAL . lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET LOG IDENT COLON app_expr EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE EQUAL AUTO RPAREN
+##
+## Ends in an error in state: 490.
+##
+## crt_seq_expr -> LET LOG IDENT COLON app_expr EQUAL lpf_expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET LOG IDENT COLON app_expr EQUAL lpf_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 386, spurious reduction of production lpf_expr -> lpf_atom_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE EQUAL AUTO SEMICOLON UNFOLD
+##
+## Ends in an error in state: 491.
+##
+## crt_seq_expr -> LET LOG IDENT COLON app_expr EQUAL lpf_expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET LOG IDENT COLON app_expr EQUAL lpf_expr SEMICOLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE UNFOLD
+##
+## Ends in an error in state: 493.
+##
+## crt_seq_expr -> LET CORE . LBRACKET IDENT RBRACKET IDENT EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+## crt_seq_expr -> LET CORE . LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET CORE
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET UNFOLD
+##
+## Ends in an error in state: 494.
+##
+## crt_seq_expr -> LET CORE LBRACKET . IDENT RBRACKET IDENT EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+## crt_seq_expr -> LET CORE LBRACKET . IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET CORE LBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT UNFOLD
+##
+## Ends in an error in state: 495.
+##
+## crt_seq_expr -> LET CORE LBRACKET IDENT . RBRACKET IDENT EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+## crt_seq_expr -> LET CORE LBRACKET IDENT . RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET CORE LBRACKET IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET UNFOLD
+##
+## Ends in an error in state: 496.
+##
+## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET . IDENT EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET . LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET CORE LBRACKET IDENT RBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN UNFOLD
+##
+## Ends in an error in state: 497.
+##
+## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET LPAREN . separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET CORE LBRACKET IDENT RBRACKET LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT UNFOLD
+##
+## Ends in an error in state: 498.
+##
+## separated_nonempty_list(COMMA,ident_var) -> IDENT . [ RPAREN ]
+## separated_nonempty_list(COMMA,ident_var) -> IDENT . COMMA separated_nonempty_list(COMMA,ident_var) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT COMMA UNFOLD
+##
+## Ends in an error in state: 499.
+##
+## separated_nonempty_list(COMMA,ident_var) -> IDENT COMMA . separated_nonempty_list(COMMA,ident_var) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## IDENT COMMA
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT RPAREN UNFOLD
+##
+## Ends in an error in state: 502.
+##
+## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN . EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT RPAREN EQUAL UNFOLD
+##
+## Ends in an error in state: 503.
+##
+## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL . expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT RPAREN EQUAL FALSE TYPE
+##
+## Ends in an error in state: 504.
+##
+## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT RPAREN EQUAL FALSE SEMICOLON UNFOLD
+##
+## Ends in an error in state: 505.
+##
+## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET IDENT UNFOLD
+##
+## Ends in an error in state: 507.
+##
+## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET IDENT . EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET CORE LBRACKET IDENT RBRACKET IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL UNFOLD
+##
+## Ends in an error in state: 508.
+##
+## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL . expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL FALSE TYPE
+##
+## Ends in an error in state: 509.
+##
+## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 148, spurious reduction of production add_expr -> mul_expr
+## In state 158, spurious reduction of production cmp_expr -> add_expr
+## In state 154, spurious reduction of production eq_expr -> cmp_expr
+## In state 153, spurious reduction of production and_expr -> eq_expr
+## In state 175, spurious reduction of production or_expr -> and_expr
+## In state 146, spurious reduction of production seq_expr -> or_expr
+## In state 143, spurious reduction of production expr -> seq_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL FALSE SEMICOLON UNFOLD
+##
+## Ends in an error in state: 510.
+##
+## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL expr SEMICOLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT UNFOLD
+##
+## Ends in an error in state: 512.
+##
+## crt_seq_expr -> LET rpat . EQUAL crt_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET rpat
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQUAL UNFOLD
+##
+## Ends in an error in state: 513.
+##
+## crt_seq_expr -> LET rpat EQUAL . crt_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET rpat EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQUAL EXFALSO TYPE
+##
+## Ends in an error in state: 514.
+##
+## crt_seq_expr -> LET rpat EQUAL crt_expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET rpat EQUAL crt_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQUAL EXFALSO SEMICOLON UNFOLD
+##
+## Ends in an error in state: 515.
+##
+## crt_seq_expr -> LET rpat EQUAL crt_expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## LET rpat EQUAL crt_expr SEMICOLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_TAKE LPAREN EXFALSO TYPE
+##
+## Ends in an error in state: 517.
+##
+## rpf_atom_expr -> MAKE_TAKE LPAREN crt_expr . RPAREN [ SEMICOLON RPAREN COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## MAKE_TAKE LPAREN crt_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE LPAREN IDENT SEMICOLON
+##
+## Ends in an error in state: 519.
+##
+## crt_seq_expr -> OPEN_TAKE LPAREN rpf_expr . RPAREN [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
+##
+## The known suffix of the stack is as follows:
+## OPEN_TAKE LPAREN rpf_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
+##
+
+PLACEHOLDER
+
+rprog_eof: FUN UNFOLD
+##
+## Ends in an error in state: 522.
+##
+## rdecl -> FUN . IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## FUN
+##
+
+PLACEHOLDER
+
+rprog_eof: FUN IDENT UNFOLD
+##
+## Ends in an error in state: 523.
+##
+## rdecl -> FUN IDENT . LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: FUN IDENT LPAREN UNFOLD
+##
+## Ends in an error in state: 524.
+##
+## rdecl -> FUN IDENT LPAREN . IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT LPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: FUN IDENT LPAREN IDENT UNFOLD
+##
+## Ends in an error in state: 525.
+##
+## rdecl -> FUN IDENT LPAREN IDENT . COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT LPAREN IDENT
+##
+
+PLACEHOLDER
+
+rprog_eof: FUN IDENT LPAREN IDENT COLON UNFOLD
+##
+## Ends in an error in state: 526.
+##
+## rdecl -> FUN IDENT LPAREN IDENT COLON . sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT LPAREN IDENT COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW TYPE
+##
+## Ends in an error in state: 527.
+##
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort . RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT LPAREN IDENT COLON sort
+##
+
+PLACEHOLDER
+
+rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN UNFOLD
+##
+## Ends in an error in state: 528.
+##
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN . ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT LPAREN IDENT COLON sort RPAREN
+##
+
+PLACEHOLDER
+
+rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW UNFOLD
+##
+## Ends in an error in state: 529.
+##
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW . sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW
+##
+
+PLACEHOLDER
+
+rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW TYPE
+##
+## Ends in an error in state: 530.
+##
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort . LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort
+##
+
+PLACEHOLDER
+
+rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET UNFOLD
+##
+## Ends in an error in state: 531.
+##
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET . eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IMPURE UNFOLD
+##
+## Ends in an error in state: 532.
+##
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level . RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level
+##
+
+PLACEHOLDER
+
+rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IMPURE RBRACKET UNFOLD
+##
+## Ends in an error in state: 533.
+##
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET . EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL UNFOLD
+##
+## Ends in an error in state: 534.
+##
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL . expr [ TYPE SORT RFUN MAIN FUN ]
+##
+## The known suffix of the stack is as follows:
+## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE SEMICOLON
+##
+## Ends in an error in state: 537.
+##
+## list(rdecl) -> rdecl . list(rdecl) [ MAIN ]
+##
+## The known suffix of the stack is as follows:
+## rdecl
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN UNFOLD
+##
+## Ends in an error in state: 540.
+##
+## rprog_eof -> list(rdecl) MAIN . COLON pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(rdecl) MAIN
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON UNFOLD
+##
+## Ends in an error in state: 541.
+##
+## rprog_eof -> list(rdecl) MAIN COLON . pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(rdecl) MAIN COLON
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN UNFOLD
+##
+## Ends in an error in state: 542.
+##
+## rprog_eof -> list(rdecl) MAIN COLON pf_sort . LBRACKET eff_level RBRACKET EQUAL crt_expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(rdecl) MAIN COLON pf_sort
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET UNFOLD
+##
+## Ends in an error in state: 543.
+##
+## rprog_eof -> list(rdecl) MAIN COLON pf_sort LBRACKET . eff_level RBRACKET EQUAL crt_expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(rdecl) MAIN COLON pf_sort LBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE UNFOLD
+##
+## Ends in an error in state: 544.
+##
+## rprog_eof -> list(rdecl) MAIN COLON pf_sort LBRACKET eff_level . RBRACKET EQUAL crt_expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(rdecl) MAIN COLON pf_sort LBRACKET eff_level
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET UNFOLD
+##
+## Ends in an error in state: 545.
+##
+## rprog_eof -> list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET . EQUAL crt_expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL UNFOLD
+##
+## Ends in an error in state: 546.
+##
+## rprog_eof -> list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET EQUAL . crt_expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET EQUAL
+##
+
+PLACEHOLDER
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO TYPE
+##
+## Ends in an error in state: 547.
+##
+## rprog_eof -> list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
+##
+
+PLACEHOLDER
+
+sort_eof: UNFOLD
+##
+## Ends in an error in state: 549.
+##
+## sort_eof' -> . sort_eof [ # ]
+##
+## The known suffix of the stack is as follows:
+##
+##
+
+PLACEHOLDER
+
+sort_eof: BOOL_KW TYPE
+##
+## Ends in an error in state: 551.
+##
+## sort_eof -> sort . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## sort
+##
+
+PLACEHOLDER
+
