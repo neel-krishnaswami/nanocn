@@ -1,0 +1,26 @@
+{
+  "skill_name": "nanocn-parse-errors",
+  "evals": [
+    {
+      "id": 1,
+      "name": "grammar-change-add-assert",
+      "prompt": "I want to add an `assert <expr>;` form to the surface grammar of nanoCN — syntactically, `assert e; body` means evaluate `e` (which should be `Bool`) at runtime and abort the program if false, otherwise continue with `body`. Please add the grammar rule (including a new `ASSERT` token in both the parser and lexer), then comprehensively update the error messages: find the new error states introduced by this rule, write plausible mutant programs that hit each new state, write targeted messages for each, and verify everything still builds and the existing corpus still passes.",
+      "expected_output": "Grammar change applied to lib/parser.mly and lib/lexer.ml; new baseline like examples/assert_example.cn that parses; new mutants in examples/errors/parsing/ covering each new error state; new messages in lib/parser.messages (no PLACEHOLDER on any new state); build succeeds; existing baselines and mutants still behave correctly. The skill should use the scripts in .claude/skills/nanocn-parse-errors/scripts/ (classify_states.sh, diff_states.sh, verify_baselines.sh, verify_mutants.sh) rather than reconstructing them.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "audit-remaining-placeholders",
+      "prompt": "Looking at `lib/parser.messages`, there are still some PLACEHOLDER messages left. Please audit them: for each remaining PLACEHOLDER state, tell me whether it's worth writing a message for (i.e., whether real user code can plausibly hit it) or whether it can be left alone because the parser catches the mistake at an earlier state first. Explain your reasoning and give me a concrete ordered list of states I should tackle next, if any.",
+      "expected_output": "A triaged list of the remaining PLACEHOLDER states, grouped into three buckets: (a) unreachable via user mistakes (precedence-chain scaffolding, spurious-reduction duplicates, REPL-only) — leave alone with reasoning; (b) reachable via specific user mistakes — fix, with an ordered priority list; (c) uncertain cases needing empirical investigation. The response should cite specific state numbers and explain reachability using the spurious-reduction principle. Ideally the skill should not just say 'all 43 remaining are unreachable' but should actually verify this via `verify_mutants.sh` or analogous empirical test.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "fix-mutant-spurious-reduction",
+      "prompt": "I wrote a mutant to test the error message for state 467 (the refined-iter state where we expect `)` to close the binder, after `iter [r] (rpat = crt`). My mutant looks like this:\n\n```\nrfun f (xs : Int) -> Int [spec] =\n  iter [xs] ((i = 0 { exfalso }\n```\n\nBut when I run it through the parser, it hits some other state with a generic 'Expression complete' message, not state 467's message. Can you figure out what's going wrong, fix the mutant so it actually hits state 467, and make sure the existing message for state 467 is appropriate for what the fixed mutant triggers?",
+      "expected_output": "Diagnosis of why the original mutant hits the wrong state (likely: the lookahead token isn't in FOLLOW of crt_expr at state 467, so the precedence chain reduces through an inner state before 467 can fire). A fixed mutant file that actually triggers state 467 (verified with verify_mutants.sh). Optional improvement to state 467's message if the existing one is weak. The skill should invoke the spurious-reductions reference and use the scripts to verify.",
+      "files": []
+    }
+  ]
+}
