@@ -87,24 +87,20 @@ let mk_eq ce1 ce2 = CoreExpr.mk (mk_info bool_sort) (CoreExpr.Eq (ce1, ce2))
       (Δ, x : ϕ [log])           ⇒ C  =  Δ ⇒ ϕ ⇒ C
       (Δ, x : ce@ce' [res(u)])   ⇒ C  =  Δ ⇒ C            (no contribution)
 
-   The spec writes Δ in extension order with the latest binding on the
-   right ([(Δ, x)] means Δ extended with x). [RCtx.entries] returns
-   our context in extension order too, but [rpat_match] builds the
-   pattern's delta by recursing first, so the pattern's *earliest*
-   binder is the LAST entry. That's the binder we want OUTERMOST in
-   the resulting closed constraint, since later pattern entries may
-   depend on it. A plain left-fold over [RCtx.entries] therefore puts
-   the earliest pattern binder outermost as required. *)
+   Entries arrive in source order (oldest first; [rpat_match] now
+   adds bindings left-to-right). The earliest binding should become
+   the OUTERMOST wrapper, so a [fold_right] over the entry list
+   wraps from inside out: the rightmost (latest) entry wraps [ct]
+   first, then each earlier entry wraps the accumulating result. *)
 let close_ctx pos delta_close ct =
-  List.fold_left (fun acc entry ->
+  List.fold_right (fun entry acc ->
     match entry with
     | RCtx.Comp { var; sort; eff = _ } ->
       Constraint.forall_ pos var sort acc
     | RCtx.Log { var = _; prop } ->
       Constraint.impl pos prop acc
     | RCtx.Res _ -> acc)
-    ct
-    (RCtx.entries delta_close)
+    (RCtx.entries delta_close) ct
 
 (* Unwrap layers that obscure the monadic skeleton of a predicate
    expression, leaving the underlying [Return] / [Take] / [Fail]
@@ -955,20 +951,27 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ty
 (* Refined pattern matching: RS; Gamma |- q : Pf -| Delta *)
 and rpat_match (_cs : _ Sig.t) (_gamma : Context.t) (pat : Var.t RPat.t) (pf : (CoreExpr.typed_ce, Var.t) ProofSort.t) : (RCtx.t, string) result =
   let ( let* ) = Result.bind in
-  let rec go elems entries =
+  (* Per [doc/refinement-types.md] §Refined patterns the binders are
+     added left-to-right: the first pattern element becomes the
+     earliest binding in [Δ], so subsequent body-position uses (and
+     pattern elements that depend on it via substitution) see it in
+     scope. We thread [delta] as an accumulator and extend at each
+     step — [RCtx.extend_*] appends to the end, so the source order
+     of the pattern is preserved in [RCtx.entries]. *)
+  let rec go elems entries delta =
     match elems, entries with
-    | [], [] -> Ok RCtx.empty
+    | [], [] -> Ok delta
     | RPat.Single x :: rest_elems, ProofSort.Comp { var = y; sort; eff } :: rest_pf ->
       let ce_x = ce_of_var x sort in
       let rest_pf' = ProofSort.subst y ce_x rest_pf in
-      let* delta = go rest_elems rest_pf' in
-      Ok (RCtx.extend_comp x sort eff delta)
+      let delta' = RCtx.extend_comp x sort eff delta in
+      go rest_elems rest_pf' delta'
     | RPat.Single x :: rest_elems, ProofSort.Log { prop } :: rest_pf ->
-      let* delta = go rest_elems rest_pf in
-      Ok (RCtx.extend_log x prop delta)
+      let delta' = RCtx.extend_log x prop delta in
+      go rest_elems rest_pf delta'
     | RPat.Single x :: rest_elems, ProofSort.Res { pred; value } :: rest_pf ->
-      let* delta = go rest_elems rest_pf in
-      Ok (RCtx.extend_res x pred value Usage.Avail delta)
+      let delta' = RCtx.extend_res x pred value Usage.Avail delta in
+      go rest_elems rest_pf delta'
     | RPat.Pair (x, w) :: rest_elems, ProofSort.DepRes { bound_var = z; pred } :: rest_pf ->
       let pred_sort = (CoreExpr.info pred)#sort in
       (match Sort.shape pred_sort with
@@ -977,13 +980,19 @@ and rpat_match (_cs : _ Sig.t) (_gamma : Context.t) (pat : Var.t RPat.t) (pf : (
          let sub = Subst.extend_var z ce_x Subst.empty in
          let pred' = Subst.apply_ce sub pred in
          let rest_pf' = ProofSort.subst z ce_x rest_pf in
-         let* delta = go rest_elems rest_pf' in
+         (* Per [doc/refinement-types.md:540-542]:
+              Σ; Γ ⊢ ((x, a), q) : ((z).ce [res], Pf)
+                  ⊣ x : τ, a : (ce @ x) [res(1)], Δ
+            i.e. the witness [x] (= comp) is added first, then the
+            resource [a] (= w), then the rest [q]. *)
+         let delta = RCtx.extend_comp x inner_sort Effect.Spec delta in
          let delta = RCtx.extend_res w pred' ce_x Usage.Avail delta in
-         Ok (RCtx.extend_comp x inner_sort Effect.Spec delta)
+         go rest_elems rest_pf' delta
        | _ -> Error "rpat_match: dep-res pred must have pred sort")
-    | _ -> Ok RCtx.empty (* mismatch — will be caught during type checking *)
+    | _ -> Ok delta (* mismatch — will be caught during type checking *)
   in
-  go pat pf
+  let* result = go pat pf RCtx.empty in
+  Ok result
 
 (* ---------- Program checking ---------- *)
 
