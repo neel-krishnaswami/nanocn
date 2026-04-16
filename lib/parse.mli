@@ -6,11 +6,11 @@
 
 (** {1 Raw parsing (pure, string-named trees)} *)
 
-val parse_expr_raw : string -> file:string -> (SurfExpr.parsed_se, string) result
-val parse_prog_raw : string -> file:string -> ((SurfExpr.parsed_se, SourcePos.t, string) Prog.t, string) result
-val parse_decl_raw : string -> file:string -> ((SurfExpr.parsed_se, SourcePos.t, string) Prog.decl, string) result
-val parse_rprog_raw : string -> file:string -> (RProg.raw_parsed, string) result
-val parse_sort : string -> file:string -> (Sort.sort, string) result
+val parse_expr_raw : string -> file:string -> (SurfExpr.parsed_se, TypeError.t) result
+val parse_prog_raw : string -> file:string -> ((SurfExpr.parsed_se, SourcePos.t, string) Prog.t, TypeError.t) result
+val parse_decl_raw : string -> file:string -> ((SurfExpr.parsed_se, SourcePos.t, string) Prog.decl, TypeError.t) result
+val parse_rprog_raw : string -> file:string -> (RProg.raw_parsed, TypeError.t) result
+val parse_sort : string -> file:string -> (Sort.sort, TypeError.t) result
 
 (** {1 Parsed + resolved (monadic, Var.t-named trees)} *)
 

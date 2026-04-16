@@ -32,8 +32,10 @@ let lift_sort (s : Sort.sort) : typed_info Sort.t =
 
 let mk_sort pos s = Sort.mk (object method loc = pos end) s
 
-let fail_at pos msg =
-  ElabM.fail (Format.asprintf "@[%a:@ %s@]" SourcePos.print pos msg)
+(* Transitional helpers — each emits a [TypeError.legacy] carrying the
+   position and the pre-formatted message. Later phases replace callers
+   with direct [ElabM.fail] + a structured [TypeError] constructor. *)
+let fail_at pos msg = ElabM.legacy_fail (Some pos) msg
 
 let fail_at_f pos fmt =
   Format.kasprintf (fun msg -> fail_at pos msg) fmt
@@ -171,7 +173,7 @@ let rec expand_tup sorts y eff_b branches =
       (match Pat.shape p with
        | Pat.Tuple pats ->
          if List.compare_lengths pats sorts <> 0 then
-           ElabM.fail "tuple pattern length mismatch"
+           ElabM.legacy_fail None "tuple pattern length mismatch"
          else
            let new_bindings = List.combine pats sorts in
            let* rest' = expand_tup sorts y eff_b rest in
@@ -461,7 +463,7 @@ and check_list sig_ ctx ses sorts eff0 =
     let* ce = check sig_ ctx se s eff0 in
     let* rest = check_list sig_ ctx ses' ss' eff0 in
     ElabM.return (ce :: rest)
-  | _ -> ElabM.fail "tuple length mismatch"
+  | _ -> ElabM.legacy_fail None "tuple length mismatch"
 
 (** {1 Coverage}
 
@@ -479,10 +481,10 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 =
        let ctx' = Context.extend_list (ctx_of_let_bindings br.let_bindings) ctx in
        let* ce' = check sig_ ctx' br.body sort eff0 in
        ElabM.return (wrap_lets br.let_bindings ctx sort eff0 ce')
-     | _ -> ElabM.fail "coverage: bindings remain but no scrutinees")
+     | _ -> ElabM.legacy_fail None "coverage: bindings remain but no scrutinees")
 
   | [], [] ->
-    ElabM.fail "non-exhaustive pattern match"
+    ElabM.legacy_fail None "non-exhaustive pattern match"
 
   (* Cov_var: all leading patterns are variables *)
   | y :: scrs, _ when not (has_con branches) && not (has_tup branches) ->
@@ -513,8 +515,8 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 =
             ElabM.return (mk_typed ctx (Var.binding_site y) sort eff0
               (CoreExpr.Case (y_ce, case_branches)))
           | None ->
-            ElabM.fail (Format.asprintf "unknown sort/type %a" Dsort.print dsort_name))
-     | _ -> ElabM.fail "coverage: constructor pattern on non-datasort/datatype")
+            ElabM.legacy_fail None (Format.asprintf "unknown sort/type %a" Dsort.print dsort_name))
+     | _ -> ElabM.legacy_fail None "coverage: constructor pattern on non-datasort/datatype")
 
   (* Cov_tup: some leading patterns are tuples *)
   | y :: scrs, _ when has_tup branches ->
@@ -534,10 +536,10 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 =
        ) fresh_zs in
        ElabM.return (mk_typed ctx (Var.binding_site y) sort eff0
          (CoreExpr.LetTuple (annotated_vars, y_ce, ce)))
-     | _ -> ElabM.fail "coverage: tuple pattern on non-record sort")
+     | _ -> ElabM.legacy_fail None "coverage: tuple pattern on non-record sort")
 
   | _ :: _, _ ->
-    ElabM.fail "coverage: unexpected pattern form"
+    ElabM.legacy_fail None "coverage: unexpected pattern form"
 
 and build_sort_con_branches sig_ ctx y scrs branches eff_b sort eff0 labels args decl =
   match labels with

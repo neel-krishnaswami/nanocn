@@ -15,8 +15,8 @@ let lookup_env (name : string) (env : env) : Var.t option =
 let resolve_use pos env name =
   match lookup_env name env with
   | Some v -> return v
-  | None -> fail (Format.asprintf "%a: unbound variable %s"
-                    SourcePos.print pos name)
+  | None ->
+    legacy_fail (Some pos) (Format.asprintf "unbound variable %s" name)
 
 (* ===== Patterns ===== *)
 
@@ -48,8 +48,8 @@ let check_parsed_linearity (p : Pat.parsed_pat) : unit ElabM.t =
     | [] -> return ()
     | n :: rest ->
       if List.exists (String.equal n) rest then
-        fail (Format.asprintf "%a: duplicate variable %s in pattern"
-                SourcePos.print (Pat.info p)#loc n)
+        legacy_fail (Some (Pat.info p)#loc)
+          (Format.asprintf "duplicate variable %s in pattern" n)
       else check rest
   in
   check names
@@ -246,7 +246,7 @@ let resolve_pf_domain_entry env
             ProofSort.DepRes { bound_var = bv; pred = pred' },
             (rname, rv) :: (bname, bv) :: env)
   | _ ->
-    fail "resolve_pf_domain_entry: pattern/entry mismatch"
+    legacy_fail None "resolve_pf_domain_entry: pattern/entry mismatch"
 
 let resolve_pf_domain env
     (pat : string RPat.t)
@@ -259,7 +259,7 @@ let resolve_pf_domain env
       let* (p', e', env') = resolve_pf_domain_entry env p e in
       let* (ps', es', env'') = go env' ps es in
       return (p' :: ps', e' :: es', env'')
-    | _ -> fail "resolve_pf_domain: pattern/domain length mismatch"
+    | _ -> legacy_fail None "resolve_pf_domain: pattern/domain length mismatch"
   in
   go env pat domain
 

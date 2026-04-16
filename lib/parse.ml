@@ -31,17 +31,20 @@ let parse_raw start s ~file =
       let state = I.current_state_number env in
       let msg = String.trim (lookup_message state) in
       let pos = Lexer.pos_of_lexbuf buf in
-      Error (Format.asprintf "@[<v>%a: parse error@ %s@]"
-               SourcePos.print pos msg)
+      (* Wrap in [TypeError.legacy]: parse errors flow through the
+         same pipeline as typechecker errors, so they share the error
+         channel. The "parse error" prefix distinguishes them in
+         prose. *)
+      Error (TypeError.legacy (Some pos) ("parse error\n  " ^ msg))
     | I.Accepted v -> Ok v
     | I.Rejected ->
       let pos = Lexer.pos_of_lexbuf buf in
-      Error (Format.asprintf "%a: parser rejected input" SourcePos.print pos)
+      Error (TypeError.legacy (Some pos) "parser rejected input")
   in
   try
     let start_pos, _ = Sedlexing.lexing_positions buf in
     loop (start start_pos)
-  with Failure msg -> Error msg
+  with Failure msg -> Error (TypeError.legacy None msg)
 
 (** {1 Raw (pure) parse functions} *)
 

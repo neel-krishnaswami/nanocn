@@ -1,4 +1,4 @@
-type 'a t = Var.supply -> ('a * Var.supply, string) result
+type 'a t = Var.supply -> ('a * Var.supply, TypeError.t) result
 
 let return x supply = Ok (x, supply)
 
@@ -7,7 +7,9 @@ let ( let* ) m f supply =
   | Error e -> Error e
   | Ok (a, supply') -> f a supply'
 
-let fail msg _supply = Error msg
+let fail err _supply = Error err
+
+let legacy_fail pos msg = fail (TypeError.legacy pos msg)
 
 let lift r supply =
   match r with
@@ -50,15 +52,18 @@ module Test = struct
            | Ok (b, _) -> b
            | Error _ -> false);
 
-      QCheck.Test.make ~name:"elabM fail propagates"
+      QCheck.Test.make ~name:"elabM legacy_fail propagates without a position"
         ~count:1
         QCheck.unit
         (fun () ->
            match run Var.empty_supply (
-             let* _ = fail "test error" in
+             let* _ = legacy_fail None "test error" in
              return 42
            ) with
            | Ok _ -> false
-           | Error msg -> String.equal msg "test error");
+           | Error e ->
+             (match TypeError.loc e with
+              | Some _ -> false
+              | None -> true));
     ]
 end

@@ -17,24 +17,36 @@ let usage () =
   Format.eprintf "Usage: nanocn <command> (try 'nanocn help')@.";
   exit 1
 
+(* Shared source registry: every file we read gets registered so
+   [TypeError.print] can render source excerpts around error
+   positions. One registry per process is enough. *)
+let source_registry = SourceExcerpt.create ()
+
+let () =
+  (* Configure stderr once with ocolor semantic tags. If stderr isn't
+     a terminal (e.g. piped to a file), tags are no-ops and output is
+     plain. *)
+  ErrorRender.configure_formatter Format.err_formatter
+
+let read_file filename =
+  let ic = In_channel.open_text filename in
+  let s = In_channel.input_all ic in
+  In_channel.close ic;
+  SourceExcerpt.register source_registry ~file:filename ~source:s;
+  s
+
+let print_err err =
+  Format.eprintf "%a@." (TypeError.print source_registry) err
+
 let check_file filename =
-  let input =
-    let ic = In_channel.open_text filename in
-    let s = In_channel.input_all ic in
-    In_channel.close ic;
-    s
-  in
+  let input = read_file filename in
   match ElabM.run Var.empty_supply (Parse.parse_prog input ~file:filename) with
-  | Error msg ->
-    Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
-    exit 1
+  | Error err -> print_err err; exit 1
   | Ok (prog, supply) ->
     match Typecheck.check_prog supply prog with
     | Ok (_sig, _cprog) ->
       Format.printf "OK@."
-    | Error msg ->
-      Format.eprintf "@[<v>Type error:@ %s@]@." msg;
-      exit 1
+    | Error err -> print_err err; exit 1
 
 let starts_with_prefix s prefix =
   let n = String.length prefix in
@@ -48,6 +60,8 @@ let print_fun_sig name arg_sort ret_sort eff =
     Effect.print eff
 
 let toplevel () =
+  (* REPL input gets a pseudo-file name; we still register it so
+     [SourceExcerpt] can do its best for lines we've typed. *)
   let rec loop supply sig_ ctx =
     match LNoise.linenoise ">>> " with
     | None -> ()
@@ -56,6 +70,8 @@ let toplevel () =
       if line = "" then loop supply sig_ ctx
       else begin
         LNoise.history_add line |> ignore;
+        SourceExcerpt.register source_registry
+          ~file:"<toplevel>" ~source:line;
         if starts_with_prefix line "fun " then
           handle_decl supply sig_ ctx line
         else if starts_with_prefix line "sort " then
@@ -69,14 +85,10 @@ let toplevel () =
       end
   and handle_decl supply sig_ ctx line =
     match ElabM.run supply (Parse.parse_decl line ~file:"<toplevel>") with
-    | Error msg ->
-      Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
-      loop supply sig_ ctx
+    | Error err -> print_err err; loop supply sig_ ctx
     | Ok (d, parse_supply) ->
       match Typecheck.check_spec_decl parse_supply sig_ d with
-      | Error msg ->
-        Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
-        loop supply sig_ ctx
+      | Error err -> print_err err; loop supply sig_ ctx
       | Ok (supply', sig') ->
         (match d with
          | Prog.FunDecl dd ->
@@ -105,9 +117,7 @@ let toplevel () =
       let* (_typed_e, sort) = Elaborate.synth sig_ ctx Effect.Impure se in
       return (x, sort)
     ) with
-    | Error msg ->
-      Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
-      loop supply sig_ ctx
+    | Error err -> print_err err; loop supply sig_ ctx
     | Ok ((x, sort), supply') ->
       let eff = Effect.Impure in
       let ctx' = Context.extend x sort (Effect.purify eff) ctx in
@@ -119,9 +129,7 @@ let toplevel () =
       let* se = Parse.parse_expr line ~file:"<toplevel>" in
       Elaborate.synth sig_ ctx Effect.Impure se
     ) with
-    | Error msg ->
-      Format.eprintf "@[<v>ERROR:@ %s@]@." msg;
-      loop supply sig_ ctx
+    | Error err -> print_err err; loop supply sig_ ctx
     | Ok ((_core_e, sort), supply') ->
       Format.printf "_ : %a [impure]@." Sort.print sort;
       loop supply' sig_ ctx
@@ -129,40 +137,22 @@ let toplevel () =
   loop Var.empty_supply Typecheck.initial_sig Context.empty
 
 let elaborate_file filename =
-  let input =
-    let ic = In_channel.open_text filename in
-    let s = In_channel.input_all ic in
-    In_channel.close ic;
-    s
-  in
+  let input = read_file filename in
   match ElabM.run Var.empty_supply (Parse.parse_prog input ~file:filename) with
-  | Error msg ->
-    Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
-    exit 1
+  | Error err -> print_err err; exit 1
   | Ok (prog, supply) ->
     match Typecheck.check_prog supply prog with
-    | Error msg ->
-      Format.eprintf "@[<v>Type error:@ %s@]@." msg;
-      exit 1
+    | Error err -> print_err err; exit 1
     | Ok (_sig, cprog) ->
       Format.printf "%a@." (Prog.print_core_prog CoreExpr.print) cprog
 
 let json_file filename =
-  let input =
-    let ic = In_channel.open_text filename in
-    let s = In_channel.input_all ic in
-    In_channel.close ic;
-    s
-  in
+  let input = read_file filename in
   match ElabM.run Var.empty_supply (Parse.parse_prog input ~file:filename) with
-  | Error msg ->
-    Format.eprintf "@[<v>Parse error:@ %s@]@." msg;
-    exit 1
+  | Error err -> print_err err; exit 1
   | Ok (prog, supply) ->
     match Typecheck.check_prog supply prog with
-    | Error msg ->
-      Format.eprintf "@[<v>Type error:@ %s@]@." msg;
-      exit 1
+    | Error err -> print_err err; exit 1
     | Ok (_sig, cprog) ->
       let jb b = Json.Object [
         "loc", SourcePos.json b#loc;
@@ -174,12 +164,7 @@ let json_file filename =
       Format.printf "%a@." Json.print j
 
 let check_refined_file filename =
-  let input =
-    let ic = In_channel.open_text filename in
-    let s = In_channel.input_all ic in
-    In_channel.close ic;
-    s
-  in
+  let input = read_file filename in
   match ElabM.run Var.empty_supply (
     let open ElabM in
     let* rprog = Parse.parse_rprog input ~file:filename in
@@ -188,26 +173,17 @@ let check_refined_file filename =
   | Ok ((_rsig, ct), _supply) ->
     Format.printf "OK@.";
     Format.printf "@[<v>Constraint:@ %a@]@." Constraint.print ct
-  | Error msg ->
-    Format.eprintf "@[<v>Error:@ %s@]@." msg;
-    exit 1
+  | Error err -> print_err err; exit 1
 
 let smt_check_file filename =
-  let input =
-    let ic = In_channel.open_text filename in
-    let s = In_channel.input_all ic in
-    In_channel.close ic;
-    s
-  in
+  let input = read_file filename in
   let run =
     let open ElabM in
     let* rprog = Parse.parse_rprog input ~file:filename in
     RCheck.check_rprog rprog
   in
   match ElabM.run Var.empty_supply run with
-  | Error msg ->
-    Format.eprintf "@[<v>Error:@ %s@]@." msg;
-    exit 1
+  | Error err -> print_err err; exit 1
   | Ok ((rsig, ct), _supply) ->
     match SmtEncode.encode rsig ct with
     | Error msg ->

@@ -7,6 +7,16 @@
 
 open ElabM
 
+(* Phase 1 transitional shims: [fail "..."] / [fail (Format.asprintf …)]
+   and [lift (<string-typed result>)] call sites throughout this module
+   pre-date the migration to structured errors. The shadowing below
+   routes them through [TypeError.legacy] with no source position.
+   Later phases replace these call sites with direct [ElabM.fail] +
+   a structured [TypeError] constructor, and these shims can be removed. *)
+let fail msg = legacy_fail None msg
+let lift (r : ('a, string) result) : 'a ElabM.t =
+  ElabM.lift (Result.map_error (fun msg -> TypeError.legacy None msg) r)
+
 let loc_dummy = object method loc = SourcePos.dummy end
 
 let int_sort = Sort.mk loc_dummy Sort.Int
@@ -1131,7 +1141,7 @@ module Test = struct
             let* prog = Parse.parse_rprog src ~file:"test" in
             check_rprog prog
           ) with
-          | Error msg -> QCheck.Test.fail_reportf "check: %s" msg
+          | Error msg -> QCheck.Test.fail_reportf "check: %s" (TypeError.to_string msg)
           | Ok _ -> true))
     in
     [ check_program "delta monotonicity: incr (new/get/set/del)"

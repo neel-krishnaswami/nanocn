@@ -1,5 +1,6 @@
-let err_at pos msg =
-  Error (Format.asprintf "@[%a:@ %s@]" SourcePos.print pos msg)
+(* Transitional helpers — each emits [Error (TypeError.legacy pos msg)].
+   Later phases replace callers with direct [TypeError] constructors. *)
+let err_at pos msg = Error (TypeError.legacy (Some pos) msg)
 
 let err_at_f pos fmt =
   Format.kasprintf (fun msg -> err_at pos msg) fmt
@@ -304,7 +305,7 @@ and check_list sig_ ctx es sorts eff0 =
     let* e' = check sig_ ctx e s eff0 in
     let* rest = check_list sig_ ctx es' ss' eff0 in
     Ok (e' :: rest)
-  | _ -> Error "tuple length mismatch"
+  | _ -> Error (TypeError.legacy None "tuple length mismatch")
 
 and check_case_branches sig_ ctx branches scrut_sort result_sort eff0 bind_eff pos =
   match Sort.shape scrut_sort with
@@ -353,22 +354,23 @@ let initial_sig : typed_ce Sig.t =
 (** Check kind well-formedness: CS ; G |- tau : kind *)
 let rec kind_wf sig_ ctx s kind =
   let pos = (Sort.info s)#loc in
+  let err fmt =
+    Format.kasprintf (fun m -> Error (TypeError.legacy (Some pos) m)) fmt
+  in
   match Sort.shape s with
   | Sort.Int | Sort.Bool -> Ok ()
   | Sort.TVar a ->
     (match Context.lookup_tvar a ctx with
      | Some k ->
        if Kind.subkind k kind then Ok ()
-       else Error (Format.asprintf "%a: type variable %a has kind %a, expected %a"
-                     SourcePos.print pos Tvar.print a Kind.print k Kind.print kind)
+       else err "type variable %a has kind %a, expected %a"
+              Tvar.print a Kind.print k Kind.print kind
      | None ->
-       Error (Format.asprintf "%a: unbound type variable %a"
-                SourcePos.print pos Tvar.print a))
+       err "unbound type variable %a" Tvar.print a)
   | Sort.Ptr t -> kind_wf sig_ ctx t Kind.Type
   | Sort.Pred t ->
     if Kind.compare kind Kind.Sort <> 0 then
-      Error (Format.asprintf "%a: pred only allowed at kind sort"
-               SourcePos.print pos)
+      err "pred only allowed at kind sort"
     else
       kind_wf sig_ ctx t Kind.Sort
   | Sort.Record ts -> kind_wf_list sig_ ctx ts kind
@@ -376,23 +378,22 @@ let rec kind_wf sig_ ctx s kind =
     (match Sig.lookup_sort d sig_ with
      | Some decl ->
        if List.compare_lengths args decl.DsortDecl.params <> 0 then
-         Error (Format.asprintf "%a: sort %a expects %d arguments, got %d"
-                  SourcePos.print pos Dsort.print d
-                  (List.length decl.DsortDecl.params) (List.length args))
+         err "sort %a expects %d arguments, got %d"
+           Dsort.print d
+           (List.length decl.DsortDecl.params) (List.length args)
        else
          kind_wf_list sig_ ctx args Kind.Sort
      | None ->
        match Sig.lookup_type d sig_ with
        | Some decl ->
          if List.compare_lengths args decl.DtypeDecl.params <> 0 then
-           Error (Format.asprintf "%a: type %a expects %d arguments, got %d"
-                    SourcePos.print pos Dsort.print d
-                    (List.length decl.DtypeDecl.params) (List.length args))
+           err "type %a expects %d arguments, got %d"
+             Dsort.print d
+             (List.length decl.DtypeDecl.params) (List.length args)
          else
            kind_wf_list sig_ ctx args Kind.Type
        | None ->
-         Error (Format.asprintf "%a: unknown sort/type %a"
-                  SourcePos.print pos Dsort.print d))
+         err "unknown sort/type %a" Dsort.print d)
 
 and kind_wf_list sig_ ctx ss kind =
   match ss with
@@ -404,15 +405,17 @@ and kind_wf_list sig_ ctx ss kind =
 (** Validate a datasort declaration *)
 let validate_sort_decl sig_ (d : DsortDecl.t) =
   if List.length d.ctors = 0 then
-    Error "sort declaration must have at least one constructor"
+    Error (TypeError.legacy (Some d.loc)
+             "sort declaration must have at least one constructor")
   else
     let labels = DsortDecl.ctor_labels d in
     let rec check_dups = function
       | [] -> Ok ()
       | l :: rest ->
         if List.exists (fun l' -> Label.compare l l' = 0) rest then
-          Error (Format.asprintf "duplicate constructor %a in sort declaration"
-                   Label.print l)
+          Error (TypeError.legacy (Some d.loc)
+            (Format.asprintf "duplicate constructor %a in sort declaration"
+               Label.print l))
         else check_dups rest
     in
     let* () = check_dups labels in
@@ -428,14 +431,15 @@ let validate_sort_decl sig_ (d : DsortDecl.t) =
     CS ; G ; D'(a1,...,an) |- tau guarded *)
 let rec type_guarded sig_ ctx (guard_name, guard_params) s =
   let pos = (Sort.info s)#loc in
+  let err fmt =
+    Format.kasprintf (fun m -> Error (TypeError.legacy (Some pos) m)) fmt
+  in
   match Sort.shape s with
   | Sort.Int | Sort.Bool -> Ok ()
   | Sort.TVar a ->
     (match Context.lookup_tvar a ctx with
      | Some _ -> Ok ()
-     | None ->
-       Error (Format.asprintf "%a: unbound type variable %a"
-                SourcePos.print pos Tvar.print a))
+     | None -> err "unbound type variable %a" Tvar.print a)
   | Sort.Ptr t ->
     (* Re-add D (with its actual params) to allow recursive reference under Ptr *)
     let stub_decl = DtypeDecl.{ name = guard_name; params = guard_params;
@@ -443,24 +447,19 @@ let rec type_guarded sig_ ctx (guard_name, guard_params) s =
     let sig_with_guard = Sig.extend_type sig_ stub_decl in
     kind_wf sig_with_guard ctx t Kind.Type
   | Sort.Pred _ ->
-    Error (Format.asprintf "%a: pred not allowed in type declarations"
-             SourcePos.print pos)
+    err "pred not allowed in type declarations"
   | Sort.Record ts -> type_guarded_list sig_ ctx (guard_name, guard_params) ts
   | Sort.App (d, args) ->
     if Dsort.compare d guard_name = 0 then
-      Error (Format.asprintf
-               "%a: recursive reference to %a must go through ptr"
-               SourcePos.print pos Dsort.print d)
+      err "recursive reference to %a must go through ptr" Dsort.print d
     else
       (match Sig.lookup_type d sig_ with
-       | None ->
-         Error (Format.asprintf "%a: unknown type %a"
-                  SourcePos.print pos Dsort.print d)
+       | None -> err "unknown type %a" Dsort.print d
        | Some decl ->
          if List.compare_lengths args decl.DtypeDecl.params <> 0 then
-           Error (Format.asprintf "%a: type %a expects %d arguments, got %d"
-                    SourcePos.print pos Dsort.print d
-                    (List.length decl.DtypeDecl.params) (List.length args))
+           err "type %a expects %d arguments, got %d"
+             Dsort.print d
+             (List.length decl.DtypeDecl.params) (List.length args)
          else
            kind_wf_list sig_ ctx args Kind.Type)
 
@@ -473,15 +472,17 @@ and type_guarded_list sig_ ctx guard = function
 (** Validate a datatype declaration *)
 let validate_type_decl sig_ (d : DtypeDecl.t) =
   if List.length d.ctors = 0 then
-    Error "type declaration must have at least one constructor"
+    Error (TypeError.legacy (Some d.loc)
+             "type declaration must have at least one constructor")
   else
     let labels = DtypeDecl.ctor_labels d in
     let rec check_dups = function
       | [] -> Ok ()
       | l :: rest ->
         if List.exists (fun l' -> Label.compare l l' = 0) rest then
-          Error (Format.asprintf "duplicate constructor %a in type declaration"
-                   Label.print l)
+          Error (TypeError.legacy (Some d.loc)
+            (Format.asprintf "duplicate constructor %a in type declaration"
+               Label.print l))
         else check_dups rest
     in
     let* () = check_dups labels in
@@ -525,7 +526,7 @@ let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
     Ok (supply', Prog.CoreFunDecl { name = d.name; param = y;
                             arg_sort = d.arg_sort; ret_sort = d.ret_sort;
                             eff = d.eff; body = typed_body; loc = d.loc })
-  | _ -> Error "elaborate_fun: not a FunDecl"
+  | _ -> Error (TypeError.legacy None "elaborate_fun: not a FunDecl")
 
 let check_decl supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
   match d with
@@ -553,7 +554,9 @@ let check_spec_decl supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
                      eff = dd.eff; body = cd.body }
     in
     Ok (supply', Sig.extend dd.name entry sig_)
-  | _, _ -> Error "check_spec_decl: unexpected declaration combination"
+  | _, _ ->
+    Error (TypeError.legacy None
+             "check_spec_decl: unexpected declaration combination")
 
 (** Extend the core signature after elaborating a declaration.
     Pure/spec functions store their full definition ([FunDef]);
@@ -575,7 +578,7 @@ let extend_sig_with_decl sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) (d' : type
     Sig.extend_type sig_ dd
   | _, _ -> sig_
 
-let check_prog supply (p : (SurfExpr.se, _, Var.t) Prog.t) : (typed_ce Sig.t * typed_ce Prog.core_prog, string) result =
+let check_prog supply (p : (SurfExpr.se, _, Var.t) Prog.t) : (typed_ce Sig.t * typed_ce Prog.core_prog, TypeError.t) result =
   let rec check_decls supply sig_ = function
     | [] -> Ok (supply, sig_, [])
     | d :: rest ->
