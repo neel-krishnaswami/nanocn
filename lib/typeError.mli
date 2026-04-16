@@ -6,10 +6,15 @@
 
     - Phase 1: [Legacy] bridge only — carries a pre-formatted message
       and an optional source position.
-    - Phase 2: [Structured] variant with sort-mismatch kinds
-      ([K_sort_mismatch], [K_annotation_disagrees]) carrying a
+    - Phase 2: sort-mismatch kinds ([K_sort_mismatch],
+      [K_annotation_disagrees]) carrying a
       [SortDiff.shape_compare] so printers can highlight differing
       subterms.
+    - Phase 3: unbound names ([K_unbound_var], [K_unbound_ctor],
+      [K_unbound_sort], [K_unbound_tvar]) and simple mismatches
+      ([K_var_effect_mismatch], [K_prim_effect_mismatch],
+      [K_fun_effect_mismatch], [K_scrutinee_not_data],
+      [K_not_spec_type], [K_spec_context_required]).
     - Later phases add more [kind] constructors. *)
 
 type t
@@ -24,6 +29,7 @@ val legacy : SourcePos.t option -> string -> t
 (** {1 Structured errors} *)
 
 type kind =
+  (* Phase 2 — sort mismatches *)
   | K_sort_mismatch of
       { expected : Sort.sort
       ; actual : Sort.sort
@@ -32,8 +38,37 @@ type kind =
       { inner_sort : Sort.sort
       ; annot : Sort.sort
       ; diff : SortDiff.shape_compare }
-(** The kind of structured failure. Phase 2 exposes the two
-    sort-mismatch kinds; later phases add more. *)
+
+  (* Phase 3 — unbound names *)
+  | K_unbound_var of Var.t
+  | K_unbound_name of string
+    (** A string-named reference that failed to resolve — used by
+        the scope resolver, which sees variables before they gain
+        their [Var.t] identity. *)
+  | K_unbound_ctor of Label.t
+  | K_unbound_sort of Dsort.t
+  | K_unbound_tvar of Tvar.t
+
+  (* Phase 3 — effect mismatches (three variants distinguish what
+     supplies the incompatible effect) *)
+  | K_var_effect_mismatch of
+      { var : Var.t
+      ; declared : Effect.t
+      ; required : Effect.t }
+  | K_prim_effect_mismatch of
+      { prim : Prim.t
+      ; declared : Effect.t
+      ; required : Effect.t }
+  | K_fun_effect_mismatch of
+      { name : string
+      ; declared : Effect.t
+      ; required : Effect.t }
+
+  (* Phase 3 — misc simple mismatches *)
+  | K_scrutinee_not_data of { got : Sort.sort }
+  | K_not_spec_type of { construct : string; got : Sort.sort }
+  | K_spec_context_required of { construct : string }
+(** The kind of structured failure. *)
 
 val structured : loc:SourcePos.t -> kind -> t
 (** [structured ~loc kind] builds a structured error at [loc]. *)
@@ -46,6 +81,38 @@ val sort_mismatch :
 val annotation_disagrees :
   loc:SourcePos.t -> inner:Sort.sort -> annot:Sort.sort -> t
 (** Convenience builder for [K_annotation_disagrees]. *)
+
+val unbound_var : loc:SourcePos.t -> Var.t -> t
+val unbound_name : loc:SourcePos.t -> string -> t
+val unbound_ctor : loc:SourcePos.t -> Label.t -> t
+val unbound_sort : loc:SourcePos.t -> Dsort.t -> t
+val unbound_tvar : loc:SourcePos.t -> Tvar.t -> t
+
+val var_effect_mismatch :
+  loc:SourcePos.t -> var:Var.t ->
+  declared:Effect.t -> required:Effect.t -> t
+
+val prim_effect_mismatch :
+  loc:SourcePos.t -> prim:Prim.t ->
+  declared:Effect.t -> required:Effect.t -> t
+
+val fun_effect_mismatch :
+  loc:SourcePos.t -> name:string ->
+  declared:Effect.t -> required:Effect.t -> t
+
+val scrutinee_not_data : loc:SourcePos.t -> got:Sort.sort -> t
+
+val not_spec_type :
+  loc:SourcePos.t -> construct:string -> got:Sort.sort -> t
+(** [not_spec_type ~loc ~construct ~got] is raised when a construct
+    that requires a spec sort (no [Pred]) receives one that contains
+    a [Pred]. [construct] names the construct ("equality", etc.). *)
+
+val spec_context_required :
+  loc:SourcePos.t -> construct:string -> t
+(** [spec_context_required ~loc ~construct] is raised when an operator
+    or form (e.g. [return], [fail], [take]) is used outside a [[spec]]
+    context. *)
 
 (** {1 Accessors and printers} *)
 

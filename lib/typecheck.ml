@@ -86,9 +86,11 @@ let rec synth sig_ ctx eff0 ce =
        if Effect.sub var_eff eff0 then
          Ok (mk ctx pos s eff0 (CoreExpr.Var x))
        else
-         err_at_f pos "variable %a has effect %a, not usable at effect %a"
-           Var.print x Effect.print var_eff Effect.print eff0
-     | None -> err_at_f pos "unbound variable %a" Var.print x)
+         Error (TypeError.var_effect_mismatch
+                  ~loc:pos ~var:x
+                  ~declared:var_eff ~required:eff0)
+     | None ->
+       Error (TypeError.unbound_var ~loc:pos x))
 
   | CoreExpr.IntLit n ->
     Ok (mk ctx pos (mk_sort Sort.Int) eff0 (CoreExpr.IntLit n))
@@ -101,7 +103,8 @@ let rec synth sig_ ctx eff0 ce =
     let* ce1' = synth sig_ ctx eff0' ce1 in
     let s1 = (CoreExpr.info ce1')#sort in
     if not (Sort.is_spec_type s1) then
-      err_at pos "equality requires spec type (no pred)"
+      Error (TypeError.not_spec_type ~loc:pos
+               ~construct:"equality" ~got:s1)
     else
       let* ce2' = check sig_ ctx ce2 s1 eff0' in
       let bool_sort = mk_sort Sort.Bool in
@@ -127,8 +130,8 @@ let rec synth sig_ ctx eff0 ce =
     in
     let (arg_sort, ret_sort, prim_eff) = prim_signature p in
     if not (Effect.sub prim_eff eff0) then
-      err_at_f pos "primitive %a requires effect %a, not usable at %a"
-        Prim.print p Effect.print prim_eff Effect.print eff0
+      Error (TypeError.prim_effect_mismatch
+               ~loc:pos ~prim:p ~declared:prim_eff ~required:eff0)
     else
       let eff0' = Effect.purify eff0 in
       let* arg' = check sig_ ctx arg arg_sort eff0' in
@@ -138,8 +141,9 @@ let rec synth sig_ ctx eff0 ce =
     (match Sig.lookup_fun name sig_ with
      | Some (arg_sort, ret_sort, fun_eff) ->
        if not (Effect.sub fun_eff eff0) then
-         err_at_f pos "function %s has effect %a, not usable at %a"
-           name Effect.print fun_eff Effect.print eff0
+         Error (TypeError.fun_effect_mismatch
+                  ~loc:pos ~name
+                  ~declared:fun_eff ~required:eff0)
        else
          let eff0' = Effect.purify eff0 in
          let* arg' = check sig_ ctx arg arg_sort eff0' in
@@ -161,7 +165,7 @@ and check sig_ ctx ce sort eff0 =
   match CoreExpr.shape ce with
   | CoreExpr.Return inner ->
     if not (Effect.sub Effect.Spec eff0) then
-      err_at pos "return requires spec context"
+      Error (TypeError.spec_context_required ~loc:pos ~construct:"return")
     else
     (match Sort.shape sort with
      | Sort.Pred tau ->
@@ -171,7 +175,7 @@ and check sig_ ctx ce sort eff0 =
 
   | CoreExpr.Fail ->
     if not (Effect.sub Effect.Spec eff0) then
-      err_at pos "fail requires spec context"
+      Error (TypeError.spec_context_required ~loc:pos ~construct:"fail")
     else
     (match Sort.shape sort with
      | Sort.Pred _ ->
@@ -180,7 +184,7 @@ and check sig_ ctx ce sort eff0 =
 
   | CoreExpr.Take ((x, _), ce1, ce2) ->
     if not (Effect.sub Effect.Spec eff0) then
-      err_at pos "take requires spec context"
+      Error (TypeError.spec_context_required ~loc:pos ~construct:"take")
     else
     (match Sort.shape sort with
      | Sort.Pred _ ->
@@ -329,7 +333,7 @@ and check_case_branches sig_ ctx branches scrut_sort result_sort eff0 bind_eff p
          | Error msg -> err_at_f pos "%s" msg)
     in
     go branches
-  | _ -> err_at pos "case scrutinee must have datasort/datatype"
+  | _ -> Error (TypeError.scrutinee_not_data ~loc:pos ~got:scrut_sort)
 
 (** Built-in step datatype: step(a, b) = { Next : a | Done : b } *)
 let step_decl =
@@ -367,7 +371,7 @@ let rec kind_wf sig_ ctx s kind =
        else err "type variable %a has kind %a, expected %a"
               Tvar.print a Kind.print k Kind.print kind
      | None ->
-       err "unbound type variable %a" Tvar.print a)
+       Error (TypeError.unbound_tvar ~loc:pos a))
   | Sort.Ptr t -> kind_wf sig_ ctx t Kind.Type
   | Sort.Pred t ->
     if Kind.compare kind Kind.Sort <> 0 then
@@ -394,7 +398,7 @@ let rec kind_wf sig_ ctx s kind =
          else
            kind_wf_list sig_ ctx args Kind.Type
        | None ->
-         err "unknown sort/type %a" Dsort.print d)
+         Error (TypeError.unbound_sort ~loc:pos d))
 
 and kind_wf_list sig_ ctx ss kind =
   match ss with
@@ -440,7 +444,7 @@ let rec type_guarded sig_ ctx (guard_name, guard_params) s =
   | Sort.TVar a ->
     (match Context.lookup_tvar a ctx with
      | Some _ -> Ok ()
-     | None -> err "unbound type variable %a" Tvar.print a)
+     | None -> Error (TypeError.unbound_tvar ~loc:pos a))
   | Sort.Ptr t ->
     (* Re-add D (with its actual params) to allow recursive reference under Ptr *)
     let stub_decl = DtypeDecl.{ name = guard_name; params = guard_params;
@@ -455,7 +459,7 @@ let rec type_guarded sig_ ctx (guard_name, guard_params) s =
       err "recursive reference to %a must go through ptr" Dsort.print d
     else
       (match Sig.lookup_type d sig_ with
-       | None -> err "unknown type %a" Dsort.print d
+       | None -> Error (TypeError.unbound_sort ~loc:pos d)
        | Some decl ->
          if List.compare_lengths args decl.DtypeDecl.params <> 0 then
            err "type %a expects %d arguments, got %d"

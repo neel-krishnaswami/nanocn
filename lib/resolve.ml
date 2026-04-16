@@ -16,7 +16,7 @@ let resolve_use pos env name =
   match lookup_env name env with
   | Some v -> return v
   | None ->
-    legacy_fail (Some pos) (Format.asprintf "unbound variable %s" name)
+    ElabM.fail (TypeError.unbound_name ~loc:pos name)
 
 (* ===== Patterns ===== *)
 

@@ -257,9 +257,12 @@ let rec synth sig_ ctx eff0 se =
        if Effect.sub var_eff eff0 then
          ElabM.return (mk_typed ctx pos s eff0 (CoreExpr.Var x), s)
        else
-         fail_at_f pos "variable %a has effect %a, not usable at effect %a"
-           Var.print x Effect.print var_eff Effect.print eff0
-     | None -> fail_at_f pos "unbound variable %a" Var.print x)
+         ElabM.fail
+           (TypeError.var_effect_mismatch
+              ~loc:pos ~var:x
+              ~declared:var_eff ~required:eff0)
+     | None ->
+       ElabM.fail (TypeError.unbound_var ~loc:pos x))
 
   | SurfExpr.IntLit n ->
     let s = mk_sort pos Sort.Int in
@@ -273,7 +276,8 @@ let rec synth sig_ ctx eff0 se =
     let eff0' = Effect.purify eff0 in
     let* (ce1, s) = synth sig_ ctx eff0' se1 in
     if not (Sort.is_spec_type s) then
-      fail_at pos "equality requires spec type (no pred)"
+      ElabM.fail (TypeError.not_spec_type
+                    ~loc:pos ~construct:"equality" ~got:s)
     else
       let* ce2 = check sig_ ctx se2 s eff0' in
       let bool_sort = mk_sort pos Sort.Bool in
@@ -299,8 +303,9 @@ let rec synth sig_ ctx eff0 se =
     in
     let (arg_sort, ret_sort, prim_eff) = prim_signature p in
     if not (Effect.sub prim_eff eff0) then
-      fail_at_f pos "primitive %a requires effect %a, but context allows %a"
-        Prim.print p Effect.print prim_eff Effect.print eff0
+      ElabM.fail
+        (TypeError.prim_effect_mismatch
+           ~loc:pos ~prim:p ~declared:prim_eff ~required:eff0)
     else
       let eff0' = Effect.purify eff0 in
       let* ce_arg = check sig_ ctx arg arg_sort eff0' in
@@ -310,8 +315,9 @@ let rec synth sig_ ctx eff0 se =
     (match Sig.lookup_fun name sig_ with
      | Some (arg_sort, ret_sort, fun_eff) ->
        if not (Effect.sub fun_eff eff0) then
-         fail_at_f pos "function %s has effect %a, not usable at effect %a"
-           name Effect.print fun_eff Effect.print eff0
+         ElabM.fail
+           (TypeError.fun_effect_mismatch
+              ~loc:pos ~name ~declared:fun_eff ~required:eff0)
        else
          let eff0' = Effect.purify eff0 in
          let* ce_arg = check sig_ ctx arg arg_sort eff0' in
@@ -333,7 +339,7 @@ and check sig_ ctx se sort eff0 =
   match SurfExpr.shape se with
   | SurfExpr.Return inner ->
     if not (Effect.sub Effect.Spec eff0) then
-      fail_at pos "return requires spec context"
+      ElabM.fail (TypeError.spec_context_required ~loc:pos ~construct:"return")
     else
     (match Sort.shape sort with
      | Sort.Pred tau ->
@@ -343,7 +349,7 @@ and check sig_ ctx se sort eff0 =
 
   | SurfExpr.Fail ->
     if not (Effect.sub Effect.Spec eff0) then
-      fail_at pos "fail requires spec context"
+      ElabM.fail (TypeError.spec_context_required ~loc:pos ~construct:"fail")
     else
     (match Sort.shape sort with
      | Sort.Pred _ ->
@@ -352,7 +358,7 @@ and check sig_ ctx se sort eff0 =
 
   | SurfExpr.Take (pat, se1, se2) ->
     if not (Effect.sub Effect.Spec eff0) then
-      fail_at pos "take requires spec context"
+      ElabM.fail (TypeError.spec_context_required ~loc:pos ~construct:"take")
     else
     (match Sort.shape sort with
      | Sort.Pred _ ->
@@ -516,7 +522,8 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 =
             ElabM.return (mk_typed ctx (Var.binding_site y) sort eff0
               (CoreExpr.Case (y_ce, case_branches)))
           | None ->
-            ElabM.legacy_fail None (Format.asprintf "unknown sort/type %a" Dsort.print dsort_name))
+            ElabM.fail
+              (TypeError.unbound_sort ~loc:(Var.binding_site y) dsort_name))
      | _ -> ElabM.legacy_fail None "coverage: constructor pattern on non-datasort/datatype")
 
   (* Cov_tup: some leading patterns are tuples *)

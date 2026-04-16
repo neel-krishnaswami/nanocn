@@ -7,6 +7,26 @@ type kind =
       { inner_sort : Sort.sort
       ; annot : Sort.sort
       ; diff : SortDiff.shape_compare }
+  | K_unbound_var of Var.t
+  | K_unbound_name of string
+  | K_unbound_ctor of Label.t
+  | K_unbound_sort of Dsort.t
+  | K_unbound_tvar of Tvar.t
+  | K_var_effect_mismatch of
+      { var : Var.t
+      ; declared : Effect.t
+      ; required : Effect.t }
+  | K_prim_effect_mismatch of
+      { prim : Prim.t
+      ; declared : Effect.t
+      ; required : Effect.t }
+  | K_fun_effect_mismatch of
+      { name : string
+      ; declared : Effect.t
+      ; required : Effect.t }
+  | K_scrutinee_not_data of { got : Sort.sort }
+  | K_not_spec_type of { construct : string; got : Sort.sort }
+  | K_spec_context_required of { construct : string }
 
 type t =
   | Legacy of SourcePos.t option * string
@@ -24,18 +44,51 @@ let annotation_disagrees ~loc ~inner ~annot =
   structured ~loc
     (K_annotation_disagrees { inner_sort = inner; annot; diff })
 
+let unbound_var ~loc v = structured ~loc (K_unbound_var v)
+let unbound_name ~loc n = structured ~loc (K_unbound_name n)
+let unbound_ctor ~loc l = structured ~loc (K_unbound_ctor l)
+let unbound_sort ~loc d = structured ~loc (K_unbound_sort d)
+let unbound_tvar ~loc t = structured ~loc (K_unbound_tvar t)
+
+let var_effect_mismatch ~loc ~var ~declared ~required =
+  structured ~loc
+    (K_var_effect_mismatch { var; declared; required })
+
+let prim_effect_mismatch ~loc ~prim ~declared ~required =
+  structured ~loc
+    (K_prim_effect_mismatch { prim; declared; required })
+
+let fun_effect_mismatch ~loc ~name ~declared ~required =
+  structured ~loc
+    (K_fun_effect_mismatch { name; declared; required })
+
+let scrutinee_not_data ~loc ~got =
+  structured ~loc (K_scrutinee_not_data { got })
+
+let not_spec_type ~loc ~construct ~got =
+  structured ~loc (K_not_spec_type { construct; got })
+
+let spec_context_required ~loc ~construct =
+  structured ~loc (K_spec_context_required { construct })
+
 let loc = function
   | Legacy (pos, _) -> pos
   | Structured { loc; _ } -> Some loc
 
-(* Tag names here are ocolor tag names (see Ocolor_format.mli): once
-   the formatter has been prettified via [ErrorRender.configure_formatter],
-   these render as the corresponding ANSI styles; on non-tty output
-   (configured with [`Never]) they become no-ops and the text prints
-   plain. *)
+(* Tag names are ocolor tag names (see Ocolor_format.mli): once the
+   formatter has been prettified via [ErrorRender.configure_formatter],
+   these render as ANSI styles; on non-tty output they become no-ops
+   and the text prints plain. *)
 let print_header fmt s =
   Format.pp_open_stag fmt (Format.String_tag "red;bold");
   Format.pp_print_string fmt s;
+  Format.pp_close_stag fmt ()
+
+(* A format-style printer wrapper: given a printer [pp] for ['a],
+   [print_emph pp fmt x] prints [x] with a red-bold semantic tag. *)
+let print_emph pp fmt x =
+  Format.pp_open_stag fmt (Format.String_tag "red;bold");
+  pp fmt x;
   Format.pp_close_stag fmt ()
 
 let print_to_buffer f =
@@ -45,7 +98,6 @@ let print_to_buffer f =
   Format.pp_print_flush fmt ();
   Buffer.contents buf
 
-(* Helpers for the Structured printer. *)
 let print_location reg fmt pos =
   Format.fprintf fmt "@ at %a:@ " SourcePos.print pos;
   SourceExcerpt.excerpt reg ~context:1 pos fmt;
@@ -66,20 +118,80 @@ let print_kind fmt = function
     Format.pp_print_cut fmt ();
     Format.fprintf fmt "  expression: @[%a@]" SortDiff.print_left diff;
     Format.fprintf fmt "@]"
+  | K_unbound_var v ->
+    Format.fprintf fmt "  unbound variable %a" (print_emph Var.print) v
+  | K_unbound_name s ->
+    Format.fprintf fmt "  unbound variable %a"
+      (print_emph Format.pp_print_string) s
+  | K_unbound_ctor l ->
+    Format.fprintf fmt "  unknown constructor %a" (print_emph Label.print) l
+  | K_unbound_sort d ->
+    Format.fprintf fmt "  unknown sort or type %a"
+      (print_emph Dsort.print) d
+  | K_unbound_tvar a ->
+    Format.fprintf fmt "  unbound type variable %a" (print_emph Tvar.print) a
+  | K_var_effect_mismatch { var; declared; required } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  variable %a was bound with effect %a,"
+      (print_emph Var.print) var
+      (print_emph Effect.print) declared;
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  but the current context only allows effect %a."
+      (print_emph Effect.print) required;
+    Format.fprintf fmt "@]"
+  | K_prim_effect_mismatch { prim; declared; required } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  primitive %a requires effect %a,"
+      (print_emph Prim.print) prim
+      (print_emph Effect.print) declared;
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  but the current context only allows effect %a."
+      (print_emph Effect.print) required;
+    Format.fprintf fmt "@]"
+  | K_fun_effect_mismatch { name; declared; required } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  function %s was declared with effect %a,"
+      name (print_emph Effect.print) declared;
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  but the current context only allows effect %a."
+      (print_emph Effect.print) required;
+    Format.fprintf fmt "@]"
+  | K_scrutinee_not_data { got } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  case scrutinee must have a data-sort or data-type,";
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  but got sort %a." (print_emph Sort.print) got;
+    Format.fprintf fmt "@]"
+  | K_not_spec_type { construct; got } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  %s requires a spec type (no @[<hov 2>Pred@ _@]),"
+      construct;
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  but got sort %a." (print_emph Sort.print) got;
+    Format.fprintf fmt "@]"
+  | K_spec_context_required { construct } ->
+    Format.fprintf fmt
+      "  %s is only legal in a @[<hov 2>[spec]@] context." construct
 
 let kind_header = function
   | K_sort_mismatch _ -> "Type error: sort mismatch"
   | K_annotation_disagrees _ -> "Type error: annotation mismatch"
+  | K_unbound_var _ | K_unbound_name _ -> "Type error: unbound variable"
+  | K_unbound_ctor _ -> "Type error: unknown constructor"
+  | K_unbound_sort _ -> "Type error: unknown sort/type"
+  | K_unbound_tvar _ -> "Type error: unbound type variable"
+  | K_var_effect_mismatch _
+  | K_prim_effect_mismatch _
+  | K_fun_effect_mismatch _ -> "Type error: effect mismatch"
+  | K_scrutinee_not_data _ -> "Type error: bad scrutinee"
+  | K_not_spec_type _ -> "Type error: not a spec type"
+  | K_spec_context_required _ -> "Type error: wrong effect context"
 
 let rec to_string e =
   print_to_buffer (fun fmt -> print (SourceExcerpt.create ()) fmt e)
 
 and print reg fmt = function
   | Legacy (pos_opt, msg) ->
-    (* The header for [Legacy] is deliberately generic ("Error")
-       because it wraps a pre-formatted string that could come from
-       the parser or any check path. Structured variants use more
-       specific headers. *)
     Format.fprintf fmt "@[<v>";
     print_header fmt "Error";
     (match pos_opt with
@@ -125,8 +237,21 @@ module Test = struct
         && contains_substring s "expected"
         && contains_substring s "actual")
 
+  let test_unbound_var_mentions_name =
+    QCheck.Test.make
+      ~name:"TypeError: unbound_var printer mentions the variable"
+      ~count:1
+      QCheck.unit
+      (fun () ->
+        let (v, _) = Var.mk "xyzzy" SourcePos.dummy Var.empty_supply in
+        let e = unbound_var ~loc:SourcePos.dummy v in
+        let s = to_string e in
+        contains_substring s "unbound variable"
+        && contains_substring s "xyzzy")
+
   let test = [
     test_legacy_preserves_message;
     test_sort_mismatch_mentions_both;
+    test_unbound_var_mentions_name;
   ]
 end
