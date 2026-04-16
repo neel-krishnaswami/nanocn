@@ -42,6 +42,18 @@ let fail_at_f pos fmt =
 
 let sort_equal a b = Sort.compare a b = 0
 
+(** Take the first [n] elements and the remaining tail. If the list
+    is shorter than [n], the second component is empty and the first
+    is the whole list. *)
+let rec split_at_n n xs =
+  if n <= 0 then ([], xs)
+  else match xs with
+    | [] -> ([], [])
+    | x :: xs' ->
+      let (front, back) = split_at_n (n - 1) xs' in
+      (x :: front, back)
+
+
 (** {1 Prim signature (sort-level)} *)
 
 let prim_signature (p : Prim.t) =
@@ -373,7 +385,13 @@ and check sig_ ctx se sort eff0 =
             let_bindings = [];
             body = se2;
           } in
-          let* ce2 = coverage_check sig_ ctx_y [y] [branch] eff_b sort eff0 in
+          let rebuilder_init = function
+            | [w] -> w
+            | _ -> PatWitness.Wild
+          in
+          let* ce2 =
+            coverage_check sig_ ctx_y [y] [branch] eff_b sort eff0
+              ~cov_loc:pos rebuilder_init in
           let yb = (y, mk_bind_info y tau eff_b ctx_y) in
           ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Take (yb, ce1, ce2)))
         | _ -> fail_at pos "take scrutinee must have pred sort")
@@ -390,7 +408,13 @@ and check sig_ ctx se sort eff0 =
       let_bindings = [];
       body = se2;
     } in
-    let* ce2 = coverage_check sig_ ctx_y [y] [branch] eff_b sort eff0 in
+    let rebuilder_init = function
+      | [w] -> w
+      | _ -> PatWitness.Wild
+    in
+    let* ce2 =
+      coverage_check sig_ ctx_y [y] [branch] eff_b sort eff0
+        ~cov_loc:pos rebuilder_init in
     let yb = (y, mk_bind_info y tau eff_b ctx_y) in
     ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Let (yb, ce1, ce2)))
 
@@ -426,7 +450,13 @@ and check sig_ ctx se sort eff0 =
         let_bindings = [];
         body }
     ) surf_branches in
-    let* ce_body = coverage_check sig_ ctx_y [y] branches eff0' sort eff0 in
+    let rebuilder_init = function
+      | [w] -> w
+      | _ -> PatWitness.Wild
+    in
+    let* ce_body =
+      coverage_check sig_ ctx_y [y] branches eff0' sort eff0
+        ~cov_loc:pos rebuilder_init in
     let yb = (y, mk_bind_info y scrut_sort eff0' ctx_y) in
     ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Let (yb, ce_scrut, ce_body)))
 
@@ -445,7 +475,13 @@ and check sig_ ctx se sort eff0 =
       let_bindings = [];
       body = se2;
     } in
-    let* ce_body = coverage_check sig_ ctx_y [y] [branch] bind_eff iter_sort Effect.Impure in
+    let rebuilder_init = function
+      | [w] -> w
+      | _ -> PatWitness.Wild
+    in
+    let* ce_body =
+      coverage_check sig_ ctx_y [y] [branch] bind_eff iter_sort Effect.Impure
+        ~cov_loc:pos rebuilder_init in
     ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Iter (y, ce1, ce_body)))
 
   | SurfExpr.If (se1, se2, se3) ->
@@ -479,7 +515,14 @@ and check_list sig_ ctx ses sorts eff0 =
 
     [ctx] includes the scrutinee variables; callers extend it before calling. *)
 
-and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 =
+(* Coverage threads a [rebuilder : PatWitness.t list -> PatWitness.t]
+   closure. At any recursion depth, [rebuilder] takes a list of
+   witnesses whose length matches the current [scrutinees] length
+   and lifts them back up to a witness for the original top-level
+   scrutinee(s). On reaching `[], []` we call [rebuilder []] to
+   obtain the missing-case witness for the surface [case] error. *)
+
+and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuilder =
   match scrutinees, branches with
   (* Cov_done: no scrutinees, at least one branch *)
   | [], br :: _ ->
@@ -491,12 +534,15 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 =
      | _ -> ElabM.legacy_fail None "coverage: bindings remain but no scrutinees")
 
   | [], [] ->
-    ElabM.legacy_fail None "non-exhaustive pattern match"
+    let witness = rebuilder [] in
+    ElabM.fail (TypeError.non_exhaustive ~loc:cov_loc ~witness)
 
-  (* Cov_var: all leading patterns are variables *)
+  (* Cov_var: all leading patterns are variables — consume the
+     scrutinee, its witness slot becomes [Wild]. *)
   | y :: scrs, _ when not (has_con branches) && not (has_tup branches) ->
     let branches' = strip_var y eff_b branches in
-    coverage_check sig_ ctx scrs branches' eff_b sort eff0
+    let rebuilder' rest = rebuilder (PatWitness.Wild :: rest) in
+    coverage_check sig_ ctx scrs branches' eff_b sort eff0 ~cov_loc rebuilder'
 
   (* Cov_con: some leading patterns are constructors *)
   | y :: scrs, _ when has_con branches ->
@@ -508,7 +554,8 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 =
         | Some decl ->
           let labels = DsortDecl.ctor_labels decl in
           let* case_branches =
-            build_sort_con_branches sig_ ctx y scrs branches eff_b sort eff0 labels args decl in
+            build_sort_con_branches sig_ ctx y scrs branches eff_b sort eff0
+              labels args decl ~cov_loc rebuilder in
           let y_ce = mk_typed ctx (Var.binding_site y) lead_sort eff_b (CoreExpr.Var y) in
           ElabM.return (mk_typed ctx (Var.binding_site y) sort eff0
             (CoreExpr.Case (y_ce, case_branches)))
@@ -517,7 +564,8 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 =
           | Some decl ->
             let labels = DtypeDecl.ctor_labels decl in
             let* case_branches =
-              build_type_con_branches sig_ ctx y scrs branches eff_b sort eff0 labels args decl in
+              build_type_con_branches sig_ ctx y scrs branches eff_b sort eff0
+                labels args decl ~cov_loc rebuilder in
             let y_ce = mk_typed ctx (Var.binding_site y) lead_sort eff_b (CoreExpr.Var y) in
             ElabM.return (mk_typed ctx (Var.binding_site y) sort eff0
               (CoreExpr.Case (y_ce, case_branches)))
@@ -526,18 +574,27 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 =
               (TypeError.unbound_sort ~loc:(Var.binding_site y) dsort_name))
      | _ -> ElabM.legacy_fail None "coverage: constructor pattern on non-datasort/datatype")
 
-  (* Cov_tup: some leading patterns are tuples *)
+  (* Cov_tup: some leading patterns are tuples — decompose the
+     scrutinee into its k fields. The scrutinee's witness slot
+     becomes [Tuple <first k of rest>]. *)
   | y :: scrs, _ when has_tup branches ->
     let lead_sort = find_lead_sort branches in
     (match Sort.shape lead_sort with
      | Sort.Record sorts ->
-       let positions = find_tup_subpat_positions branches (List.length sorts) (Var.binding_site y) in
+       let k = List.length sorts in
+       let positions = find_tup_subpat_positions branches k (Var.binding_site y) in
        let* fresh_zs = fresh_vars_with_positions sorts positions in
        let fresh_vars = List.map fst fresh_zs in
        let ctx' = List.fold_left (fun c (z, s) ->
          Context.extend z s eff_b c) ctx fresh_zs in
        let* branches' = expand_tup sorts y eff_b branches in
-       let* ce = coverage_check sig_ ctx' (fresh_vars @ scrs) branches' eff_b sort eff0 in
+       let rebuilder' rest =
+         let (firsts, tail) = split_at_n k rest in
+         rebuilder (PatWitness.Tuple firsts :: tail)
+       in
+       let* ce =
+         coverage_check sig_ ctx' (fresh_vars @ scrs) branches'
+           eff_b sort eff0 ~cov_loc rebuilder' in
        let y_ce = mk_typed ctx (Var.binding_site y) lead_sort eff_b (CoreExpr.Var y) in
        let annotated_vars = List.map (fun (z, s) ->
          (z, mk_bind_info z s eff_b ctx')
@@ -549,7 +606,7 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 =
   | _ :: _, _ ->
     ElabM.legacy_fail None "coverage: unexpected pattern form"
 
-and build_sort_con_branches sig_ ctx y scrs branches eff_b sort eff0 labels args decl =
+and build_sort_con_branches sig_ ctx y scrs branches eff_b sort eff0 labels args decl ~cov_loc rebuilder =
   match labels with
   | [] -> ElabM.return []
   | label :: rest_labels ->
@@ -564,13 +621,24 @@ and build_sort_con_branches sig_ ctx y scrs branches eff_b sort eff0 labels args
     let xi_pos = find_con_subpat_pos label branches (Var.binding_site y) in
     let* xi = ElabM.fresh xi_pos in
     let ctx_xi = Context.extend xi ctor_sort eff_b ctx in
-    let* ce_i = coverage_check sig_ ctx_xi (xi :: scrs) filtered eff_b sort eff0 in
-    let* rest = build_sort_con_branches sig_ ctx y scrs branches eff_b sort eff0
-      rest_labels args decl in
+    (* Sub-call recurses with xi in front of scrs. Its rebuilder
+       wraps the head witness in [Ctor(label, _)]. *)
+    let rebuilder_L rest =
+      match rest with
+      | head :: tail -> rebuilder (PatWitness.Ctor (label, head) :: tail)
+      | [] -> (* impossible: recursion must consume xi *)
+        rebuilder (PatWitness.Ctor (label, PatWitness.Wild) :: [])
+    in
+    let* ce_i =
+      coverage_check sig_ ctx_xi (xi :: scrs) filtered eff_b sort eff0
+        ~cov_loc rebuilder_L in
+    let* rest =
+      build_sort_con_branches sig_ ctx y scrs branches eff_b sort eff0
+        rest_labels args decl ~cov_loc rebuilder in
     let branch_info = mk_bind_info xi ctor_sort eff_b ctx_xi in
     ElabM.return ((label, xi, ce_i, branch_info) :: rest)
 
-and build_type_con_branches sig_ ctx y scrs branches eff_b sort eff0 labels args decl =
+and build_type_con_branches sig_ ctx y scrs branches eff_b sort eff0 labels args decl ~cov_loc rebuilder =
   match labels with
   | [] -> ElabM.return []
   | label :: rest_labels ->
@@ -585,9 +653,18 @@ and build_type_con_branches sig_ ctx y scrs branches eff_b sort eff0 labels args
     let xi_pos = find_con_subpat_pos label branches (Var.binding_site y) in
     let* xi = ElabM.fresh xi_pos in
     let ctx_xi = Context.extend xi ctor_sort eff_b ctx in
-    let* ce_i = coverage_check sig_ ctx_xi (xi :: scrs) filtered eff_b sort eff0 in
-    let* rest = build_type_con_branches sig_ ctx y scrs branches eff_b sort eff0
-      rest_labels args decl in
+    let rebuilder_L rest =
+      match rest with
+      | head :: tail -> rebuilder (PatWitness.Ctor (label, head) :: tail)
+      | [] ->
+        rebuilder (PatWitness.Ctor (label, PatWitness.Wild) :: [])
+    in
+    let* ce_i =
+      coverage_check sig_ ctx_xi (xi :: scrs) filtered eff_b sort eff0
+        ~cov_loc rebuilder_L in
+    let* rest =
+      build_type_con_branches sig_ ctx y scrs branches eff_b sort eff0
+        rest_labels args decl ~cov_loc rebuilder in
     let branch_info = mk_bind_info xi ctor_sort eff_b ctx_xi in
     ElabM.return ((label, xi, ce_i, branch_info) :: rest)
 

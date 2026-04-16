@@ -27,6 +27,7 @@ type kind =
   | K_scrutinee_not_data of { got : Sort.sort }
   | K_not_spec_type of { construct : string; got : Sort.sort }
   | K_spec_context_required of { construct : string }
+  | K_non_exhaustive of { witness : PatWitness.t }
 
 type t =
   | Legacy of SourcePos.t option * string
@@ -70,6 +71,9 @@ let not_spec_type ~loc ~construct ~got =
 
 let spec_context_required ~loc ~construct =
   structured ~loc (K_spec_context_required { construct })
+
+let non_exhaustive ~loc ~witness =
+  structured ~loc (K_non_exhaustive { witness })
 
 let loc = function
   | Legacy (pos, _) -> pos
@@ -172,6 +176,12 @@ let print_kind fmt = function
   | K_spec_context_required { construct } ->
     Format.fprintf fmt
       "  %s is only legal in a @[<hov 2>[spec]@] context." construct
+  | K_non_exhaustive { witness } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  pattern match does not cover all cases.";
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  missing case: @[%a@]" PatWitness.print witness;
+    Format.fprintf fmt "@]"
 
 let kind_header = function
   | K_sort_mismatch _ -> "Type error: sort mismatch"
@@ -186,6 +196,7 @@ let kind_header = function
   | K_scrutinee_not_data _ -> "Type error: bad scrutinee"
   | K_not_spec_type _ -> "Type error: not a spec type"
   | K_spec_context_required _ -> "Type error: wrong effect context"
+  | K_non_exhaustive _ -> "Type error: non-exhaustive pattern match"
 
 let rec to_string e =
   print_to_buffer (fun fmt -> print (SourceExcerpt.create ()) fmt e)

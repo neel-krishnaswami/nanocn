@@ -48,8 +48,17 @@ val check : _ Sig.t -> Context.t -> SurfExpr.se -> Sort.sort -> Effect.t ->
 (** {1 Coverage} *)
 
 val coverage_check : _ Sig.t -> Context.t -> Var.t list -> branch list ->
-  Effect.t -> Sort.sort -> Effect.t -> typed_ce ElabM.t
-(** [coverage_check sig ctx scrutinees branches eff_b sort eff0] compiles the
-    match matrix into a typed core expression. [ctx] must include the
-    scrutinee variables. [eff_b] is the binding effect for scrutinee
-    variables; [eff0] is the ambient effect. *)
+  Effect.t -> Sort.sort -> Effect.t ->
+  cov_loc:SourcePos.t ->
+  (PatWitness.t list -> PatWitness.t) ->
+  typed_ce ElabM.t
+(** [coverage_check sig ctx scrutinees branches eff_b sort eff0
+    ~cov_loc rebuilder] compiles the match matrix into a typed core
+    expression. [ctx] must include the scrutinee variables. [eff_b]
+    is the binding effect for scrutinee variables; [eff0] is the
+    ambient effect. [~cov_loc] is the source position of the
+    construct that started the coverage check (case/let/take/iter),
+    used for reporting a non-exhaustive-match error. [rebuilder]
+    lifts witnesses for the current scrutinees back to a witness for
+    the original scrutinee(s); typical initial callers pass
+    [function [w] -> w | _ -> PatWitness.Wild]. *)

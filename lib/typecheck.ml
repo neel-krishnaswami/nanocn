@@ -523,8 +523,14 @@ let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
                      body })
       ) d.branches in
       let param_eff_b = Effect.purify d.eff in
-      let* typed_body = Elaborate.coverage_check sig_for_body ctx
-        [y] branches param_eff_b d.ret_sort d.eff in
+      let rebuilder = function
+        | [w] -> w
+        | _ -> PatWitness.Wild
+      in
+      let* typed_body =
+        Elaborate.coverage_check sig_for_body ctx
+          [y] branches param_eff_b d.ret_sort d.eff
+          ~cov_loc:d.loc rebuilder in
       return (y, typed_body)
     ) in
     let* ((y, typed_body), supply') = result in

@@ -68,6 +68,9 @@ type kind =
   | K_scrutinee_not_data of { got : Sort.sort }
   | K_not_spec_type of { construct : string; got : Sort.sort }
   | K_spec_context_required of { construct : string }
+
+  (* Phase 4 — pattern coverage *)
+  | K_non_exhaustive of { witness : PatWitness.t }
 (** The kind of structured failure. *)
 
 val structured : loc:SourcePos.t -> kind -> t
@@ -113,6 +116,12 @@ val spec_context_required :
 (** [spec_context_required ~loc ~construct] is raised when an operator
     or form (e.g. [return], [fail], [take]) is used outside a [[spec]]
     context. *)
+
+val non_exhaustive :
+  loc:SourcePos.t -> witness:PatWitness.t -> t
+(** [non_exhaustive ~loc ~witness] is raised when a pattern match
+    misses a case. [witness] is an example of a value shape that
+    would not be matched. *)
 
 (** {1 Accessors and printers} *)
 
