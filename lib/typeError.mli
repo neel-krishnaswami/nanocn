@@ -1,35 +1,28 @@
 (** Structured typechecking errors.
 
-    Replaces the previous [string]-typed errors from surface
-    typechecking, elaboration, and refined checking. The ADT grows
-    per phase (see [doc/errors/type-errors.md]):
-
-    - Phase 1: [Legacy] bridge only — carries a pre-formatted message
-      and an optional source position.
-    - Phase 2: sort-mismatch kinds ([K_sort_mismatch],
-      [K_annotation_disagrees]) carrying a
-      [SortDiff.shape_compare] so printers can highlight differing
-      subterms.
-    - Phase 3: unbound names ([K_unbound_var], [K_unbound_ctor],
-      [K_unbound_sort], [K_unbound_tvar]) and simple mismatches
-      ([K_var_effect_mismatch], [K_prim_effect_mismatch],
-      [K_fun_effect_mismatch], [K_scrutinee_not_data],
-      [K_not_spec_type], [K_spec_context_required]).
-    - Later phases add more [kind] constructors. *)
+    A rule-structured ADT covering every failure reported by the
+    lexer/parser, surface elaborator, core typechecker, and refined
+    checker. Each [kind] carries enough structure for the printer to
+    render a targeted message (sort/kind mismatches embed the
+    structural diff produced by [SortDiff.diff]; pattern-coverage
+    witnesses embed a [PatWitness.t] reconstructed by the coverage
+    checker; etc.). *)
 
 type t
-
-(** {1 Legacy bridge} *)
-
-val legacy : SourcePos.t option -> string -> t
-(** [legacy pos msg] builds a legacy error carrying a pre-formatted
-    message. Used during the incremental migration; will be retired
-    once every site emits a [Structured] variant. *)
 
 (** {1 Structured errors} *)
 
 type kind =
-  (* Phase 2 — sort mismatches *)
+  (* Lexer / parser *)
+  | K_parse_error of { msg : string }
+    (** A parse-time failure (Menhir-derived message for a
+        syntactic error, or a [Failure] raised by the lexer). *)
+
+  (* Scope resolution *)
+  | K_duplicate_pat_var of { name : string }
+    (** A pattern binds the same name more than once. *)
+
+  (* Sort mismatches (elaborator / core checker) *)
   | K_sort_mismatch of
       { expected : Sort.sort
       ; actual : Sort.sort
@@ -39,7 +32,7 @@ type kind =
       ; annot : Sort.sort
       ; diff : SortDiff.shape_compare }
 
-  (* Phase 3 — unbound names *)
+  (* Unbound names *)
   | K_unbound_var of Var.t
   | K_unbound_name of string
     (** A string-named reference that failed to resolve — used by
@@ -48,9 +41,14 @@ type kind =
   | K_unbound_ctor of Label.t
   | K_unbound_sort of Dsort.t
   | K_unbound_tvar of Tvar.t
+  | K_unknown_function of { name : string }
+    (** Surface/core [f(e)] or refined [f @@ spine] calls a
+        non-existent function. *)
+  | K_log_var_not_found of { name : Var.t }
+    (** A refined [lpf]'s logical variable is not bound in the
+        current refined context. *)
 
-  (* Phase 3 — effect mismatches (three variants distinguish what
-     supplies the incompatible effect) *)
+  (* Effect mismatches *)
   | K_var_effect_mismatch of
       { var : Var.t
       ; declared : Effect.t
@@ -63,35 +61,118 @@ type kind =
       { name : string
       ; declared : Effect.t
       ; required : Effect.t }
+  | K_iter_requires_impure of { actual : Effect.t }
+    (** An [iter] was encountered under an ambient effect that
+        doesn't subsume [impure]. *)
 
-  (* Phase 3 — misc simple mismatches *)
+  (* Expression-level sort mismatches *)
+  | K_eq_not_equality_type of { got : Sort.sort }
+    (** [==] used at a non-equality sort. *)
+  | K_construct_sort_mismatch of
+      { construct : string
+      ; expected_shape : string
+      ; got : Sort.sort }
+    (** A construct needed a specific sort shape but got something
+        else. [construct] names the construct ("return",
+        "let-tuple scrutinee", "make-take bound expression", …),
+        [expected_shape] gives a short phrase describing the
+        required shape ("Pred _", "Record _",
+        "datasort/datatype application"), and [got] is the actual
+        sort. *)
+  | K_tuple_arity_mismatch of
+      { construct : string
+      ; expected : int
+      ; actual : int }
+    (** A tuple / let-tuple expression has a different number of
+        components from the target record sort. *)
   | K_scrutinee_not_data of { got : Sort.sort }
   | K_not_spec_type of { construct : string; got : Sort.sort }
   | K_spec_context_required of { construct : string }
+  | K_cannot_synthesize of { construct : string }
+    (** Synthesis failed; the user needs to add an annotation.
+        [construct] is ["sort"] for surface/core terms or
+        ["proof sort"] for refined terms. *)
 
-  (* Phase 4 — pattern coverage *)
+  (* Submodule-originated failures *)
+  | K_helper_error of { msg : string }
+    (** A data-module helper ([CtorLookup], [Subst], [RCtx],
+        [rpat_match], etc.) returned an [Error msg] that the
+        typechecker hasn't yet lifted into its own structured
+        kind. [msg] is rendered verbatim. *)
+
+  (* Kind well-formedness (kind_wf / type_guarded) *)
+  | K_tvar_kind_mismatch of
+      { tvar : Tvar.t; got : Kind.t; expected : Kind.t }
+  | K_dsort_arity_mismatch of
+      { dsort : Dsort.t; expected : int; actual : int }
+    (** An applied sort/type name has the wrong number of type
+        arguments. Works for both [Sig.lookup_sort] and
+        [Sig.lookup_type] lookups. *)
+  | K_pred_misuse of { context : string }
+    (** A [Pred _] sort appeared where it isn't allowed.
+        [context] is ["kind sort"] (seen at kind [Type]) or
+        ["type declaration"] (seen inside a datatype declaration's
+        constructor sorts). *)
+  | K_unguarded_recursion of { dsort : Dsort.t }
+    (** A recursive reference inside a datatype declaration does
+        not pass through [Ptr]. *)
+
+  (* Declaration validators *)
+  | K_empty_decl of { name : string; is_type : bool }
+    (** A data[sort|type] declaration has no constructors. *)
+  | K_duplicate_ctor_in_decl of
+      { label : Label.t; decl_name : string; is_type : bool }
+    (** A data[sort|type] declaration lists the same constructor
+        label twice. *)
+
+  (* Pattern coverage *)
   | K_non_exhaustive of { witness : PatWitness.t }
 
-  (* Phase 5 — refined checker *)
+  (* Refined checker — shape checks *)
+  | K_wrong_pred_shape of
+      { construct : string
+      ; expected_shape : string
+      ; got : string }
+    (** A refined construct ([open-ret], [make-ret], [open-take],
+        [make-take]) expects its target predicate to have a
+        specific shape. [got] is the pretty-printed form of the
+        actual expression. *)
+  | K_unfold_not_spec of { name : string }
+    (** An [unfold f] references a function whose effect is not
+        [spec]. *)
+  | K_unfold_not_fundef of { name : string }
+    (** An [unfold f] references a name that is not a defined
+        (elaborated) function. *)
   | K_resource_leak of { name : Var.t option }
     (** A resource binding fell out of scope without being consumed
         (must be a linear consumption). [name] is the resource
         variable, when the checker can identify it. *)
-  | K_iter_requires_impure of { actual : Effect.t }
-    (** A refined [iter] was encountered at an effect that doesn't
-        subsume [impure]. *)
+  | K_let_pattern_resource_leak of { leftovers : string list }
+    (** A refined [let] pattern bound resources that weren't all
+        consumed by the body. [leftovers] lists the unconsumed
+        entries in pretty-printed form (since they're structured
+        [RCtx.entry]s with variable/pred/value/usage). *)
+
+  (* Last-resort escape hatches *)
   | K_internal_invariant of { rule : string; invariant : string }
-    (** A check in the refined checker's internal logic failed —
+    (** A check in the typechecker's internal logic failed —
         typically an "impossible" shape at a match arm, a
         previously-validated condition that no longer holds, or an
         early synthesise/check restriction. Not user-facing in
-        normal use; reported with the [rule] (function or match arm
+        normal use; reported with the [rule] (function or rule-arm
         that raised the check) and a short [invariant] description
         so that debugging can start from the exact failure point. *)
 (** The kind of structured failure. *)
 
 val structured : loc:SourcePos.t -> kind -> t
 (** [structured ~loc kind] builds a structured error at [loc]. *)
+
+val parse_error : loc:SourcePos.t option -> msg:string -> t
+(** [parse_error ~loc ~msg] builds a [K_parse_error]. [loc] is
+    optional so lexer-side [Failure] reports (which have no
+    position) can still reach the same error pipeline. *)
+
+val duplicate_pat_var : loc:SourcePos.t -> name:string -> t
 
 val sort_mismatch :
   loc:SourcePos.t -> expected:Sort.sort -> actual:Sort.sort -> t
@@ -107,6 +188,9 @@ val unbound_name : loc:SourcePos.t -> string -> t
 val unbound_ctor : loc:SourcePos.t -> Label.t -> t
 val unbound_sort : loc:SourcePos.t -> Dsort.t -> t
 val unbound_tvar : loc:SourcePos.t -> Tvar.t -> t
+
+val unknown_function : loc:SourcePos.t -> name:string -> t
+val log_var_not_found : loc:SourcePos.t -> name:Var.t -> t
 
 val var_effect_mismatch :
   loc:SourcePos.t -> var:Var.t ->
@@ -134,17 +218,69 @@ val spec_context_required :
     or form (e.g. [return], [fail], [take]) is used outside a [[spec]]
     context. *)
 
+val cannot_synthesize : loc:SourcePos.t -> construct:string -> t
+(** [cannot_synthesize ~loc ~construct] reports that synthesis failed
+    and the user needs to add an annotation. [construct] is typically
+    ["sort"] or ["proof sort"]. *)
+
+val eq_not_equality_type : loc:SourcePos.t -> got:Sort.sort -> t
+
+val construct_sort_mismatch :
+  loc:SourcePos.t -> construct:string ->
+  expected_shape:string -> got:Sort.sort -> t
+
+val tuple_arity_mismatch :
+  loc:SourcePos.t -> construct:string ->
+  expected:int -> actual:int -> t
+
+val helper_error : loc:SourcePos.t -> msg:string -> t
+(** [helper_error ~loc ~msg] wraps a pre-formatted message from a
+    data-module helper (constructor lookup, resource context,
+    refined-pattern matching, ...). Use this when the underlying
+    submodule's error isn't yet structured. *)
+
+val tvar_kind_mismatch :
+  loc:SourcePos.t -> tvar:Tvar.t ->
+  got:Kind.t -> expected:Kind.t -> t
+
+val dsort_arity_mismatch :
+  loc:SourcePos.t -> dsort:Dsort.t ->
+  expected:int -> actual:int -> t
+
+val pred_misuse : loc:SourcePos.t -> context:string -> t
+
+val unguarded_recursion : loc:SourcePos.t -> dsort:Dsort.t -> t
+
+val empty_decl : loc:SourcePos.t -> name:string -> is_type:bool -> t
+
+val duplicate_ctor_in_decl :
+  loc:SourcePos.t -> label:Label.t ->
+  decl_name:string -> is_type:bool -> t
+
 val non_exhaustive :
   loc:SourcePos.t -> witness:PatWitness.t -> t
 (** [non_exhaustive ~loc ~witness] is raised when a pattern match
     misses a case. [witness] is an example of a value shape that
     would not be matched. *)
 
+val wrong_pred_shape :
+  loc:SourcePos.t -> construct:string ->
+  expected_shape:string -> got:string -> t
+(** [wrong_pred_shape ~loc ~construct ~expected_shape ~got] reports
+    that a refined construct's target predicate had the wrong shape.
+    [got] is the pretty-printed form of the actual expression. *)
+
+val unfold_not_spec : loc:SourcePos.t -> name:string -> t
+val unfold_not_fundef : loc:SourcePos.t -> name:string -> t
+
 val resource_leak :
   loc:SourcePos.t -> name:Var.t option -> t
 (** [resource_leak ~loc ~name] is raised when a resource binding
     (from [let res] / rfun domain / iter binder) is discarded
     without a linear consumer. *)
+
+val let_pattern_resource_leak :
+  loc:SourcePos.t -> leftovers:string list -> t
 
 val iter_requires_impure :
   loc:SourcePos.t -> actual:Effect.t -> t

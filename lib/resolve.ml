@@ -60,8 +60,9 @@ let check_parsed_linearity (p : Pat.parsed_pat) : unit ElabM.t =
     | [] -> return ()
     | n :: rest ->
       if List.exists (String.equal n) rest then
-        legacy_fail (Some (Pat.info p)#loc)
-          (Format.asprintf "duplicate variable %s in pattern" n)
+        ElabM.fail
+          (TypeError.duplicate_pat_var
+             ~loc:(Pat.info p)#loc ~name:n)
       else check rest
   in
   check names

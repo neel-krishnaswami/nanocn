@@ -32,21 +32,10 @@ let lift_sort (s : Sort.sort) : typed_info Sort.t =
 
 let mk_sort pos s = Sort.mk (object method loc = pos end) s
 
-(* Error helpers for this module.
-
-   - [fail_at pos msg] / [fail_at_f pos fmt ...]: user-visible
-     mistake that hasn't yet been assigned a dedicated structured
-     kind. Emits a positional [TypeError.Legacy].
-   - [invariant_at pos ~rule msg]: an
-     "impossible-in-well-formed-code" check fired (e.g. pattern
-     matrix invariants that an earlier elaboration pass was meant to
-     rule out). Emits [TypeError.K_internal_invariant].
-   - [invariant_at pos ~rule msg]: user-facing invariant failure at [pos]. *)
-let fail_at pos msg = ElabM.legacy_fail (Some pos) msg
-
-let fail_at_f pos fmt =
-  Format.kasprintf (fun msg -> fail_at pos msg) fmt
-
+(* [invariant_at pos ~rule msg]: an "impossible-in-well-formed-code"
+   check fired (e.g. a pattern-matrix shape that an earlier
+   elaboration pass was meant to rule out). Emits
+   [TypeError.K_internal_invariant]. *)
 let invariant_at pos ~rule msg =
   ElabM.fail (TypeError.internal_invariant ~loc:pos ~rule ~invariant:msg)
 
@@ -322,7 +311,8 @@ let rec synth sig_ ctx eff0 se =
     let* () = match p with
       | Prim.Eq a ->
         if Sort.is_eqtype a then ElabM.return ()
-        else fail_at_f pos "Eq requires an equality type, got %a" Sort.print a
+        else
+          ElabM.fail (TypeError.eq_not_equality_type ~loc:pos ~got:a)
       | _ -> ElabM.return ()
     in
     let (arg_sort, ret_sort, prim_eff) = prim_signature p in
@@ -347,7 +337,7 @@ let rec synth sig_ ctx eff0 se =
          let* ce_arg = check sig_ ctx arg arg_sort eff0' in
          ElabM.return (mk_typed ctx pos ret_sort eff0 (CoreExpr.Call (name, ce_arg)), ret_sort)
      | None ->
-       fail_at_f pos "unknown function %s" name)
+       ElabM.fail (TypeError.unknown_function ~loc:pos ~name))
 
   | SurfExpr.Annot (se, s) ->
     let* ce = check sig_ ctx se s eff0 in
@@ -356,7 +346,7 @@ let rec synth sig_ ctx eff0 se =
   | SurfExpr.Return _ | SurfExpr.Take _ | SurfExpr.Fail | SurfExpr.Let _
   | SurfExpr.Tuple _ | SurfExpr.Inject _ | SurfExpr.Case _
   | SurfExpr.Iter _ | SurfExpr.If _ ->
-    fail_at pos "cannot synthesize sort; add a type annotation"
+    ElabM.fail (TypeError.cannot_synthesize ~loc:pos ~construct:"sort")
 
 and check sig_ ctx se sort eff0 =
   let pos = (SurfExpr.info se)#loc in
@@ -369,7 +359,11 @@ and check sig_ ctx se sort eff0 =
      | Sort.Pred tau ->
        let* ce = check sig_ ctx inner tau eff0 in
        ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Return ce))
-     | _ -> fail_at pos "return requires pred sort")
+     | _ ->
+       ElabM.fail
+         (TypeError.construct_sort_mismatch ~loc:pos
+            ~construct:"return" ~expected_shape:"Pred _"
+            ~got:sort))
 
   | SurfExpr.Fail ->
     if not (Effect.sub Effect.Spec eff0) then
@@ -378,7 +372,11 @@ and check sig_ ctx se sort eff0 =
     (match Sort.shape sort with
      | Sort.Pred _ ->
        ElabM.return (mk_typed ctx pos sort eff0 CoreExpr.Fail)
-     | _ -> fail_at pos "fail requires pred sort")
+     | _ ->
+       ElabM.fail
+         (TypeError.construct_sort_mismatch ~loc:pos
+            ~construct:"fail" ~expected_shape:"Pred _"
+            ~got:sort))
 
   | SurfExpr.Take (pat, se1, se2) ->
     if not (Effect.sub Effect.Spec eff0) then
@@ -406,9 +404,16 @@ and check sig_ ctx se sort eff0 =
               ~cov_loc:pos rebuilder_init in
           let yb = (y, mk_bind_info y tau eff_b ctx_y) in
           ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Take (yb, ce1, ce2)))
-        | _ -> fail_at pos "take scrutinee must have pred sort")
+        | _ ->
+          ElabM.fail
+            (TypeError.construct_sort_mismatch ~loc:pos
+               ~construct:"take scrutinee"
+               ~expected_shape:"Pred _" ~got:s1))
      | _ ->
-       fail_at_f pos "take requires target sort `Pred _`, got `%a`" Sort.print sort)
+       ElabM.fail
+         (TypeError.construct_sort_mismatch ~loc:pos
+            ~construct:"take target"
+            ~expected_shape:"Pred _" ~got:sort))
 
   | SurfExpr.Let (pat, se1, se2) ->
     let* (ce1, tau) = synth sig_ ctx eff0 se1 in
@@ -434,12 +439,19 @@ and check sig_ ctx se sort eff0 =
     (match Sort.shape sort with
      | Sort.Record sorts ->
        if List.compare_lengths ses sorts <> 0 then
-         fail_at_f pos "tuple: expected %d components, got %d"
-           (List.length sorts) (List.length ses)
+         ElabM.fail
+           (TypeError.tuple_arity_mismatch ~loc:pos
+              ~construct:"tuple"
+              ~expected:(List.length sorts)
+              ~actual:(List.length ses))
        else
          let* ces = check_list sig_ ctx ses sorts eff0 in
          ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Tuple ces))
-     | _ -> fail_at pos "tuple: expected record sort")
+     | _ ->
+       ElabM.fail
+         (TypeError.construct_sort_mismatch ~loc:pos
+            ~construct:"tuple" ~expected_shape:"Record _"
+            ~got:sort))
 
   | SurfExpr.Inject (l, inner) ->
     (match Sort.shape sort with
@@ -449,8 +461,14 @@ and check sig_ ctx se sort eff0 =
           let eff0' = Effect.purify eff0 in
           let* ce = check sig_ ctx inner ctor_sort eff0' in
           ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Inject (l, ce)))
-        | Error msg -> fail_at_f pos "%s" msg)
-     | _ -> fail_at_f pos "constructor %a requires datasort/datatype" Label.print l)
+        | Error msg ->
+          ElabM.fail (TypeError.helper_error ~loc:pos ~msg))
+     | _ ->
+       ElabM.fail
+         (TypeError.construct_sort_mismatch ~loc:pos
+            ~construct:(Format.asprintf "constructor %a" Label.print l)
+            ~expected_shape:"datasort/datatype application"
+            ~got:sort))
 
   | SurfExpr.Case (scrut, surf_branches) ->
     let eff0' = Effect.purify eff0 in
@@ -474,7 +492,7 @@ and check sig_ ctx se sort eff0 =
 
   | SurfExpr.Iter (pat, se1, se2) ->
     if not (Effect.sub Effect.Impure eff0) then
-      fail_at pos "iter requires impure context"
+      ElabM.fail (TypeError.iter_requires_impure ~loc:pos ~actual:eff0)
     else
     let* (ce1, init_sort) = synth sig_ ctx Effect.Pure se1 in
     let* step_dsort = match Dsort.of_string "Step" with

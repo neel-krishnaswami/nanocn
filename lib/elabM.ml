@@ -9,8 +9,6 @@ let ( let* ) m f supply =
 
 let fail err _supply = Error err
 
-let legacy_fail pos msg = fail (TypeError.legacy pos msg)
-
 let lift r supply =
   match r with
   | Ok x -> Ok (x, supply)
@@ -52,18 +50,18 @@ module Test = struct
            | Ok (b, _) -> b
            | Error _ -> false);
 
-      QCheck.Test.make ~name:"elabM legacy_fail propagates without a position"
+      QCheck.Test.make ~name:"elabM fail propagates the error"
         ~count:1
         QCheck.unit
         (fun () ->
+           let err =
+             TypeError.parse_error ~loc:None ~msg:"test error"
+           in
            match run Var.empty_supply (
-             let* _ = legacy_fail None "test error" in
+             let* _ = fail err in
              return 42
            ) with
            | Ok _ -> false
-           | Error e ->
-             (match TypeError.loc e with
-              | Some _ -> false
-              | None -> true));
+           | Error _ -> true);
     ]
 end

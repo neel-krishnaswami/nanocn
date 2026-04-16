@@ -9,9 +9,6 @@ open ElabM
 
 (* Error helpers for this module.
 
-   - [fail_at pos msg]: user-visible mistake that hasn't yet been
-     assigned a dedicated structured kind. Emits a positional
-     [TypeError.Legacy].
    - [invariant_at ~rule pos msg]: an "impossible-in-well-formed-code"
      check fired, typically because an earlier elaboration pass was
      supposed to rule this shape out. Emits a
@@ -19,16 +16,19 @@ open ElabM
      and the specific failed check.
    - [invariant ~rule msg]: same, but for sites with no source
      position in scope (uses [SourcePos.dummy]).
-   - [lift]: forwards a string-typed [Result] through [ElabM.lift],
-     wrapping the error in [TypeError.Legacy]. *)
-let fail_at pos msg = legacy_fail (Some pos) msg
+   - [lift_at pos r]: forwards a submodule-style
+     [(_, string) result] into the monad, wrapping any failure as
+     [TypeError.K_helper_error] at [pos]. Used for adapters to
+     [CtorLookup], [Subst], [RCtx], [rpat_match], and similar. *)
 let invariant_at pos ~rule msg =
   ElabM.fail (TypeError.internal_invariant ~loc:pos ~rule ~invariant:msg)
 let invariant ~rule msg =
   ElabM.fail
     (TypeError.internal_invariant ~loc:SourcePos.dummy ~rule ~invariant:msg)
-let lift (r : ('a, string) result) : 'a ElabM.t =
-  ElabM.lift (Result.map_error (fun msg -> TypeError.legacy None msg) r)
+let lift_at pos (r : ('a, string) result) : 'a ElabM.t =
+  ElabM.lift
+    (Result.map_error
+       (fun msg -> TypeError.helper_error ~loc:pos ~msg) r)
 
 let loc_dummy = object method loc = SourcePos.dummy end
 
@@ -382,8 +382,7 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
        let checked = RefinedExpr.mk_lpf binfo (RefinedExpr.LVar x) in
        return (checked, ce, delta, Constraint.top pos)
      | None ->
-       fail_at pos
-         (Format.asprintf "logical variable %a not found" Var.print x))
+       ElabM.fail (TypeError.log_var_not_found ~loc:pos ~name:x))
 
   | RefinedExpr.LAuto ->
     invariant_at pos ~rule:"synth_lpf:LAuto"
@@ -395,8 +394,7 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
     (match Sig.lookup_fundef f cs with
      | Some (param, _arg_sort, ret_sort, eff, body) ->
        if not (Effect.sub eff Effect.Spec) then
-         fail_at pos
-           (Format.asprintf "unfold: function %s must be spec" f)
+         ElabM.fail (TypeError.unfold_not_spec ~loc:pos ~name:f)
        else
          let call_result = CoreExpr.mk (mk_info ret_sort) (CoreExpr.Call (f, ce_arg)) in
          let subst_body = Subst.apply_ce (Subst.extend_var param ce_arg Subst.empty) body in
@@ -404,8 +402,7 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
          let checked = RefinedExpr.mk_lpf binfo (RefinedExpr.LUnfold (f, ce_arg)) in
          return (checked, prop, delta, Constraint.top pos)
      | None ->
-       fail_at pos
-         (Format.asprintf "unfold: function %s not found or not a FunDef" f))
+       ElabM.fail (TypeError.unfold_not_fundef ~loc:pos ~name:f))
 
   | RefinedExpr.LAnnot (lpf', se) ->
     let gamma = RCtx.erase delta in
@@ -421,10 +418,10 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
        let checked = RefinedExpr.mk_lpf binfo (RefinedExpr.LOpenRet checked_rpf) in
        return (checked, mk_eq ce1 ce_val, delta', ct)
      | _ ->
-       fail_at pos
-         (Format.asprintf
-            "open-ret: expected predicate of shape `return _`, got `%a`"
-            CoreExpr.print ce_pred))
+       ElabM.fail
+         (TypeError.wrong_pred_shape ~loc:pos
+            ~construct:"open-ret" ~expected_shape:"return _"
+            ~got:(Format.asprintf "%a" CoreExpr.print ce_pred)))
 
 (* Logical fact checking: RS; Delta |- lpf <= ce -| Delta' ~> Ct *)
 and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce : CoreExpr.typed_ce) : (checked_lpf * RCtx.t * Constraint.typed_ct) ElabM.t =
@@ -445,7 +442,7 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (c
   let pos = binfo#loc in
   match RefinedExpr.rpf_shape rpf with
   | RefinedExpr.RVar x ->
-    let* (pred, value, delta') = lift (RCtx.use_resource x delta) in
+    let* (pred, value, delta') = lift_at pos (RCtx.use_resource x delta) in
     let checked = RefinedExpr.mk_rpf binfo (RefinedExpr.RVar x) in
     return (checked, pred, value, delta', Constraint.top pos)
 
@@ -481,9 +478,10 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
        let checked = RefinedExpr.mk_rpf binfo (RefinedExpr.RMakeRet checked_lpf') in
        return (checked, delta', ct)
      | _ ->
-       fail_at pos (Format.asprintf
-               "make-ret: expected target predicate of shape `return _`, got `%a`"
-               CoreExpr.print ce1))
+       ElabM.fail
+         (TypeError.wrong_pred_shape ~loc:pos
+            ~construct:"make-ret" ~expected_shape:"return _"
+            ~got:(Format.asprintf "%a" CoreExpr.print ce1)))
 
   | RefinedExpr.RMakeTake crt ->
     (match CoreExpr.shape (strip_annots ce1) with
@@ -501,13 +499,15 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
           let checked = RefinedExpr.mk_rpf binfo (RefinedExpr.RMakeTake checked_crt) in
           return (checked, delta', ct)
         | _ ->
-          fail_at pos (Format.asprintf
-                  "make-take: take's bound expression must have sort `Pred _`, got `%a`"
-                  Sort.print pred_sort))
+          ElabM.fail
+            (TypeError.construct_sort_mismatch ~loc:pos
+               ~construct:"make-take bound expression"
+               ~expected_shape:"Pred _" ~got:pred_sort))
      | _ ->
-       fail_at pos (Format.asprintf
-               "make-take: expected target predicate of shape `take _ = _; _`, got `%a`"
-               CoreExpr.print ce1))
+       ElabM.fail
+         (TypeError.wrong_pred_shape ~loc:pos
+            ~construct:"make-take" ~expected_shape:"take _ = _; _"
+            ~got:(Format.asprintf "%a" CoreExpr.print ce1)))
 
   | _ ->
     let* (checked_rpf, ce1_synth, ce2_synth, delta', ct) = synth_rpf rs delta rpf in
@@ -545,8 +545,8 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
          let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CCall (f, checked_spine)) in
          return (checked, pf, delta', ct)
      | None ->
-       fail_at binfo#loc
-         (Format.asprintf "function %s not found" f))
+       ElabM.fail
+         (TypeError.unknown_function ~loc:binfo#loc ~name:f))
 
   | RefinedExpr.CPrimApp (prim, spine) ->
     let* rf = rprim_signature prim in
@@ -580,10 +580,10 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
                "take's bound expression must have sort `Pred _`, got `%a`"
                Sort.print pred_sort))
      | _ ->
-       fail_at binfo#loc
-         (Format.asprintf
-            "open-take: expected predicate of shape `take _ = _; _`, got `%a`"
-            CoreExpr.print ce_pred))
+       ElabM.fail
+         (TypeError.wrong_pred_shape ~loc:binfo#loc
+            ~construct:"open-take" ~expected_shape:"take _ = _; _"
+            ~got:(Format.asprintf "%a" CoreExpr.print ce_pred)))
 
   | RefinedExpr.CIter (se_pred, pat, crt1, crt2) ->
     (* iter requires impure effect *)
@@ -598,11 +598,11 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
        (match Sort.shape inner_sort with
         | Sort.App (_dsort_name, args) ->
           let cs = RSig.comp rs in
-          let* next_label = lift (Label.of_string "Next") in
-          let* done_label = lift (Label.of_string "Done") in
+          let* next_label = lift_at binfo#loc (Label.of_string "Next") in
+          let* done_label = lift_at binfo#loc (Label.of_string "Done") in
           (* Look up constructor sorts with type parameter substitution *)
-          let* a_sort = lift (CtorLookup.lookup cs next_label args) in
-          let* b_sort = lift (CtorLookup.lookup cs done_label args) in
+          let* a_sort = lift_at binfo#loc (CtorLookup.lookup cs next_label args) in
+          let* b_sort = lift_at binfo#loc (CtorLookup.lookup cs done_label args) in
           let step_sort = inner_sort in
           (* Build init proof sort: x:A [pure], y:ce @ Next(x) [res], pfnil *)
           let* x_var = fresh SourcePos.dummy in
@@ -616,7 +616,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           let* (checked_crt1, delta', ct) = check_crt rs delta Effect.Pure crt1 init_pf in
           (* Build body input context: delta' + pattern bindings from init_pf *)
           let gamma = RCtx.erase delta' in
-          let* delta_pat = lift (rpat_match cs gamma pat init_pf) in
+          let* delta_pat = lift_at binfo#loc (rpat_match cs gamma pat init_pf) in
           let delta_body = RCtx.concat delta' delta_pat in
           (* Build body proof sort: z:D(A,B) [pure], y2:ce @ z [res], pfnil *)
           let* z_var = fresh SourcePos.dummy in
@@ -666,9 +666,9 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     return (checked, [], delta', ct)
 
   | _ ->
-    fail_at binfo#loc
-      "cannot synthesize a proof sort for this refined term; \
-       provide an annotation `: <pf_sort>`."
+    ElabM.fail
+      (TypeError.cannot_synthesize ~loc:binfo#loc
+         ~construct:"proof sort")
 
 (* Core refined term checking: RS; Delta |-[eff] crt <= Pf -| Delta' ~> Ct *)
 and check_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : (CoreExpr.typed_ce, Var.t) ProofSort.t) : (checked_crt * RCtx.t * Constraint.typed_ct) ElabM.t =
@@ -690,7 +690,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let* (checked_crt1, pf', delta', ct1) = synth_crt rs delta eff crt1 in
     let gamma = RCtx.erase delta' in
     let cs = RSig.comp rs in
-    let* delta_pat = lift (rpat_match cs gamma pat pf') in
+    let* delta_pat = lift_at pos (rpat_match cs gamma pat pf') in
     let delta_ext = RCtx.concat delta' delta_pat in
     let* (checked_crt2, delta'', ct2) = check_crt rs delta_ext eff crt2 pf in
     let n = RCtx.length delta' in
@@ -709,13 +709,8 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           | _ -> None)
           (RCtx.entries delta_pat_out)
       in
-      fail_at pos (Format.asprintf
-              "@[<v>let: pattern resources not fully consumed.@ \
-               Unconsumed leftovers:@ %a@]"
-              (Format.pp_print_list
-                 ~pp_sep:(fun fmt () -> Format.fprintf fmt "@ ")
-                 Format.pp_print_string)
-              leftovers)
+      ElabM.fail
+        (TypeError.let_pattern_resource_leak ~loc:pos ~leftovers)
     else
       let ct2_closed = close_ctx pos delta_pat_out ct2 in
       let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CLet (pat, checked_crt1, checked_crt2)) in
@@ -767,7 +762,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let n = RCtx.length delta in
     let (delta1, _) = RCtx.split n delta1_ext in
     let (delta2, _) = RCtx.split n delta2_ext in
-    let* delta_merged = lift (RCtx.merge delta1 delta2) in
+    let* delta_merged = lift_at pos (RCtx.merge delta1 delta2) in
     let ct = Constraint.conj pos
       (Constraint.impl pos (mk_eq ce mk_true) ct1)
       (Constraint.impl pos (mk_eq ce mk_false) ct2) in
@@ -796,7 +791,10 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
          | Ok subst ->
            return (List.map (fun (l, s) -> (l, Subst.apply subst s)) ctors)
          | Error msg ->
-           fail_at pos (Format.asprintf "case: type-parameter instantiation: %s" msg)
+           ElabM.fail
+             (TypeError.helper_error ~loc:pos
+                ~msg:(Format.asprintf
+                        "case: type-parameter instantiation: %s" msg))
        in
        (match decl_opt, type_decl_opt with
         | Some decl, _ ->
@@ -810,8 +808,9 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CCase (_y, ce, checked_branches)) in
           return (checked, delta', ct)
         | None, None ->
-          fail_at pos (Format.asprintf "case: type %a not found" Dsort.print dsort_name))
-     | _ -> fail_at pos "case: scrutinee must have datasort type")
+          ElabM.fail (TypeError.unbound_sort ~loc:pos dsort_name))
+     | _ ->
+       ElabM.fail (TypeError.scrutinee_not_data ~loc:pos ~got:ce_sort))
 
   | RefinedExpr.CTuple spine ->
     let* (checked_spine, delta', ct) = _check_tuple rs delta eff spine pf in
@@ -846,16 +845,16 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
          | Sort.Record sorts when List.length sorts = List.length xs ->
            return sorts
          | Sort.Record sorts ->
-           fail_at pos
-             (Format.asprintf
-                "let core: pattern binds %d variable(s) but expression \
-                 has sort %a (%d component(s))"
-                (List.length xs) Sort.print sort (List.length sorts))
+           ElabM.fail
+             (TypeError.tuple_arity_mismatch ~loc:pos
+                ~construct:"let core pattern"
+                ~expected:(List.length sorts)
+                ~actual:(List.length xs))
          | _ ->
-           fail_at pos
-             (Format.asprintf
-                "let core: tuple pattern requires record sort, got %a"
-                Sort.print sort))
+           ElabM.fail
+             (TypeError.construct_sort_mismatch ~loc:pos
+                ~construct:"let core tuple pattern"
+                ~expected_shape:"Record _" ~got:sort))
     in
     (* Build the equation [x = ce] (singleton) or
        [(x1, ..., xn) = ce] (tuple) as the proposition bound to [a]. *)
@@ -1003,7 +1002,7 @@ and _check_tuple rs delta eff spine pf =
 and check_case_branches pos rs delta eff ce ce_sort ctors branches pf =
   let* (checked_branches, branch_results) = check_branches_list pos rs delta eff ce ce_sort ctors branches pf in
   let (deltas, cts) = List.split branch_results in
-  let* delta_merged = lift (RCtx.merge_n deltas) in
+  let* delta_merged = lift_at pos (RCtx.merge_n deltas) in
   let ct = List.fold_left (Constraint.conj pos) (Constraint.top pos) cts in
   return (checked_branches, delta_merged, ct)
 
@@ -1179,11 +1178,11 @@ let check_rprog (prog : RProg.parsed) : (RSig.t * Constraint.typed_ct) ElabM.t =
     | RProg.RFunDecl { name; pat; domain = se_domain; codomain = se_codomain; eff; body; loc } ->
       let gamma = Context.empty in
       let* domain = elab_pf rs gamma eff se_domain in
-      let* gamma' = lift (ProofSort.bind gamma domain) in
+      let* gamma' = lift_at loc (ProofSort.bind gamma domain) in
       let* codomain = elab_pf rs gamma' eff se_codomain in
       let rf = RFunType.{ domain; codomain; eff } in
       let cs = RSig.comp rs in
-      let* delta = lift (rpat_match cs gamma pat domain) in
+      let* delta = lift_at loc (rpat_match cs gamma pat domain) in
       let rs' = match eff with
         | Effect.Pure -> rs
         | _ -> RSig.extend name (RSig.RFunSig rf) rs

@@ -1,16 +1,8 @@
 (* Error helpers.
 
-   - [err_at pos msg] / [err_at_f pos fmt …]: user-visible mistake
-     not yet assigned a structured kind. Emits a positional
-     [TypeError.Legacy].
-   - [invariant_at pos ~rule msg]: "impossible-in-well-formed-code"
-     check fired (the typechecker's own consistency guarantees
-     should have ruled this out). Emits [K_internal_invariant]. *)
-let err_at pos msg = Error (TypeError.legacy (Some pos) msg)
-
-let err_at_f pos fmt =
-  Format.kasprintf (fun msg -> err_at pos msg) fmt
-
+   [invariant_at pos ~rule msg]: "impossible-in-well-formed-code"
+   check fired (the typechecker's own consistency guarantees should
+   have ruled this out). Emits [K_internal_invariant]. *)
 let invariant_at pos ~rule msg =
   Error (TypeError.internal_invariant ~loc:pos ~rule ~invariant:msg)
 
@@ -134,7 +126,7 @@ let rec synth sig_ ctx eff0 ce =
     let* () = match p with
       | Prim.Eq a ->
         if Sort.is_eqtype a then Ok ()
-        else err_at_f pos "Eq requires an equality type, got %a" Sort.print a
+        else Error (TypeError.eq_not_equality_type ~loc:pos ~got:a)
       | _ -> Ok ()
     in
     let (arg_sort, ret_sort, prim_eff) = prim_signature p in
@@ -157,7 +149,8 @@ let rec synth sig_ ctx eff0 ce =
          let eff0' = Effect.purify eff0 in
          let* arg' = check sig_ ctx arg arg_sort eff0' in
          Ok (mk ctx pos ret_sort eff0 (CoreExpr.Call (name, arg')))
-     | None -> err_at_f pos "unknown function %s" name)
+     | None ->
+       Error (TypeError.unknown_function ~loc:pos ~name))
 
   | CoreExpr.Annot (ce, s) ->
     let* ce' = check sig_ ctx ce s eff0 in
@@ -166,7 +159,7 @@ let rec synth sig_ ctx eff0 ce =
   | CoreExpr.Return _ | CoreExpr.Take _ | CoreExpr.Fail | CoreExpr.Let _
   | CoreExpr.Inject _ | CoreExpr.Case _ | CoreExpr.Tuple _
   | CoreExpr.LetTuple _ | CoreExpr.If _ | CoreExpr.Iter _ ->
-    err_at pos "cannot synthesize sort; add a type annotation"
+    Error (TypeError.cannot_synthesize ~loc:pos ~construct:"sort")
 
 (** Check: S; G |- [eff0] ce <== tau *)
 and check sig_ ctx ce sort eff0 =
@@ -180,7 +173,10 @@ and check sig_ ctx ce sort eff0 =
      | Sort.Pred tau ->
        let* inner' = check sig_ ctx inner tau eff0 in
        Ok (mk ctx pos sort eff0 (CoreExpr.Return inner'))
-     | _ -> err_at pos "return requires pred sort")
+     | _ ->
+       Error (TypeError.construct_sort_mismatch ~loc:pos
+                ~construct:"return" ~expected_shape:"Pred _"
+                ~got:sort))
 
   | CoreExpr.Fail ->
     if not (Effect.sub Effect.Spec eff0) then
@@ -189,7 +185,10 @@ and check sig_ ctx ce sort eff0 =
     (match Sort.shape sort with
      | Sort.Pred _ ->
        Ok (mk ctx pos sort eff0 CoreExpr.Fail)
-     | _ -> err_at pos "fail requires pred sort")
+     | _ ->
+       Error (TypeError.construct_sort_mismatch ~loc:pos
+                ~construct:"fail" ~expected_shape:"Pred _"
+                ~got:sort))
 
   | CoreExpr.Take ((x, _), ce1, ce2) ->
     if not (Effect.sub Effect.Spec eff0) then
@@ -206,8 +205,14 @@ and check sig_ ctx ce sort eff0 =
           let* ce2' = check sig_ ctx' ce2 sort eff0 in
           let xb = (x, mk_bind_info x tau bind_eff ctx') in
           Ok (mk ctx pos sort eff0 (CoreExpr.Take (xb, ce1', ce2')))
-        | _ -> err_at pos "take scrutinee must have pred sort")
-     | _ -> err_at pos "take requires pred sort as target")
+        | _ ->
+          Error (TypeError.construct_sort_mismatch ~loc:pos
+                   ~construct:"take scrutinee"
+                   ~expected_shape:"Pred _" ~got:s1))
+     | _ ->
+       Error (TypeError.construct_sort_mismatch ~loc:pos
+                ~construct:"take target"
+                ~expected_shape:"Pred _" ~got:sort))
 
   | CoreExpr.Let ((x, _), ce1, ce2) ->
     let* ce1' = synth sig_ ctx eff0 ce1 in
@@ -226,8 +231,10 @@ and check sig_ ctx ce sort eff0 =
      | Sort.Record ts ->
        let vars = List.map fst xs in
        if List.compare_lengths vars ts <> 0 then
-         err_at_f pos "let-tuple: expected %d components, got %d"
-           (List.length ts) (List.length vars)
+         Error (TypeError.tuple_arity_mismatch ~loc:pos
+                  ~construct:"let-tuple"
+                  ~expected:(List.length ts)
+                  ~actual:(List.length vars))
        else
          let bind_eff = Effect.purify eff0 in
          let bindings = List.map (fun (x, s) -> (x, s, bind_eff)) (List.combine vars ts) in
@@ -242,18 +249,26 @@ and check sig_ ctx ce sort eff0 =
            end : typed_info))
          ) (List.combine xs ts) in
          Ok (mk ctx pos sort eff0 (CoreExpr.LetTuple (typed_xs, ce1', ce2')))
-     | _ -> err_at pos "let-tuple: scrutinee must have record sort")
+     | _ ->
+       Error (TypeError.construct_sort_mismatch ~loc:pos
+                ~construct:"let-tuple scrutinee"
+                ~expected_shape:"Record _" ~got:s1))
 
   | CoreExpr.Tuple es ->
     (match Sort.shape sort with
      | Sort.Record ts ->
        if List.compare_lengths es ts <> 0 then
-         err_at_f pos "tuple: expected %d components, got %d"
-           (List.length ts) (List.length es)
+         Error (TypeError.tuple_arity_mismatch ~loc:pos
+                  ~construct:"tuple"
+                  ~expected:(List.length ts)
+                  ~actual:(List.length es))
        else
          let* es' = check_list sig_ ctx es ts eff0 in
          Ok (mk ctx pos sort eff0 (CoreExpr.Tuple es'))
-     | _ -> err_at pos "tuple: expected record sort")
+     | _ ->
+       Error (TypeError.construct_sort_mismatch ~loc:pos
+                ~construct:"tuple"
+                ~expected_shape:"Record _" ~got:sort))
 
   | CoreExpr.Inject (l, e_inner) ->
     (match Sort.shape sort with
@@ -263,8 +278,13 @@ and check sig_ ctx ce sort eff0 =
           let eff0' = Effect.purify eff0 in
           let* e_inner' = check sig_ ctx e_inner ctor_sort eff0' in
           Ok (mk ctx pos sort eff0 (CoreExpr.Inject (l, e_inner')))
-        | Error msg -> err_at pos msg)
-     | _ -> err_at pos "injection: expected datasort/datatype application")
+        | Error msg ->
+          Error (TypeError.helper_error ~loc:pos ~msg))
+     | _ ->
+       Error (TypeError.construct_sort_mismatch ~loc:pos
+                ~construct:"injection"
+                ~expected_shape:"datasort/datatype application"
+                ~got:sort))
 
   | CoreExpr.Case (scrut, branches) ->
     let eff0' = Effect.purify eff0 in
@@ -276,7 +296,7 @@ and check sig_ ctx ce sort eff0 =
 
   | CoreExpr.Iter (x, e1, body) ->
     if not (Effect.sub Effect.Impure eff0) then
-      err_at pos "iter requires impure context"
+      Error (TypeError.iter_requires_impure ~loc:pos ~actual:eff0)
     else
       let* e1' = synth sig_ ctx Effect.Pure e1 in
       let a = (CoreExpr.info e1')#sort in
@@ -347,7 +367,8 @@ and check_case_branches sig_ ctx branches scrut_sort result_sort eff0 bind_eff p
            end : typed_info) in
            let* rest' = go rest in
            Ok ((l, x, body', branch_info) :: rest')
-         | Error msg -> err_at_f pos "%s" msg)
+         | Error msg ->
+           Error (TypeError.helper_error ~loc:pos ~msg))
     in
     go branches
   | _ -> Error (TypeError.scrutinee_not_data ~loc:pos ~got:scrut_sort)
@@ -376,23 +397,22 @@ let initial_sig : typed_ce Sig.t =
 (** Check kind well-formedness: CS ; G |- tau : kind *)
 let rec kind_wf sig_ ctx s kind =
   let pos = (Sort.info s)#loc in
-  let err fmt =
-    Format.kasprintf (fun m -> Error (TypeError.legacy (Some pos) m)) fmt
-  in
   match Sort.shape s with
   | Sort.Int | Sort.Bool -> Ok ()
   | Sort.TVar a ->
     (match Context.lookup_tvar a ctx with
      | Some k ->
        if Kind.subkind k kind then Ok ()
-       else err "type variable %a has kind %a, expected %a"
-              Tvar.print a Kind.print k Kind.print kind
+       else
+         Error (TypeError.tvar_kind_mismatch
+                  ~loc:pos ~tvar:a ~got:k ~expected:kind)
      | None ->
        Error (TypeError.unbound_tvar ~loc:pos a))
   | Sort.Ptr t -> kind_wf sig_ ctx t Kind.Type
   | Sort.Pred t ->
     if Kind.compare kind Kind.Sort <> 0 then
-      err "pred only allowed at kind sort"
+      Error (TypeError.pred_misuse ~loc:pos
+               ~context:(Format.asprintf "kind %a" Kind.print kind))
     else
       kind_wf sig_ ctx t Kind.Sort
   | Sort.Record ts -> kind_wf_list sig_ ctx ts kind
@@ -400,18 +420,18 @@ let rec kind_wf sig_ ctx s kind =
     (match Sig.lookup_sort d sig_ with
      | Some decl ->
        if List.compare_lengths args decl.DsortDecl.params <> 0 then
-         err "sort %a expects %d arguments, got %d"
-           Dsort.print d
-           (List.length decl.DsortDecl.params) (List.length args)
+         Error (TypeError.dsort_arity_mismatch ~loc:pos ~dsort:d
+                  ~expected:(List.length decl.DsortDecl.params)
+                  ~actual:(List.length args))
        else
          kind_wf_list sig_ ctx args Kind.Sort
      | None ->
        match Sig.lookup_type d sig_ with
        | Some decl ->
          if List.compare_lengths args decl.DtypeDecl.params <> 0 then
-           err "type %a expects %d arguments, got %d"
-             Dsort.print d
-             (List.length decl.DtypeDecl.params) (List.length args)
+           Error (TypeError.dsort_arity_mismatch ~loc:pos ~dsort:d
+                    ~expected:(List.length decl.DtypeDecl.params)
+                    ~actual:(List.length args))
          else
            kind_wf_list sig_ ctx args Kind.Type
        | None ->
@@ -426,18 +446,18 @@ and kind_wf_list sig_ ctx ss kind =
 
 (** Validate a datasort declaration *)
 let validate_sort_decl sig_ (d : DsortDecl.t) =
+  let decl_name = Format.asprintf "%a" Dsort.print d.name in
   if List.length d.ctors = 0 then
-    Error (TypeError.legacy (Some d.loc)
-             "sort declaration must have at least one constructor")
+    Error (TypeError.empty_decl ~loc:d.loc
+             ~name:decl_name ~is_type:false)
   else
     let labels = DsortDecl.ctor_labels d in
     let rec check_dups = function
       | [] -> Ok ()
       | l :: rest ->
         if List.exists (fun l' -> Label.compare l l' = 0) rest then
-          Error (TypeError.legacy (Some d.loc)
-            (Format.asprintf "duplicate constructor %a in sort declaration"
-               Label.print l))
+          Error (TypeError.duplicate_ctor_in_decl ~loc:d.loc
+                   ~label:l ~decl_name ~is_type:false)
         else check_dups rest
     in
     let* () = check_dups labels in
@@ -453,9 +473,6 @@ let validate_sort_decl sig_ (d : DsortDecl.t) =
     CS ; G ; D'(a1,...,an) |- tau guarded *)
 let rec type_guarded sig_ ctx (guard_name, guard_params) s =
   let pos = (Sort.info s)#loc in
-  let err fmt =
-    Format.kasprintf (fun m -> Error (TypeError.legacy (Some pos) m)) fmt
-  in
   match Sort.shape s with
   | Sort.Int | Sort.Bool -> Ok ()
   | Sort.TVar a ->
@@ -469,19 +486,20 @@ let rec type_guarded sig_ ctx (guard_name, guard_params) s =
     let sig_with_guard = Sig.extend_type sig_ stub_decl in
     kind_wf sig_with_guard ctx t Kind.Type
   | Sort.Pred _ ->
-    err "pred not allowed in type declarations"
+    Error (TypeError.pred_misuse ~loc:pos
+             ~context:"a type declaration")
   | Sort.Record ts -> type_guarded_list sig_ ctx (guard_name, guard_params) ts
   | Sort.App (d, args) ->
     if Dsort.compare d guard_name = 0 then
-      err "recursive reference to %a must go through ptr" Dsort.print d
+      Error (TypeError.unguarded_recursion ~loc:pos ~dsort:d)
     else
       (match Sig.lookup_type d sig_ with
        | None -> Error (TypeError.unbound_sort ~loc:pos d)
        | Some decl ->
          if List.compare_lengths args decl.DtypeDecl.params <> 0 then
-           err "type %a expects %d arguments, got %d"
-             Dsort.print d
-             (List.length decl.DtypeDecl.params) (List.length args)
+           Error (TypeError.dsort_arity_mismatch ~loc:pos ~dsort:d
+                    ~expected:(List.length decl.DtypeDecl.params)
+                    ~actual:(List.length args))
          else
            kind_wf_list sig_ ctx args Kind.Type)
 
@@ -493,18 +511,18 @@ and type_guarded_list sig_ ctx guard = function
 
 (** Validate a datatype declaration *)
 let validate_type_decl sig_ (d : DtypeDecl.t) =
+  let decl_name = Format.asprintf "%a" Dsort.print d.name in
   if List.length d.ctors = 0 then
-    Error (TypeError.legacy (Some d.loc)
-             "type declaration must have at least one constructor")
+    Error (TypeError.empty_decl ~loc:d.loc
+             ~name:decl_name ~is_type:true)
   else
     let labels = DtypeDecl.ctor_labels d in
     let rec check_dups = function
       | [] -> Ok ()
       | l :: rest ->
         if List.exists (fun l' -> Label.compare l l' = 0) rest then
-          Error (TypeError.legacy (Some d.loc)
-            (Format.asprintf "duplicate constructor %a in type declaration"
-               Label.print l))
+          Error (TypeError.duplicate_ctor_in_decl ~loc:d.loc
+                   ~label:l ~decl_name ~is_type:true)
         else check_dups rest
     in
     let* () = check_dups labels in

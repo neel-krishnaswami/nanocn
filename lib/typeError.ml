@@ -1,4 +1,6 @@
 type kind =
+  | K_parse_error of { msg : string }
+  | K_duplicate_pat_var of { name : string }
   | K_sort_mismatch of
       { expected : Sort.sort
       ; actual : Sort.sort
@@ -12,6 +14,8 @@ type kind =
   | K_unbound_ctor of Label.t
   | K_unbound_sort of Dsort.t
   | K_unbound_tvar of Tvar.t
+  | K_unknown_function of { name : string }
+  | K_log_var_not_found of { name : Var.t }
   | K_var_effect_mismatch of
       { var : Var.t
       ; declared : Effect.t
@@ -24,20 +28,58 @@ type kind =
       { name : string
       ; declared : Effect.t
       ; required : Effect.t }
+  | K_iter_requires_impure of { actual : Effect.t }
+  | K_eq_not_equality_type of { got : Sort.sort }
+  | K_construct_sort_mismatch of
+      { construct : string
+      ; expected_shape : string
+      ; got : Sort.sort }
+  | K_tuple_arity_mismatch of
+      { construct : string
+      ; expected : int
+      ; actual : int }
   | K_scrutinee_not_data of { got : Sort.sort }
   | K_not_spec_type of { construct : string; got : Sort.sort }
   | K_spec_context_required of { construct : string }
+  | K_cannot_synthesize of { construct : string }
+  | K_helper_error of { msg : string }
+  | K_tvar_kind_mismatch of
+      { tvar : Tvar.t; got : Kind.t; expected : Kind.t }
+  | K_dsort_arity_mismatch of
+      { dsort : Dsort.t; expected : int; actual : int }
+  | K_pred_misuse of { context : string }
+  | K_unguarded_recursion of { dsort : Dsort.t }
+  | K_empty_decl of { name : string; is_type : bool }
+  | K_duplicate_ctor_in_decl of
+      { label : Label.t; decl_name : string; is_type : bool }
   | K_non_exhaustive of { witness : PatWitness.t }
+  | K_wrong_pred_shape of
+      { construct : string
+      ; expected_shape : string
+      ; got : string }
+  | K_unfold_not_spec of { name : string }
+  | K_unfold_not_fundef of { name : string }
   | K_resource_leak of { name : Var.t option }
-  | K_iter_requires_impure of { actual : Effect.t }
+  | K_let_pattern_resource_leak of { leftovers : string list }
   | K_internal_invariant of { rule : string; invariant : string }
 
 type t =
-  | Legacy of SourcePos.t option * string
-  | Structured of { loc : SourcePos.t; kind : kind }
+  | Structured of { loc : SourcePos.t option; kind : kind }
+  (* [loc] is optional only for [K_parse_error] from the lexer's
+     catch-all [Failure] handler; every other kind builder supplies
+     a real position. *)
 
-let legacy pos msg = Legacy (pos, msg)
-let structured ~loc kind = Structured { loc; kind }
+let structured ~loc kind = Structured { loc = Some loc; kind }
+
+let structured_nopos kind = Structured { loc = None; kind }
+
+let parse_error ~loc ~msg =
+  match loc with
+  | Some loc -> structured ~loc (K_parse_error { msg })
+  | None -> structured_nopos (K_parse_error { msg })
+
+let duplicate_pat_var ~loc ~name =
+  structured ~loc (K_duplicate_pat_var { name })
 
 let sort_mismatch ~loc ~expected ~actual =
   let diff = SortDiff.diff expected actual in
@@ -53,6 +95,12 @@ let unbound_name ~loc n = structured ~loc (K_unbound_name n)
 let unbound_ctor ~loc l = structured ~loc (K_unbound_ctor l)
 let unbound_sort ~loc d = structured ~loc (K_unbound_sort d)
 let unbound_tvar ~loc t = structured ~loc (K_unbound_tvar t)
+
+let unknown_function ~loc ~name =
+  structured ~loc (K_unknown_function { name })
+
+let log_var_not_found ~loc ~name =
+  structured ~loc (K_log_var_not_found { name })
 
 let var_effect_mismatch ~loc ~var ~declared ~required =
   structured ~loc
@@ -75,11 +123,60 @@ let not_spec_type ~loc ~construct ~got =
 let spec_context_required ~loc ~construct =
   structured ~loc (K_spec_context_required { construct })
 
+let cannot_synthesize ~loc ~construct =
+  structured ~loc (K_cannot_synthesize { construct })
+
+let eq_not_equality_type ~loc ~got =
+  structured ~loc (K_eq_not_equality_type { got })
+
+let construct_sort_mismatch ~loc ~construct ~expected_shape ~got =
+  structured ~loc
+    (K_construct_sort_mismatch { construct; expected_shape; got })
+
+let tuple_arity_mismatch ~loc ~construct ~expected ~actual =
+  structured ~loc
+    (K_tuple_arity_mismatch { construct; expected; actual })
+
+let helper_error ~loc ~msg =
+  structured ~loc (K_helper_error { msg })
+
+let tvar_kind_mismatch ~loc ~tvar ~got ~expected =
+  structured ~loc (K_tvar_kind_mismatch { tvar; got; expected })
+
+let dsort_arity_mismatch ~loc ~dsort ~expected ~actual =
+  structured ~loc (K_dsort_arity_mismatch { dsort; expected; actual })
+
+let pred_misuse ~loc ~context =
+  structured ~loc (K_pred_misuse { context })
+
+let unguarded_recursion ~loc ~dsort =
+  structured ~loc (K_unguarded_recursion { dsort })
+
+let empty_decl ~loc ~name ~is_type =
+  structured ~loc (K_empty_decl { name; is_type })
+
+let duplicate_ctor_in_decl ~loc ~label ~decl_name ~is_type =
+  structured ~loc
+    (K_duplicate_ctor_in_decl { label; decl_name; is_type })
+
 let non_exhaustive ~loc ~witness =
   structured ~loc (K_non_exhaustive { witness })
 
+let wrong_pred_shape ~loc ~construct ~expected_shape ~got =
+  structured ~loc
+    (K_wrong_pred_shape { construct; expected_shape; got })
+
+let unfold_not_spec ~loc ~name =
+  structured ~loc (K_unfold_not_spec { name })
+
+let unfold_not_fundef ~loc ~name =
+  structured ~loc (K_unfold_not_fundef { name })
+
 let resource_leak ~loc ~name =
   structured ~loc (K_resource_leak { name })
+
+let let_pattern_resource_leak ~loc ~leftovers =
+  structured ~loc (K_let_pattern_resource_leak { leftovers })
 
 let iter_requires_impure ~loc ~actual =
   structured ~loc (K_iter_requires_impure { actual })
@@ -88,8 +185,7 @@ let internal_invariant ~loc ~rule ~invariant =
   structured ~loc (K_internal_invariant { rule; invariant })
 
 let loc = function
-  | Legacy (pos, _) -> pos
-  | Structured { loc; _ } -> Some loc
+  | Structured { loc; _ } -> loc
 
 (* Tag names are ocolor tag names (see Ocolor_format.mli): once the
    formatter has been prettified via [ErrorRender.configure_formatter],
@@ -120,6 +216,13 @@ let print_location reg fmt pos =
   Format.pp_print_cut fmt ()
 
 let print_kind fmt = function
+  | K_parse_error { msg } ->
+    (* Preserve the Menhir-derived message layout — it already
+       contains its own newlines and hanging indentation. *)
+    Format.fprintf fmt "  %s" msg
+  | K_duplicate_pat_var { name } ->
+    Format.fprintf fmt "  duplicate variable %a in pattern"
+      (print_emph Format.pp_print_string) name
   | K_sort_mismatch { diff; _ } ->
     Format.fprintf fmt "@[<v>";
     Format.fprintf fmt "  expected: @[%a@]" SortDiff.print_left diff;
@@ -146,6 +249,12 @@ let print_kind fmt = function
       (print_emph Dsort.print) d
   | K_unbound_tvar a ->
     Format.fprintf fmt "  unbound type variable %a" (print_emph Tvar.print) a
+  | K_unknown_function { name } ->
+    Format.fprintf fmt "  unknown function %a"
+      (print_emph Format.pp_print_string) name
+  | K_log_var_not_found { name } ->
+    Format.fprintf fmt "  unbound log variable %a"
+      (print_emph Var.print) name
   | K_var_effect_mismatch { var; declared; required } ->
     Format.fprintf fmt "@[<v>";
     Format.fprintf fmt "  variable %a was bound with effect %a,"
@@ -172,6 +281,26 @@ let print_kind fmt = function
     Format.fprintf fmt "  but the current context only allows effect %a."
       (print_emph Effect.print) required;
     Format.fprintf fmt "@]"
+  | K_eq_not_equality_type { got } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  @[<hov 2>==@]@ requires an equality type,";
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  but got sort %a." (print_emph Sort.print) got;
+    Format.fprintf fmt "@]"
+  | K_construct_sort_mismatch { construct; expected_shape; got } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  %s expects a sort of shape %a,"
+      construct
+      (print_emph Format.pp_print_string) expected_shape;
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  but got sort %a." (print_emph Sort.print) got;
+    Format.fprintf fmt "@]"
+  | K_tuple_arity_mismatch { construct; expected; actual } ->
+    Format.fprintf fmt
+      "  %s: expected %d component%s, got %d"
+      construct
+      expected (if expected = 1 then "" else "s")
+      actual
   | K_scrutinee_not_data { got } ->
     Format.fprintf fmt "@[<v>";
     Format.fprintf fmt "  case scrutinee must have a data-sort or data-type,";
@@ -188,11 +317,75 @@ let print_kind fmt = function
   | K_spec_context_required { construct } ->
     Format.fprintf fmt
       "  %s is only legal in a @[<hov 2>[spec]@] context." construct
+  | K_cannot_synthesize { construct } ->
+    Format.fprintf fmt
+      "  cannot synthesize %s; add a type annotation." construct
+  | K_helper_error { msg } ->
+    Format.fprintf fmt "  %s" msg
+  | K_tvar_kind_mismatch { tvar; got; expected } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  type variable %a has kind %a,"
+      (print_emph Tvar.print) tvar
+      (print_emph Kind.print) got;
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  but the context requires kind %a."
+      (print_emph Kind.print) expected;
+    Format.fprintf fmt "@]"
+  | K_dsort_arity_mismatch { dsort; expected; actual } ->
+    Format.fprintf fmt
+      "  %a expects %d argument%s, got %d"
+      (print_emph Dsort.print) dsort
+      expected (if expected = 1 then "" else "s")
+      actual
+  | K_pred_misuse { context } ->
+    Format.fprintf fmt
+      "  @[<hov 2>Pred _@] is not allowed in %s." context
+  | K_unguarded_recursion { dsort } ->
+    Format.fprintf fmt
+      "  recursive reference to %a must go through a @[<hov 2>Ptr _@]."
+      (print_emph Dsort.print) dsort
+  | K_empty_decl { name; is_type } ->
+    Format.fprintf fmt
+      "  %s %a declaration must have at least one constructor."
+      (if is_type then "type" else "sort")
+      (print_emph Format.pp_print_string) name
+  | K_duplicate_ctor_in_decl { label; decl_name; is_type } ->
+    Format.fprintf fmt
+      "  duplicate constructor %a in %s declaration %a."
+      (print_emph Label.print) label
+      (if is_type then "type" else "sort")
+      (print_emph Format.pp_print_string) decl_name
   | K_non_exhaustive { witness } ->
     Format.fprintf fmt "@[<v>";
     Format.fprintf fmt "  pattern match does not cover all cases.";
     Format.pp_print_cut fmt ();
     Format.fprintf fmt "  missing case: @[%a@]" PatWitness.print witness;
+    Format.fprintf fmt "@]"
+  | K_wrong_pred_shape { construct; expected_shape; got } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  %s expects a predicate of shape %a,"
+      construct
+      (print_emph Format.pp_print_string) expected_shape;
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  but got @[%a@]" (print_emph Format.pp_print_string) got;
+    Format.fprintf fmt "@]"
+  | K_unfold_not_spec { name } ->
+    Format.fprintf fmt
+      "  unfold: function %a is not a @[<hov 2>[spec]@] function."
+      (print_emph Format.pp_print_string) name
+  | K_unfold_not_fundef { name } ->
+    Format.fprintf fmt
+      "  unfold: %a is not an elaborated function definition."
+      (print_emph Format.pp_print_string) name
+  | K_let_pattern_resource_leak { leftovers } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  let-pattern's resources were not fully consumed.";
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  unconsumed leftovers:";
+    List.iter (fun entry ->
+      Format.pp_print_cut fmt ();
+      Format.fprintf fmt "    %s" entry)
+      leftovers;
     Format.fprintf fmt "@]"
   | K_resource_leak { name } ->
     Format.fprintf fmt "@[<v>";
@@ -221,39 +414,52 @@ let print_kind fmt = function
     Format.fprintf fmt "@]"
 
 let kind_header = function
+  | K_parse_error _ -> "Parse error"
+  | K_duplicate_pat_var _ -> "Type error: duplicate pattern variable"
   | K_sort_mismatch _ -> "Type error: sort mismatch"
   | K_annotation_disagrees _ -> "Type error: annotation mismatch"
   | K_unbound_var _ | K_unbound_name _ -> "Type error: unbound variable"
   | K_unbound_ctor _ -> "Type error: unknown constructor"
   | K_unbound_sort _ -> "Type error: unknown sort/type"
   | K_unbound_tvar _ -> "Type error: unbound type variable"
+  | K_unknown_function _ -> "Type error: unknown function"
+  | K_log_var_not_found _ -> "Type error: unbound log variable"
   | K_var_effect_mismatch _
   | K_prim_effect_mismatch _
   | K_fun_effect_mismatch _ -> "Type error: effect mismatch"
+  | K_iter_requires_impure _ -> "Type error: wrong effect context"
+  | K_eq_not_equality_type _ -> "Type error: not an equality type"
+  | K_construct_sort_mismatch _ -> "Type error: wrong sort shape"
+  | K_tuple_arity_mismatch _ -> "Type error: arity mismatch"
   | K_scrutinee_not_data _ -> "Type error: bad scrutinee"
   | K_not_spec_type _ -> "Type error: not a spec type"
   | K_spec_context_required _ -> "Type error: wrong effect context"
+  | K_cannot_synthesize _ -> "Type error: missing annotation"
+  | K_helper_error _ -> "Type error"
+  | K_tvar_kind_mismatch _ -> "Type error: kind mismatch"
+  | K_dsort_arity_mismatch _ -> "Type error: sort arity mismatch"
+  | K_pred_misuse _ -> "Type error: pred in wrong context"
+  | K_unguarded_recursion _ -> "Type error: unguarded recursion"
+  | K_empty_decl _ -> "Type error: empty declaration"
+  | K_duplicate_ctor_in_decl _ -> "Type error: duplicate constructor"
   | K_non_exhaustive _ -> "Type error: non-exhaustive pattern match"
-  | K_resource_leak _ -> "Type error: unconsumed resource"
-  | K_iter_requires_impure _ -> "Type error: wrong effect context"
+  | K_wrong_pred_shape _ -> "Type error: wrong predicate shape"
+  | K_unfold_not_spec _
+  | K_unfold_not_fundef _ -> "Type error: cannot unfold"
+  | K_resource_leak _
+  | K_let_pattern_resource_leak _ -> "Type error: unconsumed resource"
   | K_internal_invariant _ -> "Internal error: invariant failed"
 
 let rec to_string e =
   print_to_buffer (fun fmt -> print (SourceExcerpt.create ()) fmt e)
 
 and print reg fmt = function
-  | Legacy (pos_opt, msg) ->
-    Format.fprintf fmt "@[<v>";
-    print_header fmt "Error";
-    (match pos_opt with
-     | Some pos -> print_location reg fmt pos
-     | None -> Format.pp_print_cut fmt ());
-    Format.fprintf fmt "  %s" msg;
-    Format.fprintf fmt "@]"
   | Structured { loc; kind } ->
     Format.fprintf fmt "@[<v>";
     print_header fmt (kind_header kind);
-    print_location reg fmt loc;
+    (match loc with
+     | Some pos -> print_location reg fmt pos
+     | None -> Format.pp_print_cut fmt ());
     print_kind fmt kind;
     Format.fprintf fmt "@]"
 
@@ -263,12 +469,12 @@ module Test = struct
     let rec aux i = i + m <= n && (String.sub s i m = sub || aux (i+1)) in
     m = 0 || (n >= m && aux 0)
 
-  let test_legacy_preserves_message =
-    QCheck.Test.make ~name:"TypeError: Legacy preserves its message"
+  let test_parse_error_preserves_message =
+    QCheck.Test.make ~name:"TypeError: parse_error preserves its message"
       ~count:1
       QCheck.unit
       (fun () ->
-        let e = legacy None "hello" in
+        let e = parse_error ~loc:None ~msg:"hello" in
         contains_substring (to_string e) "hello")
 
   let test_sort_mismatch_mentions_both =
@@ -301,7 +507,7 @@ module Test = struct
         && contains_substring s "xyzzy")
 
   let test = [
-    test_legacy_preserves_message;
+    test_parse_error_preserves_message;
     test_sort_mismatch_mentions_both;
     test_unbound_var_mentions_name;
   ]
