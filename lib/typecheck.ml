@@ -285,8 +285,8 @@ and check sig_ ctx ce sort eff0 =
   | CoreExpr.Annot (inner, ann_sort) ->
     let* inner' = check sig_ ctx inner ann_sort eff0 in
     if not (sort_equal ann_sort sort) then
-      err_at_f pos "annotation sort %a does not match expected sort %a"
-        Sort.print ann_sort Sort.print sort
+      Error (TypeError.annotation_disagrees
+               ~loc:pos ~inner:sort ~annot:ann_sort)
     else
       Ok (mk ctx pos sort eff0 (CoreExpr.Annot (inner', lift_sort ann_sort)))
 
@@ -294,7 +294,8 @@ and check sig_ ctx ce sort eff0 =
     let* e' = synth sig_ ctx eff0 ce in
     let syn_sort = (CoreExpr.info e')#sort in
     if not (sort_equal syn_sort sort) then
-      err_at_f pos "expected sort %a, got %a" Sort.print sort Sort.print syn_sort
+      Error (TypeError.sort_mismatch
+               ~loc:pos ~expected:sort ~actual:syn_sort)
     else
       Ok e'
 

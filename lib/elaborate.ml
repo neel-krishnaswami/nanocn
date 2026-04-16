@@ -453,7 +453,8 @@ and check sig_ ctx se sort eff0 =
   | _ ->
     let* (ce, syn_sort) = synth sig_ ctx eff0 se in
     if not (sort_equal syn_sort sort) then
-      fail_at_f pos "expected sort %a, got %a" Sort.print sort Sort.print syn_sort
+      ElabM.fail
+        (TypeError.sort_mismatch ~loc:pos ~expected:sort ~actual:syn_sort)
     else ElabM.return ce
 
 and check_list sig_ ctx ses sorts eff0 =

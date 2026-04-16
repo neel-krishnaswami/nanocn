@@ -984,7 +984,8 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ty
     | ProofSort.Comp { var = x; sort; eff } :: rest1,
       ProofSort.Comp { var = y; sort = sort2; eff = eff2 } :: rest2 ->
       if Sort.compare sort sort2 <> 0 then
-        fail "pf_eq: sort mismatch"
+        ElabM.fail
+          (TypeError.sort_mismatch ~loc:pos ~expected:sort ~actual:sort2)
       else if Effect.compare eff eff2 <> 0 then
         fail "pf_eq: effect mismatch"
       else

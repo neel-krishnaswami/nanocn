@@ -54,6 +54,9 @@ let qcheck_tests =
     Dsort.Test.test;
     Tvar.Test.test;
     Sort.Test.test;
+    SortDiff.Test.test;
+    SourceExcerpt.Test.test;
+    TypeError.Test.test;
     DsortDecl.Test.test;
     DtypeDecl.Test.test;
     Subst.Test.test;
