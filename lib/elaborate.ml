@@ -461,8 +461,8 @@ and check sig_ ctx se sort eff0 =
           let eff0' = Effect.purify eff0 in
           let* ce = check sig_ ctx inner ctor_sort eff0' in
           ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Inject (l, ce)))
-        | Error msg ->
-          ElabM.fail (Error.helper_error ~loc:pos ~msg))
+        | Error k ->
+          ElabM.fail (Error.structured ~loc:pos k))
      | _ ->
        ElabM.fail
          (Error.construct_sort_mismatch ~loc:pos

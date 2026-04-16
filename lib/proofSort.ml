@@ -44,7 +44,7 @@ let synth_bound_sort pred =
   let sort = (CoreExpr.info pred)#sort in
   match Sort.shape sort with
   | Sort.Pred inner -> Ok inner
-  | _ -> Error "dep-res: expected pred sort"
+  | _ -> Error (Error.K_dep_res_not_pred { got = sort })
 
 let bind gamma pf =
   let ( let* ) = Result.bind in

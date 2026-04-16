@@ -29,9 +29,13 @@ val pf_types : ('e, 'var) t -> Sort.sort list
 val comp : ('e, 'var) t -> Sort.sort
 (** [comp pf] is the product of [pf_types pf] (erasure to a single sort). *)
 
-val bind : Context.t -> (CoreExpr.typed_ce, Var.t) t -> (Context.t, string) result
+val bind :
+  Context.t -> (CoreExpr.typed_ce, Var.t) t ->
+  (Context.t, Error.kind) result
 (** [bind Γ pf] extends Γ with comp/spec variable bindings from [pf].
-    For DepRes entries, reads the sort directly from the typed info. *)
+    For [DepRes] entries, reads the sort directly from the typed info.
+    Fails with [Error.K_dep_res_not_pred] if a [DepRes] predicate
+    doesn't have [Pred _] sort. *)
 
 val apply_subst : Subst.t -> (CoreExpr.typed_ce, Var.t) t -> (CoreExpr.typed_ce, Var.t) t
 (** [apply_subst gamma pf] is [[gamma]]pf. *)

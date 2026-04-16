@@ -16,19 +16,18 @@ open ElabM
      and the specific failed check.
    - [invariant ~rule msg]: same, but for sites with no source
      position in scope (uses [SourcePos.dummy]).
-   - [lift_at pos r]: forwards a submodule-style
-     [(_, string) result] into the monad, wrapping any failure as
-     [Error.K_helper_error] at [pos]. Used for adapters to
-     [CtorLookup], [Subst], [RCtx], [rpat_match], and similar. *)
+   - [lift_at pos r]: forwards a submodule-structured
+     [(_, Error.kind) result] into the monad, attaching [pos] via
+     [Error.at]. Used at the boundary between the refined checker
+     and its helper modules ([CtorLookup], [Subst], [RCtx],
+     [ProofSort], [rpat_match]). *)
 let invariant_at pos ~rule msg =
   ElabM.fail (Error.internal_invariant ~loc:pos ~rule ~invariant:msg)
 let invariant ~rule msg =
   ElabM.fail
     (Error.internal_invariant ~loc:SourcePos.dummy ~rule ~invariant:msg)
-let lift_at pos (r : ('a, string) result) : 'a ElabM.t =
-  ElabM.lift
-    (Result.map_error
-       (fun msg -> Error.helper_error ~loc:pos ~msg) r)
+let lift_at pos (r : ('a, Error.kind) result) : 'a ElabM.t =
+  ElabM.lift (Error.at ~loc:pos r)
 
 let loc_dummy = object method loc = SourcePos.dummy end
 
@@ -351,9 +350,10 @@ let assert_delta_below delta delta' =
   if not !delta_check_enabled then return ()
   else
     match RCtx.lattice_merge delta delta' with
-    | Error msg ->
+    | Error _ ->
       invariant ~rule:"assert_delta_below"
-        (Format.asprintf "delta lattice merge failed: %s" msg)
+        "delta lattice merge failed: contexts have inconsistent \
+         shape at an internal checkpoint"
     | Ok merged ->
       if RCtx.usage_equal merged delta' then return ()
       else
@@ -598,8 +598,22 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
        (match Sort.shape inner_sort with
         | Sort.App (_dsort_name, args) ->
           let cs = RSig.comp rs in
-          let* next_label = lift_at binfo#loc (Label.of_string "Next") in
-          let* done_label = lift_at binfo#loc (Label.of_string "Done") in
+          let* next_label =
+            match Label.of_string "Next" with
+            | Ok l -> return l
+            | Error _ ->
+              invariant_at binfo#loc ~rule:"CIter"
+                "Label.of_string \"Next\" failed — the literal \"Next\" \
+                 is always a valid constructor name"
+          in
+          let* done_label =
+            match Label.of_string "Done" with
+            | Ok l -> return l
+            | Error _ ->
+              invariant_at binfo#loc ~rule:"CIter"
+                "Label.of_string \"Done\" failed — the literal \"Done\" \
+                 is always a valid constructor name"
+          in
           (* Look up constructor sorts with type parameter substitution *)
           let* a_sort = lift_at binfo#loc (CtorLookup.lookup cs next_label args) in
           let* b_sort = lift_at binfo#loc (CtorLookup.lookup cs done_label args) in
@@ -790,11 +804,8 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
          match Subst.of_lists params args with
          | Ok subst ->
            return (List.map (fun (l, s) -> (l, Subst.apply subst s)) ctors)
-         | Error msg ->
-           ElabM.fail
-             (Error.helper_error ~loc:pos
-                ~msg:(Format.asprintf
-                        "case: type-parameter instantiation: %s" msg))
+         | Error k ->
+           ElabM.fail (Error.structured ~loc:pos k)
        in
        (match decl_opt, type_decl_opt with
         | Some decl, _ ->
@@ -1093,7 +1104,7 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ty
   go pf1 pf2
 
 (* Refined pattern matching: RS; Gamma |- q : Pf -| Delta *)
-and rpat_match (_cs : _ Sig.t) (_gamma : Context.t) (pat : Var.t RPat.t) (pf : (CoreExpr.typed_ce, Var.t) ProofSort.t) : (RCtx.t, string) result =
+and rpat_match (_cs : _ Sig.t) (_gamma : Context.t) (pat : Var.t RPat.t) (pf : (CoreExpr.typed_ce, Var.t) ProofSort.t) : (RCtx.t, Error.kind) result =
   let ( let* ) = Result.bind in
   (* Per [doc/refinement-types.md] §Refined patterns the binders are
      added left-to-right: the first pattern element becomes the
@@ -1132,7 +1143,8 @@ and rpat_match (_cs : _ Sig.t) (_gamma : Context.t) (pat : Var.t RPat.t) (pf : (
          let delta = RCtx.extend_comp x inner_sort Effect.Spec delta in
          let delta = RCtx.extend_res w pred' ce_x Usage.Avail delta in
          go rest_elems rest_pf' delta
-       | _ -> Error "rpat_match: dep-res pred must have pred sort")
+       | _ ->
+         Error (Error.K_dep_res_not_pred { got = pred_sort }))
     | _ -> Ok delta (* mismatch — will be caught during type checking *)
   in
   let* result = go pat pf RCtx.empty in

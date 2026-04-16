@@ -97,8 +97,10 @@ let rec apply_ce sub e =
     CoreExpr.mk b CoreExpr.Fail
 
 let of_lists tvars sorts =
-  if List.length tvars <> List.length sorts then
-    Error "substitution: mismatched lengths"
+  let n = List.length tvars in
+  let m = List.length sorts in
+  if n <> m then
+    Error (Error.K_subst_arity_mismatch { expected = n; actual = m })
   else
     Ok (List.fold_right2 (fun a s acc -> TV (a, s) :: acc) tvars sorts [])
 

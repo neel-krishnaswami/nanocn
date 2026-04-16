@@ -12,6 +12,13 @@ type t
 
 (** {1 Structured errors} *)
 
+(** Why an [RCtx.merge] or [merge_n] failed. *)
+type branch_merge_failure =
+  | Mf_length_mismatch of { lhs : int; rhs : int }
+  | Mf_entry_kind_mismatch
+  | Mf_usage_incompatible of Var.t
+  | Mf_empty_list
+
 type kind =
   (* Lexer / parser *)
   | K_parse_error of { msg : string }
@@ -93,12 +100,31 @@ type kind =
         [construct] is ["sort"] for surface/core terms or
         ["proof sort"] for refined terms. *)
 
-  (* Submodule-originated failures *)
-  | K_helper_error of { msg : string }
-    (** A data-module helper ([CtorLookup], [Subst], [RCtx],
-        [rpat_match], etc.) returned an [Error msg] that the
-        typechecker hasn't yet lifted into its own structured
-        kind. [msg] is rendered verbatim. *)
+  (* Submodule-originated failures (structured). Each case
+     mirrors a specific failure mode in a helper module
+     ([Subst], [RCtx], [ProofSort], [CtorLookup], [rpat_match]).
+     The helper returns [(_, kind) result] and the caller lifts
+     it with [Error.at ~loc]. *)
+  | K_subst_arity_mismatch of { expected : int; actual : int }
+    (** [Subst.of_lists] received type-parameter and sort-argument
+        lists of different lengths. *)
+  | K_resource_not_found of { name : Var.t }
+    (** [RCtx.use_resource] tried to consume a resource with no
+        binding in the refined context. *)
+  | K_resource_already_used of { name : Var.t }
+    (** [RCtx.use_resource] tried to consume a resource whose
+        usage is already non-[Avail]. *)
+  | K_branch_merge_failure of { reason : branch_merge_failure }
+    (** [RCtx.merge] / [merge_n] / [lattice_merge] couldn't join
+        two refined contexts at a branch's output. *)
+  | K_dep_res_not_pred of { got : Sort.sort }
+    (** [ProofSort.bind] or [rpat_match] encountered a [DepRes]
+        whose predicate doesn't have [Pred _] sort. *)
+  | K_ctor_sig_inconsistent of { label : Label.t; where : string }
+    (** [CtorLookup] found [label] via [Sig]'s constructor index but
+        the decl's own constructor table disagreed — signature
+        invariant broken. [where] names the decl flavor
+        ("datasort", "datatype"). *)
 
   (* Kind well-formedness (kind_wf / type_guarded) *)
   | K_tvar_kind_mismatch of
@@ -233,11 +259,22 @@ val tuple_arity_mismatch :
   loc:SourcePos.t -> construct:string ->
   expected:int -> actual:int -> t
 
-val helper_error : loc:SourcePos.t -> msg:string -> t
-(** [helper_error ~loc ~msg] wraps a pre-formatted message from a
-    data-module helper (constructor lookup, resource context,
-    refined-pattern matching, ...). Use this when the underlying
-    submodule's error isn't yet structured. *)
+val subst_arity_mismatch :
+  loc:SourcePos.t -> expected:int -> actual:int -> t
+val resource_not_found : loc:SourcePos.t -> name:Var.t -> t
+val resource_already_used : loc:SourcePos.t -> name:Var.t -> t
+val branch_merge_failure :
+  loc:SourcePos.t -> reason:branch_merge_failure -> t
+val dep_res_not_pred : loc:SourcePos.t -> got:Sort.sort -> t
+val ctor_sig_inconsistent :
+  loc:SourcePos.t -> label:Label.t -> where:string -> t
+
+val at : loc:SourcePos.t -> ('a, kind) result -> ('a, t) result
+(** [at ~loc r] attaches [loc] to any [kind]-typed error in [r],
+    producing an [Error.t]-typed result. Used at boundaries between
+    submodule helpers ([Subst], [CtorLookup], [RCtx], [ProofSort])
+    which report failures as a bare [kind], and the typechecker,
+    which needs full [Error.t]s. *)
 
 val tvar_kind_mismatch :
   loc:SourcePos.t -> tvar:Tvar.t ->

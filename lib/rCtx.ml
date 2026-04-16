@@ -30,12 +30,12 @@ let lookup_log x ctx =
 
 let use_resource x ctx =
   let rec go acc = function
-    | [] -> Error (Format.asprintf "resource %a not found" Var.print x)
+    | [] -> Error (Error.K_resource_not_found { name = x })
     | Res { var; pred; value; usage } :: rest when Var.compare x var = 0 ->
       if Usage.is_avail usage then
         Ok (pred, value, List.rev acc @ [Res { var; pred; value; usage = Usage.Used }] @ rest)
       else
-        Error (Format.asprintf "resource %a already consumed" Var.print x)
+        Error (Error.K_resource_already_used { name = x })
     | entry :: rest -> go (entry :: acc) rest
   in
   go [] ctx
@@ -62,8 +62,10 @@ let zero ctx =
     ctx
 
 let merge ctx1 ctx2 =
-  if List.length ctx1 <> List.length ctx2 then
-    Error "merge: contexts have different lengths"
+  let n1 = List.length ctx1 and n2 = List.length ctx2 in
+  if n1 <> n2 then
+    Error (Error.K_branch_merge_failure
+             { reason = Error.Mf_length_mismatch { lhs = n1; rhs = n2 } })
   else
     let rec go acc l1 l2 =
       match l1, l2 with
@@ -77,15 +79,19 @@ let merge ctx1 ctx2 =
          | Some u ->
            go (Res { r1 with usage = u } :: acc) rest1 rest2
          | None ->
-           Error (Format.asprintf "merge: incompatible usage for %a" Var.print r1.var))
+           Error (Error.K_branch_merge_failure
+                    { reason = Error.Mf_usage_incompatible r1.var }))
       | _ ->
-        Error "merge: entry type mismatch"
+        Error (Error.K_branch_merge_failure
+                 { reason = Error.Mf_entry_kind_mismatch })
     in
     go [] ctx1 ctx2
 
 let lattice_merge ctx1 ctx2 =
-  if List.length ctx1 <> List.length ctx2 then
-    Error "lattice_merge: contexts have different lengths"
+  let n1 = List.length ctx1 and n2 = List.length ctx2 in
+  if n1 <> n2 then
+    Error (Error.K_branch_merge_failure
+             { reason = Error.Mf_length_mismatch { lhs = n1; rhs = n2 } })
   else
     let rec go acc l1 l2 =
       match l1, l2 with
@@ -98,7 +104,8 @@ let lattice_merge ctx1 ctx2 =
         let u = Usage.lattice_meet r1.usage r2.usage in
         go (Res { r1 with usage = u } :: acc) rest1 rest2
       | _ ->
-        Error "lattice_merge: entry type mismatch"
+        Error (Error.K_branch_merge_failure
+                 { reason = Error.Mf_entry_kind_mismatch })
     in
     go [] ctx1 ctx2
 
@@ -113,7 +120,7 @@ let usage_equal ctx1 ctx2 =
     ctx1 ctx2
 
 let merge_n = function
-  | [] -> Error "merge_n: empty list"
+  | [] -> Error (Error.K_branch_merge_failure { reason = Error.Mf_empty_list })
   | [ctx] -> Ok ctx
   | first :: rest ->
     List.fold_left (fun acc ctx ->

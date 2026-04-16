@@ -278,8 +278,8 @@ and check sig_ ctx ce sort eff0 =
           let eff0' = Effect.purify eff0 in
           let* e_inner' = check sig_ ctx e_inner ctor_sort eff0' in
           Ok (mk ctx pos sort eff0 (CoreExpr.Inject (l, e_inner')))
-        | Error msg ->
-          Error (Error.helper_error ~loc:pos ~msg))
+        | Error k ->
+          Error (Error.structured ~loc:pos k))
      | _ ->
        Error (Error.construct_sort_mismatch ~loc:pos
                 ~construct:"injection"
@@ -367,8 +367,8 @@ and check_case_branches sig_ ctx branches scrut_sort result_sort eff0 bind_eff p
            end : typed_info) in
            let* rest' = go rest in
            Ok ((l, x, body', branch_info) :: rest')
-         | Error msg ->
-           Error (Error.helper_error ~loc:pos ~msg))
+         | Error k ->
+           Error (Error.structured ~loc:pos k))
     in
     go branches
   | _ -> Error (Error.scrutinee_not_data ~loc:pos ~got:scrut_sort)

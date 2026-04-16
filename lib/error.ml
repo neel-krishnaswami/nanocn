@@ -1,3 +1,9 @@
+type branch_merge_failure =
+  | Mf_length_mismatch of { lhs : int; rhs : int }
+  | Mf_entry_kind_mismatch
+  | Mf_usage_incompatible of Var.t
+  | Mf_empty_list
+
 type kind =
   | K_parse_error of { msg : string }
   | K_duplicate_pat_var of { name : string }
@@ -42,7 +48,12 @@ type kind =
   | K_not_spec_type of { construct : string; got : Sort.sort }
   | K_spec_context_required of { construct : string }
   | K_cannot_synthesize of { construct : string }
-  | K_helper_error of { msg : string }
+  | K_subst_arity_mismatch of { expected : int; actual : int }
+  | K_resource_not_found of { name : Var.t }
+  | K_resource_already_used of { name : Var.t }
+  | K_branch_merge_failure of { reason : branch_merge_failure }
+  | K_dep_res_not_pred of { got : Sort.sort }
+  | K_ctor_sig_inconsistent of { label : Label.t; where : string }
   | K_tvar_kind_mismatch of
       { tvar : Tvar.t; got : Kind.t; expected : Kind.t }
   | K_dsort_arity_mismatch of
@@ -137,8 +148,26 @@ let tuple_arity_mismatch ~loc ~construct ~expected ~actual =
   structured ~loc
     (K_tuple_arity_mismatch { construct; expected; actual })
 
-let helper_error ~loc ~msg =
-  structured ~loc (K_helper_error { msg })
+let subst_arity_mismatch ~loc ~expected ~actual =
+  structured ~loc (K_subst_arity_mismatch { expected; actual })
+
+let resource_not_found ~loc ~name =
+  structured ~loc (K_resource_not_found { name })
+
+let resource_already_used ~loc ~name =
+  structured ~loc (K_resource_already_used { name })
+
+let branch_merge_failure ~loc ~reason =
+  structured ~loc (K_branch_merge_failure { reason })
+
+let dep_res_not_pred ~loc ~got =
+  structured ~loc (K_dep_res_not_pred { got })
+
+let ctor_sig_inconsistent ~loc ~label ~where =
+  structured ~loc (K_ctor_sig_inconsistent { label; where })
+
+let at ~loc r =
+  Result.map_error (structured ~loc) r
 
 let tvar_kind_mismatch ~loc ~tvar ~got ~expected =
   structured ~loc (K_tvar_kind_mismatch { tvar; got; expected })
@@ -320,8 +349,48 @@ let print_kind fmt = function
   | K_cannot_synthesize { construct } ->
     Format.fprintf fmt
       "  cannot synthesize %s; add a type annotation." construct
-  | K_helper_error { msg } ->
-    Format.fprintf fmt "  %s" msg
+  | K_subst_arity_mismatch { expected; actual } ->
+    Format.fprintf fmt
+      "  type-argument arity mismatch: expected %d, got %d"
+      expected actual
+  | K_resource_not_found { name } ->
+    Format.fprintf fmt "  resource %a is not in scope"
+      (print_emph Var.print) name
+  | K_resource_already_used { name } ->
+    Format.fprintf fmt "  resource %a has already been consumed"
+      (print_emph Var.print) name
+  | K_branch_merge_failure { reason } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt
+      "  cannot merge refined contexts across branches:";
+    Format.pp_print_cut fmt ();
+    (match reason with
+     | Mf_length_mismatch { lhs; rhs } ->
+       Format.fprintf fmt
+         "  branch contexts have different lengths (%d vs %d)." lhs rhs
+     | Mf_entry_kind_mismatch ->
+       Format.fprintf fmt
+         "  branches disagree on the kind of entry at some position \
+          (comp/log/res mismatch)."
+     | Mf_usage_incompatible name ->
+       Format.fprintf fmt
+         "  resource %a has incompatible usages across branches."
+         (print_emph Var.print) name
+     | Mf_empty_list ->
+       Format.fprintf fmt "  no branches to merge.");
+    Format.fprintf fmt "@]"
+  | K_dep_res_not_pred { got } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  a @[<hov 2>dep-res@] entry's predicate must have \
+                        sort @[<hov 2>Pred _@],";
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  but got sort %a." (print_emph Sort.print) got;
+    Format.fprintf fmt "@]"
+  | K_ctor_sig_inconsistent { label; where } ->
+    Format.fprintf fmt
+      "  constructor %a is indexed in the signature but missing from \
+       its %s declaration (internal inconsistency)."
+      (print_emph Label.print) label where
   | K_tvar_kind_mismatch { tvar; got; expected } ->
     Format.fprintf fmt "@[<v>";
     Format.fprintf fmt "  type variable %a has kind %a,"
@@ -435,7 +504,12 @@ let kind_header = function
   | K_not_spec_type _ -> "Type error: not a spec type"
   | K_spec_context_required _ -> "Type error: wrong effect context"
   | K_cannot_synthesize _ -> "Type error: missing annotation"
-  | K_helper_error _ -> "Type error"
+  | K_subst_arity_mismatch _ -> "Type error: arity mismatch"
+  | K_resource_not_found _ -> "Type error: unknown resource"
+  | K_resource_already_used _ -> "Type error: resource reuse"
+  | K_branch_merge_failure _ -> "Type error: branch merge failure"
+  | K_dep_res_not_pred _ -> "Type error: wrong sort shape"
+  | K_ctor_sig_inconsistent _ -> "Internal error: signature inconsistency"
   | K_tvar_kind_mismatch _ -> "Type error: kind mismatch"
   | K_dsort_arity_mismatch _ -> "Type error: sort arity mismatch"
   | K_pred_misuse _ -> "Type error: pred in wrong context"

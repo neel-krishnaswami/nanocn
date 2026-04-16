@@ -22,9 +22,13 @@ val lookup_comp : Var.t -> t -> (Sort.sort * Effect.t) option
 val lookup_log : Var.t -> t -> CoreExpr.typed_ce option
 (** [lookup_log x ctx] returns the proposition for logical binding [x]. *)
 
-val use_resource : Var.t -> t -> (CoreExpr.typed_ce * CoreExpr.typed_ce * t, string) result
+val use_resource :
+  Var.t -> t ->
+  (CoreExpr.typed_ce * CoreExpr.typed_ce * t, Error.kind) result
 (** [use_resource x ctx] checks [x] is available, sets it to used,
-    and returns [(pred, value, ctx')]. *)
+    and returns [(pred, value, ctx')]. Fails with
+    [Error.K_resource_not_found] if [x] has no binding, or
+    [Error.K_resource_already_used] if it does but is non-[Avail]. *)
 
 val erase : t -> Context.t
 (** [erase Δ] drops log/res entries, keeping only comp entries. *)
@@ -35,15 +39,20 @@ val affinize : t -> t
 val zero : t -> bool
 (** [zero Δ] is true when all resources are consumed or optional. *)
 
-val merge : t -> t -> (t, string) result
-(** [merge Δ₁ Δ₂] pointwise merges usage flags. *)
+val merge : t -> t -> (t, Error.kind) result
+(** [merge Δ₁ Δ₂] pointwise merges usage flags. Fails with a
+    [Error.K_branch_merge_failure] whose [reason] describes the
+    specific obstruction (length mismatch, entry-kind mismatch,
+    or incompatible usage). *)
 
-val merge_n : t list -> (t, string) result
-(** [merge_n [Δ₁; ...; Δₙ]] folds [merge] left-to-right. *)
+val merge_n : t list -> (t, Error.kind) result
+(** [merge_n [Δ₁; ...; Δₙ]] folds [merge] left-to-right. Fails on
+    an empty input or on the first [merge] failure. *)
 
-val lattice_merge : t -> t -> (t, string) result
+val lattice_merge : t -> t -> (t, Error.kind) result
 (** [lattice_merge Δ₁ Δ₂] merges using [Usage.lattice_meet] (total order
-    [Used ≤ Opt ≤ Avail]). Never fails due to usage incompatibility. *)
+    [Used ≤ Opt ≤ Avail]). Cannot fail due to usage; only on length
+    or entry-kind mismatches. *)
 
 val usage_equal : t -> t -> bool
 (** [usage_equal Δ₁ Δ₂] checks that the two contexts have the same

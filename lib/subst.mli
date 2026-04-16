@@ -17,8 +17,11 @@ val apply : t -> Sort.sort -> Sort.sort
 val apply_ce : t -> CoreExpr.typed_ce -> CoreExpr.typed_ce
 (** [apply_ce gamma ce] is [[gamma]]ce. *)
 
-val of_lists : Tvar.t list -> Sort.sort list -> (t, string) result
-(** [of_lists tvars sorts] builds a type-variable substitution. *)
+val of_lists :
+  Tvar.t list -> Sort.sort list -> (t, Error.kind) result
+(** [of_lists tvars sorts] builds a type-variable substitution.
+    Fails with [Error.K_subst_arity_mismatch] if the two lists
+    differ in length. *)
 
 val id : Context.t -> t
 (** [id gamma] is the identity substitution on [gamma]. *)
