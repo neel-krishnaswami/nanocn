@@ -7,13 +7,14 @@
 
 open ElabM
 
-(* Phase 1 transitional shims: [fail "..."] / [fail (Format.asprintf …)]
-   and [lift (<string-typed result>)] call sites throughout this module
-   pre-date the migration to structured errors. The shadowing below
-   routes them through [TypeError.legacy] with no source position.
-   Later phases replace these call sites with direct [ElabM.fail] +
-   a structured [TypeError] constructor, and these shims can be removed. *)
+(* Transitional shims for refinement errors. The ones that still use
+   [fail msg] carry a [Legacy] error with no source position; where a
+   position is in scope we use [fail_at pos msg] which attaches one
+   (so the source-excerpt printer can localise the report). A few
+   user-facing sites have been migrated to structured kinds (see
+   [TypeError]) — notably resource-leak and iter-impure. *)
 let fail msg = legacy_fail None msg
+let fail_at pos msg = legacy_fail (Some pos) msg
 let lift (r : ('a, string) result) : 'a ElabM.t =
   ElabM.lift (Result.map_error (fun msg -> TypeError.legacy None msg) r)
 
@@ -449,7 +450,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
        let checked = RefinedExpr.mk_rpf binfo (RefinedExpr.RMakeRet checked_lpf') in
        return (checked, delta', ct)
      | _ ->
-       fail (Format.asprintf
+       fail_at pos (Format.asprintf
                "make-ret: expected target predicate of shape `return _`, got `%a`"
                CoreExpr.print ce1))
 
@@ -469,11 +470,11 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
           let checked = RefinedExpr.mk_rpf binfo (RefinedExpr.RMakeTake checked_crt) in
           return (checked, delta', ct)
         | _ ->
-          fail (Format.asprintf
+          fail_at pos (Format.asprintf
                   "make-take: take's bound expression must have sort `Pred _`, got `%a`"
                   Sort.print pred_sort))
      | _ ->
-       fail (Format.asprintf
+       fail_at pos (Format.asprintf
                "make-take: expected target predicate of shape `take _ = _; _`, got `%a`"
                CoreExpr.print ce1))
 
@@ -550,7 +551,8 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
   | RefinedExpr.CIter (se_pred, pat, crt1, crt2) ->
     (* iter requires impure effect *)
     if not (Effect.sub Effect.Impure eff) then
-      fail "iter: requires impure effect"
+      ElabM.fail
+        (TypeError.iter_requires_impure ~loc:binfo#loc ~actual:eff)
     else
     (* Elaborate predicate at spec effect *)
     let* (ce_pred, pred_sort) = elab_and_synth rs delta Effect.Spec se_pred in
@@ -660,7 +662,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           | _ -> None)
           (RCtx.entries delta_pat_out)
       in
-      fail (Format.asprintf
+      fail_at pos (Format.asprintf
               "@[<v>let: pattern resources not fully consumed.@ \
                Unconsumed leftovers:@ %a@]"
               (Format.pp_print_list
@@ -700,7 +702,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let n = RCtx.length delta' in
     let (delta_out, delta_x) = RCtx.split n delta'' in
     if not (RCtx.zero delta_x) then
-      fail "let res: resource not fully consumed before going out of scope"
+      ElabM.fail (TypeError.resource_leak ~loc:pos ~name:(Some x))
     else
       let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CLetRes (x, checked_rpf, checked_body)) in
       return (checked, delta_out, Constraint.conj pos ct1 ct2)
@@ -747,7 +749,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
          | Ok subst ->
            return (List.map (fun (l, s) -> (l, Subst.apply subst s)) ctors)
          | Error msg ->
-           fail (Format.asprintf "case: type-parameter instantiation: %s" msg)
+           fail_at pos (Format.asprintf "case: type-parameter instantiation: %s" msg)
        in
        (match decl_opt, type_decl_opt with
         | Some decl, _ ->
@@ -761,8 +763,8 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CCase (_y, ce, checked_branches)) in
           return (checked, delta', ct)
         | None, None ->
-          fail (Format.asprintf "case: type %a not found" Dsort.print dsort_name))
-     | _ -> fail "case: scrutinee must have datasort type")
+          fail_at pos (Format.asprintf "case: type %a not found" Dsort.print dsort_name))
+     | _ -> fail_at pos "case: scrutinee must have datasort type")
 
   | RefinedExpr.CTuple spine ->
     let* (checked_spine, delta', ct) = _check_tuple rs delta eff spine pf in

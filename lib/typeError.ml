@@ -28,6 +28,8 @@ type kind =
   | K_not_spec_type of { construct : string; got : Sort.sort }
   | K_spec_context_required of { construct : string }
   | K_non_exhaustive of { witness : PatWitness.t }
+  | K_resource_leak of { name : Var.t option }
+  | K_iter_requires_impure of { actual : Effect.t }
 
 type t =
   | Legacy of SourcePos.t option * string
@@ -74,6 +76,12 @@ let spec_context_required ~loc ~construct =
 
 let non_exhaustive ~loc ~witness =
   structured ~loc (K_non_exhaustive { witness })
+
+let resource_leak ~loc ~name =
+  structured ~loc (K_resource_leak { name })
+
+let iter_requires_impure ~loc ~actual =
+  structured ~loc (K_iter_requires_impure { actual })
 
 let loc = function
   | Legacy (pos, _) -> pos
@@ -182,6 +190,24 @@ let print_kind fmt = function
     Format.pp_print_cut fmt ();
     Format.fprintf fmt "  missing case: @[%a@]" PatWitness.print witness;
     Format.fprintf fmt "@]"
+  | K_resource_leak { name } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  a resource binding must be consumed before going out of scope.";
+    Format.pp_print_cut fmt ();
+    (match name with
+     | Some v ->
+       Format.fprintf fmt "  unconsumed resource: %a"
+         (print_emph Var.print) v
+     | None ->
+       Format.fprintf fmt "  (unconsumed resource in this block)");
+    Format.fprintf fmt "@]"
+  | K_iter_requires_impure { actual } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  iter requires an @[<hov 2>[impure]@] ambient effect,";
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  but the current effect is %a."
+      (print_emph Effect.print) actual;
+    Format.fprintf fmt "@]"
 
 let kind_header = function
   | K_sort_mismatch _ -> "Type error: sort mismatch"
@@ -197,6 +223,8 @@ let kind_header = function
   | K_not_spec_type _ -> "Type error: not a spec type"
   | K_spec_context_required _ -> "Type error: wrong effect context"
   | K_non_exhaustive _ -> "Type error: non-exhaustive pattern match"
+  | K_resource_leak _ -> "Type error: unconsumed resource"
+  | K_iter_requires_impure _ -> "Type error: wrong effect context"
 
 let rec to_string e =
   print_to_buffer (fun fmt -> print (SourceExcerpt.create ()) fmt e)

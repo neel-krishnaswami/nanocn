@@ -71,6 +71,15 @@ type kind =
 
   (* Phase 4 — pattern coverage *)
   | K_non_exhaustive of { witness : PatWitness.t }
+
+  (* Phase 5 — refined checker *)
+  | K_resource_leak of { name : Var.t option }
+    (** A resource binding fell out of scope without being consumed
+        (must be a linear consumption). [name] is the resource
+        variable, when the checker can identify it. *)
+  | K_iter_requires_impure of { actual : Effect.t }
+    (** A refined [iter] was encountered at an effect that doesn't
+        subsume [impure]. *)
 (** The kind of structured failure. *)
 
 val structured : loc:SourcePos.t -> kind -> t
@@ -122,6 +131,18 @@ val non_exhaustive :
 (** [non_exhaustive ~loc ~witness] is raised when a pattern match
     misses a case. [witness] is an example of a value shape that
     would not be matched. *)
+
+val resource_leak :
+  loc:SourcePos.t -> name:Var.t option -> t
+(** [resource_leak ~loc ~name] is raised when a resource binding
+    (from [let res] / rfun domain / iter binder) is discarded
+    without a linear consumer. *)
+
+val iter_requires_impure :
+  loc:SourcePos.t -> actual:Effect.t -> t
+(** [iter_requires_impure ~loc ~actual] reports that a refined
+    [iter] was used where the ambient effect does not allow
+    [impure]. *)
 
 (** {1 Accessors and printers} *)
 
