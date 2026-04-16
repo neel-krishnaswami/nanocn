@@ -30,6 +30,7 @@ type kind =
   | K_non_exhaustive of { witness : PatWitness.t }
   | K_resource_leak of { name : Var.t option }
   | K_iter_requires_impure of { actual : Effect.t }
+  | K_internal_invariant of { rule : string; invariant : string }
 
 type t =
   | Legacy of SourcePos.t option * string
@@ -82,6 +83,9 @@ let resource_leak ~loc ~name =
 
 let iter_requires_impure ~loc ~actual =
   structured ~loc (K_iter_requires_impure { actual })
+
+let internal_invariant ~loc ~rule ~invariant =
+  structured ~loc (K_internal_invariant { rule; invariant })
 
 let loc = function
   | Legacy (pos, _) -> pos
@@ -208,6 +212,13 @@ let print_kind fmt = function
     Format.fprintf fmt "  but the current effect is %a."
       (print_emph Effect.print) actual;
     Format.fprintf fmt "@]"
+  | K_internal_invariant { rule; invariant } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  internal invariant failed in rule %a:"
+      (print_emph Format.pp_print_string) rule;
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  %s" invariant;
+    Format.fprintf fmt "@]"
 
 let kind_header = function
   | K_sort_mismatch _ -> "Type error: sort mismatch"
@@ -225,6 +236,7 @@ let kind_header = function
   | K_non_exhaustive _ -> "Type error: non-exhaustive pattern match"
   | K_resource_leak _ -> "Type error: unconsumed resource"
   | K_iter_requires_impure _ -> "Type error: wrong effect context"
+  | K_internal_invariant _ -> "Internal error: invariant failed"
 
 let rec to_string e =
   print_to_buffer (fun fmt -> print (SourceExcerpt.create ()) fmt e)

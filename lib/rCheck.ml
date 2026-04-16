@@ -7,14 +7,26 @@
 
 open ElabM
 
-(* Transitional shims for refinement errors. The ones that still use
-   [fail msg] carry a [Legacy] error with no source position; where a
-   position is in scope we use [fail_at pos msg] which attaches one
-   (so the source-excerpt printer can localise the report). A few
-   user-facing sites have been migrated to structured kinds (see
-   [TypeError]) — notably resource-leak and iter-impure. *)
-let fail msg = legacy_fail None msg
+(* Error helpers for this module.
+
+   - [fail_at pos msg]: user-visible mistake that hasn't yet been
+     assigned a dedicated structured kind. Emits a positional
+     [TypeError.Legacy].
+   - [invariant_at ~rule pos msg]: an "impossible-in-well-formed-code"
+     check fired, typically because an earlier elaboration pass was
+     supposed to rule this shape out. Emits a
+     [TypeError.K_internal_invariant] carrying the rule identifier
+     and the specific failed check.
+   - [invariant ~rule msg]: same, but for sites with no source
+     position in scope (uses [SourcePos.dummy]).
+   - [lift]: forwards a string-typed [Result] through [ElabM.lift],
+     wrapping the error in [TypeError.Legacy]. *)
 let fail_at pos msg = legacy_fail (Some pos) msg
+let invariant_at pos ~rule msg =
+  ElabM.fail (TypeError.internal_invariant ~loc:pos ~rule ~invariant:msg)
+let invariant ~rule msg =
+  ElabM.fail
+    (TypeError.internal_invariant ~loc:SourcePos.dummy ~rule ~invariant:msg)
 let lift (r : ('a, string) result) : 'a ElabM.t =
   ElabM.lift (Result.map_error (fun msg -> TypeError.legacy None msg) r)
 
@@ -56,13 +68,18 @@ let elab_pf_entry (rs : RSig.t) (gamma : Context.t) (_eff : Effect.t) (entry : (
      | Sort.Pred inner_sort ->
        let* ce_value = elab_se_check rs gamma value inner_sort Effect.Spec in
        return (ProofSort.Res { pred = ce_pred; value = ce_value })
-     | _ -> fail (Format.asprintf "resource predicate must have pred sort, got %a" Sort.print pred_sort))
+     | _ ->
+       invariant ~rule:"elab_pf_entry:Res"
+         (Format.asprintf "resource predicate must have pred sort, got %a"
+            Sort.print pred_sort))
   | ProofSort.DepRes { bound_var; pred } ->
     let* (ce_pred, pred_sort) = elab_se rs gamma Effect.Spec pred in
     (match Sort.shape pred_sort with
      | Sort.Pred _inner_sort ->
        return (ProofSort.DepRes { bound_var; pred = ce_pred })
-     | _ -> fail "dep-res: must have pred sort")
+     | _ ->
+       invariant ~rule:"elab_pf_entry:DepRes"
+         "dep-res binder's predicate must have pred sort")
 
 let elab_pf (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (pf : (SurfExpr.se, Var.t) ProofSort.t) : (CoreExpr.typed_ce, Var.t) ProofSort.t ElabM.t =
   let rec go gamma = function
@@ -76,7 +93,10 @@ let elab_pf (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (pf : (SurfExpr.s
           let pred_sort = (CoreExpr.info pred)#sort in
           (match Sort.shape pred_sort with
            | Sort.Pred inner -> return (Context.extend bound_var inner Effect.Spec gamma)
-           | _ -> fail "dep-res: expected pred sort in elab_pf")
+           | _ ->
+             invariant ~rule:"elab_pf:DepRes"
+               "DepRes binder's predicate must have pred sort \
+                (should have been guaranteed by elab_pf_entry)")
       in
       let* rest' = go gamma' rest in
       return (entry' :: rest')
@@ -332,12 +352,15 @@ let assert_delta_below delta delta' =
   else
     match RCtx.lattice_merge delta delta' with
     | Error msg ->
-      fail (Format.asprintf "delta invariant: %s" msg)
+      invariant ~rule:"assert_delta_below"
+        (Format.asprintf "delta lattice merge failed: %s" msg)
     | Ok merged ->
       if RCtx.usage_equal merged delta' then return ()
-      else fail (Format.asprintf
-        "delta invariant violated: output context not below input@.  input:  %a@.  output: %a"
-        RCtx.print delta RCtx.print delta')
+      else
+        invariant ~rule:"assert_delta_below"
+          (Format.asprintf
+             "output context not below input@.  input:  %a@.  output: %a"
+             RCtx.print delta RCtx.print delta')
 
 (* ---------- checked tree type aliases ---------- *)
 
@@ -358,10 +381,13 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
      | Some ce ->
        let checked = RefinedExpr.mk_lpf binfo (RefinedExpr.LVar x) in
        return (checked, ce, delta, Constraint.top pos)
-     | None -> fail (Format.asprintf "logical variable %a not found" Var.print x))
+     | None ->
+       fail_at pos
+         (Format.asprintf "logical variable %a not found" Var.print x))
 
   | RefinedExpr.LAuto ->
-    fail "auto cannot synthesize; use in checking mode"
+    invariant_at pos ~rule:"synth_lpf:LAuto"
+      "auto cannot synthesize; use in checking mode"
 
   | RefinedExpr.LUnfold (f, se_arg) ->
     let* (ce_arg, _sort) = elab_and_synth rs delta Effect.Spec se_arg in
@@ -369,14 +395,17 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
     (match Sig.lookup_fundef f cs with
      | Some (param, _arg_sort, ret_sort, eff, body) ->
        if not (Effect.sub eff Effect.Spec) then
-         fail (Format.asprintf "unfold: function %s must be spec" f)
+         fail_at pos
+           (Format.asprintf "unfold: function %s must be spec" f)
        else
          let call_result = CoreExpr.mk (mk_info ret_sort) (CoreExpr.Call (f, ce_arg)) in
          let subst_body = Subst.apply_ce (Subst.extend_var param ce_arg Subst.empty) body in
          let prop = mk_eq call_result subst_body in
          let checked = RefinedExpr.mk_lpf binfo (RefinedExpr.LUnfold (f, ce_arg)) in
          return (checked, prop, delta, Constraint.top pos)
-     | None -> fail (Format.asprintf "unfold: function %s not found or not a FunDef" f))
+     | None ->
+       fail_at pos
+         (Format.asprintf "unfold: function %s not found or not a FunDef" f))
 
   | RefinedExpr.LAnnot (lpf', se) ->
     let gamma = RCtx.erase delta in
@@ -392,9 +421,10 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
        let checked = RefinedExpr.mk_lpf binfo (RefinedExpr.LOpenRet checked_rpf) in
        return (checked, mk_eq ce1 ce_val, delta', ct)
      | _ ->
-       fail (Format.asprintf
-               "open-ret: expected predicate of shape `return _`, got `%a`"
-               CoreExpr.print ce_pred))
+       fail_at pos
+         (Format.asprintf
+            "open-ret: expected predicate of shape `return _`, got `%a`"
+            CoreExpr.print ce_pred))
 
 (* Logical fact checking: RS; Delta |- lpf <= ce -| Delta' ~> Ct *)
 and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce : CoreExpr.typed_ce) : (checked_lpf * RCtx.t * Constraint.typed_ct) ElabM.t =
@@ -436,7 +466,8 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (c
     return (checked, ce1, ce2, delta', ct)
 
   | RefinedExpr.RMakeRet _ | RefinedExpr.RMakeTake _ ->
-    fail "make-ret/make-take cannot synthesize; use in checking mode"
+    invariant_at pos ~rule:"synth_rpf:RMake*"
+      "make-ret/make-take cannot synthesize; must be used in checking mode"
 
 (* Resource fact checking: RS; Delta |- rpf <= ce @ ce' -| Delta' ~> Ct *)
 and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1 : CoreExpr.typed_ce) (ce2 : CoreExpr.typed_ce) : (checked_rpf * RCtx.t * Constraint.typed_ct) ElabM.t =
@@ -505,20 +536,24 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     (match rf_opt with
      | Some rf ->
        if not (Effect.sub rf.eff eff) then
-         fail (Format.asprintf "call %s: effect %a not allowed at %a"
-           f Effect.print rf.eff Effect.print eff)
+         ElabM.fail
+           (TypeError.fun_effect_mismatch
+              ~loc:binfo#loc ~name:f ~declared:rf.eff ~required:eff)
        else
          let eff'' = Effect.purify eff in
          let* (checked_spine, pf, delta', ct) = check_spine rs delta eff'' spine rf in
          let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CCall (f, checked_spine)) in
          return (checked, pf, delta', ct)
-     | None -> fail (Format.asprintf "function %s not found" f))
+     | None ->
+       fail_at binfo#loc
+         (Format.asprintf "function %s not found" f))
 
   | RefinedExpr.CPrimApp (prim, spine) ->
     let* rf = rprim_signature prim in
     if not (Effect.sub rf.eff eff) then
-      fail (Format.asprintf "prim %a effect %a not allowed at %a"
-        Prim.print prim Effect.print rf.eff Effect.print eff)
+      ElabM.fail
+        (TypeError.prim_effect_mismatch
+           ~loc:binfo#loc ~prim ~declared:rf.eff ~required:eff)
     else
       let eff'' = Effect.purify eff in
       let* (checked_spine, pf, delta', ct) = check_spine rs delta eff'' spine rf in
@@ -540,13 +575,15 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           let checked = RefinedExpr.mk_crt binfo (RefinedExpr.COpenTake checked_rpf) in
           return (checked, pf, delta', ct)
         | _ ->
-          fail (Format.asprintf
-                  "open-take: take's bound expression must have sort `Pred _`, got `%a`"
-                  Sort.print pred_sort))
+          invariant_at binfo#loc ~rule:"synth_crt_impl:COpenTake"
+            (Format.asprintf
+               "take's bound expression must have sort `Pred _`, got `%a`"
+               Sort.print pred_sort))
      | _ ->
-       fail (Format.asprintf
-               "open-take: expected predicate of shape `take _ = _; _`, got `%a`"
-               CoreExpr.print ce_pred))
+       fail_at binfo#loc
+         (Format.asprintf
+            "open-take: expected predicate of shape `take _ = _; _`, got `%a`"
+            CoreExpr.print ce_pred))
 
   | RefinedExpr.CIter (se_pred, pat, crt1, crt2) ->
     (* iter requires impure effect *)
@@ -594,7 +631,8 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           let n = RCtx.length delta' in
           let (_delta_base, delta_pat_out) = RCtx.split n delta_out in
           if not (RCtx.zero delta_pat_out) then
-            fail "iter: loop body did not consume pattern resources"
+            ElabM.fail
+              (TypeError.resource_leak ~loc:binfo#loc ~name:None)
           else
           (* Build result proof sort: z:B [pure], y:ce @ Done(z) [res], pfnil *)
           let* zr_var = fresh SourcePos.dummy in
@@ -612,16 +650,25 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
              let result_ct = Constraint.conj pos ct (Constraint.forall_ pos x_pat a_sort ct') in
              let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CIter (ce_pred, pat, checked_crt1, checked_crt2)) in
              return (checked, result_pf, delta', result_ct)
-           | _ -> fail "iter: pattern must start with a single variable")
-        | _ -> fail "iter: predicate argument must be a datasort application")
-     | _ -> fail "iter: expression must have pred sort")
+           | _ ->
+             invariant_at binfo#loc ~rule:"synth_crt_impl:CIter"
+               "iter pattern must start with a single variable binder")
+        | _ ->
+          invariant_at binfo#loc ~rule:"synth_crt_impl:CIter"
+            "iter predicate argument must be a datasort application")
+     | _ ->
+       invariant_at binfo#loc ~rule:"synth_crt_impl:CIter"
+         "iter expression must have pred sort")
 
   | RefinedExpr.CTuple spine ->
     let* (checked_spine, delta', ct) = _check_tuple rs delta eff spine [] in
     let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CTuple checked_spine) in
     return (checked, [], delta', ct)
 
-  | _ -> fail "cannot synthesize sort for this refined term"
+  | _ ->
+    fail_at binfo#loc
+      "cannot synthesize a proof sort for this refined term; \
+       provide an annotation `: <pf_sort>`."
 
 (* Core refined term checking: RS; Delta |-[eff] crt <= Pf -| Delta' ~> Ct *)
 and check_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : (CoreExpr.typed_ce, Var.t) ProofSort.t) : (checked_crt * RCtx.t * Constraint.typed_ct) ElabM.t =
@@ -799,13 +846,16 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
          | Sort.Record sorts when List.length sorts = List.length xs ->
            return sorts
          | Sort.Record sorts ->
-           fail (Format.asprintf
-                   "let core: pattern binds %d variable(s) but expression has sort %a (%d component(s))"
-                   (List.length xs) Sort.print sort (List.length sorts))
+           fail_at pos
+             (Format.asprintf
+                "let core: pattern binds %d variable(s) but expression \
+                 has sort %a (%d component(s))"
+                (List.length xs) Sort.print sort (List.length sorts))
          | _ ->
-           fail (Format.asprintf
-                   "let core: tuple pattern requires record sort, got %a"
-                   Sort.print sort))
+           fail_at pos
+             (Format.asprintf
+                "let core: tuple pattern requires record sort, got %a"
+                Sort.print sort))
     in
     (* Build the equation [x = ce] (singleton) or
        [(x1, ..., xn) = ce] (tuple) as the proposition bound to [a]. *)
@@ -876,7 +926,9 @@ and check_spine_inner rs delta eff spine domain codomain =
     return (checked, result_pf, delta', ct)
 
   | RefinedExpr.SCore (_, _), (ProofSort.Comp { eff = Effect.Impure; _ } :: _) ->
-    fail "spine: impure comp entry not allowed in proof sort"
+    invariant_at pos ~rule:"check_spine_inner:SCore"
+      "proof-sort entry has impure effect; only pure or spec entries \
+       are allowed in a proof sort"
 
   | RefinedExpr.SLog (lpf, rest), (ProofSort.Log { prop; _ } :: pf_rest) ->
     let* (checked_lpf, delta', ct) = check_lpf rs delta lpf prop in
@@ -899,7 +951,10 @@ and check_spine_inner rs delta eff spine domain codomain =
     let checked = RefinedExpr.mk_spine binfo (RefinedExpr.SRes (checked_rpf, checked_rest)) in
     return (checked, result_pf, delta'', Constraint.conj pos (Constraint.conj pos ct eq_ct) ct')
 
-  | _ -> fail "spine: argument/parameter mismatch"
+  | _ ->
+    invariant_at pos ~rule:"check_spine_inner"
+      "call-spine argument shape does not match the corresponding \
+       proof-sort parameter (core/log/res tag disagrees)"
 
 (* Tuple checking: RS; Delta |-[eff] rsp : Pf -| Delta' ~> Ct *)
 and _check_tuple rs delta eff spine pf =
@@ -939,7 +994,10 @@ and _check_tuple rs delta eff spine pf =
     let checked = RefinedExpr.mk_spine binfo (RefinedExpr.SRes (checked_rpf, checked_rest)) in
     return (checked, delta'', Constraint.conj pos (Constraint.conj pos ct eq_ct) ct')
 
-  | _ -> fail "tuple: argument/entry mismatch"
+  | _ ->
+    invariant_at pos ~rule:"_check_tuple"
+      "tuple argument shape does not match the corresponding \
+       proof-sort entry (core/log/res tag disagrees)"
 
 (* Case branch checking *)
 and check_case_branches pos rs delta eff ce ce_sort ctors branches pf =
@@ -959,7 +1017,9 @@ and check_branches_list pos rs delta eff ce _ce_sort ctors branches pf =
     | (label, ctor_sort) :: rest_ctors ->
       let branch = List.find_opt (fun (l, _, _) -> Label.compare l label = 0) branches in
       (match branch with
-       | None -> fail (Format.asprintf "case: missing branch for %a" Label.print label)
+       | None ->
+         let witness = PatWitness.Ctor (label, PatWitness.Wild) in
+         ElabM.fail (TypeError.non_exhaustive ~loc:pos ~witness)
        | Some (_, x, body) ->
          let ctor_sort' = ctor_sort in
          let* x_log = fresh SourcePos.dummy in
@@ -989,7 +1049,10 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ty
         ElabM.fail
           (TypeError.sort_mismatch ~loc:pos ~expected:sort ~actual:sort2)
       else if Effect.compare eff eff2 <> 0 then
-        fail "pf_eq: effect mismatch"
+        invariant_at pos ~rule:"pf_eq:Comp"
+          (Format.asprintf
+             "proof-sort Comp entries disagree on effect: %a vs %a"
+             Effect.print eff Effect.print eff2)
       else
         let rest2' = ProofSort.subst y (ce_of_var x sort) rest2 in
         let* ct = go rest1 rest2' in
@@ -1019,9 +1082,14 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ty
          let* ct = go rest1' rest2' in
          return (Constraint.conj pos (Constraint.atom pos (mk_eq ce1 ce2))
                                      (Constraint.forall_ pos z inner_sort ct))
-       | _ -> fail "pf_eq: dep-res pred must have pred sort")
+       | _ ->
+         invariant_at pos ~rule:"pf_eq:DepRes"
+           "DepRes binder's predicate must have pred sort")
 
-    | _ -> fail "pf_eq: proof sort structure mismatch"
+    | _ ->
+      invariant_at pos ~rule:"pf_eq"
+        "proof sort structure mismatch — expected two sorts of the \
+         same shape with corresponding entries of the same kind"
   in
   go pf1 pf2
 

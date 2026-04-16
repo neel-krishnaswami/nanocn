@@ -80,6 +80,14 @@ type kind =
   | K_iter_requires_impure of { actual : Effect.t }
     (** A refined [iter] was encountered at an effect that doesn't
         subsume [impure]. *)
+  | K_internal_invariant of { rule : string; invariant : string }
+    (** A check in the refined checker's internal logic failed —
+        typically an "impossible" shape at a match arm, a
+        previously-validated condition that no longer holds, or an
+        early synthesise/check restriction. Not user-facing in
+        normal use; reported with the [rule] (function or match arm
+        that raised the check) and a short [invariant] description
+        so that debugging can start from the exact failure point. *)
 (** The kind of structured failure. *)
 
 val structured : loc:SourcePos.t -> kind -> t
@@ -143,6 +151,13 @@ val iter_requires_impure :
 (** [iter_requires_impure ~loc ~actual] reports that a refined
     [iter] was used where the ambient effect does not allow
     [impure]. *)
+
+val internal_invariant :
+  loc:SourcePos.t -> rule:string -> invariant:string -> t
+(** [internal_invariant ~loc ~rule ~invariant] records that an
+    internal consistency check failed. [rule] names the function or
+    rule-arm that raised the check; [invariant] describes the
+    specific check that failed. *)
 
 (** {1 Accessors and printers} *)
 
