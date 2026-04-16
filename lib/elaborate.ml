@@ -32,13 +32,23 @@ let lift_sort (s : Sort.sort) : typed_info Sort.t =
 
 let mk_sort pos s = Sort.mk (object method loc = pos end) s
 
-(* Transitional helpers — each emits a [TypeError.legacy] carrying the
-   position and the pre-formatted message. Later phases replace callers
-   with direct [ElabM.fail] + a structured [TypeError] constructor. *)
+(* Error helpers for this module.
+
+   - [fail_at pos msg] / [fail_at_f pos fmt ...]: user-visible
+     mistake that hasn't yet been assigned a dedicated structured
+     kind. Emits a positional [TypeError.Legacy].
+   - [invariant_at pos ~rule msg]: an
+     "impossible-in-well-formed-code" check fired (e.g. pattern
+     matrix invariants that an earlier elaboration pass was meant to
+     rule out). Emits [TypeError.K_internal_invariant].
+   - [invariant_at pos ~rule msg]: user-facing invariant failure at [pos]. *)
 let fail_at pos msg = ElabM.legacy_fail (Some pos) msg
 
 let fail_at_f pos fmt =
   Format.kasprintf (fun msg -> fail_at pos msg) fmt
+
+let invariant_at pos ~rule msg =
+  ElabM.fail (TypeError.internal_invariant ~loc:pos ~rule ~invariant:msg)
 
 let sort_equal a b = Sort.compare a b = 0
 
@@ -185,7 +195,9 @@ let rec expand_tup sorts y eff_b branches =
       (match Pat.shape p with
        | Pat.Tuple pats ->
          if List.compare_lengths pats sorts <> 0 then
-           ElabM.legacy_fail None "tuple pattern length mismatch"
+           invariant_at (Pat.info p)#loc ~rule:"expand_tup"
+             "tuple pattern's arity does not match the sort's record \
+              arity (should have been checked by coverage dispatch)"
          else
            let new_bindings = List.combine pats sorts in
            let* rest' = expand_tup sorts y eff_b rest in
@@ -465,7 +477,13 @@ and check sig_ ctx se sort eff0 =
       fail_at pos "iter requires impure context"
     else
     let* (ce1, init_sort) = synth sig_ ctx Effect.Pure se1 in
-    let step_dsort = match Dsort.of_string "Step" with Ok d -> d | Error _ -> failwith "impossible" in
+    let* step_dsort = match Dsort.of_string "Step" with
+      | Ok d -> ElabM.return d
+      | Error _ ->
+        invariant_at pos ~rule:"iter"
+          "Dsort.of_string \"Step\" failed — \"Step\" must always parse as a \
+           well-formed sort name"
+    in
     let iter_sort = mk_sort pos (Sort.App (step_dsort, [init_sort; sort])) in
     let* y = ElabM.fresh (Pat.info pat)#loc in
     let bind_eff = Effect.purify Effect.Impure in
@@ -506,7 +524,15 @@ and check_list sig_ ctx ses sorts eff0 =
     let* ce = check sig_ ctx se s eff0 in
     let* rest = check_list sig_ ctx ses' ss' eff0 in
     ElabM.return (ce :: rest)
-  | _ -> ElabM.legacy_fail None "tuple length mismatch"
+  | ses, sorts ->
+    let pos = match ses, sorts with
+      | se :: _, _ -> (SurfExpr.info se)#loc
+      | [], s :: _ -> (Sort.info s)#loc
+      | [], [] -> SourcePos.dummy
+    in
+    invariant_at pos ~rule:"check_list"
+      "tuple expression and record sort have different arities \
+       (should have been caught by the Tuple case in check)"
 
 (** {1 Coverage}
 
@@ -531,7 +557,10 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
        let ctx' = Context.extend_list (ctx_of_let_bindings br.let_bindings) ctx in
        let* ce' = check sig_ ctx' br.body sort eff0 in
        ElabM.return (wrap_lets br.let_bindings ctx sort eff0 ce')
-     | _ -> ElabM.legacy_fail None "coverage: bindings remain but no scrutinees")
+     | (p, _) :: _ ->
+       invariant_at (Pat.info p)#loc ~rule:"coverage_check:Cov_done"
+         "branch still has un-consumed pattern bindings after all \
+          scrutinees have been dispatched")
 
   | [], [] ->
     let witness = rebuilder [] in
@@ -572,7 +601,10 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
           | None ->
             ElabM.fail
               (TypeError.unbound_sort ~loc:(Var.binding_site y) dsort_name))
-     | _ -> ElabM.legacy_fail None "coverage: constructor pattern on non-datasort/datatype")
+     | _ ->
+       invariant_at (Sort.info lead_sort)#loc ~rule:"coverage_check:Cov_con"
+         "a leading pattern is a constructor but its sort is not a \
+          datasort or datatype application")
 
   (* Cov_tup: some leading patterns are tuples — decompose the
      scrutinee into its k fields. The scrutinee's witness slot
@@ -601,21 +633,39 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
        ) fresh_zs in
        ElabM.return (mk_typed ctx (Var.binding_site y) sort eff0
          (CoreExpr.LetTuple (annotated_vars, y_ce, ce)))
-     | _ -> ElabM.legacy_fail None "coverage: tuple pattern on non-record sort")
+     | _ ->
+       invariant_at (Sort.info lead_sort)#loc ~rule:"coverage_check:Cov_tup"
+         "a leading pattern is a tuple but its sort is not a record")
 
-  | _ :: _, _ ->
-    ElabM.legacy_fail None "coverage: unexpected pattern form"
+  | _ :: _, branches ->
+    (* Dispatch couldn't classify as Cov_var, Cov_con, or Cov_tup.
+       Use the first branch's first pattern as a location if any. *)
+    let pos = match branches with
+      | br :: _ ->
+        (match br.bindings with
+         | (p, _) :: _ -> (Pat.info p)#loc
+         | [] -> SourcePos.dummy)
+      | [] -> SourcePos.dummy
+    in
+    invariant_at pos ~rule:"coverage_check"
+      "a leading pattern does not match any dispatch case \
+       (Cov_var / Cov_con / Cov_tup)"
 
 and build_sort_con_branches sig_ ctx y scrs branches eff_b sort eff0 labels args decl ~cov_loc rebuilder =
   match labels with
   | [] -> ElabM.return []
   | label :: rest_labels ->
-    let ctor_sort = match DsortDecl.lookup_ctor label decl with
+    let* ctor_sort = match DsortDecl.lookup_ctor label decl with
       | Some s ->
         (match Subst.of_lists decl.DsortDecl.params args with
-         | Ok sub -> Subst.apply sub s
-         | Error _ -> s)
-      | None -> failwith "impossible: label from ctor_labels not found"
+         | Ok sub -> ElabM.return (Subst.apply sub s)
+         | Error _ -> ElabM.return s)
+      | None ->
+        invariant_at cov_loc ~rule:"build_sort_con_branches"
+          (Format.asprintf
+             "constructor %a is listed in ctor_labels but \
+              DsortDecl.lookup_ctor returned None"
+             Label.print label)
     in
     let* filtered = spec_con label ctor_sort y eff_b branches in
     let xi_pos = find_con_subpat_pos label branches (Var.binding_site y) in
@@ -642,12 +692,17 @@ and build_type_con_branches sig_ ctx y scrs branches eff_b sort eff0 labels args
   match labels with
   | [] -> ElabM.return []
   | label :: rest_labels ->
-    let ctor_sort = match DtypeDecl.lookup_ctor label decl with
+    let* ctor_sort = match DtypeDecl.lookup_ctor label decl with
       | Some raw_sort ->
         (match Subst.of_lists decl.DtypeDecl.params args with
-         | Ok sub -> Subst.apply sub raw_sort
-         | Error _ -> raw_sort)
-      | None -> failwith "impossible: label from ctor_labels not found"
+         | Ok sub -> ElabM.return (Subst.apply sub raw_sort)
+         | Error _ -> ElabM.return raw_sort)
+      | None ->
+        invariant_at cov_loc ~rule:"build_type_con_branches"
+          (Format.asprintf
+             "constructor %a is listed in ctor_labels but \
+              DtypeDecl.lookup_ctor returned None"
+             Label.print label)
     in
     let* filtered = spec_con label ctor_sort y eff_b branches in
     let xi_pos = find_con_subpat_pos label branches (Var.binding_site y) in

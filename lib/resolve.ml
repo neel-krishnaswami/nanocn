@@ -18,6 +18,18 @@ let resolve_use pos env name =
   | None ->
     ElabM.fail (TypeError.unbound_name ~loc:pos name)
 
+let invariant_at pos ~rule msg =
+  ElabM.fail (TypeError.internal_invariant ~loc:pos ~rule ~invariant:msg)
+
+(* Best-effort location for a ProofSort.entry: any embedded expression
+   or sort carries a [SourcePos.t] via its info object. *)
+let entry_loc (entry : (SurfExpr.parsed_se, string) ProofSort.entry) =
+  match entry with
+  | ProofSort.Comp { sort; _ } -> (Sort.info sort)#loc
+  | ProofSort.Log { prop } -> (SurfExpr.info prop)#loc
+  | ProofSort.Res { pred; _ } -> (SurfExpr.info pred)#loc
+  | ProofSort.DepRes { pred; _ } -> (SurfExpr.info pred)#loc
+
 (* ===== Patterns ===== *)
 
 let rec resolve_pat env (p : Pat.parsed_pat) : (Pat.pat * env) ElabM.t =
@@ -246,7 +258,9 @@ let resolve_pf_domain_entry env
             ProofSort.DepRes { bound_var = bv; pred = pred' },
             (rname, rv) :: (bname, bv) :: env)
   | _ ->
-    legacy_fail None "resolve_pf_domain_entry: pattern/entry mismatch"
+    invariant_at (entry_loc entry) ~rule:"resolve_pf_domain_entry"
+      "pattern element does not match the Pf entry \
+       (shared-binder name disagreement, or Single/Pair shape mismatch)"
 
 let resolve_pf_domain env
     (pat : string RPat.t)
@@ -259,7 +273,15 @@ let resolve_pf_domain env
       let* (p', e', env') = resolve_pf_domain_entry env p e in
       let* (ps', es', env'') = go env' ps es in
       return (p' :: ps', e' :: es', env'')
-    | _ -> legacy_fail None "resolve_pf_domain: pattern/domain length mismatch"
+    | pat_rest, dom_rest ->
+      let loc = match dom_rest with
+        | e :: _ -> entry_loc e
+        | [] -> SourcePos.dummy
+      in
+      let _ = pat_rest in
+      invariant_at loc ~rule:"resolve_pf_domain"
+        "pattern and domain disagree on length (one still has entries \
+         when the other is exhausted)"
   in
   go env pat domain
 

@@ -1,9 +1,18 @@
-(* Transitional helpers — each emits [Error (TypeError.legacy pos msg)].
-   Later phases replace callers with direct [TypeError] constructors. *)
+(* Error helpers.
+
+   - [err_at pos msg] / [err_at_f pos fmt …]: user-visible mistake
+     not yet assigned a structured kind. Emits a positional
+     [TypeError.Legacy].
+   - [invariant_at pos ~rule msg]: "impossible-in-well-formed-code"
+     check fired (the typechecker's own consistency guarantees
+     should have ruled this out). Emits [K_internal_invariant]. *)
 let err_at pos msg = Error (TypeError.legacy (Some pos) msg)
 
 let err_at_f pos fmt =
   Format.kasprintf (fun msg -> err_at pos msg) fmt
+
+let invariant_at pos ~rule msg =
+  Error (TypeError.internal_invariant ~loc:pos ~rule ~invariant:msg)
 
 let ( let* ) = Result.bind
 
@@ -310,7 +319,15 @@ and check_list sig_ ctx es sorts eff0 =
     let* e' = check sig_ ctx e s eff0 in
     let* rest = check_list sig_ ctx es' ss' eff0 in
     Ok (e' :: rest)
-  | _ -> Error (TypeError.legacy None "tuple length mismatch")
+  | es, sorts ->
+    let pos = match es, sorts with
+      | e :: _, _ -> (CoreExpr.info e)#loc
+      | [], s :: _ -> (Sort.info s)#loc
+      | [], [] -> SourcePos.dummy
+    in
+    invariant_at pos ~rule:"check_list"
+      "tuple expression and record sort have different arities \
+       (should have been caught earlier)"
 
 and check_case_branches sig_ ctx branches scrut_sort result_sort eff0 bind_eff pos =
   match Sort.shape scrut_sort with
@@ -537,7 +554,16 @@ let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
     Ok (supply', Prog.CoreFunDecl { name = d.name; param = y;
                             arg_sort = d.arg_sort; ret_sort = d.ret_sort;
                             eff = d.eff; body = typed_body; loc = d.loc })
-  | _ -> Error (TypeError.legacy None "elaborate_fun: not a FunDecl")
+  | d ->
+    (* Caller (check_decl) only dispatches FunDecl here; the other
+       arms are handled directly. Reaching this would be a caller bug. *)
+    let loc = match d with
+      | Prog.FunDecl dd -> dd.loc
+      | Prog.SortDecl dd -> dd.DsortDecl.loc
+      | Prog.TypeDecl dd -> dd.DtypeDecl.loc
+    in
+    invariant_at loc ~rule:"elaborate_fun"
+      "called with a non-FunDecl declaration"
 
 let check_decl supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
   match d with
@@ -565,9 +591,14 @@ let check_spec_decl supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
                      eff = dd.eff; body = cd.body }
     in
     Ok (supply', Sig.extend dd.name entry sig_)
-  | _, _ ->
-    Error (TypeError.legacy None
-             "check_spec_decl: unexpected declaration combination")
+  | d, _ ->
+    let loc = match d with
+      | Prog.FunDecl dd -> dd.loc
+      | Prog.SortDecl dd -> dd.DsortDecl.loc
+      | Prog.TypeDecl dd -> dd.DtypeDecl.loc
+    in
+    invariant_at loc ~rule:"check_spec_decl"
+      "unexpected decl / core-decl pairing"
 
 (** Extend the core signature after elaborating a declaration.
     Pure/spec functions store their full definition ([FunDef]);
