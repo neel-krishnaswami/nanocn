@@ -1,4 +1,4 @@
-type 'a t = Var.supply -> ('a * Var.supply, TypeError.t) result
+type 'a t = Var.supply -> ('a * Var.supply, Error.t) result
 
 let return x supply = Ok (x, supply)
 
@@ -55,7 +55,7 @@ module Test = struct
         QCheck.unit
         (fun () ->
            let err =
-             TypeError.parse_error ~loc:None ~msg:"test error"
+             Error.parse_error ~loc:None ~msg:"test error"
            in
            match run Var.empty_supply (
              let* _ = fail err in

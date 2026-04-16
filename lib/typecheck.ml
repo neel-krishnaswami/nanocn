@@ -4,7 +4,7 @@
    check fired (the typechecker's own consistency guarantees should
    have ruled this out). Emits [K_internal_invariant]. *)
 let invariant_at pos ~rule msg =
-  Error (TypeError.internal_invariant ~loc:pos ~rule ~invariant:msg)
+  Error (Error.internal_invariant ~loc:pos ~rule ~invariant:msg)
 
 let ( let* ) = Result.bind
 
@@ -87,11 +87,11 @@ let rec synth sig_ ctx eff0 ce =
        if Effect.sub var_eff eff0 then
          Ok (mk ctx pos s eff0 (CoreExpr.Var x))
        else
-         Error (TypeError.var_effect_mismatch
+         Error (Error.var_effect_mismatch
                   ~loc:pos ~var:x
                   ~declared:var_eff ~required:eff0)
      | None ->
-       Error (TypeError.unbound_var ~loc:pos x))
+       Error (Error.unbound_var ~loc:pos x))
 
   | CoreExpr.IntLit n ->
     Ok (mk ctx pos (mk_sort Sort.Int) eff0 (CoreExpr.IntLit n))
@@ -104,7 +104,7 @@ let rec synth sig_ ctx eff0 ce =
     let* ce1' = synth sig_ ctx eff0' ce1 in
     let s1 = (CoreExpr.info ce1')#sort in
     if not (Sort.is_spec_type s1) then
-      Error (TypeError.not_spec_type ~loc:pos
+      Error (Error.not_spec_type ~loc:pos
                ~construct:"equality" ~got:s1)
     else
       let* ce2' = check sig_ ctx ce2 s1 eff0' in
@@ -126,12 +126,12 @@ let rec synth sig_ ctx eff0 ce =
     let* () = match p with
       | Prim.Eq a ->
         if Sort.is_eqtype a then Ok ()
-        else Error (TypeError.eq_not_equality_type ~loc:pos ~got:a)
+        else Error (Error.eq_not_equality_type ~loc:pos ~got:a)
       | _ -> Ok ()
     in
     let (arg_sort, ret_sort, prim_eff) = prim_signature p in
     if not (Effect.sub prim_eff eff0) then
-      Error (TypeError.prim_effect_mismatch
+      Error (Error.prim_effect_mismatch
                ~loc:pos ~prim:p ~declared:prim_eff ~required:eff0)
     else
       let eff0' = Effect.purify eff0 in
@@ -142,7 +142,7 @@ let rec synth sig_ ctx eff0 ce =
     (match Sig.lookup_fun name sig_ with
      | Some (arg_sort, ret_sort, fun_eff) ->
        if not (Effect.sub fun_eff eff0) then
-         Error (TypeError.fun_effect_mismatch
+         Error (Error.fun_effect_mismatch
                   ~loc:pos ~name
                   ~declared:fun_eff ~required:eff0)
        else
@@ -150,7 +150,7 @@ let rec synth sig_ ctx eff0 ce =
          let* arg' = check sig_ ctx arg arg_sort eff0' in
          Ok (mk ctx pos ret_sort eff0 (CoreExpr.Call (name, arg')))
      | None ->
-       Error (TypeError.unknown_function ~loc:pos ~name))
+       Error (Error.unknown_function ~loc:pos ~name))
 
   | CoreExpr.Annot (ce, s) ->
     let* ce' = check sig_ ctx ce s eff0 in
@@ -159,7 +159,7 @@ let rec synth sig_ ctx eff0 ce =
   | CoreExpr.Return _ | CoreExpr.Take _ | CoreExpr.Fail | CoreExpr.Let _
   | CoreExpr.Inject _ | CoreExpr.Case _ | CoreExpr.Tuple _
   | CoreExpr.LetTuple _ | CoreExpr.If _ | CoreExpr.Iter _ ->
-    Error (TypeError.cannot_synthesize ~loc:pos ~construct:"sort")
+    Error (Error.cannot_synthesize ~loc:pos ~construct:"sort")
 
 (** Check: S; G |- [eff0] ce <== tau *)
 and check sig_ ctx ce sort eff0 =
@@ -167,32 +167,32 @@ and check sig_ ctx ce sort eff0 =
   match CoreExpr.shape ce with
   | CoreExpr.Return inner ->
     if not (Effect.sub Effect.Spec eff0) then
-      Error (TypeError.spec_context_required ~loc:pos ~construct:"return")
+      Error (Error.spec_context_required ~loc:pos ~construct:"return")
     else
     (match Sort.shape sort with
      | Sort.Pred tau ->
        let* inner' = check sig_ ctx inner tau eff0 in
        Ok (mk ctx pos sort eff0 (CoreExpr.Return inner'))
      | _ ->
-       Error (TypeError.construct_sort_mismatch ~loc:pos
+       Error (Error.construct_sort_mismatch ~loc:pos
                 ~construct:"return" ~expected_shape:"Pred _"
                 ~got:sort))
 
   | CoreExpr.Fail ->
     if not (Effect.sub Effect.Spec eff0) then
-      Error (TypeError.spec_context_required ~loc:pos ~construct:"fail")
+      Error (Error.spec_context_required ~loc:pos ~construct:"fail")
     else
     (match Sort.shape sort with
      | Sort.Pred _ ->
        Ok (mk ctx pos sort eff0 CoreExpr.Fail)
      | _ ->
-       Error (TypeError.construct_sort_mismatch ~loc:pos
+       Error (Error.construct_sort_mismatch ~loc:pos
                 ~construct:"fail" ~expected_shape:"Pred _"
                 ~got:sort))
 
   | CoreExpr.Take ((x, _), ce1, ce2) ->
     if not (Effect.sub Effect.Spec eff0) then
-      Error (TypeError.spec_context_required ~loc:pos ~construct:"take")
+      Error (Error.spec_context_required ~loc:pos ~construct:"take")
     else
     (match Sort.shape sort with
      | Sort.Pred _ ->
@@ -206,11 +206,11 @@ and check sig_ ctx ce sort eff0 =
           let xb = (x, mk_bind_info x tau bind_eff ctx') in
           Ok (mk ctx pos sort eff0 (CoreExpr.Take (xb, ce1', ce2')))
         | _ ->
-          Error (TypeError.construct_sort_mismatch ~loc:pos
+          Error (Error.construct_sort_mismatch ~loc:pos
                    ~construct:"take scrutinee"
                    ~expected_shape:"Pred _" ~got:s1))
      | _ ->
-       Error (TypeError.construct_sort_mismatch ~loc:pos
+       Error (Error.construct_sort_mismatch ~loc:pos
                 ~construct:"take target"
                 ~expected_shape:"Pred _" ~got:sort))
 
@@ -231,7 +231,7 @@ and check sig_ ctx ce sort eff0 =
      | Sort.Record ts ->
        let vars = List.map fst xs in
        if List.compare_lengths vars ts <> 0 then
-         Error (TypeError.tuple_arity_mismatch ~loc:pos
+         Error (Error.tuple_arity_mismatch ~loc:pos
                   ~construct:"let-tuple"
                   ~expected:(List.length ts)
                   ~actual:(List.length vars))
@@ -250,7 +250,7 @@ and check sig_ ctx ce sort eff0 =
          ) (List.combine xs ts) in
          Ok (mk ctx pos sort eff0 (CoreExpr.LetTuple (typed_xs, ce1', ce2')))
      | _ ->
-       Error (TypeError.construct_sort_mismatch ~loc:pos
+       Error (Error.construct_sort_mismatch ~loc:pos
                 ~construct:"let-tuple scrutinee"
                 ~expected_shape:"Record _" ~got:s1))
 
@@ -258,7 +258,7 @@ and check sig_ ctx ce sort eff0 =
     (match Sort.shape sort with
      | Sort.Record ts ->
        if List.compare_lengths es ts <> 0 then
-         Error (TypeError.tuple_arity_mismatch ~loc:pos
+         Error (Error.tuple_arity_mismatch ~loc:pos
                   ~construct:"tuple"
                   ~expected:(List.length ts)
                   ~actual:(List.length es))
@@ -266,7 +266,7 @@ and check sig_ ctx ce sort eff0 =
          let* es' = check_list sig_ ctx es ts eff0 in
          Ok (mk ctx pos sort eff0 (CoreExpr.Tuple es'))
      | _ ->
-       Error (TypeError.construct_sort_mismatch ~loc:pos
+       Error (Error.construct_sort_mismatch ~loc:pos
                 ~construct:"tuple"
                 ~expected_shape:"Record _" ~got:sort))
 
@@ -279,9 +279,9 @@ and check sig_ ctx ce sort eff0 =
           let* e_inner' = check sig_ ctx e_inner ctor_sort eff0' in
           Ok (mk ctx pos sort eff0 (CoreExpr.Inject (l, e_inner')))
         | Error msg ->
-          Error (TypeError.helper_error ~loc:pos ~msg))
+          Error (Error.helper_error ~loc:pos ~msg))
      | _ ->
-       Error (TypeError.construct_sort_mismatch ~loc:pos
+       Error (Error.construct_sort_mismatch ~loc:pos
                 ~construct:"injection"
                 ~expected_shape:"datasort/datatype application"
                 ~got:sort))
@@ -296,7 +296,7 @@ and check sig_ ctx ce sort eff0 =
 
   | CoreExpr.Iter (x, e1, body) ->
     if not (Effect.sub Effect.Impure eff0) then
-      Error (TypeError.iter_requires_impure ~loc:pos ~actual:eff0)
+      Error (Error.iter_requires_impure ~loc:pos ~actual:eff0)
     else
       let* e1' = synth sig_ ctx Effect.Pure e1 in
       let a = (CoreExpr.info e1')#sort in
@@ -318,7 +318,7 @@ and check sig_ ctx ce sort eff0 =
   | CoreExpr.Annot (inner, ann_sort) ->
     let* inner' = check sig_ ctx inner ann_sort eff0 in
     if not (sort_equal ann_sort sort) then
-      Error (TypeError.annotation_disagrees
+      Error (Error.annotation_disagrees
                ~loc:pos ~inner:sort ~annot:ann_sort)
     else
       Ok (mk ctx pos sort eff0 (CoreExpr.Annot (inner', lift_sort ann_sort)))
@@ -327,7 +327,7 @@ and check sig_ ctx ce sort eff0 =
     let* e' = synth sig_ ctx eff0 ce in
     let syn_sort = (CoreExpr.info e')#sort in
     if not (sort_equal syn_sort sort) then
-      Error (TypeError.sort_mismatch
+      Error (Error.sort_mismatch
                ~loc:pos ~expected:sort ~actual:syn_sort)
     else
       Ok e'
@@ -368,10 +368,10 @@ and check_case_branches sig_ ctx branches scrut_sort result_sort eff0 bind_eff p
            let* rest' = go rest in
            Ok ((l, x, body', branch_info) :: rest')
          | Error msg ->
-           Error (TypeError.helper_error ~loc:pos ~msg))
+           Error (Error.helper_error ~loc:pos ~msg))
     in
     go branches
-  | _ -> Error (TypeError.scrutinee_not_data ~loc:pos ~got:scrut_sort)
+  | _ -> Error (Error.scrutinee_not_data ~loc:pos ~got:scrut_sort)
 
 (** Built-in step datatype: step(a, b) = { Next : a | Done : b } *)
 let step_decl =
@@ -404,14 +404,14 @@ let rec kind_wf sig_ ctx s kind =
      | Some k ->
        if Kind.subkind k kind then Ok ()
        else
-         Error (TypeError.tvar_kind_mismatch
+         Error (Error.tvar_kind_mismatch
                   ~loc:pos ~tvar:a ~got:k ~expected:kind)
      | None ->
-       Error (TypeError.unbound_tvar ~loc:pos a))
+       Error (Error.unbound_tvar ~loc:pos a))
   | Sort.Ptr t -> kind_wf sig_ ctx t Kind.Type
   | Sort.Pred t ->
     if Kind.compare kind Kind.Sort <> 0 then
-      Error (TypeError.pred_misuse ~loc:pos
+      Error (Error.pred_misuse ~loc:pos
                ~context:(Format.asprintf "kind %a" Kind.print kind))
     else
       kind_wf sig_ ctx t Kind.Sort
@@ -420,7 +420,7 @@ let rec kind_wf sig_ ctx s kind =
     (match Sig.lookup_sort d sig_ with
      | Some decl ->
        if List.compare_lengths args decl.DsortDecl.params <> 0 then
-         Error (TypeError.dsort_arity_mismatch ~loc:pos ~dsort:d
+         Error (Error.dsort_arity_mismatch ~loc:pos ~dsort:d
                   ~expected:(List.length decl.DsortDecl.params)
                   ~actual:(List.length args))
        else
@@ -429,13 +429,13 @@ let rec kind_wf sig_ ctx s kind =
        match Sig.lookup_type d sig_ with
        | Some decl ->
          if List.compare_lengths args decl.DtypeDecl.params <> 0 then
-           Error (TypeError.dsort_arity_mismatch ~loc:pos ~dsort:d
+           Error (Error.dsort_arity_mismatch ~loc:pos ~dsort:d
                     ~expected:(List.length decl.DtypeDecl.params)
                     ~actual:(List.length args))
          else
            kind_wf_list sig_ ctx args Kind.Type
        | None ->
-         Error (TypeError.unbound_sort ~loc:pos d))
+         Error (Error.unbound_sort ~loc:pos d))
 
 and kind_wf_list sig_ ctx ss kind =
   match ss with
@@ -448,7 +448,7 @@ and kind_wf_list sig_ ctx ss kind =
 let validate_sort_decl sig_ (d : DsortDecl.t) =
   let decl_name = Format.asprintf "%a" Dsort.print d.name in
   if List.length d.ctors = 0 then
-    Error (TypeError.empty_decl ~loc:d.loc
+    Error (Error.empty_decl ~loc:d.loc
              ~name:decl_name ~is_type:false)
   else
     let labels = DsortDecl.ctor_labels d in
@@ -456,7 +456,7 @@ let validate_sort_decl sig_ (d : DsortDecl.t) =
       | [] -> Ok ()
       | l :: rest ->
         if List.exists (fun l' -> Label.compare l l' = 0) rest then
-          Error (TypeError.duplicate_ctor_in_decl ~loc:d.loc
+          Error (Error.duplicate_ctor_in_decl ~loc:d.loc
                    ~label:l ~decl_name ~is_type:false)
         else check_dups rest
     in
@@ -478,7 +478,7 @@ let rec type_guarded sig_ ctx (guard_name, guard_params) s =
   | Sort.TVar a ->
     (match Context.lookup_tvar a ctx with
      | Some _ -> Ok ()
-     | None -> Error (TypeError.unbound_tvar ~loc:pos a))
+     | None -> Error (Error.unbound_tvar ~loc:pos a))
   | Sort.Ptr t ->
     (* Re-add D (with its actual params) to allow recursive reference under Ptr *)
     let stub_decl = DtypeDecl.{ name = guard_name; params = guard_params;
@@ -486,18 +486,18 @@ let rec type_guarded sig_ ctx (guard_name, guard_params) s =
     let sig_with_guard = Sig.extend_type sig_ stub_decl in
     kind_wf sig_with_guard ctx t Kind.Type
   | Sort.Pred _ ->
-    Error (TypeError.pred_misuse ~loc:pos
+    Error (Error.pred_misuse ~loc:pos
              ~context:"a type declaration")
   | Sort.Record ts -> type_guarded_list sig_ ctx (guard_name, guard_params) ts
   | Sort.App (d, args) ->
     if Dsort.compare d guard_name = 0 then
-      Error (TypeError.unguarded_recursion ~loc:pos ~dsort:d)
+      Error (Error.unguarded_recursion ~loc:pos ~dsort:d)
     else
       (match Sig.lookup_type d sig_ with
-       | None -> Error (TypeError.unbound_sort ~loc:pos d)
+       | None -> Error (Error.unbound_sort ~loc:pos d)
        | Some decl ->
          if List.compare_lengths args decl.DtypeDecl.params <> 0 then
-           Error (TypeError.dsort_arity_mismatch ~loc:pos ~dsort:d
+           Error (Error.dsort_arity_mismatch ~loc:pos ~dsort:d
                     ~expected:(List.length decl.DtypeDecl.params)
                     ~actual:(List.length args))
          else
@@ -513,7 +513,7 @@ and type_guarded_list sig_ ctx guard = function
 let validate_type_decl sig_ (d : DtypeDecl.t) =
   let decl_name = Format.asprintf "%a" Dsort.print d.name in
   if List.length d.ctors = 0 then
-    Error (TypeError.empty_decl ~loc:d.loc
+    Error (Error.empty_decl ~loc:d.loc
              ~name:decl_name ~is_type:true)
   else
     let labels = DtypeDecl.ctor_labels d in
@@ -521,7 +521,7 @@ let validate_type_decl sig_ (d : DtypeDecl.t) =
       | [] -> Ok ()
       | l :: rest ->
         if List.exists (fun l' -> Label.compare l l' = 0) rest then
-          Error (TypeError.duplicate_ctor_in_decl ~loc:d.loc
+          Error (Error.duplicate_ctor_in_decl ~loc:d.loc
                    ~label:l ~decl_name ~is_type:true)
         else check_dups rest
     in
@@ -638,7 +638,7 @@ let extend_sig_with_decl sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) (d' : type
     Sig.extend_type sig_ dd
   | _, _ -> sig_
 
-let check_prog supply (p : (SurfExpr.se, _, Var.t) Prog.t) : (typed_ce Sig.t * typed_ce Prog.core_prog, TypeError.t) result =
+let check_prog supply (p : (SurfExpr.se, _, Var.t) Prog.t) : (typed_ce Sig.t * typed_ce Prog.core_prog, Error.t) result =
   let rec check_decls supply sig_ = function
     | [] -> Ok (supply, sig_, [])
     | d :: rest ->

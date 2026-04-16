@@ -470,7 +470,7 @@ module Test = struct
     m = 0 || (n >= m && aux 0)
 
   let test_parse_error_preserves_message =
-    QCheck.Test.make ~name:"TypeError: parse_error preserves its message"
+    QCheck.Test.make ~name:"Error: parse_error preserves its message"
       ~count:1
       QCheck.unit
       (fun () ->
@@ -479,7 +479,7 @@ module Test = struct
 
   let test_sort_mismatch_mentions_both =
     QCheck.Test.make
-      ~name:"TypeError: sort_mismatch printer mentions expected and actual"
+      ~name:"Error: sort_mismatch printer mentions expected and actual"
       ~count:1
       QCheck.unit
       (fun () ->
@@ -496,7 +496,7 @@ module Test = struct
 
   let test_unbound_var_mentions_name =
     QCheck.Test.make
-      ~name:"TypeError: unbound_var printer mentions the variable"
+      ~name:"Error: unbound_var printer mentions the variable"
       ~count:1
       QCheck.unit
       (fun () ->

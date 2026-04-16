@@ -12,23 +12,23 @@ open ElabM
    - [invariant_at ~rule pos msg]: an "impossible-in-well-formed-code"
      check fired, typically because an earlier elaboration pass was
      supposed to rule this shape out. Emits a
-     [TypeError.K_internal_invariant] carrying the rule identifier
+     [Error.K_internal_invariant] carrying the rule identifier
      and the specific failed check.
    - [invariant ~rule msg]: same, but for sites with no source
      position in scope (uses [SourcePos.dummy]).
    - [lift_at pos r]: forwards a submodule-style
      [(_, string) result] into the monad, wrapping any failure as
-     [TypeError.K_helper_error] at [pos]. Used for adapters to
+     [Error.K_helper_error] at [pos]. Used for adapters to
      [CtorLookup], [Subst], [RCtx], [rpat_match], and similar. *)
 let invariant_at pos ~rule msg =
-  ElabM.fail (TypeError.internal_invariant ~loc:pos ~rule ~invariant:msg)
+  ElabM.fail (Error.internal_invariant ~loc:pos ~rule ~invariant:msg)
 let invariant ~rule msg =
   ElabM.fail
-    (TypeError.internal_invariant ~loc:SourcePos.dummy ~rule ~invariant:msg)
+    (Error.internal_invariant ~loc:SourcePos.dummy ~rule ~invariant:msg)
 let lift_at pos (r : ('a, string) result) : 'a ElabM.t =
   ElabM.lift
     (Result.map_error
-       (fun msg -> TypeError.helper_error ~loc:pos ~msg) r)
+       (fun msg -> Error.helper_error ~loc:pos ~msg) r)
 
 let loc_dummy = object method loc = SourcePos.dummy end
 
@@ -382,7 +382,7 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
        let checked = RefinedExpr.mk_lpf binfo (RefinedExpr.LVar x) in
        return (checked, ce, delta, Constraint.top pos)
      | None ->
-       ElabM.fail (TypeError.log_var_not_found ~loc:pos ~name:x))
+       ElabM.fail (Error.log_var_not_found ~loc:pos ~name:x))
 
   | RefinedExpr.LAuto ->
     invariant_at pos ~rule:"synth_lpf:LAuto"
@@ -394,7 +394,7 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
     (match Sig.lookup_fundef f cs with
      | Some (param, _arg_sort, ret_sort, eff, body) ->
        if not (Effect.sub eff Effect.Spec) then
-         ElabM.fail (TypeError.unfold_not_spec ~loc:pos ~name:f)
+         ElabM.fail (Error.unfold_not_spec ~loc:pos ~name:f)
        else
          let call_result = CoreExpr.mk (mk_info ret_sort) (CoreExpr.Call (f, ce_arg)) in
          let subst_body = Subst.apply_ce (Subst.extend_var param ce_arg Subst.empty) body in
@@ -402,7 +402,7 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
          let checked = RefinedExpr.mk_lpf binfo (RefinedExpr.LUnfold (f, ce_arg)) in
          return (checked, prop, delta, Constraint.top pos)
      | None ->
-       ElabM.fail (TypeError.unfold_not_fundef ~loc:pos ~name:f))
+       ElabM.fail (Error.unfold_not_fundef ~loc:pos ~name:f))
 
   | RefinedExpr.LAnnot (lpf', se) ->
     let gamma = RCtx.erase delta in
@@ -419,7 +419,7 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
        return (checked, mk_eq ce1 ce_val, delta', ct)
      | _ ->
        ElabM.fail
-         (TypeError.wrong_pred_shape ~loc:pos
+         (Error.wrong_pred_shape ~loc:pos
             ~construct:"open-ret" ~expected_shape:"return _"
             ~got:(Format.asprintf "%a" CoreExpr.print ce_pred)))
 
@@ -479,7 +479,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
        return (checked, delta', ct)
      | _ ->
        ElabM.fail
-         (TypeError.wrong_pred_shape ~loc:pos
+         (Error.wrong_pred_shape ~loc:pos
             ~construct:"make-ret" ~expected_shape:"return _"
             ~got:(Format.asprintf "%a" CoreExpr.print ce1)))
 
@@ -500,12 +500,12 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
           return (checked, delta', ct)
         | _ ->
           ElabM.fail
-            (TypeError.construct_sort_mismatch ~loc:pos
+            (Error.construct_sort_mismatch ~loc:pos
                ~construct:"make-take bound expression"
                ~expected_shape:"Pred _" ~got:pred_sort))
      | _ ->
        ElabM.fail
-         (TypeError.wrong_pred_shape ~loc:pos
+         (Error.wrong_pred_shape ~loc:pos
             ~construct:"make-take" ~expected_shape:"take _ = _; _"
             ~got:(Format.asprintf "%a" CoreExpr.print ce1)))
 
@@ -537,7 +537,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
      | Some rf ->
        if not (Effect.sub rf.eff eff) then
          ElabM.fail
-           (TypeError.fun_effect_mismatch
+           (Error.fun_effect_mismatch
               ~loc:binfo#loc ~name:f ~declared:rf.eff ~required:eff)
        else
          let eff'' = Effect.purify eff in
@@ -546,13 +546,13 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
          return (checked, pf, delta', ct)
      | None ->
        ElabM.fail
-         (TypeError.unknown_function ~loc:binfo#loc ~name:f))
+         (Error.unknown_function ~loc:binfo#loc ~name:f))
 
   | RefinedExpr.CPrimApp (prim, spine) ->
     let* rf = rprim_signature prim in
     if not (Effect.sub rf.eff eff) then
       ElabM.fail
-        (TypeError.prim_effect_mismatch
+        (Error.prim_effect_mismatch
            ~loc:binfo#loc ~prim ~declared:rf.eff ~required:eff)
     else
       let eff'' = Effect.purify eff in
@@ -581,7 +581,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
                Sort.print pred_sort))
      | _ ->
        ElabM.fail
-         (TypeError.wrong_pred_shape ~loc:binfo#loc
+         (Error.wrong_pred_shape ~loc:binfo#loc
             ~construct:"open-take" ~expected_shape:"take _ = _; _"
             ~got:(Format.asprintf "%a" CoreExpr.print ce_pred)))
 
@@ -589,7 +589,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     (* iter requires impure effect *)
     if not (Effect.sub Effect.Impure eff) then
       ElabM.fail
-        (TypeError.iter_requires_impure ~loc:binfo#loc ~actual:eff)
+        (Error.iter_requires_impure ~loc:binfo#loc ~actual:eff)
     else
     (* Elaborate predicate at spec effect *)
     let* (ce_pred, pred_sort) = elab_and_synth rs delta Effect.Spec se_pred in
@@ -632,7 +632,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           let (_delta_base, delta_pat_out) = RCtx.split n delta_out in
           if not (RCtx.zero delta_pat_out) then
             ElabM.fail
-              (TypeError.resource_leak ~loc:binfo#loc ~name:None)
+              (Error.resource_leak ~loc:binfo#loc ~name:None)
           else
           (* Build result proof sort: z:B [pure], y:ce @ Done(z) [res], pfnil *)
           let* zr_var = fresh SourcePos.dummy in
@@ -667,7 +667,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
 
   | _ ->
     ElabM.fail
-      (TypeError.cannot_synthesize ~loc:binfo#loc
+      (Error.cannot_synthesize ~loc:binfo#loc
          ~construct:"proof sort")
 
 (* Core refined term checking: RS; Delta |-[eff] crt <= Pf -| Delta' ~> Ct *)
@@ -710,7 +710,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           (RCtx.entries delta_pat_out)
       in
       ElabM.fail
-        (TypeError.let_pattern_resource_leak ~loc:pos ~leftovers)
+        (Error.let_pattern_resource_leak ~loc:pos ~leftovers)
     else
       let ct2_closed = close_ctx pos delta_pat_out ct2 in
       let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CLet (pat, checked_crt1, checked_crt2)) in
@@ -744,7 +744,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let n = RCtx.length delta' in
     let (delta_out, delta_x) = RCtx.split n delta'' in
     if not (RCtx.zero delta_x) then
-      ElabM.fail (TypeError.resource_leak ~loc:pos ~name:(Some x))
+      ElabM.fail (Error.resource_leak ~loc:pos ~name:(Some x))
     else
       let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CLetRes (x, checked_rpf, checked_body)) in
       return (checked, delta_out, Constraint.conj pos ct1 ct2)
@@ -792,7 +792,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
            return (List.map (fun (l, s) -> (l, Subst.apply subst s)) ctors)
          | Error msg ->
            ElabM.fail
-             (TypeError.helper_error ~loc:pos
+             (Error.helper_error ~loc:pos
                 ~msg:(Format.asprintf
                         "case: type-parameter instantiation: %s" msg))
        in
@@ -808,9 +808,9 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           let checked = RefinedExpr.mk_crt binfo (RefinedExpr.CCase (_y, ce, checked_branches)) in
           return (checked, delta', ct)
         | None, None ->
-          ElabM.fail (TypeError.unbound_sort ~loc:pos dsort_name))
+          ElabM.fail (Error.unbound_sort ~loc:pos dsort_name))
      | _ ->
-       ElabM.fail (TypeError.scrutinee_not_data ~loc:pos ~got:ce_sort))
+       ElabM.fail (Error.scrutinee_not_data ~loc:pos ~got:ce_sort))
 
   | RefinedExpr.CTuple spine ->
     let* (checked_spine, delta', ct) = _check_tuple rs delta eff spine pf in
@@ -846,13 +846,13 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
            return sorts
          | Sort.Record sorts ->
            ElabM.fail
-             (TypeError.tuple_arity_mismatch ~loc:pos
+             (Error.tuple_arity_mismatch ~loc:pos
                 ~construct:"let core pattern"
                 ~expected:(List.length sorts)
                 ~actual:(List.length xs))
          | _ ->
            ElabM.fail
-             (TypeError.construct_sort_mismatch ~loc:pos
+             (Error.construct_sort_mismatch ~loc:pos
                 ~construct:"let core tuple pattern"
                 ~expected_shape:"Record _" ~got:sort))
     in
@@ -1018,7 +1018,7 @@ and check_branches_list pos rs delta eff ce _ce_sort ctors branches pf =
       (match branch with
        | None ->
          let witness = PatWitness.Ctor (label, PatWitness.Wild) in
-         ElabM.fail (TypeError.non_exhaustive ~loc:pos ~witness)
+         ElabM.fail (Error.non_exhaustive ~loc:pos ~witness)
        | Some (_, x, body) ->
          let ctor_sort' = ctor_sort in
          let* x_log = fresh SourcePos.dummy in
@@ -1046,7 +1046,7 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ty
       ProofSort.Comp { var = y; sort = sort2; eff = eff2 } :: rest2 ->
       if Sort.compare sort sort2 <> 0 then
         ElabM.fail
-          (TypeError.sort_mismatch ~loc:pos ~expected:sort ~actual:sort2)
+          (Error.sort_mismatch ~loc:pos ~expected:sort ~actual:sort2)
       else if Effect.compare eff eff2 <> 0 then
         invariant_at pos ~rule:"pf_eq:Comp"
           (Format.asprintf
@@ -1211,7 +1211,7 @@ module Test = struct
             let* prog = Parse.parse_rprog src ~file:"test" in
             check_rprog prog
           ) with
-          | Error msg -> QCheck.Test.fail_reportf "check: %s" (TypeError.to_string msg)
+          | Error msg -> QCheck.Test.fail_reportf "check: %s" (Error.to_string msg)
           | Ok _ -> true))
     in
     [ check_program "delta monotonicity: incr (new/get/set/del)"

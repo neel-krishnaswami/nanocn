@@ -35,9 +35,9 @@ let mk_sort pos s = Sort.mk (object method loc = pos end) s
 (* [invariant_at pos ~rule msg]: an "impossible-in-well-formed-code"
    check fired (e.g. a pattern-matrix shape that an earlier
    elaboration pass was meant to rule out). Emits
-   [TypeError.K_internal_invariant]. *)
+   [Error.K_internal_invariant]. *)
 let invariant_at pos ~rule msg =
-  ElabM.fail (TypeError.internal_invariant ~loc:pos ~rule ~invariant:msg)
+  ElabM.fail (Error.internal_invariant ~loc:pos ~rule ~invariant:msg)
 
 let sort_equal a b = Sort.compare a b = 0
 
@@ -271,11 +271,11 @@ let rec synth sig_ ctx eff0 se =
          ElabM.return (mk_typed ctx pos s eff0 (CoreExpr.Var x), s)
        else
          ElabM.fail
-           (TypeError.var_effect_mismatch
+           (Error.var_effect_mismatch
               ~loc:pos ~var:x
               ~declared:var_eff ~required:eff0)
      | None ->
-       ElabM.fail (TypeError.unbound_var ~loc:pos x))
+       ElabM.fail (Error.unbound_var ~loc:pos x))
 
   | SurfExpr.IntLit n ->
     let s = mk_sort pos Sort.Int in
@@ -289,7 +289,7 @@ let rec synth sig_ ctx eff0 se =
     let eff0' = Effect.purify eff0 in
     let* (ce1, s) = synth sig_ ctx eff0' se1 in
     if not (Sort.is_spec_type s) then
-      ElabM.fail (TypeError.not_spec_type
+      ElabM.fail (Error.not_spec_type
                     ~loc:pos ~construct:"equality" ~got:s)
     else
       let* ce2 = check sig_ ctx se2 s eff0' in
@@ -312,13 +312,13 @@ let rec synth sig_ ctx eff0 se =
       | Prim.Eq a ->
         if Sort.is_eqtype a then ElabM.return ()
         else
-          ElabM.fail (TypeError.eq_not_equality_type ~loc:pos ~got:a)
+          ElabM.fail (Error.eq_not_equality_type ~loc:pos ~got:a)
       | _ -> ElabM.return ()
     in
     let (arg_sort, ret_sort, prim_eff) = prim_signature p in
     if not (Effect.sub prim_eff eff0) then
       ElabM.fail
-        (TypeError.prim_effect_mismatch
+        (Error.prim_effect_mismatch
            ~loc:pos ~prim:p ~declared:prim_eff ~required:eff0)
     else
       let eff0' = Effect.purify eff0 in
@@ -330,14 +330,14 @@ let rec synth sig_ ctx eff0 se =
      | Some (arg_sort, ret_sort, fun_eff) ->
        if not (Effect.sub fun_eff eff0) then
          ElabM.fail
-           (TypeError.fun_effect_mismatch
+           (Error.fun_effect_mismatch
               ~loc:pos ~name ~declared:fun_eff ~required:eff0)
        else
          let eff0' = Effect.purify eff0 in
          let* ce_arg = check sig_ ctx arg arg_sort eff0' in
          ElabM.return (mk_typed ctx pos ret_sort eff0 (CoreExpr.Call (name, ce_arg)), ret_sort)
      | None ->
-       ElabM.fail (TypeError.unknown_function ~loc:pos ~name))
+       ElabM.fail (Error.unknown_function ~loc:pos ~name))
 
   | SurfExpr.Annot (se, s) ->
     let* ce = check sig_ ctx se s eff0 in
@@ -346,14 +346,14 @@ let rec synth sig_ ctx eff0 se =
   | SurfExpr.Return _ | SurfExpr.Take _ | SurfExpr.Fail | SurfExpr.Let _
   | SurfExpr.Tuple _ | SurfExpr.Inject _ | SurfExpr.Case _
   | SurfExpr.Iter _ | SurfExpr.If _ ->
-    ElabM.fail (TypeError.cannot_synthesize ~loc:pos ~construct:"sort")
+    ElabM.fail (Error.cannot_synthesize ~loc:pos ~construct:"sort")
 
 and check sig_ ctx se sort eff0 =
   let pos = (SurfExpr.info se)#loc in
   match SurfExpr.shape se with
   | SurfExpr.Return inner ->
     if not (Effect.sub Effect.Spec eff0) then
-      ElabM.fail (TypeError.spec_context_required ~loc:pos ~construct:"return")
+      ElabM.fail (Error.spec_context_required ~loc:pos ~construct:"return")
     else
     (match Sort.shape sort with
      | Sort.Pred tau ->
@@ -361,26 +361,26 @@ and check sig_ ctx se sort eff0 =
        ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Return ce))
      | _ ->
        ElabM.fail
-         (TypeError.construct_sort_mismatch ~loc:pos
+         (Error.construct_sort_mismatch ~loc:pos
             ~construct:"return" ~expected_shape:"Pred _"
             ~got:sort))
 
   | SurfExpr.Fail ->
     if not (Effect.sub Effect.Spec eff0) then
-      ElabM.fail (TypeError.spec_context_required ~loc:pos ~construct:"fail")
+      ElabM.fail (Error.spec_context_required ~loc:pos ~construct:"fail")
     else
     (match Sort.shape sort with
      | Sort.Pred _ ->
        ElabM.return (mk_typed ctx pos sort eff0 CoreExpr.Fail)
      | _ ->
        ElabM.fail
-         (TypeError.construct_sort_mismatch ~loc:pos
+         (Error.construct_sort_mismatch ~loc:pos
             ~construct:"fail" ~expected_shape:"Pred _"
             ~got:sort))
 
   | SurfExpr.Take (pat, se1, se2) ->
     if not (Effect.sub Effect.Spec eff0) then
-      ElabM.fail (TypeError.spec_context_required ~loc:pos ~construct:"take")
+      ElabM.fail (Error.spec_context_required ~loc:pos ~construct:"take")
     else
     (match Sort.shape sort with
      | Sort.Pred _ ->
@@ -406,12 +406,12 @@ and check sig_ ctx se sort eff0 =
           ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Take (yb, ce1, ce2)))
         | _ ->
           ElabM.fail
-            (TypeError.construct_sort_mismatch ~loc:pos
+            (Error.construct_sort_mismatch ~loc:pos
                ~construct:"take scrutinee"
                ~expected_shape:"Pred _" ~got:s1))
      | _ ->
        ElabM.fail
-         (TypeError.construct_sort_mismatch ~loc:pos
+         (Error.construct_sort_mismatch ~loc:pos
             ~construct:"take target"
             ~expected_shape:"Pred _" ~got:sort))
 
@@ -440,7 +440,7 @@ and check sig_ ctx se sort eff0 =
      | Sort.Record sorts ->
        if List.compare_lengths ses sorts <> 0 then
          ElabM.fail
-           (TypeError.tuple_arity_mismatch ~loc:pos
+           (Error.tuple_arity_mismatch ~loc:pos
               ~construct:"tuple"
               ~expected:(List.length sorts)
               ~actual:(List.length ses))
@@ -449,7 +449,7 @@ and check sig_ ctx se sort eff0 =
          ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Tuple ces))
      | _ ->
        ElabM.fail
-         (TypeError.construct_sort_mismatch ~loc:pos
+         (Error.construct_sort_mismatch ~loc:pos
             ~construct:"tuple" ~expected_shape:"Record _"
             ~got:sort))
 
@@ -462,10 +462,10 @@ and check sig_ ctx se sort eff0 =
           let* ce = check sig_ ctx inner ctor_sort eff0' in
           ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Inject (l, ce)))
         | Error msg ->
-          ElabM.fail (TypeError.helper_error ~loc:pos ~msg))
+          ElabM.fail (Error.helper_error ~loc:pos ~msg))
      | _ ->
        ElabM.fail
-         (TypeError.construct_sort_mismatch ~loc:pos
+         (Error.construct_sort_mismatch ~loc:pos
             ~construct:(Format.asprintf "constructor %a" Label.print l)
             ~expected_shape:"datasort/datatype application"
             ~got:sort))
@@ -492,7 +492,7 @@ and check sig_ ctx se sort eff0 =
 
   | SurfExpr.Iter (pat, se1, se2) ->
     if not (Effect.sub Effect.Impure eff0) then
-      ElabM.fail (TypeError.iter_requires_impure ~loc:pos ~actual:eff0)
+      ElabM.fail (Error.iter_requires_impure ~loc:pos ~actual:eff0)
     else
     let* (ce1, init_sort) = synth sig_ ctx Effect.Pure se1 in
     let* step_dsort = match Dsort.of_string "Step" with
@@ -532,7 +532,7 @@ and check sig_ ctx se sort eff0 =
     let* (ce, syn_sort) = synth sig_ ctx eff0 se in
     if not (sort_equal syn_sort sort) then
       ElabM.fail
-        (TypeError.sort_mismatch ~loc:pos ~expected:sort ~actual:syn_sort)
+        (Error.sort_mismatch ~loc:pos ~expected:sort ~actual:syn_sort)
     else ElabM.return ce
 
 and check_list sig_ ctx ses sorts eff0 =
@@ -582,7 +582,7 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
 
   | [], [] ->
     let witness = rebuilder [] in
-    ElabM.fail (TypeError.non_exhaustive ~loc:cov_loc ~witness)
+    ElabM.fail (Error.non_exhaustive ~loc:cov_loc ~witness)
 
   (* Cov_var: all leading patterns are variables — consume the
      scrutinee, its witness slot becomes [Wild]. *)
@@ -618,7 +618,7 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
               (CoreExpr.Case (y_ce, case_branches)))
           | None ->
             ElabM.fail
-              (TypeError.unbound_sort ~loc:(Var.binding_site y) dsort_name))
+              (Error.unbound_sort ~loc:(Var.binding_site y) dsort_name))
      | _ ->
        invariant_at (Sort.info lead_sort)#loc ~rule:"coverage_check:Cov_con"
          "a leading pattern is a constructor but its sort is not a \

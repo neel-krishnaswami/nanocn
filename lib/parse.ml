@@ -31,17 +31,17 @@ let parse_raw start s ~file =
       let state = I.current_state_number env in
       let msg = String.trim (lookup_message state) in
       let pos = Lexer.pos_of_lexbuf buf in
-      Error (TypeError.parse_error ~loc:(Some pos) ~msg)
+      Error (Error.parse_error ~loc:(Some pos) ~msg)
     | I.Accepted v -> Ok v
     | I.Rejected ->
       let pos = Lexer.pos_of_lexbuf buf in
-      Error (TypeError.parse_error ~loc:(Some pos)
+      Error (Error.parse_error ~loc:(Some pos)
                ~msg:"parser rejected input")
   in
   try
     let start_pos, _ = Sedlexing.lexing_positions buf in
     loop (start start_pos)
-  with Failure msg -> Error (TypeError.parse_error ~loc:None ~msg)
+  with Failure msg -> Error (Error.parse_error ~loc:None ~msg)
 
 (** {1 Raw (pure) parse functions} *)
 

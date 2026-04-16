@@ -1,6 +1,6 @@
 (** Configure a [Format.formatter] for coloured error output via ocolor.
 
-    The error printer (see [TypeError.print]) emits its output with
+    The error printer (see [Error.print]) emits its output with
     [Format] semantic tags for colour and emphasis — [Format] itself
     ignores unknown tags unless the formatter is set up to interpret
     them. This module does that set-up, and conditionally disables

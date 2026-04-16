@@ -16,10 +16,10 @@ let resolve_use pos env name =
   match lookup_env name env with
   | Some v -> return v
   | None ->
-    ElabM.fail (TypeError.unbound_name ~loc:pos name)
+    ElabM.fail (Error.unbound_name ~loc:pos name)
 
 let invariant_at pos ~rule msg =
-  ElabM.fail (TypeError.internal_invariant ~loc:pos ~rule ~invariant:msg)
+  ElabM.fail (Error.internal_invariant ~loc:pos ~rule ~invariant:msg)
 
 (* Best-effort location for a ProofSort.entry: any embedded expression
    or sort carries a [SourcePos.t] via its info object. *)
@@ -61,7 +61,7 @@ let check_parsed_linearity (p : Pat.parsed_pat) : unit ElabM.t =
     | n :: rest ->
       if List.exists (String.equal n) rest then
         ElabM.fail
-          (TypeError.duplicate_pat_var
+          (Error.duplicate_pat_var
              ~loc:(Pat.info p)#loc ~name:n)
       else check rest
   in

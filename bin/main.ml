@@ -18,7 +18,7 @@ let usage () =
   exit 1
 
 (* Shared source registry: every file we read gets registered so
-   [TypeError.print] can render source excerpts around error
+   [Error.print] can render source excerpts around error
    positions. One registry per process is enough. *)
 let source_registry = SourceExcerpt.create ()
 
@@ -36,7 +36,7 @@ let read_file filename =
   s
 
 let print_err err =
-  Format.eprintf "%a@." (TypeError.print source_registry) err
+  Format.eprintf "%a@." (Error.print source_registry) err
 
 let check_file filename =
   let input = read_file filename in

@@ -1,20 +1,20 @@
 (** State+error monad for elaboration.
 
     Threads a fresh variable supply and may fail with a structured
-    [TypeError.t]. *)
+    [Error.t]. *)
 
 type 'a t
 
 val return : 'a -> 'a t
 val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
 
-val fail : TypeError.t -> 'a t
+val fail : Error.t -> 'a t
 (** [fail e] aborts the computation with the given structured error. *)
 
-val lift : ('a, TypeError.t) result -> 'a t
+val lift : ('a, Error.t) result -> 'a t
 (** [lift r] promotes a plain result into the monad. *)
 
-val from_supply : (Var.supply -> ('a * Var.supply, TypeError.t) result) -> 'a t
+val from_supply : (Var.supply -> ('a * Var.supply, Error.t) result) -> 'a t
 (** [from_supply f] creates a monadic computation from a
     supply-threading function. *)
 
@@ -28,7 +28,7 @@ val mk_var : string -> SourcePos.t -> Var.t t
 val sequence : 'a t list -> 'a list t
 (** [sequence ms] runs each computation in order, collecting results. *)
 
-val run : Var.supply -> 'a t -> ('a * Var.supply, TypeError.t) result
+val run : Var.supply -> 'a t -> ('a * Var.supply, Error.t) result
 (** [run supply m] executes [m] starting from [supply], returning the
     result and the final supply. *)
 
