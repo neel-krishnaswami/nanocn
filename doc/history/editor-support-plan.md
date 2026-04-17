@@ -580,7 +580,10 @@ Deliverables:
   fold, no mutable state); used by both CLI and LSP
 - [x] `bin/main.ml` — `check_file` and `check_refined_file` wired
   through `CompileFile` for multi-error reporting
-- [x] `lib/hoverIndex.ml{i}` — spatial lookup over typed trees
+- [x] `lib/hoverIndex.ml{i}` — spatial lookup over typed trees.
+  Currently a flat node list with O(n) scan, not the trie
+  described in §3.2.3. Fine for realistic file sizes; replace
+  with a proper spatial trie if profiling shows a need.
 - [x] `bin/nanocn_lsp.ml` — stdio LSP server using `lsp` +
   `jsonrpc` opam libraries
 - [x] LSP features: `initialize`, `textDocument/didOpen`,
