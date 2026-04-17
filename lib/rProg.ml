@@ -1,4 +1,4 @@
-type ('e, 'var) decl =
+type ('e, 'b, 'var) decl =
   | SortDecl of DsortDecl.t
   | TypeDecl of DtypeDecl.t
   | FunDecl of {
@@ -12,25 +12,28 @@ type ('e, 'var) decl =
     }
   | RFunDecl of {
       name : string;
-      pat : 'var RPat.t;
-      domain : ('e, 'var) ProofSort.t;
-      codomain : ('e, 'var) ProofSort.t;
+      pat : ('var, 'b) RPat.t;
+      domain : ('e, 'b, 'var) ProofSort.t;
+      codomain : ('e, 'b, 'var) ProofSort.t;
       eff : Effect.t;
-      body : ('e, < loc : SourcePos.t >, 'var) RefinedExpr.crt;
+      body : ('e, 'b, 'var) RefinedExpr.crt;
       loc : SourcePos.t;
     }
 
-type ('e, 'var) t = {
-  decls : ('e, 'var) decl list;
-  main_pf : ('e, 'var) ProofSort.t;
+type ('e, 'b, 'var) t = {
+  decls : ('e, 'b, 'var) decl list;
+  main_pf : ('e, 'b, 'var) ProofSort.t;
   main_eff : Effect.t;
-  main_body : ('e, < loc : SourcePos.t >, 'var) RefinedExpr.crt;
+  main_body : ('e, 'b, 'var) RefinedExpr.crt;
   loc : SourcePos.t;
 }
 
-type raw_parsed = (SurfExpr.parsed_se, string) t
-type parsed = (SurfExpr.se, Var.t) t
-type checked = (CoreExpr.ce, Var.t) t
+type raw_parsed = (SurfExpr.parsed_se, < loc : SourcePos.t >, string) t
+type raw_parsed_decl = (SurfExpr.parsed_se, < loc : SourcePos.t >, string) decl
+type parsed = (SurfExpr.se, < loc : SourcePos.t >, Var.t) t
+type checked = (CoreExpr.ce, < loc : SourcePos.t >, Var.t) t
+type typed_rinfo = < loc : SourcePos.t; ctx : Context.t; rctx : RCtx.t; sort : Sort.sort; eff : Effect.t >
+type typed = (CoreExpr.typed_ce, typed_rinfo, Var.t) t
 
 let print_gen pp_var pp_e fmt prog =
   let pp_pf = ProofSort.print_gen pp_var pp_e in

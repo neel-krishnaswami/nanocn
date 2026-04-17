@@ -619,10 +619,11 @@ Planned features, roughly by priority:
    showing inferred sorts/effects where the user didn't write an
    explicit annotation. Walk the typed tree and emit hints at
    unannotated positions.
-3. **rfun hover** — the refined checker's elaborated expressions
-   aren't surfaced, so `rfun` bodies and the refined `main` have
-   no hover. Requires exposing typed core expressions from
-   `RCheck` (deeper refactor).
+3. **rfun hover** [DONE] — `RCheck.check_rprog` now returns
+   `RProg.typed` (fully annotated program); `HoverIndex.of_typed_rprog`
+   walks refined expression trees to collect typed nodes from
+   embedded `CoreExpr.typed_ce` values. Hover works for all core
+   expression positions within `rfun` bodies and the refined `main`.
 4. **References** (`textDocument/references`) — find all
    occurrences of a variable/function in the file. Scan the typed
    tree for `Var.t` matches; scan call sites for function names.

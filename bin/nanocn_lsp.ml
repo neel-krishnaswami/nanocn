@@ -160,21 +160,34 @@ let handle_hover (doc : doc_state) (params : Lsp.Types.HoverParams.t) : Lsp.Type
   let col = pos.character in
   match HoverIndex.lookup doc.hover ~line ~col with
   | None -> None
-  | Some (_loc, ctx, sort, eff) ->
+  | Some (_loc, ctx, rctx, sort, eff) ->
     let sort_str = Format.asprintf "%a" Sort.print sort in
     let eff_str = Format.asprintf "%a" Effect.print eff in
-    (* Filter the context: show only user-written term variables.
-       Generated variables (_vNN) are elaborator artefacts;
-       type variables and consumed resources are not useful here. *)
-    let user_bindings = List.filter_map (fun binding ->
-      match binding with
-      | Context.Term (v, s, e) when not (Var.is_generated v) ->
-        Some (Format.asprintf "%a : %a [%a]" Var.print v Sort.print s Effect.print e)
-      | _ -> None
-    ) (Context.to_list ctx) in
-    let ctx_str = match user_bindings with
-      | [] -> "(empty)"
-      | bs -> String.concat "\n" bs
+    (* Format context: prefer refined context (with logical facts and
+       resources) when available; fall back to core context. *)
+    let ctx_str = match rctx with
+      | Some delta ->
+        let lines = List.filter_map (fun entry ->
+          match entry with
+          | RCtx.Comp { var; sort = s; eff = e } when not (Var.is_generated var) ->
+            Some (Format.asprintf "%a : %a [%a]" Var.print var Sort.print s Effect.print e)
+          | RCtx.Log { var; prop } when not (Var.is_generated var) ->
+            Some (Format.asprintf "%a : %a [log]" Var.print var CoreExpr.print prop)
+          | RCtx.Res { var; pred; value; usage }
+            when not (Var.is_generated var) && Usage.is_avail usage ->
+            Some (Format.asprintf "%a : %a @@ %a [res]"
+              Var.print var CoreExpr.print pred CoreExpr.print value)
+          | _ -> None
+        ) (RCtx.entries delta) in
+        (match lines with [] -> "(empty)" | ls -> String.concat "\n" ls)
+      | None ->
+        let user_bindings = List.filter_map (fun binding ->
+          match binding with
+          | Context.Term (v, s, e) when not (Var.is_generated v) ->
+            Some (Format.asprintf "%a : %a [%a]" Var.print v Sort.print s Effect.print e)
+          | _ -> None
+        ) (Context.to_list ctx) in
+        (match user_bindings with [] -> "(empty)" | bs -> String.concat "\n" bs)
     in
     (* First line is concise (for echo area); full context follows
        (for *eldoc* buffer). *)

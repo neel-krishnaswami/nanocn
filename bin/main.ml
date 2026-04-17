@@ -183,7 +183,7 @@ let smt_check_file filename =
   in
   match ElabM.run Var.empty_supply run with
   | Error err -> print_err err; exit 1
-  | Ok ((rsig, ct), _supply) ->
+  | Ok ((_typed_prog, rsig, ct), _supply) ->
     match SmtEncode.encode rsig ct with
     | Error msg ->
       Format.eprintf "@[<v>SMT encode error:@ %s@]@." msg;

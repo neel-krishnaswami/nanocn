@@ -80,16 +80,6 @@ type rfile_outcome = {
   hover       : HoverIndex.t;
 }
 
-(** Build a hover index from RSig's FunDef entries (pure/spec functions
-    retain their typed body in the signature after elaboration). *)
-let hover_of_rsig rsig =
-  List.fold_left (fun idx entry ->
-    match entry with
-    | RSig.LFun (_, RSig.FunDef { body; _ }) ->
-      HoverIndex.add_typed_expr body idx
-    | _ -> idx
-  ) HoverIndex.empty (RSig.entries rsig)
-
 let empty_rfile_outcome diags =
   { final_rsig = RSig.empty;
     constraints = Constraint.top SourcePos.dummy;
@@ -127,11 +117,11 @@ let compile_rfile source ~file =
       ) with
       | Error e ->
         empty_rfile_outcome [e]
-      | Ok ((rsig, ct), _supply) ->
+      | Ok ((typed_prog, rsig, ct), _supply) ->
         { final_rsig = rsig;
           constraints = ct;
           diagnostics = [];
-          hover = hover_of_rsig rsig }
+          hover = HoverIndex.of_typed_rprog typed_prog }
 
 module Test = struct
   let test = []

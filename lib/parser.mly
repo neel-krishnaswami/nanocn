@@ -56,7 +56,7 @@
 %start <(SurfExpr.parsed_se, SourcePos.t, string) Prog.decl> repl_decl
 %start <(string * SourcePos.t * SurfExpr.parsed_se)> repl_let
 %start <RProg.raw_parsed> rprog_eof
-%start <(SurfExpr.parsed_se, string) RProg.decl> repl_rdecl
+%start <RProg.raw_parsed_decl> repl_rdecl
 
 %%
 
@@ -366,21 +366,21 @@ pf_sort:
 
 pf_entry:
   | x = ident_var; COLON; s = sort
-    { ProofSort.Comp { var = x; sort = s; eff = Effect.Pure } }
+    { ProofSort.Comp { info = loc_obj $startpos $endpos; var = x; sort = s; eff = Effect.Pure } }
   | LBRACKET; eff = eff_level; RBRACKET; x = ident_var; COLON; s = sort
-    { ProofSort.Comp { var = x; sort = s; eff } }
+    { ProofSort.Comp { info = loc_obj $startpos $endpos; var = x; sort = s; eff } }
   | LBRACKET; LOG; RBRACKET; e = app_expr
-    { ProofSort.Log { prop = e } }
+    { ProofSort.Log { info = loc_obj $startpos $endpos; prop = e } }
   | LBRACKET; RES; RBRACKET; e1 = app_expr; AT; e2 = app_expr
-    { ProofSort.Res { pred = e1; value = e2 } }
+    { ProofSort.Res { info = loc_obj $startpos $endpos; pred = e1; value = e2 } }
   | LBRACKET; RES; RBRACKET;
     LPAREN; DO; y = ident_var; COLON; s = sort; EQUAL; e = app_expr; RPAREN
     { let pred_sort = mk_sort $startpos $endpos (Sort.Pred s) in
       let annot_e = mk_surfexpr $startpos $endpos (SurfExpr.Annot (e, pred_sort)) in
-      ProofSort.DepRes { bound_var = y; pred = annot_e } }
+      ProofSort.DepRes { info = loc_obj $startpos $endpos; bound_var = y; pred = annot_e } }
   | LBRACKET; RES; RBRACKET;
     LPAREN; DO; y = ident_var; EQUAL; e = app_expr; RPAREN
-    { ProofSort.DepRes { bound_var = y; pred = e } }
+    { ProofSort.DepRes { info = loc_obj $startpos $endpos; bound_var = y; pred = e } }
 
 pf_domain:
   | LPAREN; entries = separated_list(COMMA, pf_domain_entry); RPAREN
@@ -388,23 +388,29 @@ pf_domain:
 
 pf_domain_entry:
   | x = ident_var; COLON; s = sort
-    { (RPat.Single x,
-       ProofSort.Comp { var = x; sort = s; eff = Effect.Pure }) }
+    { let b = loc_obj $startpos $endpos in
+      (RPat.Single (b, x),
+       ProofSort.Comp { info = b; var = x; sort = s; eff = Effect.Pure }) }
   | LBRACKET; eff = eff_level; RBRACKET; x = ident_var; COLON; s = sort
-    { (RPat.Single x,
-       ProofSort.Comp { var = x; sort = s; eff }) }
+    { let b = loc_obj $startpos $endpos in
+      (RPat.Single (b, x),
+       ProofSort.Comp { info = b; var = x; sort = s; eff }) }
   | LBRACKET; LOG; RBRACKET; x = ident_var; COLON; e = app_expr
-    { (RPat.Single x, ProofSort.Log { prop = e }) }
+    { let b = loc_obj $startpos $endpos in
+      (RPat.Single (b, x), ProofSort.Log { info = b; prop = e }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON; e1 = app_expr; AT; e2 = app_expr
-    { (RPat.Single x, ProofSort.Res { pred = e1; value = e2 }) }
+    { let b = loc_obj $startpos $endpos in
+      (RPat.Single (b, x), ProofSort.Res { info = b; pred = e1; value = e2 }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON;
     LPAREN; DO; y = ident_var; COLON; s = sort; EQUAL; e = app_expr; RPAREN
-    { let pred_sort = mk_sort $startpos $endpos (Sort.Pred s) in
+    { let b = loc_obj $startpos $endpos in
+      let pred_sort = mk_sort $startpos $endpos (Sort.Pred s) in
       let annot_e = mk_surfexpr $startpos $endpos (SurfExpr.Annot (e, pred_sort)) in
-      (RPat.Pair (y, x), ProofSort.DepRes { bound_var = y; pred = annot_e }) }
+      (RPat.Pair (b, y, x), ProofSort.DepRes { info = b; bound_var = y; pred = annot_e }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON;
     LPAREN; DO; y = ident_var; EQUAL; e = app_expr; RPAREN
-    { (RPat.Pair (y, x), ProofSort.DepRes { bound_var = y; pred = e }) }
+    { let b = loc_obj $startpos $endpos in
+      (RPat.Pair (b, y, x), ProofSort.DepRes { info = b; bound_var = y; pred = e }) }
 
 (* ===== Core refined terms ===== *)
 
@@ -468,7 +474,7 @@ crt_spine_expr:
 
 crt_case_branch:
   | l = LABEL; x = ident_var; ARROW; e = crt_expr
-    { (label l, x, e) }
+    { (label l, loc_obj $startpos $endpos, x, e) }
 
 crt_app_expr:
   | p = state_prim; LBRACKET; t = sort; RBRACKET; sp = spine_expr
@@ -480,9 +486,9 @@ crt_app_expr:
 
 rpat_elem:
   | x = ident_var
-    { RPat.Single x }
+    { RPat.Single (loc_obj $startpos $endpos, x) }
   | LPAREN; x = ident_var; COMMA; y = ident_var; RPAREN
-    { RPat.Pair (x, y) }
+    { RPat.Pair (loc_obj $startpos $endpos, x, y) }
 
 rpat:
   | LPAREN; RPAREN
@@ -490,7 +496,7 @@ rpat:
   | LPAREN; xs = separated_nonempty_list(COMMA, rpat_elem); RPAREN
     { xs }
   | x = ident_var
-    { [RPat.Single x] }
+    { [RPat.Single (loc_obj $startpos $endpos, x)] }
 
 (* ===== Spine expressions ===== *)
 

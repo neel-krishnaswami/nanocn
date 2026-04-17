@@ -23,12 +23,8 @@ let invariant_at pos ~rule msg =
 
 (* Best-effort location for a ProofSort.entry: any embedded expression
    or sort carries a [SourcePos.t] via its info object. *)
-let entry_loc (entry : (SurfExpr.parsed_se, string) ProofSort.entry) =
-  match entry with
-  | ProofSort.Comp { sort; _ } -> (Sort.info sort)#loc
-  | ProofSort.Log { prop } -> (SurfExpr.info prop)#loc
-  | ProofSort.Res { pred; _ } -> (SurfExpr.info pred)#loc
-  | ProofSort.DepRes { pred; _ } -> (SurfExpr.info pred)#loc
+let entry_loc (entry : (SurfExpr.parsed_se, _, string) ProofSort.entry) =
+  (ProofSort.entry_info entry)#loc
 
 (* ===== Patterns ===== *)
 
@@ -189,29 +185,29 @@ let resolve_prog env (p : (SurfExpr.parsed_se, SourcePos.t, string) Prog.t)
 
 (* ===== Proof sorts ===== *)
 
-let resolve_pf_entry env (entry : (SurfExpr.parsed_se, string) ProofSort.entry)
-  : ((SurfExpr.se, Var.t) ProofSort.entry * env) ElabM.t =
+let resolve_pf_entry env (entry : (SurfExpr.parsed_se, _, string) ProofSort.entry)
+  : ((SurfExpr.se, _, Var.t) ProofSort.entry * env) ElabM.t =
   match entry with
-  | ProofSort.Comp { var = name; sort; eff } ->
+  | ProofSort.Comp { info; var = name; sort; eff } ->
     let* v = mk_var name (Sort.info sort)#loc in
-    return (ProofSort.Comp { var = v; sort; eff }, (name, v) :: env)
-  | ProofSort.Log { prop } ->
+    return (ProofSort.Comp { info; var = v; sort; eff }, (name, v) :: env)
+  | ProofSort.Log { info; prop } ->
     let* prop' = resolve_expr env prop in
-    return (ProofSort.Log { prop = prop' }, env)
-  | ProofSort.Res { pred; value } ->
+    return (ProofSort.Log { info; prop = prop' }, env)
+  | ProofSort.Res { info; pred; value } ->
     let* pred' = resolve_expr env pred in
     let* value' = resolve_expr env value in
-    return (ProofSort.Res { pred = pred'; value = value' }, env)
-  | ProofSort.DepRes { bound_var = bname; pred } ->
+    return (ProofSort.Res { info; pred = pred'; value = value' }, env)
+  | ProofSort.DepRes { info; bound_var = bname; pred } ->
     let pos = (SurfExpr.info pred)#loc in
     let* bv = mk_var bname pos in
     let env_with_bound = (bname, bv) :: env in
     let* pred' = resolve_expr env_with_bound pred in
-    return (ProofSort.DepRes { bound_var = bv; pred = pred' },
+    return (ProofSort.DepRes { info; bound_var = bv; pred = pred' },
             (bname, bv) :: env)
 
-let resolve_pf env (pf : (SurfExpr.parsed_se, string) ProofSort.t)
-  : ((SurfExpr.se, Var.t) ProofSort.t * env) ElabM.t =
+let resolve_pf env (pf : (SurfExpr.parsed_se, _, string) ProofSort.t)
+  : ((SurfExpr.se, _, Var.t) ProofSort.t * env) ElabM.t =
   let rec go env = function
     | [] -> return ([], env)
     | entry :: rest ->
@@ -224,39 +220,39 @@ let resolve_pf env (pf : (SurfExpr.parsed_se, string) ProofSort.t)
 (* Domain resolution: pattern element and Pf entry are resolved together
    so that shared binder names get the same Var.t. *)
 let resolve_pf_domain_entry env
-    (pat_elem : string RPat.pat_elem)
-    (entry : (SurfExpr.parsed_se, string) ProofSort.entry)
-  : (Var.t RPat.pat_elem * (SurfExpr.se, Var.t) ProofSort.entry * env) ElabM.t =
+    (pat_elem : (string, _) RPat.pat_elem)
+    (entry : (SurfExpr.parsed_se, _, string) ProofSort.entry)
+  : ((Var.t, _) RPat.pat_elem * (SurfExpr.se, _, Var.t) ProofSort.entry * env) ElabM.t =
   match pat_elem, entry with
-  | RPat.Single name, ProofSort.Comp { var = name'; sort; eff } when name = name' ->
+  | RPat.Single (bi, name), ProofSort.Comp { info; var = name'; sort; eff } when name = name' ->
     let* v = mk_var name (Sort.info sort)#loc in
-    return (RPat.Single v,
-            ProofSort.Comp { var = v; sort; eff },
+    return (RPat.Single (bi, v),
+            ProofSort.Comp { info; var = v; sort; eff },
             (name, v) :: env)
-  | RPat.Single name, ProofSort.Log { prop } ->
+  | RPat.Single (bi, name), ProofSort.Log { info; prop } ->
     let* prop' = resolve_expr env prop in
     let pos = (SurfExpr.info prop)#loc in
     let* v = mk_var name pos in
-    return (RPat.Single v,
-            ProofSort.Log { prop = prop' },
+    return (RPat.Single (bi, v),
+            ProofSort.Log { info; prop = prop' },
             (name, v) :: env)
-  | RPat.Single name, ProofSort.Res { pred; value } ->
+  | RPat.Single (bi, name), ProofSort.Res { info; pred; value } ->
     let* pred' = resolve_expr env pred in
     let* value' = resolve_expr env value in
     let pos = (SurfExpr.info pred)#loc in
     let* v = mk_var name pos in
-    return (RPat.Single v,
-            ProofSort.Res { pred = pred'; value = value' },
+    return (RPat.Single (bi, v),
+            ProofSort.Res { info; pred = pred'; value = value' },
             (name, v) :: env)
-  | RPat.Pair (bname, rname), ProofSort.DepRes { bound_var = bname'; pred }
+  | RPat.Pair (bi, bname, rname), ProofSort.DepRes { info; bound_var = bname'; pred }
     when bname = bname' ->
     let pos = (SurfExpr.info pred)#loc in
     let* bv = mk_var bname pos in
     let env_with_bound = (bname, bv) :: env in
     let* pred' = resolve_expr env_with_bound pred in
     let* rv = mk_var rname pos in
-    return (RPat.Pair (bv, rv),
-            ProofSort.DepRes { bound_var = bv; pred = pred' },
+    return (RPat.Pair (bi, bv, rv),
+            ProofSort.DepRes { info; bound_var = bv; pred = pred' },
             (rname, rv) :: (bname, bv) :: env)
   | _ ->
     invariant_at (entry_loc entry) ~rule:"resolve_pf_domain_entry"
@@ -264,9 +260,9 @@ let resolve_pf_domain_entry env
        (shared-binder name disagreement, or Single/Pair shape mismatch)"
 
 let resolve_pf_domain env
-    (pat : string RPat.t)
-    (domain : (SurfExpr.parsed_se, string) ProofSort.t)
-  : (Var.t RPat.t * (SurfExpr.se, Var.t) ProofSort.t * env) ElabM.t =
+    (pat : (string, _) RPat.t)
+    (domain : (SurfExpr.parsed_se, _, string) ProofSort.t)
+  : ((Var.t, _) RPat.t * (SurfExpr.se, _, Var.t) ProofSort.t * env) ElabM.t =
   let rec go env pat domain =
     match pat, domain with
     | [], [] -> return ([], [], env)
@@ -288,19 +284,19 @@ let resolve_pf_domain env
 
 (* ===== Refined patterns ===== *)
 
-let resolve_rpat_elem env (elem : string RPat.pat_elem)
-  : (Var.t RPat.pat_elem * env) ElabM.t =
+let resolve_rpat_elem env (elem : (string, _) RPat.pat_elem)
+  : ((Var.t, _) RPat.pat_elem * env) ElabM.t =
   match elem with
-  | RPat.Single name ->
+  | RPat.Single (b, name) ->
     let* v = mk_var name SourcePos.dummy in
-    return (RPat.Single v, (name, v) :: env)
-  | RPat.Pair (name1, name2) ->
+    return (RPat.Single (b, v), (name, v) :: env)
+  | RPat.Pair (b, name1, name2) ->
     let* v1 = mk_var name1 SourcePos.dummy in
     let* v2 = mk_var name2 SourcePos.dummy in
-    return (RPat.Pair (v1, v2), (name2, v2) :: (name1, v1) :: env)
+    return (RPat.Pair (b, v1, v2), (name2, v2) :: (name1, v1) :: env)
 
-let resolve_rpat env (rp : string RPat.t)
-  : (Var.t RPat.t * env) ElabM.t =
+let resolve_rpat env (rp : (string, _) RPat.t)
+  : ((Var.t, _) RPat.t * env) ElabM.t =
   let rec go env = function
     | [] -> return ([], env)
     | elem :: rest ->
@@ -395,12 +391,12 @@ let rec resolve_crt env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string)
 
 and resolve_crt_branches env = function
   | [] -> return []
-  | (l, name, body) :: rest ->
+  | (l, b, name, body) :: rest ->
     let* v = mk_var name SourcePos.dummy in
     let env' = (name, v) :: env in
     let* body' = resolve_crt env' body in
     let* rest' = resolve_crt_branches env rest in
-    return ((l, v, body') :: rest')
+    return ((l, b, v, body') :: rest')
 
 and resolve_lpf env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string) RefinedExpr.lpf)
   : (SurfExpr.se, < loc : SourcePos.t >, Var.t) RefinedExpr.lpf ElabM.t =
@@ -462,8 +458,8 @@ and resolve_spine env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string) R
 
 (* ===== Refined programs ===== *)
 
-let resolve_rdecl env (d : (SurfExpr.parsed_se, string) RProg.decl)
-  : ((SurfExpr.se, Var.t) RProg.decl * env) ElabM.t =
+let resolve_rdecl env (d : (SurfExpr.parsed_se, _, string) RProg.decl)
+  : ((SurfExpr.se, _, Var.t) RProg.decl * env) ElabM.t =
   match d with
   | RProg.FunDecl { name; param; arg_sort; ret_sort; eff; body; loc } ->
     let* param_v = mk_var param loc in

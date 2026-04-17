@@ -1,9 +1,10 @@
 (** Spatial index over typed core expressions — see hoverIndex.mli. *)
 
-(** A node record: the info carried by one typed_ce node. *)
+(** A node record: the info carried by one typed node. *)
 type node = {
   loc  : SourcePos.t;
   ctx  : Context.t;
+  rctx : RCtx.t option;
   sort : Sort.sort;
   eff  : Effect.t;
 }
@@ -16,9 +17,9 @@ type t = node list
 
 let empty = []
 
-(** Extract a node from a typed_ce info object. *)
+(** Extract a node from a typed_ce info object (core — no refined context). *)
 let node_of_info (b : Typecheck.typed_info) : node =
-  { loc = b#loc; ctx = b#ctx; sort = b#sort; eff = b#eff }
+  { loc = b#loc; ctx = b#ctx; rctx = None; sort = b#sort; eff = b#eff }
 
 (** Collect all nodes from a typed_ce tree by structural recursion. *)
 let rec collect (acc : node list) (e : Typecheck.typed_ce) : node list =
@@ -61,6 +62,104 @@ let of_typed_decls decls =
     | Prog.CoreSortDecl _ | Prog.CoreTypeDecl _ -> acc
   ) empty decls
 
+(** Extract a hover node from a refined expression's typed_rinfo annotation. *)
+let node_of_rinfo (b : RProg.typed_rinfo) : node =
+  { loc = b#loc; ctx = b#ctx; rctx = Some b#rctx; sort = b#sort; eff = b#eff }
+
+(** Collect typed nodes from refined pattern elements. *)
+let collect_rpat acc pat =
+  List.fold_left (fun acc elem ->
+    node_of_rinfo (RPat.elem_info elem) :: acc
+  ) acc pat
+
+(** Collect typed nodes from a proof sort entry list. *)
+let collect_pf acc pf =
+  List.fold_left (fun acc entry ->
+    let acc = node_of_rinfo (ProofSort.entry_info entry) :: acc in
+    match entry with
+    | ProofSort.Comp { info = _; _ } -> acc
+    | ProofSort.Log { info = _; prop } -> collect acc prop
+    | ProofSort.Res { info = _; pred; value } -> collect (collect acc pred) value
+    | ProofSort.DepRes { info = _; pred; _ } -> collect acc pred
+  ) acc pf
+
+(** Walk refined expression trees, collecting hover nodes from both
+    the refined node annotations (typed_info) and embedded typed_ce
+    expressions. Four mutually recursive functions mirror the four
+    refined expression sorts. *)
+let rec collect_crt acc crt =
+  let acc = node_of_rinfo (RefinedExpr.crt_info crt) :: acc in
+  match RefinedExpr.crt_shape crt with
+  | RefinedExpr.CLet (pat, crt1, crt2) ->
+    collect_crt (collect_crt (collect_rpat acc pat) crt1) crt2
+  | RefinedExpr.CLetLog (_, lpf, crt') ->
+    collect_crt (collect_lpf acc lpf) crt'
+  | RefinedExpr.CLetRes (_, rpf, crt') ->
+    collect_crt (collect_rpf acc rpf) crt'
+  | RefinedExpr.CLetCore (_, _, e, crt') ->
+    collect_crt (collect acc e) crt'
+  | RefinedExpr.CAnnot (crt', pf) ->
+    collect_pf (collect_crt acc crt') pf
+  | RefinedExpr.CPrimApp (_, spine) ->
+    collect_spine acc spine
+  | RefinedExpr.CCall (_, spine) ->
+    collect_spine acc spine
+  | RefinedExpr.CTuple spine ->
+    collect_spine acc spine
+  | RefinedExpr.CIter (e, pat, crt1, crt2) ->
+    collect_crt (collect_crt (collect_rpat (collect acc e) pat) crt1) crt2
+  | RefinedExpr.CIf (_, e, crt1, crt2) ->
+    collect_crt (collect_crt (collect acc e) crt1) crt2
+  | RefinedExpr.CCase (_, e, branches) ->
+    List.fold_left (fun acc (_, b, _, body) ->
+      collect_crt (node_of_rinfo b :: acc) body)
+      (collect acc e) branches
+  | RefinedExpr.CExfalso -> acc
+  | RefinedExpr.COpenTake rpf ->
+    collect_rpf acc rpf
+
+and collect_lpf acc lpf =
+  let acc = node_of_rinfo (RefinedExpr.lpf_info lpf) :: acc in
+  match RefinedExpr.lpf_shape lpf with
+  | RefinedExpr.LVar _ | RefinedExpr.LAuto -> acc
+  | RefinedExpr.LUnfold (_, e) -> collect acc e
+  | RefinedExpr.LOpenRet rpf -> collect_rpf acc rpf
+  | RefinedExpr.LAnnot (lpf', e) ->
+    collect_lpf (collect acc e) lpf'
+
+and collect_rpf acc rpf =
+  let acc = node_of_rinfo (RefinedExpr.rpf_info rpf) :: acc in
+  match RefinedExpr.rpf_shape rpf with
+  | RefinedExpr.RVar _ -> acc
+  | RefinedExpr.RMakeRet lpf -> collect_lpf acc lpf
+  | RefinedExpr.RMakeTake crt -> collect_crt acc crt
+  | RefinedExpr.RAnnot (rpf', e1, e2) ->
+    collect_rpf (collect (collect acc e1) e2) rpf'
+
+and collect_spine acc spine =
+  let acc = node_of_rinfo (RefinedExpr.spine_info spine) :: acc in
+  match RefinedExpr.spine_shape spine with
+  | RefinedExpr.SNil -> acc
+  | RefinedExpr.SCore (e, rest) ->
+    collect_spine (collect acc e) rest
+  | RefinedExpr.SLog (lpf, rest) ->
+    collect_spine (collect_lpf acc lpf) rest
+  | RefinedExpr.SRes (rpf, rest) ->
+    collect_spine (collect_rpf acc rpf) rest
+
+let of_typed_rprog (prog : RProg.typed) =
+  let acc = List.fold_left (fun acc decl ->
+    match decl with
+    | RProg.SortDecl _ | RProg.TypeDecl _ -> acc
+    | RProg.FunDecl { body; _ } -> collect acc body
+    | RProg.RFunDecl { body; domain; codomain; _ } ->
+      let acc = collect_pf acc domain in
+      let acc = collect_pf acc codomain in
+      collect_crt acc body
+  ) empty prog.decls in
+  let acc = collect_pf acc prog.main_pf in
+  collect_crt acc prog.main_body
+
 let add_typed_expr e idx =
   collect idx e
 
@@ -98,7 +197,7 @@ let lookup idx ~line ~col =
         if tighter_span n.loc prev.loc then Some n else best
     else best
   ) None idx
-  |> Option.map (fun n -> (n.loc, n.ctx, n.sort, n.eff))
+  |> Option.map (fun n -> (n.loc, n.ctx, n.rctx, n.sort, n.eff))
 
 module Test = struct
   let test = []

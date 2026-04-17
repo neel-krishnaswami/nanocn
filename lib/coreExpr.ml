@@ -106,7 +106,7 @@ let rec print_gen pp_var fmt t =
   | Inject (l, e) ->
     Format.fprintf fmt "@[<hov 2>%a@ %a@]" Label.print l pr e
   | Case (scrut, branches) ->
-    Format.fprintf fmt "@[<v>@[<hov 2>case %a {@ %a@]@ }@]"
+    Format.fprintf fmt "@[<v>@[<hov 2>case %a of {@ %a@]@ }@]"
       pr scrut
       (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt "@ | ")
          (fun fmt (l, x, body, _) ->

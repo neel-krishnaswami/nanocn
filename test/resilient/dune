@@ -1,3 +1,3 @@
 (executables
- (names test_multi test_resilient test_compile test_debug)
+ (names test_multi test_resilient test_compile test_debug test_hover)
  (libraries nanocn))

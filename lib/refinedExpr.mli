@@ -12,10 +12,12 @@
 (** {1 Shape functors}
 
     ['crt], ['lpf], ['rpf], ['spine] are recursive positions.
-    ['e] is the embedded expression type. ['var] is the variable type. *)
+    ['e] is the embedded expression type.
+    ['b] is the info parameter (flows to RPat, ProofSort, branches).
+    ['var] is the variable type. *)
 
-type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) crtF =
-  | CLet of 'var RPat.t * 'crt * 'crt
+type ('crt, 'lpf, 'rpf, 'spine, 'e, 'b, 'var) crtF =
+  | CLet of ('var, 'b) RPat.t * 'crt * 'crt
   | CLetLog of 'var * 'lpf * 'crt
   | CLetRes of 'var * 'rpf * 'crt
   | CLetCore of 'var list * 'var * 'e * 'crt
@@ -24,13 +26,13 @@ type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) crtF =
         [let core[a] (x1, ..., xn) = ce; body] when [xs] has length
         ≥ 2. The proof name [a] binds the equation
         [x = ce] / [(x1, ..., xn) = ce] for downstream use. *)
-  | CAnnot of 'crt * ('e, 'var) ProofSort.t
+  | CAnnot of 'crt * ('e, 'b, 'var) ProofSort.t
   | CPrimApp of Prim.t * 'spine
   | CCall of string * 'spine
   | CTuple of 'spine
-  | CIter of 'e * 'var RPat.t * 'crt * 'crt
+  | CIter of 'e * ('var, 'b) RPat.t * 'crt * 'crt
   | CIf of 'var * 'e * 'crt * 'crt
-  | CCase of 'var * 'e * (Label.t * 'var * 'crt) list
+  | CCase of 'var * 'e * (Label.t * 'b * 'var * 'crt) list
   | CExfalso
   | COpenTake of 'rpf
 
@@ -55,24 +57,25 @@ type ('crt, 'lpf, 'rpf, 'spine, 'e) spineF =
 
 (** {1 Mapper record} *)
 
-type ('c1, 'c2, 'l1, 'l2, 'r1, 'r2, 's1, 's2, 'e1, 'e2, 'v1, 'v2) mapper = {
+type ('c1, 'c2, 'l1, 'l2, 'r1, 'r2, 's1, 's2, 'e1, 'e2, 'b1, 'b2, 'v1, 'v2) mapper = {
   crt : 'c1 -> 'c2;
   lpf : 'l1 -> 'l2;
   rpf : 'r1 -> 'r2;
   spine : 's1 -> 's2;
   expr : 'e1 -> 'e2;
+  info : 'b1 -> 'b2;
   var : 'v1 -> 'v2;
 }
 
 (** {1 Shape mapping} *)
 
-val map_crtF : ('c1, 'c2, 'l1, 'l2, 'r1, 'r2, 's1, 's2, 'e1, 'e2, 'v1, 'v2) mapper ->
-  ('c1, 'l1, 'r1, 's1, 'e1, 'v1) crtF -> ('c2, 'l2, 'r2, 's2, 'e2, 'v2) crtF
-val map_lpfF : ('c1, 'c2, 'l1, 'l2, 'r1, 'r2, 's1, 's2, 'e1, 'e2, 'v1, 'v2) mapper ->
+val map_crtF : ('c1, 'c2, 'l1, 'l2, 'r1, 'r2, 's1, 's2, 'e1, 'e2, 'b1, 'b2, 'v1, 'v2) mapper ->
+  ('c1, 'l1, 'r1, 's1, 'e1, 'b1, 'v1) crtF -> ('c2, 'l2, 'r2, 's2, 'e2, 'b2, 'v2) crtF
+val map_lpfF : ('c1, 'c2, 'l1, 'l2, 'r1, 'r2, 's1, 's2, 'e1, 'e2, 'b1, 'b2, 'v1, 'v2) mapper ->
   ('c1, 'l1, 'r1, 's1, 'e1, 'v1) lpfF -> ('c2, 'l2, 'r2, 's2, 'e2, 'v2) lpfF
-val map_rpfF : ('c1, 'c2, 'l1, 'l2, 'r1, 'r2, 's1, 's2, 'e1, 'e2, 'v1, 'v2) mapper ->
+val map_rpfF : ('c1, 'c2, 'l1, 'l2, 'r1, 'r2, 's1, 's2, 'e1, 'e2, 'b1, 'b2, 'v1, 'v2) mapper ->
   ('c1, 'l1, 'r1, 's1, 'e1, 'v1) rpfF -> ('c2, 'l2, 'r2, 's2, 'e2, 'v2) rpfF
-val map_spineF : ('c1, 'c2, 'l1, 'l2, 'r1, 'r2, 's1, 's2, 'e1, 'e2, _, _) mapper ->
+val map_spineF : ('c1, 'c2, 'l1, 'l2, 'r1, 'r2, 's1, 's2, 'e1, 'e2, 'b1, 'b2, _, _) mapper ->
   ('c1, 'l1, 'r1, 's1, 'e1) spineF -> ('c2, 'l2, 'r2, 's2, 'e2) spineF
 
 (** {1 Knot-tied abstract types} *)
@@ -82,7 +85,7 @@ type ('e, 'b, 'var) lpf
 type ('e, 'b, 'var) rpf
 type ('e, 'b, 'var) spine
 
-val mk_crt : 'b -> (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e, 'var) crtF -> ('e, 'b, 'var) crt
+val mk_crt : 'b -> (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e, 'b, 'var) crtF -> ('e, 'b, 'var) crt
 val mk_lpf : 'b -> (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e, 'var) lpfF -> ('e, 'b, 'var) lpf
 val mk_rpf : 'b -> (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e, 'var) rpfF -> ('e, 'b, 'var) rpf
 val mk_spine : 'b -> (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e) spineF -> ('e, 'b, 'var) spine
@@ -92,7 +95,7 @@ val lpf_info : ('e, 'b, 'var) lpf -> 'b
 val rpf_info : ('e, 'b, 'var) rpf -> 'b
 val spine_info : ('e, 'b, 'var) spine -> 'b
 
-val crt_shape : ('e, 'b, 'var) crt -> (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e, 'var) crtF
+val crt_shape : ('e, 'b, 'var) crt -> (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e, 'b, 'var) crtF
 val lpf_shape : ('e, 'b, 'var) lpf -> (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e, 'var) lpfF
 val rpf_shape : ('e, 'b, 'var) rpf -> (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e, 'var) rpfF
 val spine_shape : ('e, 'b, 'var) spine -> (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e) spineF

@@ -1,6 +1,61 @@
-# Adding refinement types to nanocn 
+# Adding pattern matching to nanocn refinement types 
 
-Next, we are going to add support for refinement types to nanoCN. 
+## Phase 1: Infallible patterns only 
+
+In the simple refinement system, the grammar of patterns looks like this: 
+q ::= (qbase1, ..., qbasen) 
+qbase ::= cpat | res rpat | log lpat 
+lpat ::= x
+rpat ::= x | (x) y 
+cpat ::=  x 
+
+What we are going to do is to expand the grammar of patterns to encompass more stuff, 
+but for patterns which always succeed in matching. 
+
+q ::= (qbase1, ..., qbasen) 
+qbase ::= cpat | res rpat-base | log lpat 
+lpat ::= x
+rpat-base ::= do x = rpat | rpat
+rpat ::= x 
+      | return lpat 
+      | take(cpat, rpat); rpat 
+      | fail 
+      | let[a] cpat; rpat 
+      | case L(p); rpat
+      | iftrue; rpat
+      | iffalse; rpat
+      | unfold; rpat 
+      | _; rpat
+      
+cpat ::=  x | (cpat1, ..., cpatn) | L cpat 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Extending the signature. 
 
@@ -270,6 +325,9 @@ arguments. Return types can also depend upon the bindings of their inputs.
 The grammar of core refined patterns is given as follows: 
 
 qbase ::= res rpat | log lpat | pat 
+lpat ::= x | auto 
+rpat ::= x | ret lpat | take(pat, rpat1, rpat2) | fail 
+      
 
 q ::= (qbase1, ..., qbasen)
 

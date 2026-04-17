@@ -16,5 +16,96 @@ This is a small implementation of a CN+Fulminate style system.
 Another difference from Fulminate is that we will track *all* of the abstract resources of the program (i.e., the resource context) symbolically. In Fulminate, each byte of memory is owned by a stack frame. Here, each byte of memory will be owned by a *predicate call `P(t1,...,tn)`*, where the `P` is a predicate name and the `ti` are concrete ground terms. 
 
 The reason for this is that we want all of the proof-manipulating commands to have an operational semantics, so that we can turn static errors into runtime errors, and use  concrete program states to help figure out what is going wrong with a proof, using ideas from CEGAR/CEGIS. The idea is that the results of these analyses can be invoked and studied both by programmers and by LLMs like Claude (maybe as a "skill"), and my conjecture is that informational mechanisms which are good for humans will also be good for machines. 
-   
-     
+
+## Building
+
+### Prerequisites
+
+- OCaml 5.0+
+- dune 3.0+
+- opam packages: `sedlex`, `menhir`, `qcheck`, `qcheck-alcotest`, `lsp`, `jsonrpc`, `linenoise`
+
+Install dependencies via opam:
+
+```sh
+opam install sedlex menhir qcheck qcheck-alcotest lsp jsonrpc linenoise
+```
+
+### Build
+
+```sh
+dune build
+```
+
+This produces two executables:
+
+- `nanocn` -- the compiler and REPL (`dune exec nanocn`)
+- `nanocn-lsp` -- the LSP server for editor integration
+
+### Test
+
+```sh
+dune runtest
+```
+
+### Install
+
+```sh
+dune install
+```
+
+This places `nanocn` and `nanocn-lsp` on your PATH.
+
+## Emacs mode
+
+nanoCN ships with an Emacs tree-sitter major mode and an LSP server.
+Requires **Emacs 29.1+** with tree-sitter support.
+
+### 1. Install the tree-sitter grammar
+
+From Emacs:
+
+```
+M-x treesit-install-language-grammar RET nanocn RET
+```
+
+Or manually:
+
+```sh
+cd scripts/editor/tree-sitter-nanocn
+tree-sitter generate && tree-sitter build
+cp nanocn.so ~/.emacs.d/tree-sitter/libtree-sitter-nanocn.so
+```
+
+### 2. Load the mode
+
+Add to your Emacs init file:
+
+```elisp
+(add-to-list 'load-path "/path/to/nanocn/scripts/editor/emacs")
+(require 'nanocn-ts-mode)
+```
+
+This provides syntax highlighting, indentation, Imenu, and defun
+navigation for `.cn` and `.rcn` files.
+
+### 3. Enable LSP (hover, diagnostics, SMT checking)
+
+Ensure `nanocn-lsp` is on your PATH (via `dune install` or
+`dune exec nanocn-lsp`), then:
+
+```
+M-x eglot
+```
+
+Eglot registration is already configured by `nanocn-ts-mode`.
+The LSP server provides:
+
+- **Diagnostics** via Flymake (parse errors, type errors)
+- **Hover** showing the typing context, sort, and effect at point
+  (including refined contexts with logical facts and resources)
+- **Document symbols** for navigation
+- **Async SMT checking** on save for `.rcn` files (requires Z3)
+
+See `doc/editor-support.md` for full details.
+

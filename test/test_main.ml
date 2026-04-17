@@ -1054,8 +1054,8 @@ let () =
         let (x, s0) = Var.mk "x" SourcePos.dummy Var.empty_supply in
         let (y, _s1) = Var.mk "y" SourcePos.dummy s0 in
         let pf = [
-          ProofSort.Comp { var = x; sort = int_sort; eff = Effect.Pure };
-          ProofSort.Comp { var = y; sort = bool_sort; eff = Effect.Spec };
+          ProofSort.Comp { info = (); var = x; sort = int_sort; eff = Effect.Pure };
+          ProofSort.Comp { info = (); var = y; sort = bool_sort; eff = Effect.Spec };
         ] in
         match ProofSort.pf_types pf with
         | [s] ->
@@ -1084,7 +1084,7 @@ let () =
           RCheck.check_rprog prog
         ) with
         | Error msg -> Alcotest.fail ("check: " ^ Error.to_string msg)
-          | Ok (_rs, ct) ->
+          | Ok (_typed_prog, _rs, ct) ->
             (* The constraint must not be trivially Top — it should contain
                conjuncts from incr's body (the Get/Set pred equalities) *)
             match Constraint.shape ct with
@@ -1122,12 +1122,15 @@ let () =
                   method sort = sort method eff = Effect.Spec end : CoreExpr.typed_info) in
         let (x, _s0) = Var.mk "x" SourcePos.dummy Var.empty_supply in
         let ce = CoreExpr.mk (mk_info bool_sort) (CoreExpr.IntLit 0) in
+        let ri : RProg.typed_rinfo =
+          (object method loc = SourcePos.dummy method ctx = Context.empty
+                  method rctx = RCtx.empty method sort = int_sort method eff = Effect.Spec end) in
         let pf1 = [
-          ProofSort.Comp { var = x; sort = int_sort; eff = Effect.Pure };
-          ProofSort.Log { prop = ce };
+          ProofSort.Comp { info = ri; var = x; sort = int_sort; eff = Effect.Pure };
+          ProofSort.Log { info = ri; prop = ce };
         ] in
         let pf2 = [
-          ProofSort.Comp { var = x; sort = int_sort; eff = Effect.Pure };
+          ProofSort.Comp { info = ri; var = x; sort = int_sort; eff = Effect.Pure };
         ] in
         (* Synthesized pf1 has more entries than expected pf2 — should fail *)
         let src = {|
@@ -1139,7 +1142,7 @@ let () =
           RCheck.check_rprog prog
         ) with
         | Error msg -> Alcotest.fail ("check: " ^ Error.to_string msg)
-          | Ok (rs, _) ->
+          | Ok (_, rs, _) ->
             let rsig = rs in
             let result = ElabM.run Var.empty_supply (
               RCheck.Test.pf_eq SourcePos.dummy rsig RCtx.empty pf1 pf2
