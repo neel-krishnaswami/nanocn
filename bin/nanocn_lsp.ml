@@ -236,6 +236,87 @@ let handle_request : type a. doc_state option -> a Lsp.Client_request.t -> a =
   | Lsp.Client_request.Shutdown -> ()
   | _ -> raise Exit  (* unhandled request *)
 
+(* ==================================================================
+   Async SMT
+   ================================================================== *)
+
+let current_smt_run : SmtAsync.run_id option ref = ref None
+
+let smt_pos_to_diagnostic pos answer =
+  let start_line = max 0 (SourcePos.start_line pos - 1) in
+  let end_line = max 0 (SourcePos.end_line pos - 1) in
+  let range = { Lsp.Types.Range.start =
+                  { line = start_line; character = SourcePos.start_col pos };
+                end_ =
+                  { line = end_line; character = SourcePos.end_col pos } } in
+  let severity, message = match answer with
+    | SolverOutput.Sat ->
+      Lsp.Types.DiagnosticSeverity.Hint, "sat (constraint satisfied)"
+    | SolverOutput.Unsat ->
+      Lsp.Types.DiagnosticSeverity.Error, "unsat (constraint violated)"
+    | SolverOutput.Unknown ->
+      Lsp.Types.DiagnosticSeverity.Warning, "unknown (solver timeout or incomplete)"
+    | SolverOutput.Error msg ->
+      Lsp.Types.DiagnosticSeverity.Error, "solver error: " ^ msg
+  in
+  Lsp.Types.Diagnostic.create ~range ~severity ~source:"nanocn-smt"
+    ~message:(`String message) ()
+
+let start_smt_run oc _doc (r : CompileFile.rfile_outcome) =
+  (* Cancel any previous run *)
+  (match !current_smt_run with
+   | Some id -> SmtAsync.cancel id; current_smt_run := None
+   | None -> ());
+  (* Encode constraints and write to a temp SMT file *)
+  match SmtEncode.encode r.final_rsig r.constraints with
+  | Error _msg -> ()
+  | Ok (prelude, constraints) ->
+    let smt_path = Filename.temp_file "nanocn" ".smt2" in
+    let oc_smt = Out_channel.open_text smt_path in
+    SmtEncode.write_file oc_smt ~prelude ~constraints;
+    Out_channel.close oc_smt;
+    let positions = List.map (fun c -> c.SmtConstraint.pos) constraints in
+    let z3 = Option.value (Sys.getenv_opt "Z3") ~default:"z3" in
+    match SmtAsync.start ~exe:z3 ~smt_path ~query_positions:positions
+            ~on_event:(fun _ev -> ()) with
+    | Error _msg -> ()
+    | Ok run_id ->
+      current_smt_run := Some run_id;
+      ignore (oc : out_channel)  (* used by event handler via drain *)
+
+let handle_smt_events oc =
+  let events = SmtAsync.drain_events () in
+  List.iter (fun ev ->
+    match ev with
+    | SmtAsync.Query_result { run; pos; answer; _ } ->
+      (match !current_smt_run with
+       | Some id when Int.equal id run ->
+         (* Find the doc this run belongs to — for now, publish
+            individual diagnostics by accumulating them. *)
+         let diag = smt_pos_to_diagnostic pos answer in
+         (* We'd need to know the URI to publish. For now, broadcast
+            to all .rcn docs. *)
+         List.iter (fun (uri, doc) ->
+           if is_rcn doc.file then begin
+             let existing = diagnostics_of_doc doc in
+             let params = Lsp.Types.PublishDiagnosticsParams.create
+               ~uri ~diagnostics:(existing @ [diag]) () in
+             let notif = Lsp.Server_notification.to_jsonrpc
+               (Lsp.Server_notification.PublishDiagnostics params) in
+             Io.write oc (Jsonrpc.Packet.Notification notif)
+           end
+         ) state.docs
+       | _ -> ())  (* stale run *)
+    | SmtAsync.Run_finished run ->
+      (match !current_smt_run with
+       | Some id when Int.equal id run -> current_smt_run := None
+       | _ -> ())
+    | SmtAsync.Run_failed { run; msg = _ } ->
+      (match !current_smt_run with
+       | Some id when Int.equal id run -> current_smt_run := None
+       | _ -> ())
+  ) events
+
 let handle_notification oc (notif : Lsp.Client_notification.t) =
   match notif with
   | Lsp.Client_notification.TextDocumentDidOpen params ->
@@ -265,62 +346,81 @@ let handle_notification oc (notif : Lsp.Client_notification.t) =
        let doc = compile_and_diagnose doc in
        set_doc uri doc;
        publish_diagnostics oc doc)
-  | Lsp.Client_notification.DidSaveTextDocument _params ->
-    ()  (* Recompile already happens on didChange *)
+  | Lsp.Client_notification.DidSaveTextDocument params ->
+    (* For .rcn files: trigger async SMT check if we have constraints. *)
+    let uri = params.textDocument.uri in
+    (match find_doc uri with
+     | Some doc when is_rcn doc.file ->
+       (match doc.rfile with
+        | Some r when List.length r.diagnostics = 0 ->
+          start_smt_run oc doc r
+        | _ -> ())
+     | _ -> ())
   | Lsp.Client_notification.Initialized ->
     ()
   | Lsp.Client_notification.Exit ->
     exit 0
   | _ -> ()
 
+let handle_packet oc packet =
+  match packet with
+  | Jsonrpc.Packet.Request req ->
+    (match Lsp.Client_request.of_jsonrpc req with
+     | Error _ ->
+       let err = Jsonrpc.Response.Error.make
+         ~code:Jsonrpc.Response.Error.Code.MethodNotFound
+         ~message:"unknown request" () in
+       let resp = Jsonrpc.Response.error req.id err in
+       Io.write oc (Jsonrpc.Packet.Response resp)
+     | Ok (Lsp.Client_request.E r) ->
+       let doc_opt =
+         match req.params with
+         | Some (`Assoc fields) ->
+           (match List.assoc_opt "textDocument" fields with
+            | Some (`Assoc td_fields) ->
+              (match List.assoc_opt "uri" td_fields with
+               | Some (`String uri_str) ->
+                 find_doc (Lsp.Types.DocumentUri.of_string uri_str)
+               | _ -> None)
+            | _ -> None)
+         | _ -> None
+       in
+       (try
+          let result = handle_request doc_opt r in
+          let json = Lsp.Client_request.yojson_of_result r result in
+          let resp = Jsonrpc.Response.ok req.id json in
+          Io.write oc (Jsonrpc.Packet.Response resp)
+        with Exit ->
+          let err = Jsonrpc.Response.Error.make
+            ~code:Jsonrpc.Response.Error.Code.MethodNotFound
+            ~message:("unhandled: " ^ req.method_) () in
+          let resp = Jsonrpc.Response.error req.id err in
+          Io.write oc (Jsonrpc.Packet.Response resp)))
+  | Jsonrpc.Packet.Notification notif ->
+    (match Lsp.Client_notification.of_jsonrpc notif with
+     | Ok n -> handle_notification oc n
+     | Error _ -> ())
+  | Jsonrpc.Packet.Response _ | Jsonrpc.Packet.Batch_response _
+  | Jsonrpc.Packet.Batch_call _ ->
+    ()
+
 let () =
-  (* Ensure stderr doesn't interfere with the JSON-RPC protocol on stdout *)
   let oc = stdout in
   let ic = stdin in
+  let stdin_fd = Unix.descr_of_in_channel ic in
+  let wakeup_fd = SmtAsync.wakeup_fd () in
   let rec loop () =
-    match Io.read ic with
-    | None -> ()  (* stdin closed *)
-    | Some packet ->
-      (match packet with
-       | Jsonrpc.Packet.Request req ->
-         (match Lsp.Client_request.of_jsonrpc req with
-          | Error _ ->
-            let err = Jsonrpc.Response.Error.make
-              ~code:Jsonrpc.Response.Error.Code.MethodNotFound
-              ~message:"unknown request" () in
-            let resp = Jsonrpc.Response.error req.id err in
-            Io.write oc (Jsonrpc.Packet.Response resp)
-          | Ok (Lsp.Client_request.E r) ->
-            let doc_opt =
-              (* Try to extract the text document URI from the raw request params *)
-              match req.params with
-              | Some (`Assoc fields) ->
-                (match List.assoc_opt "textDocument" fields with
-                 | Some (`Assoc td_fields) ->
-                   (match List.assoc_opt "uri" td_fields with
-                    | Some (`String uri_str) ->
-                      find_doc (Lsp.Types.DocumentUri.of_string uri_str)
-                    | _ -> None)
-                 | _ -> None)
-              | _ -> None
-            in
-            (try
-               let result = handle_request doc_opt r in
-               let json = Lsp.Client_request.yojson_of_result r result in
-               let resp = Jsonrpc.Response.ok req.id json in
-               Io.write oc (Jsonrpc.Packet.Response resp)
-             with Exit ->
-               let err = Jsonrpc.Response.Error.make
-                 ~code:Jsonrpc.Response.Error.Code.MethodNotFound
-                 ~message:("unhandled: " ^ req.method_) () in
-               let resp = Jsonrpc.Response.error req.id err in
-               Io.write oc (Jsonrpc.Packet.Response resp)))
-       | Jsonrpc.Packet.Notification notif ->
-         (match Lsp.Client_notification.of_jsonrpc notif with
-          | Ok n -> handle_notification oc n
-          | Error _ -> ())
-       | Jsonrpc.Packet.Response _ | Jsonrpc.Packet.Batch_response _ | Jsonrpc.Packet.Batch_call _ ->
-         ());
-      loop ()
+    (* Select on stdin (LSP messages) and wakeup pipe (SMT events). *)
+    let ready, _, _ = Unix.select [stdin_fd; wakeup_fd] [] [] (-1.0) in
+    List.iter (fun fd ->
+      if fd == wakeup_fd then
+        handle_smt_events oc
+      else begin
+        match Io.read ic with
+        | None -> exit 0
+        | Some packet -> handle_packet oc packet
+      end
+    ) ready;
+    loop ()
   in
   loop ()

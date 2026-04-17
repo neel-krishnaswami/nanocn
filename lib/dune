@@ -1,7 +1,7 @@
 (library
  (name nanocn)
  (public_name nanocn)
- (libraries sedlex menhirLib qcheck-core unix ocolor)
+ (libraries sedlex menhirLib qcheck-core unix ocolor threads.posix)
  (preprocess (pps sedlex.ppx))
  (flags (:standard -bin-annot))
  (wrapped false))

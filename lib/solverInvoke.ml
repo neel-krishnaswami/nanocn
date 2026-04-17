@@ -1,34 +1,8 @@
-type answer = Sat | Unsat | Unknown | Error of string
+(** One-shot solver invocation — see solverInvoke.mli. *)
 
-let print_answer fmt = function
-  | Sat -> Format.pp_print_string fmt "sat"
-  | Unsat -> Format.pp_print_string fmt "unsat"
-  | Unknown -> Format.pp_print_string fmt "unknown"
-  | Error msg -> Format.fprintf fmt "error: %s" msg
+type answer = SolverOutput.answer = Sat | Unsat | Unknown | Error of string
 
-(* Classify a single top-level sexp emitted by the solver. Anything
-   that isn't a recognised verdict or an (error ...) form is folded
-   into Error with a description of the unparsed form. *)
-let classify_sexp sexp =
-  match SmtSexp.shape sexp with
-  | SmtSexp.Atom (SmtAtom.Symbol "sat") -> Sat
-  | SmtSexp.Atom (SmtAtom.Symbol "unsat") -> Unsat
-  | SmtSexp.Atom (SmtAtom.Symbol "unknown") -> Unknown
-  | SmtSexp.List items ->
-    (match List.map SmtSexp.shape items with
-     | SmtSexp.Atom (SmtAtom.Symbol "error") :: rest ->
-       let msg =
-         List.map (function
-           | SmtSexp.Atom (SmtAtom.String s) -> s
-           | other ->
-             let sexp = SmtSexp.mk (object method loc = SourcePos.dummy end) other in
-             SmtSexp.to_string sexp)
-           rest
-         |> String.concat " "
-       in
-       Error msg
-     | _ -> Error ("unparsed solver output: " ^ SmtSexp.to_string sexp))
-  | _ -> Error ("unparsed solver output: " ^ SmtSexp.to_string sexp)
+let print_answer = SolverOutput.print
 
 let read_all_output ic =
   let buf = Buffer.create 4096 in
@@ -47,9 +21,7 @@ let run_z3 ~exe ~smt_path =
   let status = Unix.close_process_in ic in
   match status with
   | Unix.WEXITED 0 ->
-    (match SmtParse.parse_sexps output ~file:smt_path with
-     | Ok sexps -> Ok (List.map classify_sexp sexps)
-     | Error msg -> Error ("solver output parse error: " ^ msg))
+    SolverOutput.classify_output output ~file:smt_path
   | Unix.WEXITED n ->
     Error (Printf.sprintf "solver exited with code %d; output: %s" n output)
   | Unix.WSIGNALED n ->
