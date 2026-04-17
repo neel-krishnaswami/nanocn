@@ -638,6 +638,18 @@ let extend_sig_with_decl sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) (d' : type
     Sig.extend_type sig_ dd
   | _, _ -> sig_
 
+let extend_sig_with_header sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
+  match d with
+  | Prog.FunDecl dd ->
+    let entry = Sig.FunSig { arg = dd.arg_sort; ret = dd.ret_sort; eff = dd.eff } in
+    Ok (Sig.extend dd.name entry sig_)
+  | Prog.SortDecl dd ->
+    let* () = validate_sort_decl sig_ dd in
+    Ok (Sig.extend_sort sig_ dd)
+  | Prog.TypeDecl dd ->
+    let* () = validate_type_decl sig_ dd in
+    Ok (Sig.extend_type sig_ dd)
+
 let check_prog supply (p : (SurfExpr.se, _, Var.t) Prog.t) : (typed_ce Sig.t * typed_ce Prog.core_prog, Error.t) result =
   let rec check_decls supply sig_ = function
     | [] -> Ok (supply, sig_, [])

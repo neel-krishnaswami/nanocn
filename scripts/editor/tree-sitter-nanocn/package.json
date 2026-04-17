@@ -1,0 +1,53 @@
+{
+  "name": "tree-sitter-nanocn",
+  "version": "0.0.1",
+  "description": "nanoCN grammar for tree-sitter",
+  "type": "module",
+  "main": "bindings/node",
+  "types": "bindings/node",
+  "keywords": [
+    "parser",
+    "tree-sitter",
+    "nanocn"
+  ],
+  "license": "MIT",
+  "files": [
+    "grammar.js",
+    "binding.gyp",
+    "bindings/node/*",
+    "queries/*",
+    "src/*"
+  ],
+  "devDependencies": {
+    "tree-sitter-cli": "^0.23.2",
+    "prebuildify": "^6.0.1"
+  },
+  "peerDependencies": {
+    "tree-sitter": "^0.21.0"
+  },
+  "peerDependenciesMeta": {
+    "tree-sitter": {
+      "optional": true
+    }
+  },
+  "tree-sitter": [
+    {
+      "scope": "source.nanocn",
+      "file-types": [
+        "cn",
+        "rcn"
+      ],
+      "highlights": "queries/highlights.scm",
+      "tags": "queries/tags.scm"
+    }
+  ],
+  "dependencies": {
+    "node-gyp-build": "^4.8.1"
+  },
+  "scripts": {
+    "install": "node-gyp-build",
+    "prestart": "tree-sitter build --wasm",
+    "start": "tree-sitter playground",
+    "test": "node --test bindings/node/*_test.js"
+  }
+}

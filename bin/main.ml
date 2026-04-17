@@ -40,13 +40,13 @@ let print_err err =
 
 let check_file filename =
   let input = read_file filename in
-  match ElabM.run Var.empty_supply (Parse.parse_prog input ~file:filename) with
-  | Error err -> print_err err; exit 1
-  | Ok (prog, supply) ->
-    match Typecheck.check_prog supply prog with
-    | Ok (_sig, _cprog) ->
-      Format.printf "OK@."
-    | Error err -> print_err err; exit 1
+  let result = CompileFile.compile_file input ~file:filename in
+  if result.diagnostics = [] then
+    Format.printf "OK@."
+  else begin
+    List.iter print_err result.diagnostics;
+    exit 1
+  end
 
 let starts_with_prefix s prefix =
   let n = String.length prefix in
@@ -165,15 +165,14 @@ let json_file filename =
 
 let check_refined_file filename =
   let input = read_file filename in
-  match ElabM.run Var.empty_supply (
-    let open ElabM in
-    let* rprog = Parse.parse_rprog input ~file:filename in
-    RCheck.check_rprog rprog
-  ) with
-  | Ok ((_rsig, ct), _supply) ->
+  let result = CompileFile.compile_rfile input ~file:filename in
+  if result.diagnostics = [] then begin
     Format.printf "OK@.";
-    Format.printf "@[<v>Constraint:@ %a@]@." Constraint.print ct
-  | Error err -> print_err err; exit 1
+    Format.printf "@[<v>Constraint:@ %a@]@." Constraint.print result.constraints
+  end else begin
+    List.iter print_err result.diagnostics;
+    exit 1
+  end
 
 let smt_check_file filename =
   let input = read_file filename in

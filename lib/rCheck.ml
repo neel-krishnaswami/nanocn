@@ -1157,53 +1157,52 @@ let elab_fundecl_body rs param arg_sort ret_sort eff body_se =
   let gamma = Context.extend param arg_sort (Effect.purify eff) Context.empty in
   Elaborate.check cs gamma body_se ret_sort eff
 
+let check_rdecl rs ct_acc = function
+  | RProg.SortDecl d ->
+    return (RSig.extend_sort rs d, ct_acc)
+  | RProg.TypeDecl d ->
+    return (RSig.extend_type rs d, ct_acc)
+  | RProg.FunDecl { name; param; arg_sort; ret_sort; eff; body; _ } ->
+    let rs_for_body = match eff with
+      | Effect.Spec ->
+        RSig.extend name (RSig.FunSig { arg = arg_sort; ret = ret_sort; eff }) rs
+      | _ -> rs
+    in
+    let* ce = elab_fundecl_body rs_for_body param arg_sort ret_sort eff body in
+    (* Spec functions retain their body in the signature so [unfold]
+       can generate the corresponding equation at proof time (see
+       [lib/rCheck.ml] LUnfold handler, ~line 307). Impure functions
+       have no spec-level meaning and get only a signature. *)
+    let entry = match eff with
+      | Effect.Pure | Effect.Spec ->
+        RSig.FunDef { param; arg = arg_sort; ret = ret_sort; eff; body = ce }
+      | Effect.Impure ->
+        RSig.FunSig { arg = arg_sort; ret = ret_sort; eff }
+    in
+    return (RSig.extend name entry rs, ct_acc)
+  | RProg.RFunDecl { name; pat; domain = se_domain; codomain = se_codomain; eff; body; loc } ->
+    let gamma = Context.empty in
+    let* domain = elab_pf rs gamma eff se_domain in
+    let* gamma' = lift_at loc (ProofSort.bind gamma domain) in
+    let* codomain = elab_pf rs gamma' eff se_codomain in
+    let rf = RFunType.{ domain; codomain; eff } in
+    let cs = RSig.comp rs in
+    let* delta = lift_at loc (rpat_match cs gamma pat domain) in
+    let rs' = match eff with
+      | Effect.Pure -> rs
+      | _ -> RSig.extend name (RSig.RFunSig rf) rs
+    in
+    let* (_checked, _delta', ct) = check_crt rs' delta eff body codomain in
+    let entry = RSig.RFunSig rf in
+    return (RSig.extend name entry rs, Constraint.conj loc ct_acc ct)
+
 let check_rprog (prog : RProg.parsed) : (RSig.t * Constraint.typed_ct) ElabM.t =
   let rec check_rprog_decls rs ct_acc = function
     | [] -> return (rs, ct_acc)
     | decl :: rest ->
-      let* (rs', ct_acc') = check_rprog_decl rs ct_acc decl in
+      let* (rs', ct_acc') = check_rdecl rs ct_acc decl in
       check_rprog_decls rs' ct_acc' rest
-
-  and check_rprog_decl rs ct_acc = function
-    | RProg.SortDecl d ->
-      return (RSig.extend_sort rs d, ct_acc)
-    | RProg.TypeDecl d ->
-      return (RSig.extend_type rs d, ct_acc)
-    | RProg.FunDecl { name; param; arg_sort; ret_sort; eff; body; _ } ->
-      let rs_for_body = match eff with
-        | Effect.Spec ->
-          RSig.extend name (RSig.FunSig { arg = arg_sort; ret = ret_sort; eff }) rs
-        | _ -> rs
-      in
-      let* ce = elab_fundecl_body rs_for_body param arg_sort ret_sort eff body in
-      (* Spec functions retain their body in the signature so [unfold]
-         can generate the corresponding equation at proof time (see
-         [lib/rCheck.ml] LUnfold handler, ~line 307). Impure functions
-         have no spec-level meaning and get only a signature. *)
-      let entry = match eff with
-        | Effect.Pure | Effect.Spec ->
-          RSig.FunDef { param; arg = arg_sort; ret = ret_sort; eff; body = ce }
-        | Effect.Impure ->
-          RSig.FunSig { arg = arg_sort; ret = ret_sort; eff }
-      in
-      return (RSig.extend name entry rs, ct_acc)
-    | RProg.RFunDecl { name; pat; domain = se_domain; codomain = se_codomain; eff; body; loc } ->
-      let gamma = Context.empty in
-      let* domain = elab_pf rs gamma eff se_domain in
-      let* gamma' = lift_at loc (ProofSort.bind gamma domain) in
-      let* codomain = elab_pf rs gamma' eff se_codomain in
-      let rf = RFunType.{ domain; codomain; eff } in
-      let cs = RSig.comp rs in
-      let* delta = lift_at loc (rpat_match cs gamma pat domain) in
-      let rs' = match eff with
-        | Effect.Pure -> rs
-        | _ -> RSig.extend name (RSig.RFunSig rf) rs
-      in
-      let* (_checked, _delta', ct) = check_crt rs' delta eff body codomain in
-      let entry = RSig.RFunSig rf in
-      return (RSig.extend name entry rs, Constraint.conj loc ct_acc ct)
   in
-
   let* (rs, ct_decls) = check_rprog_decls RSig.empty (Constraint.top prog.loc) prog.decls in
   let gamma = Context.empty in
   let* main_pf = elab_pf rs gamma prog.main_eff prog.main_pf in

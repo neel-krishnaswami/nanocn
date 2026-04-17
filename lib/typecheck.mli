@@ -30,3 +30,18 @@ val initial_sig : typed_ce Sig.t
 val check_spec_decl : Var.supply -> typed_ce Sig.t -> (SurfExpr.se, _, Var.t) Prog.decl -> (Var.supply * typed_ce Sig.t, Error.t) result
 (** [check_spec_decl supply sig d] validates a declaration,
     returning the updated supply and signature. *)
+
+val extend_sig_with_header :
+  typed_ce Sig.t ->
+  (SurfExpr.se, _, Var.t) Prog.decl ->
+  (typed_ce Sig.t, Error.t) result
+(** [extend_sig_with_header sig d] validates the decl's header and
+    extends [sig] with the declared signature entry.  For [FunDecl],
+    this always succeeds (adds a [FunSig] with the declared sorts).
+    For [SortDecl]/[TypeDecl], this runs the full validation (kind
+    well-formedness, ctor uniqueness, guardedness) — if it fails
+    the sig is unchanged.
+
+    Used by the resilient compile driver: extend the sig with the
+    header first so downstream decls can resolve call sites, then
+    attempt body elaboration separately. *)

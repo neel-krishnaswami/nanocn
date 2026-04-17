@@ -1,0 +1,140 @@
+==================
+empty main (unit body)
+==================
+
+main : () [impure] = ()
+
+---
+
+(source_file
+  (main_decl
+    ret_sort: (unit_sort)
+    eff: (eff_level)
+    body: (unit_expr)))
+
+==================
+simple fun decl
+==================
+
+fun double : Int -> Int [pure] = {
+  x -> x + x
+}
+main : () [impure] = ()
+
+---
+
+(source_file
+  (fun_decl
+    name: (lower_ident)
+    arg_sort: (int_sort)
+    ret_sort: (int_sort)
+    eff: (eff_level)
+    branches: (branch
+      pat: (var_pat
+        (lower_ident))
+      body: (add_expr
+        left: (var_expr
+          (lower_ident))
+        right: (var_expr
+          (lower_ident)))))
+  (main_decl
+    ret_sort: (unit_sort)
+    eff: (eff_level)
+    body: (unit_expr)))
+
+==================
+sort and type decl
+==================
+
+sort Lst(a) = { Nil : () | Cons : (a * Lst(a)) }
+type List(a) = { Nil : () | Cons : (a * Ptr(List(a))) }
+main : () [impure] = ()
+
+---
+
+(source_file
+  (sort_decl
+    name: (upper_label)
+    params: (lower_ident)
+    ctors: (ctor_decl
+      label: (upper_label)
+      sort: (unit_sort))
+    ctors: (ctor_decl
+      label: (upper_label)
+      sort: (tuple_sort
+        (tvar_sort
+          (lower_ident))
+        (app_sort
+          name: (upper_label)
+          args: (tvar_sort
+            (lower_ident))))))
+  (type_decl
+    name: (upper_label)
+    params: (lower_ident)
+    ctors: (ctor_decl
+      label: (upper_label)
+      sort: (unit_sort))
+    ctors: (ctor_decl
+      label: (upper_label)
+      sort: (tuple_sort
+        (tvar_sort
+          (lower_ident))
+        (ptr_sort
+          inner: (paren_sort
+            (app_sort
+              name: (upper_label)
+              args: (tvar_sort
+                (lower_ident))))))))
+  (main_decl
+    ret_sort: (unit_sort)
+    eff: (eff_level)
+    body: (unit_expr)))
+
+==================
+refined function
+==================
+
+rfun identity (x : Int) -> (y : Int) [pure] =
+  (x) : (y : Int)
+main : (r : Int) [pure] =
+  identity(42) : (r : Int)
+
+---
+
+(source_file
+  (rfun_decl
+    name: (lower_ident)
+    domain: (pf_domain
+      (pf_domain_entry
+        var: (lower_ident)
+        sort: (int_sort)))
+    codomain: (pf_sort
+      (pf_entry
+        var: (lower_ident)
+        sort: (int_sort)))
+    eff: (eff_level)
+    body: (crt_annot
+      inner: (crt_spine
+        (spine_arg
+          value: (var_expr
+            (lower_ident))))
+      pf: (pf_sort
+        (pf_entry
+          var: (lower_ident)
+          sort: (int_sort)))))
+  (main_decl
+    pf: (pf_sort
+      (pf_entry
+        var: (lower_ident)
+        sort: (int_sort)))
+    eff: (eff_level)
+    body: (crt_annot
+      inner: (crt_call
+        func: (lower_ident)
+        spine: (spine
+          (spine_arg
+            value: (int_lit))))
+      pf: (pf_sort
+        (pf_entry
+          var: (lower_ident)
+          sort: (int_sort))))))

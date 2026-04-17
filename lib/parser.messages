@@ -4964,3 +4964,27 @@ sort_eof: BOOL_KW TYPE
 
 PLACEHOLDER: after `sort`, an unexpected token appeared.
 
+repl_rdecl: UNFOLD
+##
+## Ends in an error in state: 249.
+##
+## repl_rdecl' -> . repl_rdecl [ # ]
+##
+## The known suffix of the stack is as follows:
+##
+##
+
+Expected the start of a refined declaration: a `fun`/`rfun` declaration, or a `sort`/`type` declaration.
+
+repl_rdecl: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE TYPE
+##
+## Ends in an error in state: 537.
+##
+## repl_rdecl -> rdecl . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## rdecl
+##
+
+After a complete refined declaration, expected end of input.
+

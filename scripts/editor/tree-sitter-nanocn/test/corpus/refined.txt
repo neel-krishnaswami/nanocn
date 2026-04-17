@@ -1,0 +1,179 @@
+==================
+crt let log and auto
+==================
+
+main : (x : Int) [pure] =
+  let log prop = auto;
+  (x) : (x : Int)
+
+---
+
+(source_file
+  (main_decl
+    pf: (pf_sort
+      (pf_entry
+        var: (lower_ident)
+        sort: (int_sort)))
+    eff: (eff_level)
+    body: (crt_annot
+      inner: (crt_let_log
+        var: (lower_ident)
+        value: (lpf_expr
+          (lpf_auto))
+        body: (crt_spine
+          (spine_arg
+            value: (var_expr (lower_ident)))))
+      pf: (pf_sort
+        (pf_entry
+          var: (lower_ident)
+          sort: (int_sort))))))
+
+==================
+crt let log with prop annotation
+==================
+
+fun is'zero (x : Int) -> Bool [spec] = x
+main : (x : Int) [pure] =
+  let log prop : is'zero(x) = auto;
+  (x) : (x : Int)
+
+---
+
+(source_file
+  (fun_decl
+    name: (lower_ident)
+    param: (lower_ident)
+    arg_sort: (int_sort)
+    ret_sort: (bool_sort)
+    eff: (eff_level)
+    body: (var_expr (lower_ident)))
+  (main_decl
+    pf: (pf_sort
+      (pf_entry
+        var: (lower_ident)
+        sort: (int_sort)))
+    eff: (eff_level)
+    body: (crt_annot
+      inner: (crt_let_log_annot
+        var: (lower_ident)
+        prop: (fun_call
+          func: (lower_ident)
+          arg: (paren_expr
+            (var_expr (lower_ident))))
+        value: (lpf_expr
+          (lpf_auto))
+        body: (crt_spine
+          (spine_arg
+            value: (var_expr (lower_ident)))))
+      pf: (pf_sort
+        (pf_entry
+          var: (lower_ident)
+          sort: (int_sort))))))
+
+==================
+exfalso
+==================
+
+main : (x : Int) [pure] =
+  exfalso
+
+---
+
+(source_file
+  (main_decl
+    pf: (pf_sort
+      (pf_entry
+        var: (lower_ident)
+        sort: (int_sort)))
+    eff: (eff_level)
+    body: (crt_exfalso)))
+
+==================
+crt call with spine
+==================
+
+fun add (x : Int) -> Int [pure] = x
+main : (r : Int) [pure] =
+  add(42) : (r : Int)
+
+---
+
+(source_file
+  (fun_decl
+    name: (lower_ident)
+    param: (lower_ident)
+    arg_sort: (int_sort)
+    ret_sort: (int_sort)
+    eff: (eff_level)
+    body: (var_expr (lower_ident)))
+  (main_decl
+    pf: (pf_sort
+      (pf_entry
+        var: (lower_ident)
+        sort: (int_sort)))
+    eff: (eff_level)
+    body: (crt_annot
+      inner: (crt_call
+        func: (lower_ident)
+        spine: (spine
+          (spine_arg
+            value: (int_lit))))
+      pf: (pf_sort
+        (pf_entry
+          var: (lower_ident)
+          sort: (int_sort))))))
+
+==================
+pf_domain with res entry
+==================
+
+fun bar (x : Int) -> Int [spec] = x
+rfun foo
+    (x : Int,
+     [res] r : (do xs : Int = bar(x)))
+  -> (y : Int)
+  [pure] =
+  (x) : (y : Int)
+main : () [impure] = ()
+
+---
+
+(source_file
+  (fun_decl
+    name: (lower_ident)
+    param: (lower_ident)
+    arg_sort: (int_sort)
+    ret_sort: (int_sort)
+    eff: (eff_level)
+    body: (var_expr (lower_ident)))
+  (rfun_decl
+    name: (lower_ident)
+    domain: (pf_domain
+      (pf_domain_entry
+        var: (lower_ident)
+        sort: (int_sort))
+      (pf_domain_entry
+        var: (lower_ident)
+        bound_var: (lower_ident)
+        bound_sort: (int_sort)
+        pred: (fun_call
+          func: (lower_ident)
+          arg: (paren_expr
+            (var_expr (lower_ident))))))
+    codomain: (pf_sort
+      (pf_entry
+        var: (lower_ident)
+        sort: (int_sort)))
+    eff: (eff_level)
+    body: (crt_annot
+      inner: (crt_spine
+        (spine_arg
+          value: (var_expr (lower_ident))))
+      pf: (pf_sort
+        (pf_entry
+          var: (lower_ident)
+          sort: (int_sort)))))
+  (main_decl
+    ret_sort: (unit_sort)
+    eff: (eff_level)
+    body: (unit_expr)))

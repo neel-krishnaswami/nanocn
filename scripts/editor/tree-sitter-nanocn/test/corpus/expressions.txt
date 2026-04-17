@@ -1,0 +1,221 @@
+==================
+let expression
+==================
+
+main : Int [pure] =
+  let x = 42; x
+
+---
+
+(source_file
+  (main_decl
+    ret_sort: (int_sort)
+    eff: (eff_level)
+    body: (let_expr
+      pat: (var_pat (lower_ident))
+      value: (int_lit)
+      body: (var_expr (lower_ident)))))
+
+==================
+let with annotation
+==================
+
+main : Int [pure] =
+  let x : Int = 42; x
+
+---
+
+(source_file
+  (main_decl
+    ret_sort: (int_sort)
+    eff: (eff_level)
+    body: (let_expr
+      pat: (var_pat (lower_ident))
+      sort: (int_sort)
+      value: (int_lit)
+      body: (var_expr (lower_ident)))))
+
+==================
+binary operators
+==================
+
+main : Int [pure] =
+  1 + 2 * 3
+
+---
+
+(source_file
+  (main_decl
+    ret_sort: (int_sort)
+    eff: (eff_level)
+    body: (add_expr
+      left: (int_lit)
+      right: (mul_expr
+        left: (int_lit)
+        right: (int_lit)))))
+
+==================
+comparison and boolean
+==================
+
+main : Bool [pure] =
+  1 < 2 && 3 > 4
+
+---
+
+(source_file
+  (main_decl
+    ret_sort: (bool_sort)
+    eff: (eff_level)
+    body: (and_expr
+      left: (cmp_expr
+        left: (int_lit)
+        right: (int_lit))
+      right: (cmp_expr
+        left: (int_lit)
+        right: (int_lit)))))
+
+==================
+if expression
+==================
+
+main : Int [pure] =
+  if true then 1 else 2
+
+---
+
+(source_file
+  (main_decl
+    ret_sort: (int_sort)
+    eff: (eff_level)
+    body: (if_expr
+      cond: (bool_lit)
+      then: (int_lit)
+      else: (int_lit))))
+
+==================
+case expression
+==================
+
+sort Color = { Red : () | Green : () | Blue : () }
+main : Int [pure] =
+  case Red () of {
+    Red u -> 0
+  | Green u -> 1
+  | Blue u -> 2
+  }
+
+---
+
+(source_file
+  (sort_decl
+    name: (upper_label)
+    ctors: (ctor_decl
+      label: (upper_label)
+      sort: (unit_sort))
+    ctors: (ctor_decl
+      label: (upper_label)
+      sort: (unit_sort))
+    ctors: (ctor_decl
+      label: (upper_label)
+      sort: (unit_sort)))
+  (main_decl
+    ret_sort: (int_sort)
+    eff: (eff_level)
+    body: (case_expr
+      scrutinee: (inject_expr
+        label: (upper_label)
+        arg: (unit_expr))
+      branches: (case_branch
+        pat: (ctor_pat
+          label: (upper_label)
+          arg: (var_pat (lower_ident)))
+        body: (int_lit))
+      branches: (case_branch
+        pat: (ctor_pat
+          label: (upper_label)
+          arg: (var_pat (lower_ident)))
+        body: (int_lit))
+      branches: (case_branch
+        pat: (ctor_pat
+          label: (upper_label)
+          arg: (var_pat (lower_ident)))
+        body: (int_lit)))))
+
+==================
+state prim
+==================
+
+main : () [impure] =
+  let p = New[Int] 42;
+  let v = Get[Int] p;
+  let u = Del[Int] p;
+  ()
+
+---
+
+(source_file
+  (main_decl
+    ret_sort: (unit_sort)
+    eff: (eff_level)
+    body: (let_expr
+      pat: (var_pat (lower_ident))
+      value: (state_prim_app
+        prim: (state_prim)
+        ty: (int_sort)
+        arg: (int_lit))
+      body: (let_expr
+        pat: (var_pat (lower_ident))
+        value: (state_prim_app
+          prim: (state_prim)
+          ty: (int_sort)
+          arg: (var_expr (lower_ident)))
+        body: (let_expr
+          pat: (var_pat (lower_ident))
+          value: (state_prim_app
+            prim: (state_prim)
+            ty: (int_sort)
+            arg: (var_expr (lower_ident)))
+          body: (unit_expr))))))
+
+==================
+annotation
+==================
+
+main : Int [pure] =
+  (42 : Int)
+
+---
+
+(source_file
+  (main_decl
+    ret_sort: (int_sort)
+    eff: (eff_level)
+    body: (paren_expr
+      (annot_expr
+        inner: (int_lit)
+        sort: (int_sort)))))
+
+==================
+tuple pattern
+==================
+
+main : Int [pure] =
+  let (x, y) = (1, 2); x + y
+
+---
+
+(source_file
+  (main_decl
+    ret_sort: (int_sort)
+    eff: (eff_level)
+    body: (let_expr
+      pat: (tuple_pat
+        (var_pat (lower_ident))
+        (var_pat (lower_ident)))
+      value: (tuple_expr
+        (int_lit)
+        (int_lit))
+      body: (add_expr
+        left: (var_expr (lower_ident))
+        right: (var_expr (lower_ident))))))

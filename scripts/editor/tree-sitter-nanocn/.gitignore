@@ -1,0 +1,31 @@
+# Generated parser code (can be regenerated from grammar.js)
+# Commit parser.c so consumers without tree-sitter-cli can still build.
+# Other generated files are derivatives.
+src/grammar.json
+src/node-types.json
+
+# Build outputs (platform-specific shared objects)
+build/
+*.so
+*.dylib
+*.dll
+
+# npm
+node_modules/
+package-lock.json
+
+# Python bindings (unused)
+bindings/python/
+setup.py
+pyproject.toml
+
+# Go bindings (unused)
+bindings/go/
+go.mod
+
+# Swift bindings (unused)
+bindings/swift/
+Package.swift
+
+# C bindings binding.gyp is fine; keep src/parser.c as build artifact
+# src/parser.c is KEPT in git so rebuild needs only a C compiler.

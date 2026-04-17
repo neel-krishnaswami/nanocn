@@ -56,6 +56,7 @@
 %start <(SurfExpr.parsed_se, SourcePos.t, string) Prog.decl> repl_decl
 %start <(string * SourcePos.t * SurfExpr.parsed_se)> repl_let
 %start <RProg.raw_parsed> rprog_eof
+%start <(SurfExpr.parsed_se, string) RProg.decl> repl_rdecl
 
 %%
 
@@ -76,6 +77,9 @@ prog_eof:
 
 repl_decl:
   | d = decl; EOF { d }
+
+repl_rdecl:
+  | d = rdecl; EOF { d }
 
 repl_let:
   | LET; x = ident_var; EQUAL; e = expr; EOF
