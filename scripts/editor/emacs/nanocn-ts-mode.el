@@ -429,10 +429,12 @@ Three cases, checked in order:
      ;;
      (nanocn-ts--branch-body-p nanocn-ts--branch-body-anchor ,nanocn-ts-indent-offset)
 
-     ;; Closing delimiters align with the opening line.
+     ;; Closing delimiters: `}` aligns with its line's BOL (case/fun
+     ;; bodies where `{` is typically end-of-line); `)` and `]` align
+     ;; with their opening delimiter (which may be mid-line).
      ((node-is "}") parent-bol 0)
-     ((node-is ")") parent-bol 0)
-     ((node-is "]") parent-bol 0)
+     ((node-is ")") parent 0)
+     ((node-is "]") parent 0)
 
      ;; The "|" separator in branches/ctors aligns with the container
      ;; keyword (case, fun, sort, type), giving the style:
@@ -449,6 +451,26 @@ Three cases, checked in order:
      ((node-is "case_branch") parent-bol ,nanocn-ts-indent-offset)
      ((node-is "crt_case_branch") parent-bol ,nanocn-ts-indent-offset)
      ((node-is "ctor_decl") parent-bol ,nanocn-ts-indent-offset)
+
+     ;; Parenthesized forms: continuation lines align one column past
+     ;; the opening `(`, so entries line up:
+     ;;
+     ;;   (p : Ptr(List(Int)),
+     ;;    [res] r : ...)           ← ( column + 1
+     ;;
+     ;; Uses the `parent` anchor (node start position) not `parent-bol`
+     ;; so mid-line `(` is handled correctly.
+     ((parent-is "pf_domain") parent 1)
+     ((parent-is "pf_sort") parent 1)
+     ((parent-is "tuple_expr") parent 1)
+     ((parent-is "tuple_sort") parent 1)
+     ((parent-is "tuple_pat") parent 1)
+     ((parent-is "spine") parent 1)
+     ((parent-is "crt_spine") parent 1)
+     ((parent-is "paren_expr") parent 1)
+     ((parent-is "paren_sort") parent 1)
+     ((parent-is "paren_pat") parent 1)
+     ((parent-is "app_sort") parent 1)
 
      ;; Top-level declarations sit at column 0.
      ((parent-is "source_file") column-0 0)
