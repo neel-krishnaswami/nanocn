@@ -364,21 +364,29 @@ Recompile is triggered 150ms after the last `didChange`. SMT run
 is triggered only on `didSave` (never on `didChange`). These
 constants are exposed as LSP `initializationOptions`.
 
-### 3.5 New OCaml module map
+### 3.5 New OCaml module map (as built)
 
 ```
-lib/splitter.ml{i}        depth-tracking decl splitter
-lib/lspCompile.ml{i}      per-decl parse + typecheck driver
-lib/hoverIndex.ml{i}      spatial trie over typed tree
+lib/parseResilient.ml{i}  keyword-split resilient parser (was "splitter")
+lib/compileFile.ml{i}     per-decl parse + typecheck driver (was "lspCompile")
+lib/hoverIndex.ml{i}      spatial lookup over typed tree
 lib/solverOutput.ml{i}    factored answer parser
 lib/smtAsync.ml{i}        background Z3 driver
-lib/lspProtocol.ml{i}     nanoCN ↔ LSP translations (pure)
-bin/nanocn_lsp.ml         main loop
+bin/nanocn_lsp.ml         LSP main loop (includes protocol translations inline)
 bin/dune                  adds `nanocn-lsp` executable
 ```
 
-A new `RCheck.check_rdecl` binding is added but the existing
-module otherwise unchanged.
+`lib/lspProtocol.ml{i}` was not created as a separate module; the
+LSP ↔ nanoCN translations are small enough to live inline in
+`nanocn_lsp.ml`.
+
+Modified existing modules:
+- `lib/typecheck.ml{i}` — added `extend_sig_with_header`
+- `lib/rCheck.ml{i}` — exposed `check_rdecl`
+- `lib/solverInvoke.ml{i}` — delegates to `SolverOutput`
+- `lib/parser.mly` — added `repl_rdecl` start symbol
+- `lib/dune` — added `threads.posix` dependency
+- `bin/main.ml` — wired through `CompileFile`
 
 ### 3.6 Testing
 
@@ -537,32 +545,100 @@ Tree-sitter grammars aren't semantically versioned, so we tag the
 nanoCN grammar with nanoCN compiler versions and document the
 pairing in `scripts/editor/tree-sitter-nanocn/README.md`.
 
-## 6. Phasing
+## 6. Phasing and implementation status
 
-**Phase 1 — Tree-sitter + syntax-only Emacs mode.** Minimal compiler
-impact. Users get highlighting, indentation, Imenu, sexp
-navigation. Deliverables: `tree-sitter-nanocn/`, `nanocn-ts-mode.el`,
-`check-grammar` CI alias.
+### Phase 1 — Tree-sitter + syntax-only Emacs mode [DONE]
 
-**Phase 2 — Synchronous LSP.** Build `nanocn-lsp` with:
+Deliverables:
 
-- `splitter` + `lspCompile` + `hoverIndex`
-- `publishDiagnostics` for parse + type errors
-- `textDocument/hover`, `documentSymbol`, `definition`
-- SMT runs still synchronous — they complete in the didSave
-  handler before the response returns. Fine for small refined
-  files.
+- [x] `scripts/editor/tree-sitter-nanocn/grammar.js` — unified
+  grammar covering both `.cn` and `.rcn`; 41/41 examples parse
+  cleanly; 18 corpus tests
+- [x] `queries/highlights.scm`, `tags.scm`, `locals.scm`
+- [x] `scripts/editor/tree-sitter-nanocn/check-grammar.sh` — CI
+  script
+- [x] `scripts/editor/emacs/nanocn-ts-mode.el` — font-lock (4
+  levels), indentation (flat let-chains, branch bodies,
+  parenthesized form alignment), Imenu, defun navigation,
+  `nanocn-lsp-server` defcustom, Eglot registration,
+  `eldoc-echo-area-use-multiline-p` buffer-local
+- [x] `doc/editor-support.md`, `doc/instructions/grammar-change.md`
 
-**Phase 3 — Async SMT.** Add `smtAsync`; rewire the SMT path so
-diagnostics stream in after didSave returns. Add
-`$/progress` and `nanocn/context`.
+### Phase 2 — Resilient parser + LSP server [DONE]
 
-**Phase 4 — Polish.** References, rename, completion, semantic
-tokens, inlay hints (e.g. inferred sorts).
+Deliverables:
 
-The three phases can overlap in development but the dependencies
-are Phase 1 independent, Phase 2 depends on nothing new in the
-compiler except the per-decl refactor, Phase 3 depends on Phase 2.
+- [x] `lib/parseResilient.ml{i}` — keyword-split multi-error
+  parser (no depth counting); new `repl_rdecl` start symbol in
+  `parser.mly`
+- [x] `Typecheck.extend_sig_with_header` — header-first sig
+  extension so a broken body still contributes its declared
+  signature
+- [x] `RCheck.check_rdecl` — exposed from the internal
+  `check_rprog_decl`; `check_rprog` rewritten as a fold over it
+- [x] `lib/compileFile.ml{i}` — per-decl compile driver (pure
+  fold, no mutable state); used by both CLI and LSP
+- [x] `bin/main.ml` — `check_file` and `check_refined_file` wired
+  through `CompileFile` for multi-error reporting
+- [x] `lib/hoverIndex.ml{i}` — spatial lookup over typed trees
+- [x] `bin/nanocn_lsp.ml` — stdio LSP server using `lsp` +
+  `jsonrpc` opam libraries
+- [x] LSP features: `initialize`, `textDocument/didOpen`,
+  `textDocument/didChange`, `publishDiagnostics`, `textDocument/hover`
+  (filtered context — no generated `_vNN` variables),
+  `textDocument/documentSymbol`, `shutdown`/`exit`
+- [x] Hover works for `.cn` files and surface `fun` decl bodies
+  in `.rcn` files (via `RSig.FunDef` bodies)
+
+### Phase 3 — Async SMT [DONE]
+
+Deliverables:
+
+- [x] `lib/solverOutput.ml{i}` — answer classification factored
+  out of `SolverInvoke`
+- [x] `lib/smtAsync.ml{i}` — background Z3 driver using
+  `Thread` + `Unix.pipe` wakeup; monotonic run IDs; cancellation
+  via `SIGTERM`
+- [x] LSP main loop upgraded from blocking `Io.read` to
+  `Unix.select` on stdin + wakeup fd
+- [x] `didSave` on `.rcn` files triggers async SMT; streaming
+  `publishDiagnostics` as verdicts arrive
+- [x] `didChange` cancels stale SMT runs
+
+### Phase 4 — Polish [NOT STARTED]
+
+Planned features, roughly by priority:
+
+1. **Go-to-definition** (`textDocument/definition`) — wired but
+   returns null. Needs: look up `Var.binding_site` for variables,
+   `Sig` entry locations for function calls.
+2. **Inlay hints** (`textDocument/inlayHint`) — inline annotations
+   showing inferred sorts/effects where the user didn't write an
+   explicit annotation. Walk the typed tree and emit hints at
+   unannotated positions.
+3. **rfun hover** — the refined checker's elaborated expressions
+   aren't surfaced, so `rfun` bodies and the refined `main` have
+   no hover. Requires exposing typed core expressions from
+   `RCheck` (deeper refactor).
+4. **References** (`textDocument/references`) — find all
+   occurrences of a variable/function in the file. Scan the typed
+   tree for `Var.t` matches; scan call sites for function names.
+5. **Semantic tokens** (`textDocument/semanticTokens`) — server-
+   driven highlighting distinguishing variable roles more precisely
+   than tree-sitter alone.
+6. **Completion** (`textDocument/completion`) — suggest function
+   names from `Sig`, constructor labels, sort names at cursor.
+7. **Rename** (`textDocument/rename`) — rename a variable/function
+   across the file. Depends on references.
+
+Also not yet implemented from the original plan:
+
+- `nanocn/context` custom request + `*nanoCN context*` side buffer
+- `$/progress` notifications for long SMT runs
+- `check-lsp-session` CI alias (golden LSP sessions)
+- `test-smt-async` CI alias (mock Z3 tests)
+- QCheck tests for `ParseResilient`, `HoverIndex`, `SmtAsync`
+- Debouncing on `didChange` (currently recompiles immediately)
 
 ## 7. Risks and how they're mitigated
 
