@@ -91,7 +91,7 @@ let compile_and_diagnose (doc : doc_state) : doc_state =
   SourceExcerpt.register state.source_registry ~file:doc.file ~source:doc.text;
   if is_rcn doc.file then
     let r = CompileFile.compile_rfile doc.text ~file:doc.file in
-    { doc with rfile = Some r; outcome = None; hover = HoverIndex.empty }
+    { doc with rfile = Some r; outcome = None; hover = r.hover }
   else
     let r = CompileFile.compile_file doc.text ~file:doc.file in
     let hover = HoverIndex.of_typed_decls r.typed_decls in

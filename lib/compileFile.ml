@@ -77,17 +77,30 @@ type rfile_outcome = {
   final_rsig  : RSig.t;
   constraints : Constraint.typed_ct;
   diagnostics : Error.t list;
+  hover       : HoverIndex.t;
 }
+
+(** Build a hover index from RSig's FunDef entries (pure/spec functions
+    retain their typed body in the signature after elaboration). *)
+let hover_of_rsig rsig =
+  List.fold_left (fun idx entry ->
+    match entry with
+    | RSig.LFun (_, RSig.FunDef { body; _ }) ->
+      HoverIndex.add_typed_expr body idx
+    | _ -> idx
+  ) HoverIndex.empty (RSig.entries rsig)
+
+let empty_rfile_outcome diags =
+  { final_rsig = RSig.empty;
+    constraints = Constraint.top SourcePos.dummy;
+    diagnostics = diags;
+    hover = HoverIndex.empty }
 
 let compile_rfile source ~file =
   let parsed = ParseResilient.parse_rprog_resilient source ~file in
   match parsed.errors with
   | _ :: _ ->
-    (* Some chunks failed to parse — report all parse errors,
-       skip typecheck. *)
-    { final_rsig = RSig.empty;
-      constraints = Constraint.top SourcePos.dummy;
-      diagnostics = parsed.errors }
+    empty_rfile_outcome parsed.errors
   | [] ->
     let decls = List.filter_map (function
       | ParseResilient.Parsed d -> Some d
@@ -95,14 +108,10 @@ let compile_rfile source ~file =
     ) parsed.rdecls in
     match parsed.rmain with
     | None ->
-      { final_rsig = RSig.empty;
-        constraints = Constraint.top SourcePos.dummy;
-        diagnostics = [Error.parse_error ~loc:None
-                         ~msg:"missing `main` declaration"] }
+      empty_rfile_outcome
+        [Error.parse_error ~loc:None ~msg:"missing `main` declaration"]
     | Some (Error e) ->
-      { final_rsig = RSig.empty;
-        constraints = Constraint.top SourcePos.dummy;
-        diagnostics = [e] }
+      empty_rfile_outcome [e]
     | Some (Ok main_prog) ->
       let full_prog : RProg.raw_parsed = {
         decls;
@@ -117,13 +126,12 @@ let compile_rfile source ~file =
         RCheck.check_rprog resolved
       ) with
       | Error e ->
-        { final_rsig = RSig.empty;
-          constraints = Constraint.top SourcePos.dummy;
-          diagnostics = [e] }
+        empty_rfile_outcome [e]
       | Ok ((rsig, ct), _supply) ->
         { final_rsig = rsig;
           constraints = ct;
-          diagnostics = [] }
+          diagnostics = [];
+          hover = hover_of_rsig rsig }
 
 module Test = struct
   let test = []

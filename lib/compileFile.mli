@@ -30,6 +30,7 @@ type rfile_outcome = {
   final_rsig  : RSig.t;
   constraints : Constraint.typed_ct;
   diagnostics : Error.t list;
+  hover       : HoverIndex.t;
 }
 
 val compile_rfile :
