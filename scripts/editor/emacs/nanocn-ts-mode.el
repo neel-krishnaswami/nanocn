@@ -545,6 +545,9 @@ Three cases, checked in order:
   (setq-local comment-end "")
   (setq-local comment-start-skip "//+\\s-*")
 
+  ;; ElDoc: keep echo area to one line; full content in *eldoc* buffer.
+  (setq-local eldoc-echo-area-use-multiline-p 1)
+
   ;; Activate
   (treesit-major-mode-setup))
 
@@ -561,10 +564,24 @@ Three cases, checked in order:
 ;; Eglot (LSP) registration
 ;; ---------------------------------------------------------------------------
 
+(defcustom nanocn-lsp-server "nanocn-lsp"
+  "Command to run the nanoCN LSP server.
+Can be an absolute path (e.g. during development:
+\"/path/to/nanocn/_build/default/bin/nanocn_lsp.exe\")
+or a bare name that must be on `exec-path'."
+  :type 'string
+  :group 'nanocn)
+
 ;;;###autoload
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs
-               '(nanocn-ts-mode . ("nanocn-lsp" "--stdio"))))
+               '(nanocn-ts-mode . nanocn-ts--eglot-contact)))
+
+(defun nanocn-ts--eglot-contact (_interactive)
+  "Return the LSP server contact for Eglot.
+Evaluates `nanocn-lsp-server' at connection time so customization
+changes take effect without reloading."
+  (list nanocn-lsp-server))
 
 (provide 'nanocn-ts-mode)
 

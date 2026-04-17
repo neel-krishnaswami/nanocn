@@ -161,10 +161,24 @@ let handle_hover (doc : doc_state) (params : Lsp.Types.HoverParams.t) : Lsp.Type
   match HoverIndex.lookup doc.hover ~line ~col with
   | None -> None
   | Some (_loc, ctx, sort, eff) ->
-    let ctx_str = Context.to_string ctx in
     let sort_str = Format.asprintf "%a" Sort.print sort in
     let eff_str = Format.asprintf "%a" Effect.print eff in
-    let contents = Printf.sprintf "**Sort:** `%s`\n\n**Effect:** `%s`\n\n**Context:**\n```\n%s\n```"
+    (* Filter the context: show only user-written term variables.
+       Generated variables (_vNN) are elaborator artefacts;
+       type variables and consumed resources are not useful here. *)
+    let user_bindings = List.filter_map (fun binding ->
+      match binding with
+      | Context.Term (v, s, e) when not (Var.is_generated v) ->
+        Some (Format.asprintf "%a : %a [%a]" Var.print v Sort.print s Effect.print e)
+      | _ -> None
+    ) (Context.to_list ctx) in
+    let ctx_str = match user_bindings with
+      | [] -> "(empty)"
+      | bs -> String.concat "\n" bs
+    in
+    (* First line is concise (for echo area); full context follows
+       (for *eldoc* buffer). *)
+    let contents = Printf.sprintf "`%s` [%s]\n\n**Context:**\n```\n%s\n```"
       sort_str eff_str ctx_str in
     let markup = Lsp.Types.MarkupContent.create
       ~kind:Lsp.Types.MarkupKind.Markdown
