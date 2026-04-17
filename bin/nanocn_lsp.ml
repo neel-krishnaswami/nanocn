@@ -73,10 +73,13 @@ let state : state = {
 }
 
 let find_doc uri =
-  List.assoc_opt uri state.docs
+  match List.find_opt (fun (u, _) -> Lsp.Types.DocumentUri.equal u uri) state.docs with
+  | Some (_, doc) -> Some doc
+  | None -> None
 
 let set_doc uri doc =
-  state.docs <- (uri, doc) :: List.filter (fun (u, _) -> u <> uri) state.docs
+  state.docs <- (uri, doc) ::
+    List.filter (fun (u, _) -> not (Lsp.Types.DocumentUri.equal u uri)) state.docs
 
 (* ==================================================================
    Compilation + diagnostics
@@ -139,11 +142,7 @@ let publish_diagnostics oc (doc : doc_state) =
    ================================================================== *)
 
 let uri_to_path uri =
-  let s = Lsp.Types.DocumentUri.to_string uri in
-  (* Strip file:// prefix *)
-  if String.length s > 7 && String.sub s 0 7 = "file://" then
-    String.sub s 7 (String.length s - 7)
-  else s
+  Lsp.Types.DocumentUri.to_path uri
 
 let handle_initialize _params : Lsp.Types.InitializeResult.t =
   let capabilities = Lsp.Types.ServerCapabilities.create

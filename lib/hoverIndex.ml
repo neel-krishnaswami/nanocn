@@ -8,11 +8,10 @@ type node = {
   eff  : Effect.t;
 }
 
-(** The index is a flat list of nodes sorted by span (smallest first
-    when spans are nested).  Lookup scans for the tightest enclosing
-    span.  This is O(n) in the number of nodes — fine for files with
-    a few hundred nodes; a tree-based spatial index can replace it
-    later if profiling shows a need. *)
+(** The index is a flat list of nodes.  Lookup scans for the tightest
+    enclosing span.  This is O(n) in the number of nodes — fine for
+    files with a few hundred nodes; a tree-based spatial index can
+    replace it later if profiling shows a need. *)
 type t = node list
 
 let empty = []
@@ -21,6 +20,7 @@ let empty = []
 let node_of_info (b : Typecheck.typed_info) : node =
   { loc = b#loc; ctx = b#ctx; sort = b#sort; eff = b#eff }
 
+(** Collect all nodes from a typed_ce tree by structural recursion. *)
 let rec collect (acc : node list) (e : Typecheck.typed_ce) : node list =
   let b = CoreExpr.info e in
   let n = node_of_info b in
@@ -71,31 +71,34 @@ let covers loc ~line ~col =
   let el = SourcePos.end_line loc in
   let ec = SourcePos.end_col loc in
   (* Dummy positions don't cover anything. *)
-  if sl = 0 && el = 0 then false
+  if Int.equal sl 0 && Int.equal el 0 then false
   else
-    (line > sl || (line = sl && col >= sc)) &&
-    (line < el || (line = el && col <= ec))
+    (line > sl || (Int.equal line sl && col >= sc)) &&
+    (line < el || (Int.equal line el && col <= ec))
 
-(** Span size heuristic for "smallest enclosing": fewer lines wins;
-    ties broken by fewer columns. *)
-let span_size loc =
-  let dl = SourcePos.end_line loc - SourcePos.start_line loc in
-  let dc = SourcePos.end_col loc - SourcePos.start_col loc in
-  (dl, dc)
+(** Span size: (line-delta, col-delta).  Smaller is tighter. *)
+let span_lines loc = SourcePos.end_line loc - SourcePos.start_line loc
+let span_cols  loc = SourcePos.end_col loc - SourcePos.start_col loc
+
+(** Compare two spans: fewer lines wins; ties broken by fewer columns. *)
+let tighter_span loc1 loc2 =
+  let dl1 = span_lines loc1 in
+  let dl2 = span_lines loc2 in
+  match Int.compare dl1 dl2 with
+  | n when n < 0 -> true
+  | n when n > 0 -> false
+  | _ -> Int.compare (span_cols loc1) (span_cols loc2) < 0
 
 let lookup idx ~line ~col =
-  let best = ref None in
-  List.iter (fun n ->
+  List.fold_left (fun best n ->
     if covers n.loc ~line ~col then
-      match !best with
-      | None -> best := Some n
+      match best with
+      | None -> Some n
       | Some prev ->
-        if span_size n.loc < span_size prev.loc then
-          best := Some n
-  ) idx;
-  match !best with
-  | None -> None
-  | Some n -> Some (n.loc, n.ctx, n.sort, n.eff)
+        if tighter_span n.loc prev.loc then Some n else best
+    else best
+  ) None idx
+  |> Option.map (fun n -> (n.loc, n.ctx, n.sort, n.eff))
 
 module Test = struct
   let test = []

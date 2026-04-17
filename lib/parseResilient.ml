@@ -98,69 +98,56 @@ let append_eof (tokens : located_token list) : located_token list =
     match tok with Parser.EOF -> false | _ -> true) tokens in
   without_eof @ [(Parser.EOF, last_pos, last_pos)]
 
+(** Build a [SourcePos.t] from a [Lexing.position option]. *)
+let pos_of_last = function
+  | Some p ->
+    SourcePos.create ~file:p.Lexing.pos_fname
+      ~start_line:p.Lexing.pos_lnum
+      ~start_col:(p.Lexing.pos_cnum - p.Lexing.pos_bol)
+      ~end_line:p.Lexing.pos_lnum
+      ~end_col:(p.Lexing.pos_cnum - p.Lexing.pos_bol)
+  | None -> SourcePos.dummy
+
 (** Drive Menhir's incremental parser on a list of tokens.
-    Returns [Ok value] on success, [Error _] on parse error. *)
+    Returns [Ok value] on success, [Error _] on parse error.
+    State (remaining tokens, last position) is threaded through
+    the recursive loop — no mutable refs. *)
 let parse_from_tokens
     (start : Lexing.position -> 'a Parser.MenhirInterpreter.checkpoint)
     (tokens : located_token list)
   : ('a, Error.t) result =
   let tokens = append_eof tokens in
-  let remaining = ref tokens in
-  (* Track the last offered position for error reporting. *)
-  let last_pos = ref (match tokens with
-    | (_, sp, _) :: _ -> Some sp
-    | [] -> None) in
   let module I = Parser.MenhirInterpreter in
   let first_pos = match tokens with
     | (_, sp, _) :: _ -> sp
     | [] -> { Lexing.pos_fname = ""; pos_lnum = 1; pos_bol = 0; pos_cnum = 0 }
   in
-  let rec loop (checkpoint : 'a I.checkpoint) =
+  let init_last = match tokens with
+    | (_, sp, _) :: _ -> Some sp
+    | [] -> None
+  in
+  let rec loop remaining last_pos (checkpoint : 'a I.checkpoint) =
     match checkpoint with
     | I.InputNeeded _ ->
-      begin match !remaining with
-      | triple :: rest ->
-        let (_, sp, _) = triple in
-        last_pos := Some sp;
-        remaining := rest;
-        loop (I.offer checkpoint triple)
+      begin match remaining with
+      | (_, sp, _) as triple :: rest ->
+        loop rest (Some sp) (I.offer checkpoint triple)
       | [] ->
-        (* Should not happen — we appended EOF. *)
-        let pos = match !last_pos with
-          | Some p -> SourcePos.create ~file:p.Lexing.pos_fname
-                        ~start_line:p.pos_lnum ~start_col:0
-                        ~end_line:p.pos_lnum ~end_col:0
-          | None -> SourcePos.dummy
-        in
-        Error (Error.parse_error ~loc:(Some pos) ~msg:"unexpected end of input")
+        Error (Error.parse_error ~loc:(Some (pos_of_last last_pos))
+                 ~msg:"unexpected end of input")
       end
     | I.Shifting _ | I.AboutToReduce _ ->
-      loop (I.resume checkpoint)
+      loop remaining last_pos (I.resume checkpoint)
     | I.HandlingError env ->
       let state = I.current_state_number env in
       let msg = String.trim (lookup_message state) in
-      let pos = match !last_pos with
-        | Some p -> SourcePos.create ~file:p.Lexing.pos_fname
-                      ~start_line:p.pos_lnum
-                      ~start_col:(p.pos_cnum - p.pos_bol)
-                      ~end_line:p.pos_lnum
-                      ~end_col:(p.pos_cnum - p.pos_bol)
-        | None -> SourcePos.dummy
-      in
-      Error (Error.parse_error ~loc:(Some pos) ~msg)
+      Error (Error.parse_error ~loc:(Some (pos_of_last last_pos)) ~msg)
     | I.Accepted v -> Ok v
     | I.Rejected ->
-      let pos = match !last_pos with
-        | Some p -> SourcePos.create ~file:p.Lexing.pos_fname
-                      ~start_line:p.pos_lnum
-                      ~start_col:(p.pos_cnum - p.pos_bol)
-                      ~end_line:p.pos_lnum
-                      ~end_col:(p.pos_cnum - p.pos_bol)
-        | None -> SourcePos.dummy
-      in
-      Error (Error.parse_error ~loc:(Some pos) ~msg:"parser rejected input")
+      Error (Error.parse_error ~loc:(Some (pos_of_last last_pos))
+               ~msg:"parser rejected input")
   in
-  try loop (start first_pos)
+  try loop tokens init_last (start first_pos)
   with Failure msg -> Error (Error.parse_error ~loc:None ~msg)
 
 (* ================================================================== *)
@@ -176,34 +163,29 @@ type parsed_file = {
 let parse_prog_resilient s ~file =
   let tokens = tokenize s ~file in
   let chunks = split_into_chunks tokens in
-  let decls = ref [] in
-  let main = ref None in
-  let errors = ref [] in
-  List.iter (fun chunk ->
-    match chunk.kind with
-    | Decl ->
-      begin match parse_from_tokens Parser.Incremental.repl_decl chunk.tokens with
-      | Ok d -> decls := Parsed d :: !decls
-      | Error e ->
-        decls := Failed e :: !decls;
-        errors := e :: !errors
-      end
-    | Main ->
-      (* Parse the main chunk with prog_eof.  Since we split out
-         decls, this chunk starts with MAIN and list(decl) is empty. *)
-      begin match parse_from_tokens Parser.Incremental.prog_eof chunk.tokens with
-      | Ok prog -> main := Some (Ok prog)
-      | Error e ->
-        main := Some (Error e);
-        errors := e :: !errors
-      end
-  ) chunks;
-  (if !main = None then
-     let e = Error.parse_error ~loc:None ~msg:"missing `main` declaration" in
-     errors := e :: !errors);
-  { decls = List.rev !decls;
-    main = !main;
-    errors = List.rev !errors }
+  let (decls_rev, main, errors_rev) =
+    List.fold_left (fun (decls, main, errs) chunk ->
+      match chunk.kind with
+      | Decl ->
+        begin match parse_from_tokens Parser.Incremental.repl_decl chunk.tokens with
+        | Ok d -> (Parsed d :: decls, main, errs)
+        | Error e -> (Failed e :: decls, main, e :: errs)
+        end
+      | Main ->
+        begin match parse_from_tokens Parser.Incremental.prog_eof chunk.tokens with
+        | Ok prog -> (decls, Some (Ok prog), errs)
+        | Error e -> (decls, Some (Error e), e :: errs)
+        end
+    ) ([], None, []) chunks
+  in
+  let errors_rev = match main with
+    | None ->
+      Error.parse_error ~loc:None ~msg:"missing `main` declaration" :: errors_rev
+    | Some _ -> errors_rev
+  in
+  { decls = List.rev decls_rev;
+    main;
+    errors = List.rev errors_rev }
 
 (* ================================================================== *)
 (* Refined programs (.rcn)                                             *)
@@ -218,32 +200,29 @@ type parsed_rfile = {
 let parse_rprog_resilient s ~file =
   let tokens = tokenize s ~file in
   let chunks = split_into_chunks tokens in
-  let rdecls = ref [] in
-  let rmain = ref None in
-  let errors = ref [] in
-  List.iter (fun chunk ->
-    match chunk.kind with
-    | Decl ->
-      begin match parse_from_tokens Parser.Incremental.repl_rdecl chunk.tokens with
-      | Ok d -> rdecls := Parsed d :: !rdecls
-      | Error e ->
-        rdecls := Failed e :: !rdecls;
-        errors := e :: !errors
-      end
-    | Main ->
-      begin match parse_from_tokens Parser.Incremental.rprog_eof chunk.tokens with
-      | Ok prog -> rmain := Some (Ok prog)
-      | Error e ->
-        rmain := Some (Error e);
-        errors := e :: !errors
-      end
-  ) chunks;
-  (if !rmain = None then
-     let e = Error.parse_error ~loc:None ~msg:"missing `main` declaration" in
-     errors := e :: !errors);
-  { rdecls = List.rev !rdecls;
-    rmain = !rmain;
-    errors = List.rev !errors }
+  let (rdecls_rev, rmain, errors_rev) =
+    List.fold_left (fun (decls, main, errs) chunk ->
+      match chunk.kind with
+      | Decl ->
+        begin match parse_from_tokens Parser.Incremental.repl_rdecl chunk.tokens with
+        | Ok d -> (Parsed d :: decls, main, errs)
+        | Error e -> (Failed e :: decls, main, e :: errs)
+        end
+      | Main ->
+        begin match parse_from_tokens Parser.Incremental.rprog_eof chunk.tokens with
+        | Ok prog -> (decls, Some (Ok prog), errs)
+        | Error e -> (decls, Some (Error e), e :: errs)
+        end
+    ) ([], None, []) chunks
+  in
+  let errors_rev = match rmain with
+    | None ->
+      Error.parse_error ~loc:None ~msg:"missing `main` declaration" :: errors_rev
+    | Some _ -> errors_rev
+  in
+  { rdecls = List.rev rdecls_rev;
+    rmain;
+    errors = List.rev errors_rev }
 
 (* ================================================================== *)
 (* Tests                                                               *)
