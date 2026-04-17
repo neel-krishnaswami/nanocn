@@ -2,3 +2,8 @@
  (name main)
  (public_name nanocn)
  (libraries nanocn linenoise))
+
+(executable
+ (name nanocn_lsp)
+ (public_name nanocn-lsp)
+ (libraries nanocn lsp jsonrpc))
