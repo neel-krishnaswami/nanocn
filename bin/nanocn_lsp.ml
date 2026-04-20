@@ -191,7 +191,7 @@ let handle_hover (doc : doc_state) (params : Lsp.Types.HoverParams.t) : Lsp.Type
     in
     (* First line is concise (for echo area); full context follows
        (for *eldoc* buffer). *)
-    let contents = Printf.sprintf "`%s` [%s]\n\n**Context:**\n```\n%s\n```"
+    let contents = Printf.sprintf "`%s` [%s]\n\n**Context:**\n```nanocn\n%s\n```"
       sort_str eff_str ctx_str in
     let markup = Lsp.Types.MarkupContent.create
       ~kind:Lsp.Types.MarkupKind.Markdown

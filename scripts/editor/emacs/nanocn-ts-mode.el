@@ -605,6 +605,22 @@ Evaluates `nanocn-lsp-server' at connection time so customization
 changes take effect without reloading."
   (list nanocn-lsp-server))
 
+;; ---------------------------------------------------------------------------
+;; Auto-start Eglot and configure eldoc rendering
+;; ---------------------------------------------------------------------------
+
+(defun nanocn-ts--setup ()
+  "Configure buffer-local settings and start Eglot for nanoCN."
+  ;; Enable native fontification of fenced code blocks in eldoc
+  ;; markdown rendering (requires markdown-mode).
+  (when (boundp 'markdown-fontify-code-blocks-natively)
+    (setq-local markdown-fontify-code-blocks-natively t))
+  ;; Start Eglot if available.
+  (when (fboundp 'eglot-ensure)
+    (eglot-ensure)))
+
+(add-hook 'nanocn-ts-mode-hook #'nanocn-ts--setup)
+
 (provide 'nanocn-ts-mode)
 
 ;;; nanocn-ts-mode.el ends here
