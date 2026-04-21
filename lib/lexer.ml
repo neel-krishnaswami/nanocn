@@ -53,6 +53,9 @@ let keyword_or_ident s =
   | "exfalso" -> Parser.EXFALSO
   | "auto" -> Parser.AUTO
   | "unfold" -> Parser.UNFOLD
+  | "iftrue" -> Parser.IFTRUE
+  | "iffalse" -> Parser.IFFALSE
+  | "annot" -> Parser.ANNOT
   | "core" -> Parser.CORE
   | "log" -> Parser.LOG
   | "res" -> Parser.RES

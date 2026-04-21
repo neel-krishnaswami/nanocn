@@ -711,7 +711,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           (* Build constraint: Ct ∧ ∀x:A. Ct' *)
           (* x is the comp var bound by the pattern *)
           (match pat with
-           | RPat.Single (_, x_pat) :: _ ->
+           | RPat.QCore (RPat.CVar (_, x_pat)) :: _ ->
              let result_ct = Constraint.conj pos ct (Constraint.forall_ pos x_pat a_sort ct') in
              let rinfo = mk_rinfo pos delta (ProofSort.comp result_pf) eff in
              let typed_pat = RPat.map_info (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp init_pf) eff) pat in
@@ -1170,31 +1170,26 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ty
   in
   go pf1 pf2
 
-(* Refined pattern matching: RS; Gamma |- q : Pf -| Delta *)
+(* Refined pattern matching: RS; Delta |- [eff] q : Pf -| Delta' ~~> Ct
+   Currently implements the simple variable-binding cases only.
+   Full Phase 1 pattern matching (resource destructuring) is TODO. *)
 and rpat_match (_cs : _ Sig.t) (_gamma : Context.t) (pat : (Var.t, _) RPat.t) (pf : (CoreExpr.typed_ce, _, Var.t) ProofSort.t) : (RCtx.t, Error.kind) result =
   let ( let* ) = Result.bind in
-  (* Per [doc/refinement-types.md] §Refined patterns the binders are
-     added left-to-right: the first pattern element becomes the
-     earliest binding in [Δ], so subsequent body-position uses (and
-     pattern elements that depend on it via substitution) see it in
-     scope. We thread [delta] as an accumulator and extend at each
-     step — [RCtx.extend_*] appends to the end, so the source order
-     of the pattern is preserved in [RCtx.entries]. *)
   let rec go elems entries delta =
     match elems, entries with
     | [], [] -> Ok delta
-    | RPat.Single (_, x) :: rest_elems, ProofSort.Comp { info = _; var = y; sort; eff } :: rest_pf ->
+    | RPat.QCore (RPat.CVar (_, x)) :: rest_elems, ProofSort.Comp { info = _; var = y; sort; eff } :: rest_pf ->
       let ce_x = ce_of_var x sort in
       let rest_pf' = ProofSort.subst y ce_x rest_pf in
       let delta' = RCtx.extend_comp x sort eff delta in
       go rest_elems rest_pf' delta'
-    | RPat.Single (_, x) :: rest_elems, ProofSort.Log { info = _; prop } :: rest_pf ->
+    | RPat.QLog (RPat.LVar (_, x)) :: rest_elems, ProofSort.Log { info = _; prop } :: rest_pf ->
       let delta' = RCtx.extend_log x prop delta in
       go rest_elems rest_pf delta'
-    | RPat.Single (_, x) :: rest_elems, ProofSort.Res { info = _; pred; value } :: rest_pf ->
+    | RPat.QRes (RPat.RVar (_, x)) :: rest_elems, ProofSort.Res { info = _; pred; value } :: rest_pf ->
       let delta' = RCtx.extend_res x pred value Usage.Avail delta in
       go rest_elems rest_pf delta'
-    | RPat.Pair (_, x, w) :: rest_elems, ProofSort.DepRes { info = _; bound_var = z; pred } :: rest_pf ->
+    | RPat.QDepRes (RPat.CVar (_, x), RPat.RVar (_, w)) :: rest_elems, ProofSort.DepRes { info = _; bound_var = z; pred } :: rest_pf ->
       let pred_sort = (CoreExpr.info pred)#sort in
       (match Sort.shape pred_sort with
        | Sort.Pred inner_sort ->
@@ -1202,17 +1197,23 @@ and rpat_match (_cs : _ Sig.t) (_gamma : Context.t) (pat : (Var.t, _) RPat.t) (p
          let sub = Subst.extend_var z ce_x Subst.empty in
          let pred' = Subst.apply_ce sub pred in
          let rest_pf' = ProofSort.subst z ce_x rest_pf in
-         (* Per [doc/refinement-types.md:540-542]:
-              Σ; Γ ⊢ ((x, a), q) : ((z).ce [res], Pf)
-                  ⊣ x : τ, a : (ce @ x) [res(1)], Δ
-            i.e. the witness [x] (= comp) is added first, then the
-            resource [a] (= w), then the rest [q]. *)
          let delta = RCtx.extend_comp x inner_sort Effect.Spec delta in
          let delta = RCtx.extend_res w pred' ce_x Usage.Avail delta in
          go rest_elems rest_pf' delta
        | _ ->
          Error (Error.K_dep_res_not_pred { got = pred_sort }))
-    | _ -> Ok delta (* mismatch — will be caught during type checking *)
+    | [], _ :: _ ->
+      Error (Error.K_rpat_length_mismatch { pat_len = List.length pat; pf_len = List.length pf })
+    | _ :: _, [] ->
+      Error (Error.K_rpat_length_mismatch { pat_len = List.length pat; pf_len = List.length pf })
+    | _ ->
+      let pat_kind = match List.hd elems with
+        | RPat.QCore _ -> "core" | RPat.QLog _ -> "log"
+        | RPat.QRes _ -> "res" | RPat.QDepRes _ -> "depres" in
+      let pf_kind = match List.hd entries with
+        | ProofSort.Comp _ -> "comp" | ProofSort.Log _ -> "log"
+        | ProofSort.Res _ -> "res" | ProofSort.DepRes _ -> "depres" in
+      Error (Error.K_rpat_kind_mismatch { pat_kind; pf_kind })
   in
   let* result = go pat pf RCtx.empty in
   Ok result
@@ -1307,23 +1308,23 @@ module Test = struct
         {|
           rfun incr (p : Ptr Int, [res] r : (do x : Int = Own[Int](p)))
             -> ([res] (do x' : Int = Own[Int](p))) [impure] =
-            let (v, pf, r2) = Get[Int](p, res r);
-            let (r3) = Set[Int](p, v + 1, res r2);
+            let (v, log pf, res r2) = Get[Int](p, res r);
+            let (res r3) = Set[Int](p, v + 1, res r2);
             (res r3)
           main : () [impure] =
-            let (p, r) = New[Int](0);
-            let ((x', r')) = incr(p, res r);
+            let (p, res r) = New[Int](0);
+            let (do x' = r') = incr(p, res r);
             Del[Int](p, x', res r')
         |};
 
       check_program "delta monotonicity: if-then-else with resources"
         {|
           main : () [impure] =
-            let (p, r) = New[Int](0);
-            let (v, pf, r2) = Get[Int](p, res r);
-            let (b, bpf) = Eq[Int](v, 0);
+            let (p, res r) = New[Int](0);
+            let (v, log pf, res r2) = Get[Int](p, res r);
+            let (b, log bpf) = Eq[Int](v, 0);
             if [w] b
-              then let (r3) = Set[Int](p, 1, res r2);
+              then let (res r3) = Set[Int](p, 1, res r2);
                    Del[Int](p, 1, res r3)
               else Del[Int](p, v, res r2)
         |};
@@ -1337,12 +1338,12 @@ module Test = struct
         {|
           type Step(a, b) = { Next : a | Done : b }
           main : () [impure] =
-            let (p, r) = New[Step(Int, ())](Next 0);
-            let (z_done, r_done) = iter [Own[Step(Int, ())](p)] ((x, r_loop) =
+            let (p, res r) = New[Step(Int, ())](Next 0);
+            let (z_done, res r_done) = iter [Own[Step(Int, ())](p)] ((x, res r_loop) =
               (0, res r) : (x : Int, [res] Own[Step(Int, ())](p) @ Next x)
             ) {
-              let (v, pf, r2) = Get[Step(Int, ())](p, res r_loop);
-              let (r3) = Set[Step(Int, ())](p, Done (), res r2);
+              let (v, log pf, res r2) = Get[Step(Int, ())](p, res r_loop);
+              let (res r3) = Set[Step(Int, ())](p, Done (), res r2);
               (Done (), res r3) : (z : Step(Int, ()), [res] Own[Step(Int, ())](p) @ z)
             };
             Del[Step(Int, ())](p, Done z_done, res r_done)
@@ -1352,9 +1353,9 @@ module Test = struct
       check_program "let log and let res with named binders"
         {|
           main : () [impure] =
-            let (p, r) = New[Int](0);
+            let (p, res r) = New[Int](0);
             let res r2 = r;
-            let (v, pf, r3) = Get[Int](p, res r2);
+            let (v, log pf, res r3) = Get[Int](p, res r2);
             let res r4 = r3;
             Del[Int](p, v, res r4)
         |};
@@ -1363,9 +1364,9 @@ module Test = struct
       check_program "let res with type annotation sugar"
         {|
           main : () [impure] =
-            let (p, r) = New[Int](0);
+            let (p, res r) = New[Int](0);
             let res r2 : Own[Int](p) @ 0 = r;
-            let (v, pf, r3) = Get[Int](p, res r2);
+            let (v, log pf, res r3) = Get[Int](p, res r2);
             let res r4 = r3;
             Del[Int](p, v, res r4)
         |};

@@ -179,6 +179,13 @@ type kind =
         entries in pretty-printed form (since they're structured
         [RCtx.entry]s with variable/pred/value/usage). *)
 
+  | K_rpat_length_mismatch of { pat_len : int; pf_len : int }
+    (** Refined pattern has a different number of elements than the
+        proof sort it's being matched against. *)
+  | K_rpat_kind_mismatch of { pat_kind : string; pf_kind : string }
+    (** Refined pattern element kind (core/log/res/depres) does not
+        match the corresponding proof sort entry kind. *)
+
   (* Last-resort escape hatches *)
   | K_internal_invariant of { rule : string; invariant : string }
     (** A check in the typechecker's internal logic failed —

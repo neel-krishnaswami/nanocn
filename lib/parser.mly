@@ -48,6 +48,7 @@
 %token LESS LESSEQ GREATER GREATEREQ
 %token COMMA SEMICOLON EQUAL COLON ARROW BAR
 %token EXFALSO AUTO UNFOLD OPEN_RET OPEN_TAKE MAKE_RET MAKE_TAKE LOG RES FORALL AT CORE
+%token IFTRUE IFFALSE ANNOT
 %token EOF
 
 %start <SurfExpr.parsed_se> program
@@ -389,28 +390,33 @@ pf_domain:
 pf_domain_entry:
   | x = ident_var; COLON; s = sort
     { let b = loc_obj $startpos $endpos in
-      (RPat.Single (b, x),
+      (RPat.QCore (RPat.CVar (b, x)),
        ProofSort.Comp { info = b; var = x; sort = s; eff = Effect.Pure }) }
   | LBRACKET; eff = eff_level; RBRACKET; x = ident_var; COLON; s = sort
     { let b = loc_obj $startpos $endpos in
-      (RPat.Single (b, x),
+      (RPat.QCore (RPat.CVar (b, x)),
        ProofSort.Comp { info = b; var = x; sort = s; eff }) }
   | LBRACKET; LOG; RBRACKET; x = ident_var; COLON; e = app_expr
     { let b = loc_obj $startpos $endpos in
-      (RPat.Single (b, x), ProofSort.Log { info = b; prop = e }) }
+      (RPat.QLog (RPat.LVar (b, x)), ProofSort.Log { info = b; prop = e }) }
+  | LBRACKET; LOG; RBRACKET; AUTO; COLON; e = app_expr
+    { let b = loc_obj $startpos $endpos in
+      (RPat.QLog (RPat.LAuto b), ProofSort.Log { info = b; prop = e }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON; e1 = app_expr; AT; e2 = app_expr
     { let b = loc_obj $startpos $endpos in
-      (RPat.Single (b, x), ProofSort.Res { info = b; pred = e1; value = e2 }) }
+      (RPat.QRes (RPat.RVar (b, x)), ProofSort.Res { info = b; pred = e1; value = e2 }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON;
     LPAREN; DO; y = ident_var; COLON; s = sort; EQUAL; e = app_expr; RPAREN
     { let b = loc_obj $startpos $endpos in
       let pred_sort = mk_sort $startpos $endpos (Sort.Pred s) in
       let annot_e = mk_surfexpr $startpos $endpos (SurfExpr.Annot (e, pred_sort)) in
-      (RPat.Pair (b, y, x), ProofSort.DepRes { info = b; bound_var = y; pred = annot_e }) }
+      (RPat.QDepRes (RPat.CVar (b, y), RPat.RVar (b, x)),
+       ProofSort.DepRes { info = b; bound_var = y; pred = annot_e }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON;
     LPAREN; DO; y = ident_var; EQUAL; e = app_expr; RPAREN
     { let b = loc_obj $startpos $endpos in
-      (RPat.Pair (b, y, x), ProofSort.DepRes { info = b; bound_var = y; pred = e }) }
+      (RPat.QDepRes (RPat.CVar (b, y), RPat.RVar (b, x)),
+       ProofSort.DepRes { info = b; bound_var = y; pred = e }) }
 
 (* ===== Core refined terms ===== *)
 
@@ -486,9 +492,54 @@ crt_app_expr:
 
 rpat_elem:
   | x = ident_var
-    { RPat.Single (loc_obj $startpos $endpos, x) }
-  | LPAREN; x = ident_var; COMMA; y = ident_var; RPAREN
-    { RPat.Pair (loc_obj $startpos $endpos, x, y) }
+    { RPat.QCore (RPat.CVar (loc_obj $startpos $endpos, x)) }
+  | LPAREN; xs = separated_nonempty_list(COMMA, ident_var); RPAREN
+    { let b = loc_obj $startpos $endpos in
+      RPat.QCore (RPat.CTuple (b, List.map (fun x -> RPat.CVar (b, x)) xs)) }
+  | LOG; x = ident_var
+    { RPat.QLog (RPat.LVar (loc_obj $startpos $endpos, x)) }
+  | LOG; AUTO
+    { RPat.QLog (RPat.LAuto (loc_obj $startpos $endpos)) }
+  | RES; rp = rpat_res
+    { RPat.QRes rp }
+  | DO; x = ident_var; EQUAL; rp = rpat_res
+    { let b = loc_obj $startpos $endpos in
+      RPat.QDepRes (RPat.CVar (b, x), rp) }
+
+rpat_res:
+  | x = ident_var
+    { RPat.RVar (loc_obj $startpos $endpos, x) }
+  | RETURN; lp = lpat_inner
+    { RPat.RReturn (loc_obj $startpos $endpos, lp) }
+  | TAKE; LPAREN; cp = cpat_inner; COMMA; rp1 = rpat_res; RPAREN; SEMICOLON; rp2 = rpat_res
+    { RPat.RTake (loc_obj $startpos $endpos, cp, rp1, rp2) }
+  | FAIL; LBRACKET; lp = lpat_inner; RBRACKET
+    { RPat.RFail (loc_obj $startpos $endpos, lp) }
+  | LET; LBRACKET; lp = lpat_inner; RBRACKET; cp = cpat_inner; SEMICOLON; rp = rpat_res
+    { RPat.RLet (loc_obj $startpos $endpos, lp, cp, rp) }
+  | CASE; LBRACKET; lp = lpat_inner; RBRACKET; l = LABEL; LPAREN; cp = cpat_inner; RPAREN; SEMICOLON; rp = rpat_res
+    { RPat.RCase (loc_obj $startpos $endpos, lp, label l, cp, rp) }
+  | IFTRUE; SEMICOLON; rp = rpat_res
+    { RPat.RIfTrue (loc_obj $startpos $endpos, rp) }
+  | IFFALSE; SEMICOLON; rp = rpat_res
+    { RPat.RIfFalse (loc_obj $startpos $endpos, rp) }
+  | UNFOLD; SEMICOLON; rp = rpat_res
+    { RPat.RUnfold (loc_obj $startpos $endpos, rp) }
+  | ANNOT; SEMICOLON; rp = rpat_res
+    { RPat.RAnnot (loc_obj $startpos $endpos, rp) }
+
+lpat_inner:
+  | x = ident_var
+    { RPat.LVar (loc_obj $startpos $endpos, x) }
+  | AUTO
+    { RPat.LAuto (loc_obj $startpos $endpos) }
+
+cpat_inner:
+  | x = ident_var
+    { RPat.CVar (loc_obj $startpos $endpos, x) }
+  | LPAREN; xs = separated_nonempty_list(COMMA, ident_var); RPAREN
+    { let b = loc_obj $startpos $endpos in
+      RPat.CTuple (b, List.map (fun x -> RPat.CVar (b, x)) xs) }
 
 rpat:
   | LPAREN; RPAREN
@@ -496,7 +547,7 @@ rpat:
   | LPAREN; xs = separated_nonempty_list(COMMA, rpat_elem); RPAREN
     { xs }
   | x = ident_var
-    { [RPat.Single (loc_obj $startpos $endpos, x)] }
+    { [RPat.QCore (RPat.CVar (loc_obj $startpos $endpos, x))] }
 
 (* ===== Spine expressions ===== *)
 

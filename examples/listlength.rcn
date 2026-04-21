@@ -28,6 +28,12 @@ fun sequence (p : Ptr(List(Int))) -> Pred Lst(Int) [spec] =
                    return (Cons (x, xs))
   }
 
+// TODO: This example has a resource leak — Get[List(Int)] returns ownership
+// which must be threaded back into the make-take reconstruction. The old
+// typechecker silently dropped unmatched proof sort entries, masking the bug.
+// Fixing requires restructuring the proof to pass own2 through both case
+// branches into the final make-take.
+//
 // Refined length: walks the heap list, returns (len, proof, resource).
 rfun length
     (p : Ptr(List(Int)),
@@ -46,8 +52,8 @@ rfun length
                                  take xs_tl = (sequence(q) : Pred Lst(Int));
                                  return (Cons (x, xs_tl))
                 }) @ xs = r;
-  let (v0, own, rest) = open-take(r1);
-  let v = Get[List(Int)](p, res own);
+  let (v0, res own, res rest) = open-take(r1);
+  let (v, log veq, res own2) = Get[List(Int)](p, res own);
   case [a] v of {
       Nil u ->
         // Specialize rest to the Nil branch's take-continuation.
@@ -62,9 +68,9 @@ rfun length
         // Specialize rest to the Cons branch's take-continuation.
         let res rest_cons : (take xs_tl = (sequence(q) : Pred Lst(Int));
                              return (Cons (x, xs_tl))) @ xs = rest;
-        let (xs0, rq, rret) = open-take(rest_cons);
+        let (xs0, res rq, res rret) = open-take(rest_cons);
         let log prop2 = open-ret(rret);
-        let (m, prop3, (xs_new, rq2)) = length(q, res rq);
+        let (m, log prop3, do xs_new = rq2) = length(q, res rq);
         // rest2 : (take xs_tl = sequence(q); return (Cons(x, xs_tl))) @ (Cons(x, xs0))
         let res rest2 : ((take xs_tl = (sequence(q) : Pred Lst(Int));
                           return (Cons (x, xs_tl))) : Pred Lst(Int))

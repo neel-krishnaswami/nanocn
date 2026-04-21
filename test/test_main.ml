@@ -1070,12 +1070,12 @@ let () =
         let src = {|
           rfun incr (p : Ptr Int, [res] r : (do x : Int = Own[Int](p)))
             -> ([res] (do x' : Int = Own[Int](p))) [impure] =
-            let (v, pf, r2) = Get[Int](p, res r);
-            let (r3) = Set[Int](p, v + 1, res r2);
+            let (v, log pf, res r2) = Get[Int](p, res r);
+            let (res r3) = Set[Int](p, v + 1, res r2);
             (res r3)
           main : () [impure] =
-            let (p, r) = New[Int](0);
-            let ((x', r')) = incr(p, res r);
+            let (p, res r) = New[Int](0);
+            let (do x' = r') = incr(p, res r);
             Del[Int](p, x', res r')
         |} in
         match run_m (
@@ -1097,12 +1097,12 @@ let () =
         let src = {|
           rfun incr (p : Ptr Int, [res] r : (do x : Int = Own[Int](p)))
             -> ([res] (do x' : Int = Own[Int](p))) [impure] =
-            let (v, pf, r2) = Get[Int](p, res r);
-            let (r3) = Set[Int](p, v + 1, res r2);
+            let (v, log pf, res r2) = Get[Int](p, res r);
+            let (res r3) = Set[Int](p, v + 1, res r2);
             (res r3)
           main : () [impure] =
-            let (p, r) = New[Int](0);
-            let ((x', r')) = incr(p, res r);
+            let (p, res r) = New[Int](0);
+            let (do x' = r') = incr(p, res r);
             Del[Int](p, x', res r')
         |} in
         match run_m (

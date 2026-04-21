@@ -1423,7 +1423,7 @@ program: IF FALSE THEN FALSE TYPE
 ##
 ## The known suffix of the stack is as follows:
 ## IF expr THEN expr
-## (if-then body complete; expecting ELSE)
+##
 ## WARNING: This example involves spurious reductions.
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
@@ -1943,7 +1943,6 @@ prog_eof: MAIN COLON BOOL_KW LBRACKET IMPURE RBRACKET EQUAL FALSE TYPE
 ##
 ## The known suffix of the stack is as follows:
 ## list(decl) MAIN COLON sort LBRACKET eff_level RBRACKET EQUAL expr
-## (after main body; expecting EOF)
 ##
 ## WARNING: This example involves spurious reductions.
 ## This implies that, although the LR(1) items shown above provide an
@@ -2106,7 +2105,7 @@ PLACEHOLDER: after `LET IDENT EQUAL expr`, an unexpected token appeared.
 
 rprog_eof: UNFOLD
 ##
-## Ends in an error in state: 249.
+## Ends in an error in state: 599.
 ##
 ## rprog_eof' -> . rprog_eof [ # ]
 ##
@@ -2120,8 +2119,8 @@ rprog_eof: TYPE UNFOLD
 ##
 ## Ends in an error in state: 250.
 ##
-## rdecl -> TYPE . LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
-## rdecl -> TYPE . LABEL EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> TYPE . LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
+## rdecl -> TYPE . LABEL EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## TYPE
@@ -2133,8 +2132,8 @@ rprog_eof: TYPE LABEL UNFOLD
 ##
 ## Ends in an error in state: 251.
 ##
-## rdecl -> TYPE LABEL . LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
-## rdecl -> TYPE LABEL . EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> TYPE LABEL . LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
+## rdecl -> TYPE LABEL . EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## TYPE LABEL
@@ -2146,7 +2145,7 @@ rprog_eof: TYPE LABEL LPAREN UNFOLD
 ##
 ## Ends in an error in state: 252.
 ##
-## rdecl -> TYPE LABEL LPAREN . separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> TYPE LABEL LPAREN . separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## TYPE LABEL LPAREN
@@ -2158,7 +2157,7 @@ rprog_eof: TYPE LABEL LPAREN IDENT RPAREN UNFOLD
 ##
 ## Ends in an error in state: 254.
 ##
-## rdecl -> TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN . EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN . EQUAL LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN
@@ -2170,7 +2169,7 @@ rprog_eof: TYPE LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ##
 ## Ends in an error in state: 255.
 ##
-## rdecl -> TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL . LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL . LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL
@@ -2182,7 +2181,7 @@ rprog_eof: TYPE LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ##
 ## Ends in an error in state: 256.
 ##
-## rdecl -> TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE . separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE . separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## TYPE LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE
@@ -2194,7 +2193,7 @@ rprog_eof: TYPE LABEL EQUAL UNFOLD
 ##
 ## Ends in an error in state: 259.
 ##
-## rdecl -> TYPE LABEL EQUAL . LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> TYPE LABEL EQUAL . LBRACE separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## TYPE LABEL EQUAL
@@ -2206,7 +2205,7 @@ rprog_eof: TYPE LABEL EQUAL LBRACE UNFOLD
 ##
 ## Ends in an error in state: 260.
 ##
-## rdecl -> TYPE LABEL EQUAL LBRACE . separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> TYPE LABEL EQUAL LBRACE . separated_nonempty_list(BAR,type_ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## TYPE LABEL EQUAL LBRACE
@@ -2218,8 +2217,8 @@ rprog_eof: SORT UNFOLD
 ##
 ## Ends in an error in state: 263.
 ##
-## rdecl -> SORT . LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
-## rdecl -> SORT . LABEL EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> SORT . LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
+## rdecl -> SORT . LABEL EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## SORT
@@ -2231,8 +2230,8 @@ rprog_eof: SORT LABEL UNFOLD
 ##
 ## Ends in an error in state: 264.
 ##
-## rdecl -> SORT LABEL . LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
-## rdecl -> SORT LABEL . EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> SORT LABEL . LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
+## rdecl -> SORT LABEL . EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## SORT LABEL
@@ -2244,7 +2243,7 @@ rprog_eof: SORT LABEL LPAREN UNFOLD
 ##
 ## Ends in an error in state: 265.
 ##
-## rdecl -> SORT LABEL LPAREN . separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> SORT LABEL LPAREN . separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## SORT LABEL LPAREN
@@ -2256,7 +2255,7 @@ rprog_eof: SORT LABEL LPAREN IDENT RPAREN UNFOLD
 ##
 ## Ends in an error in state: 267.
 ##
-## rdecl -> SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN . EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN . EQUAL LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN
@@ -2268,7 +2267,7 @@ rprog_eof: SORT LABEL LPAREN IDENT RPAREN EQUAL UNFOLD
 ##
 ## Ends in an error in state: 268.
 ##
-## rdecl -> SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL . LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL . LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL
@@ -2280,7 +2279,7 @@ rprog_eof: SORT LABEL LPAREN IDENT RPAREN EQUAL LBRACE UNFOLD
 ##
 ## Ends in an error in state: 269.
 ##
-## rdecl -> SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE . separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE . separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## SORT LABEL LPAREN separated_nonempty_list(COMMA,IDENT) RPAREN EQUAL LBRACE
@@ -2292,7 +2291,7 @@ rprog_eof: SORT LABEL EQUAL UNFOLD
 ##
 ## Ends in an error in state: 272.
 ##
-## rdecl -> SORT LABEL EQUAL . LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> SORT LABEL EQUAL . LBRACE separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## SORT LABEL EQUAL
@@ -2304,7 +2303,7 @@ rprog_eof: SORT LABEL EQUAL LBRACE UNFOLD
 ##
 ## Ends in an error in state: 273.
 ##
-## rdecl -> SORT LABEL EQUAL LBRACE . separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> SORT LABEL EQUAL LBRACE . separated_nonempty_list(BAR,ctor_decl) RBRACE [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## SORT LABEL EQUAL LBRACE
@@ -2316,7 +2315,7 @@ rprog_eof: RFUN UNFOLD
 ##
 ## Ends in an error in state: 276.
 ##
-## rdecl -> RFUN . IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> RFUN . IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## RFUN
@@ -2328,7 +2327,7 @@ rprog_eof: RFUN IDENT UNFOLD
 ##
 ## Ends in an error in state: 277.
 ##
-## rdecl -> RFUN IDENT . pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> RFUN IDENT . pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## RFUN IDENT
@@ -2354,6 +2353,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET UNFOLD
 ##
 ## pf_domain_entry -> LBRACKET . eff_level RBRACKET IDENT COLON sort [ RPAREN COMMA ]
 ## pf_domain_entry -> LBRACKET . LOG RBRACKET IDENT COLON app_expr [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET . LOG RBRACKET AUTO COLON app_expr [ RPAREN COMMA ]
 ## pf_domain_entry -> LBRACKET . RES RBRACKET IDENT COLON app_expr AT app_expr [ RPAREN COMMA ]
 ## pf_domain_entry -> LBRACKET . RES RBRACKET IDENT COLON LPAREN DO IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
 ## pf_domain_entry -> LBRACKET . RES RBRACKET IDENT COLON LPAREN DO IDENT EQUAL app_expr RPAREN [ RPAREN COMMA ]
@@ -2563,6 +2563,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET LOG UNFOLD
 ## Ends in an error in state: 298.
 ##
 ## pf_domain_entry -> LBRACKET LOG . RBRACKET IDENT COLON app_expr [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET LOG . RBRACKET AUTO COLON app_expr [ RPAREN COMMA ]
 ##
 ## The known suffix of the stack is as follows:
 ## LBRACKET LOG
@@ -2575,6 +2576,7 @@ rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET UNFOLD
 ## Ends in an error in state: 299.
 ##
 ## pf_domain_entry -> LBRACKET LOG RBRACKET . IDENT COLON app_expr [ RPAREN COMMA ]
+## pf_domain_entry -> LBRACKET LOG RBRACKET . AUTO COLON app_expr [ RPAREN COMMA ]
 ##
 ## The known suffix of the stack is as follows:
 ## LBRACKET LOG RBRACKET
@@ -2608,7 +2610,7 @@ After `[log] <name> :`: expected the proposition (an `app_expr`).
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE UNFOLD
 ##
-## Ends in an error in state: 303.
+## Ends in an error in state: 306.
 ##
 ## pf_domain_entry -> LBRACKET eff_level . RBRACKET IDENT COLON sort [ RPAREN COMMA ]
 ##
@@ -2620,7 +2622,7 @@ After the effect level in a `[eff]` annotation: expected `]` to close the bracke
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ##
-## Ends in an error in state: 304.
+## Ends in an error in state: 307.
 ##
 ## pf_domain_entry -> LBRACKET eff_level RBRACKET . IDENT COLON sort [ RPAREN COMMA ]
 ##
@@ -2632,7 +2634,7 @@ After `[<eff>]` in a refined signature: expected a binder name followed by `: <s
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET IDENT UNFOLD
 ##
-## Ends in an error in state: 305.
+## Ends in an error in state: 308.
 ##
 ## pf_domain_entry -> LBRACKET eff_level RBRACKET IDENT . COLON sort [ RPAREN COMMA ]
 ##
@@ -2644,7 +2646,7 @@ After `[<eff>] <name>`: expected `:` followed by the binder's sort.
 
 rprog_eof: RFUN IDENT LPAREN LBRACKET IMPURE RBRACKET IDENT COLON UNFOLD
 ##
-## Ends in an error in state: 306.
+## Ends in an error in state: 309.
 ##
 ## pf_domain_entry -> LBRACKET eff_level RBRACKET IDENT COLON . sort [ RPAREN COMMA ]
 ##
@@ -2656,7 +2658,7 @@ After `[<eff>] <name> :`: expected the binder's sort.
 
 rprog_eof: RFUN IDENT LPAREN IDENT UNFOLD
 ##
-## Ends in an error in state: 308.
+## Ends in an error in state: 311.
 ##
 ## pf_domain_entry -> IDENT . COLON sort [ RPAREN COMMA ]
 ##
@@ -2668,7 +2670,7 @@ In an `rfun` parameter list, after a binder name: expected `:` followed by a sor
 
 rprog_eof: RFUN IDENT LPAREN IDENT COLON UNFOLD
 ##
-## Ends in an error in state: 309.
+## Ends in an error in state: 312.
 ##
 ## pf_domain_entry -> IDENT COLON . sort [ RPAREN COMMA ]
 ##
@@ -2680,7 +2682,7 @@ PLACEHOLDER: after `IDENT COLON`, an unexpected token appeared.
 
 rprog_eof: RFUN IDENT LPAREN IDENT COLON BOOL_KW LBRACKET
 ##
-## Ends in an error in state: 312.
+## Ends in an error in state: 315.
 ##
 ## separated_nonempty_list(COMMA,pf_domain_entry) -> pf_domain_entry . [ RPAREN ]
 ## separated_nonempty_list(COMMA,pf_domain_entry) -> pf_domain_entry . COMMA separated_nonempty_list(COMMA,pf_domain_entry) [ RPAREN ]
@@ -2693,7 +2695,7 @@ After an rfun-domain entry: expected `,` to separate another entry, or `)` to cl
 
 rprog_eof: RFUN IDENT LPAREN IDENT COLON BOOL_KW COMMA UNFOLD
 ##
-## Ends in an error in state: 313.
+## Ends in an error in state: 316.
 ##
 ## separated_nonempty_list(COMMA,pf_domain_entry) -> pf_domain_entry COMMA . separated_nonempty_list(COMMA,pf_domain_entry) [ RPAREN ]
 ##
@@ -2705,9 +2707,9 @@ After `,` in an rfun domain: expected the next entry — a binder (`<name> : <so
 
 rprog_eof: RFUN IDENT LPAREN RPAREN UNFOLD
 ##
-## Ends in an error in state: 317.
+## Ends in an error in state: 320.
 ##
-## rdecl -> RFUN IDENT pf_domain . ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> RFUN IDENT pf_domain . ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## RFUN IDENT pf_domain
@@ -2717,9 +2719,9 @@ After the `rfun` domain: expected `->` followed by the codomain `pf_sort` in par
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW UNFOLD
 ##
-## Ends in an error in state: 318.
+## Ends in an error in state: 321.
 ##
-## rdecl -> RFUN IDENT pf_domain ARROW . pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> RFUN IDENT pf_domain ARROW . pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## RFUN IDENT pf_domain ARROW
@@ -2729,7 +2731,7 @@ After `rfun <name>(<dom>) ->`: expected the codomain `pf_sort` — a parenthesis
 
 rprog_eof: MAIN COLON LPAREN UNFOLD
 ##
-## Ends in an error in state: 319.
+## Ends in an error in state: 322.
 ##
 ## pf_sort -> LPAREN . loption(separated_nonempty_list(COMMA,pf_entry)) RPAREN [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN LBRACKET FUN EOF ELSE BAR ]
 ##
@@ -2741,7 +2743,7 @@ PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET UNFOLD
 ##
-## Ends in an error in state: 320.
+## Ends in an error in state: 323.
 ##
 ## pf_entry -> LBRACKET . eff_level RBRACKET IDENT COLON sort [ RPAREN COMMA ]
 ## pf_entry -> LBRACKET . LOG RBRACKET app_expr [ RPAREN COMMA ]
@@ -2757,7 +2759,7 @@ PLACEHOLDER: after `LBRACKET`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES UNFOLD
 ##
-## Ends in an error in state: 321.
+## Ends in an error in state: 324.
 ##
 ## pf_entry -> LBRACKET RES . RBRACKET app_expr AT app_expr [ RPAREN COMMA ]
 ## pf_entry -> LBRACKET RES . RBRACKET LPAREN DO IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
@@ -2771,7 +2773,7 @@ After `[res`: expected `]` to close, followed by the resource binder (in an rfun
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET UNFOLD
 ##
-## Ends in an error in state: 322.
+## Ends in an error in state: 325.
 ##
 ## pf_entry -> LBRACKET RES RBRACKET . app_expr AT app_expr [ RPAREN COMMA ]
 ## pf_entry -> LBRACKET RES RBRACKET . LPAREN DO IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
@@ -2785,7 +2787,7 @@ After `[res]`: expected either `<name> : <pred> @ <value>` (in a domain), `<pred
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN UNFOLD
 ##
-## Ends in an error in state: 323.
+## Ends in an error in state: 326.
 ##
 ## pf_entry -> LBRACKET RES RBRACKET LPAREN . DO IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
 ## pf_entry -> LBRACKET RES RBRACKET LPAREN . DO IDENT EQUAL app_expr RPAREN [ RPAREN COMMA ]
@@ -2801,7 +2803,7 @@ After `[res] (` in an rfun codomain: expected `do` to begin a DepRes entry: `[re
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO UNFOLD
 ##
-## Ends in an error in state: 324.
+## Ends in an error in state: 327.
 ##
 ## pf_entry -> LBRACKET RES RBRACKET LPAREN DO . IDENT COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
 ## pf_entry -> LBRACKET RES RBRACKET LPAREN DO . IDENT EQUAL app_expr RPAREN [ RPAREN COMMA ]
@@ -2814,7 +2816,7 @@ After `[res] (do`: expected the DepRes dependent-binder name.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT UNFOLD
 ##
-## Ends in an error in state: 325.
+## Ends in an error in state: 328.
 ##
 ## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT . COLON sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
 ## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT . EQUAL app_expr RPAREN [ RPAREN COMMA ]
@@ -2827,7 +2829,7 @@ After `[res] (do <y>`: expected `=` or `:` followed by `<sort> = <e>`.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL UNFOLD
 ##
-## Ends in an error in state: 326.
+## Ends in an error in state: 329.
 ##
 ## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL . app_expr RPAREN [ RPAREN COMMA ]
 ##
@@ -2839,7 +2841,7 @@ After `[res] (do <y> =`: expected the `Pred`-sort expression.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL FALSE UNFOLD
 ##
-## Ends in an error in state: 327.
+## Ends in an error in state: 330.
 ##
 ## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT EQUAL app_expr . RPAREN [ RPAREN COMMA ]
 ##
@@ -2851,7 +2853,7 @@ After `[res] (do <y> = <e>`: expected `)` to close the DepRes entry.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON UNFOLD
 ##
-## Ends in an error in state: 329.
+## Ends in an error in state: 332.
 ##
 ## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT COLON . sort EQUAL app_expr RPAREN [ RPAREN COMMA ]
 ##
@@ -2863,7 +2865,7 @@ After `[res] (do <y> :`: expected the payload sort.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW TYPE
 ##
-## Ends in an error in state: 330.
+## Ends in an error in state: 333.
 ##
 ## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort . EQUAL app_expr RPAREN [ RPAREN COMMA ]
 ##
@@ -2875,7 +2877,7 @@ After `[res] (do <y> : <sort>`: expected `=` followed by the `Pred`-sort express
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW EQUAL UNFOLD
 ##
-## Ends in an error in state: 331.
+## Ends in an error in state: 334.
 ##
 ## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort EQUAL . app_expr RPAREN [ RPAREN COMMA ]
 ##
@@ -2887,7 +2889,7 @@ After `[res] (do <y> : <sort> =`: expected the `Pred`-sort expression.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET LPAREN DO IDENT COLON BOOL_KW EQUAL FALSE UNFOLD
 ##
-## Ends in an error in state: 332.
+## Ends in an error in state: 335.
 ##
 ## pf_entry -> LBRACKET RES RBRACKET LPAREN DO IDENT COLON sort EQUAL app_expr . RPAREN [ RPAREN COMMA ]
 ##
@@ -2899,7 +2901,7 @@ After `[res] (do <y> : <sort> = <e>`: expected `)` to close the DepRes entry.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET FALSE UNFOLD
 ##
-## Ends in an error in state: 334.
+## Ends in an error in state: 337.
 ##
 ## pf_entry -> LBRACKET RES RBRACKET app_expr . AT app_expr [ RPAREN COMMA ]
 ##
@@ -2911,7 +2913,7 @@ After `[res] <pred>`: expected `@` followed by the resource's logical-index valu
 
 rprog_eof: MAIN COLON LPAREN LBRACKET RES RBRACKET FALSE AT UNFOLD
 ##
-## Ends in an error in state: 335.
+## Ends in an error in state: 338.
 ##
 ## pf_entry -> LBRACKET RES RBRACKET app_expr AT . app_expr [ RPAREN COMMA ]
 ##
@@ -2923,7 +2925,7 @@ After `[res] <pred> @`: expected the resource's logical-index value.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET LOG UNFOLD
 ##
-## Ends in an error in state: 337.
+## Ends in an error in state: 340.
 ##
 ## pf_entry -> LBRACKET LOG . RBRACKET app_expr [ RPAREN COMMA ]
 ##
@@ -2935,7 +2937,7 @@ After `[log`: expected `]` to close, followed by the log-variable binder (in an 
 
 rprog_eof: MAIN COLON LPAREN LBRACKET LOG RBRACKET UNFOLD
 ##
-## Ends in an error in state: 338.
+## Ends in an error in state: 341.
 ##
 ## pf_entry -> LBRACKET LOG RBRACKET . app_expr [ RPAREN COMMA ]
 ##
@@ -2947,7 +2949,7 @@ After `[log]`: expected a log-variable binder (e.g. `[log] p : x >= 0` in a pf_d
 
 rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE UNFOLD
 ##
-## Ends in an error in state: 340.
+## Ends in an error in state: 343.
 ##
 ## pf_entry -> LBRACKET eff_level . RBRACKET IDENT COLON sort [ RPAREN COMMA ]
 ##
@@ -2959,7 +2961,7 @@ After the effect level in a `[eff]` annotation: expected `]` to close the bracke
 
 rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ##
-## Ends in an error in state: 341.
+## Ends in an error in state: 344.
 ##
 ## pf_entry -> LBRACKET eff_level RBRACKET . IDENT COLON sort [ RPAREN COMMA ]
 ##
@@ -2971,7 +2973,7 @@ After `[<eff>]` in a refined signature: expected a binder name followed by `: <s
 
 rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET IDENT UNFOLD
 ##
-## Ends in an error in state: 342.
+## Ends in an error in state: 345.
 ##
 ## pf_entry -> LBRACKET eff_level RBRACKET IDENT . COLON sort [ RPAREN COMMA ]
 ##
@@ -2983,7 +2985,7 @@ After `[<eff>] <name>`: expected `:` followed by the binder's sort.
 
 rprog_eof: MAIN COLON LPAREN LBRACKET IMPURE RBRACKET IDENT COLON UNFOLD
 ##
-## Ends in an error in state: 343.
+## Ends in an error in state: 346.
 ##
 ## pf_entry -> LBRACKET eff_level RBRACKET IDENT COLON . sort [ RPAREN COMMA ]
 ##
@@ -2995,7 +2997,7 @@ After `[<eff>] <name> :`: expected the binder's sort.
 
 rprog_eof: MAIN COLON LPAREN IDENT UNFOLD
 ##
-## Ends in an error in state: 345.
+## Ends in an error in state: 348.
 ##
 ## pf_entry -> IDENT . COLON sort [ RPAREN COMMA ]
 ##
@@ -3007,7 +3009,7 @@ In a refined codomain or proof-sort, after a binder name: expected `:` followed 
 
 rprog_eof: MAIN COLON LPAREN IDENT COLON UNFOLD
 ##
-## Ends in an error in state: 346.
+## Ends in an error in state: 349.
 ##
 ## pf_entry -> IDENT COLON . sort [ RPAREN COMMA ]
 ##
@@ -3019,7 +3021,7 @@ PLACEHOLDER: after `IDENT COLON`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN IDENT COLON BOOL_KW LBRACKET
 ##
-## Ends in an error in state: 349.
+## Ends in an error in state: 352.
 ##
 ## separated_nonempty_list(COMMA,pf_entry) -> pf_entry . [ RPAREN ]
 ## separated_nonempty_list(COMMA,pf_entry) -> pf_entry . COMMA separated_nonempty_list(COMMA,pf_entry) [ RPAREN ]
@@ -3032,7 +3034,7 @@ After an rfun-codomain entry: expected `,` to separate another entry, or `)` to 
 
 rprog_eof: MAIN COLON LPAREN IDENT COLON BOOL_KW COMMA UNFOLD
 ##
-## Ends in an error in state: 350.
+## Ends in an error in state: 353.
 ##
 ## separated_nonempty_list(COMMA,pf_entry) -> pf_entry COMMA . separated_nonempty_list(COMMA,pf_entry) [ RPAREN ]
 ##
@@ -3044,9 +3046,9 @@ After `,` in an rfun codomain: expected the next entry (result binder, log-prop,
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN UNFOLD
 ##
-## Ends in an error in state: 354.
+## Ends in an error in state: 357.
 ##
-## rdecl -> RFUN IDENT pf_domain ARROW pf_sort . LBRACKET eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> RFUN IDENT pf_domain ARROW pf_sort . LBRACKET eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## RFUN IDENT pf_domain ARROW pf_sort
@@ -3056,9 +3058,9 @@ After the `rfun` codomain: expected an effect annotation `[pure]`, `[impure]`, o
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET UNFOLD
 ##
-## Ends in an error in state: 355.
+## Ends in an error in state: 358.
 ##
-## rdecl -> RFUN IDENT pf_domain ARROW pf_sort LBRACKET . eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> RFUN IDENT pf_domain ARROW pf_sort LBRACKET . eff_level RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## RFUN IDENT pf_domain ARROW pf_sort LBRACKET
@@ -3068,9 +3070,9 @@ After `[` in the rfun effect annotation: expected an effect level (`pure`, `impu
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE UNFOLD
 ##
-## Ends in an error in state: 356.
+## Ends in an error in state: 359.
 ##
-## rdecl -> RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level . RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level . RBRACKET EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level
@@ -3080,9 +3082,9 @@ After the rfun effect level: expected `]` to close the effect bracket.
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ##
-## Ends in an error in state: 357.
+## Ends in an error in state: 360.
 ##
-## rdecl -> RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET . EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET . EQUAL crt_expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET
@@ -3092,9 +3094,9 @@ After the rfun effect annotation: expected `=` followed by the refined body term
 
 rprog_eof: RFUN IDENT LPAREN RPAREN ARROW LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ##
-## Ends in an error in state: 358.
+## Ends in an error in state: 361.
 ##
-## rdecl -> RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL . crt_expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL . crt_expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## RFUN IDENT pf_domain ARROW pf_sort LBRACKET eff_level RBRACKET EQUAL
@@ -3104,7 +3106,7 @@ After `= ` in an rfun declaration: expected the refined body term (`crt_expr`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE UNFOLD
 ##
-## Ends in an error in state: 359.
+## Ends in an error in state: 362.
 ##
 ## crt_seq_expr -> OPEN_TAKE . LPAREN rpf_expr RPAREN [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3116,7 +3118,7 @@ After `open_take`: expected `(<rpf>)` — the resource proof term to open. Examp
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE LPAREN UNFOLD
 ##
-## Ends in an error in state: 360.
+## Ends in an error in state: 363.
 ##
 ## crt_seq_expr -> OPEN_TAKE LPAREN . rpf_expr RPAREN [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3128,7 +3130,7 @@ After `open_take(`: expected a resource proof term (`rpf`), followed by `)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_TAKE UNFOLD
 ##
-## Ends in an error in state: 361.
+## Ends in an error in state: 364.
 ##
 ## rpf_atom_expr -> MAKE_TAKE . LPAREN crt_expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
 ##
@@ -3140,7 +3142,7 @@ After `make_take`: expected `(<crt>)` — the refined term to package as a resou
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_TAKE LPAREN UNFOLD
 ##
-## Ends in an error in state: 362.
+## Ends in an error in state: 365.
 ##
 ## rpf_atom_expr -> MAKE_TAKE LPAREN . crt_expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
 ##
@@ -3152,7 +3154,7 @@ After `make_take(`: expected a refined term (`crt`), followed by `)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN UNFOLD
 ##
-## Ends in an error in state: 363.
+## Ends in an error in state: 366.
 ##
 ## crt_spine_expr -> LPAREN . loption(separated_nonempty_list(COMMA,spine_arg)) RPAREN [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3164,7 +3166,7 @@ PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES UNFOLD
 ##
-## Ends in an error in state: 364.
+## Ends in an error in state: 367.
 ##
 ## spine_arg -> RES . rpf_expr [ RPAREN COMMA ]
 ##
@@ -3176,7 +3178,7 @@ After `res` in a refined pattern: expected the resource-variable name (an identi
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_RET UNFOLD
 ##
-## Ends in an error in state: 365.
+## Ends in an error in state: 368.
 ##
 ## rpf_atom_expr -> MAKE_RET . LPAREN lpf_expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
 ##
@@ -3188,7 +3190,7 @@ After `make_ret`: expected `(<lpf>)` — the logical proof term to package as a 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_RET LPAREN TYPE
 ##
-## Ends in an error in state: 366.
+## Ends in an error in state: 369.
 ##
 ## rpf_atom_expr -> MAKE_RET LPAREN . lpf_expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
 ##
@@ -3200,7 +3202,7 @@ After `make_ret(`: expected a logical proof term (`lpf`), followed by `)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD UNFOLD
 ##
-## Ends in an error in state: 367.
+## Ends in an error in state: 370.
 ##
 ## lpf_atom_expr -> UNFOLD . IDENT LPAREN expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
 ##
@@ -3212,7 +3214,7 @@ After `unfold`: expected the function name to unfold, followed by `(<args>)` —
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD IDENT UNFOLD
 ##
-## Ends in an error in state: 368.
+## Ends in an error in state: 371.
 ##
 ## lpf_atom_expr -> UNFOLD IDENT . LPAREN expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
 ##
@@ -3224,7 +3226,7 @@ After `unfold <name>`: expected `(` followed by the argument expression and `)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD IDENT LPAREN UNFOLD
 ##
-## Ends in an error in state: 369.
+## Ends in an error in state: 372.
 ##
 ## lpf_atom_expr -> UNFOLD IDENT LPAREN . expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
 ##
@@ -3236,7 +3238,7 @@ After `unfold <name>(`: expected the argument core expression.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG UNFOLD IDENT LPAREN FALSE TYPE
 ##
-## Ends in an error in state: 370.
+## Ends in an error in state: 373.
 ##
 ## lpf_atom_expr -> UNFOLD IDENT LPAREN expr . RPAREN [ SEMICOLON RPAREN COMMA COLON ]
 ##
@@ -3260,7 +3262,7 @@ After `unfold <name>(<arg>`: expected `)` to close.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OPEN_RET UNFOLD
 ##
-## Ends in an error in state: 372.
+## Ends in an error in state: 375.
 ##
 ## lpf_atom_expr -> OPEN_RET . LPAREN rpf_expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
 ##
@@ -3272,7 +3274,7 @@ After `open_ret`: expected `(<rpf>)` — the resource proof term whose `ret`-sha
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OPEN_RET LPAREN UNFOLD
 ##
-## Ends in an error in state: 373.
+## Ends in an error in state: 376.
 ##
 ## lpf_atom_expr -> OPEN_RET LPAREN . rpf_expr RPAREN [ SEMICOLON RPAREN COMMA COLON ]
 ##
@@ -3284,7 +3286,7 @@ After `open_ret(`: expected a resource proof term (`rpf`) followed by `)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OPEN_RET LPAREN IDENT SEMICOLON
 ##
-## Ends in an error in state: 375.
+## Ends in an error in state: 378.
 ##
 ## lpf_atom_expr -> OPEN_RET LPAREN rpf_expr . RPAREN [ SEMICOLON RPAREN COMMA COLON ]
 ##
@@ -3295,14 +3297,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG OP
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
+## In state 380, spurious reduction of production rpf_expr -> rpf_atom_expr
 ##
 
 After `open_ret(<rpf>`: expected `)` to close.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT UNFOLD
 ##
-## Ends in an error in state: 377.
+## Ends in an error in state: 380.
 ##
 ## rpf_expr -> rpf_atom_expr . COLON simple_expr AT simple_expr [ SEMICOLON RPAREN COMMA ]
 ## rpf_expr -> rpf_atom_expr . [ SEMICOLON RPAREN COMMA ]
@@ -3315,7 +3317,7 @@ After a resource-proof atom: expected either a sort/index annotation `: <sort> @
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT COLON UNFOLD
 ##
-## Ends in an error in state: 378.
+## Ends in an error in state: 381.
 ##
 ## rpf_expr -> rpf_atom_expr COLON . simple_expr AT simple_expr [ SEMICOLON RPAREN COMMA ]
 ##
@@ -3327,7 +3329,7 @@ After `<rpf> :`: expected the resource sort annotation (e.g. `r : Own[Int](p) @ 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT COLON FALSE UNFOLD
 ##
-## Ends in an error in state: 379.
+## Ends in an error in state: 382.
 ##
 ## rpf_expr -> rpf_atom_expr COLON simple_expr . AT simple_expr [ SEMICOLON RPAREN COMMA ]
 ##
@@ -3339,7 +3341,7 @@ After `<rpf> : <sort>`: expected `@` followed by the resource's logical-index va
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES IDENT COLON FALSE AT UNFOLD
 ##
-## Ends in an error in state: 380.
+## Ends in an error in state: 383.
 ##
 ## rpf_expr -> rpf_atom_expr COLON simple_expr AT . simple_expr [ SEMICOLON RPAREN COMMA ]
 ##
@@ -3351,7 +3353,7 @@ After `<rpf> : <sort> @`: expected the logical-index value.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_RET LPAREN AUTO SEMICOLON
 ##
-## Ends in an error in state: 384.
+## Ends in an error in state: 387.
 ##
 ## rpf_atom_expr -> MAKE_RET LPAREN lpf_expr . RPAREN [ SEMICOLON RPAREN COMMA COLON ]
 ##
@@ -3362,14 +3364,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MA
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 386, spurious reduction of production lpf_expr -> lpf_atom_expr
+## In state 389, spurious reduction of production lpf_expr -> lpf_atom_expr
 ##
 
 After `make_ret(<lpf>`: expected `)` to close.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG AUTO UNFOLD
 ##
-## Ends in an error in state: 386.
+## Ends in an error in state: 389.
 ##
 ## lpf_expr -> lpf_atom_expr . COLON expr [ SEMICOLON RPAREN COMMA ]
 ## lpf_expr -> lpf_atom_expr . [ SEMICOLON RPAREN COMMA ]
@@ -3382,7 +3384,7 @@ After a logical-proof atom: expected either a sort annotation `: <sort>` or end 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG AUTO COLON UNFOLD
 ##
-## Ends in an error in state: 387.
+## Ends in an error in state: 390.
 ##
 ## lpf_expr -> lpf_atom_expr COLON . expr [ SEMICOLON RPAREN COMMA ]
 ##
@@ -3394,7 +3396,7 @@ After `<lpf> :`: expected the sort annotation for the logical proof term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN LOG TYPE
 ##
-## Ends in an error in state: 390.
+## Ends in an error in state: 393.
 ##
 ## spine_arg -> LOG . lpf_expr [ RPAREN COMMA ]
 ##
@@ -3406,7 +3408,7 @@ After `log` in a refined pattern: expected the log-variable name (an identifier)
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN FALSE SEMICOLON
 ##
-## Ends in an error in state: 392.
+## Ends in an error in state: 395.
 ##
 ## separated_nonempty_list(COMMA,spine_arg) -> spine_arg . [ RPAREN ]
 ## separated_nonempty_list(COMMA,spine_arg) -> spine_arg . COMMA separated_nonempty_list(COMMA,spine_arg) [ RPAREN ]
@@ -3425,14 +3427,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN FALSE 
 ## In state 175, spurious reduction of production or_expr -> and_expr
 ## In state 146, spurious reduction of production seq_expr -> or_expr
 ## In state 143, spurious reduction of production expr -> seq_expr
-## In state 395, spurious reduction of production spine_arg -> expr
+## In state 398, spurious reduction of production spine_arg -> expr
 ##
 
 After a spine argument: expected `,` for another argument or `)` to close the call. Refined-call arguments include core expressions, `log <x>`, `res <r>`, etc.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN FALSE COMMA UNFOLD
 ##
-## Ends in an error in state: 393.
+## Ends in an error in state: 396.
 ##
 ## separated_nonempty_list(COMMA,spine_arg) -> spine_arg COMMA . separated_nonempty_list(COMMA,spine_arg) [ RPAREN ]
 ##
@@ -3444,7 +3446,7 @@ After `,` in a call-argument spine: expected the next argument.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET UNFOLD
 ##
-## Ends in an error in state: 399.
+## Ends in an error in state: 402.
 ##
 ## crt_seq_expr -> LET . rpat EQUAL crt_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ## crt_seq_expr -> LET . LOG IDENT EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
@@ -3462,7 +3464,7 @@ After `let` in a refined term: expected a pattern (`x`, `(x, y)`, `()`), or one 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES UNFOLD
 ##
-## Ends in an error in state: 400.
+## Ends in an error in state: 403.
 ##
 ## crt_seq_expr -> LET RES . IDENT EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ## crt_seq_expr -> LET RES . IDENT COLON app_expr AT app_expr EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
@@ -3475,7 +3477,7 @@ After `let res`: expected a lowercase identifier for the resource-variable binde
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT UNFOLD
 ##
-## Ends in an error in state: 401.
+## Ends in an error in state: 404.
 ##
 ## crt_seq_expr -> LET RES IDENT . EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ## crt_seq_expr -> LET RES IDENT . COLON app_expr AT app_expr EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
@@ -3488,7 +3490,7 @@ After `let res <name>`: expected `=` to give the right-hand side, or `:` followe
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL UNFOLD
 ##
-## Ends in an error in state: 402.
+## Ends in an error in state: 405.
 ##
 ## crt_seq_expr -> LET RES IDENT EQUAL . rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3500,7 +3502,7 @@ After `let res <name> =`: expected a resource proof term (`rpf`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL IDENT RPAREN
 ##
-## Ends in an error in state: 403.
+## Ends in an error in state: 406.
 ##
 ## crt_seq_expr -> LET RES IDENT EQUAL rpf_expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3511,14 +3513,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
+## In state 380, spurious reduction of production rpf_expr -> rpf_atom_expr
 ##
 
 After `let res <name> = <rpf>`: expected `;` to end the binding, followed by the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL IDENT SEMICOLON UNFOLD
 ##
-## Ends in an error in state: 404.
+## Ends in an error in state: 407.
 ##
 ## crt_seq_expr -> LET RES IDENT EQUAL rpf_expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3530,7 +3532,7 @@ After `let res <name> = <rpf>;`: expected the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER UNFOLD
 ##
-## Ends in an error in state: 405.
+## Ends in an error in state: 408.
 ##
 ## crt_seq_expr -> ITER . LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3542,7 +3544,7 @@ After `iter` in a refined term: expected `[<res>]` — a resource precondition i
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET UNFOLD
 ##
-## Ends in an error in state: 406.
+## Ends in an error in state: 409.
 ##
 ## crt_seq_expr -> ITER LBRACKET . expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3554,8 +3556,7 @@ After `iter [`: expected the resource-invariant expression (e.g. `iter [Own[List
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE TYPE
 ##
-## (refined-iter resource-invariant complete; expecting RBRACKET)
-## Ends in an error in state: 407.
+## Ends in an error in state: 410.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr . RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3579,7 +3580,7 @@ After the resource-invariant expression in `iter [<res>`: expected `]` to close 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET UNFOLD
 ##
-## Ends in an error in state: 408.
+## Ends in an error in state: 411.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET . LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3591,7 +3592,7 @@ After `iter [<res>]`: expected `(` to begin the state binder `(<rpat> = <init>)`
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN UNFOLD
 ##
-## Ends in an error in state: 409.
+## Ends in an error in state: 412.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN . rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3603,7 +3604,7 @@ After `iter [<res>](`: expected a refined pattern (`rpat`) binding the loop's st
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN UNFOLD
 ##
-## Ends in an error in state: 410.
+## Ends in an error in state: 413.
 ##
 ## rpat -> LPAREN . RPAREN [ EQUAL ]
 ## rpat -> LPAREN . separated_nonempty_list(COMMA,rpat_elem) RPAREN [ EQUAL ]
@@ -3616,55 +3617,19 @@ After `(` in a refined pattern: expected `)` to form the unit pattern, or a comm
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN UNFOLD
 ##
-## Ends in an error in state: 412.
+## Ends in an error in state: 470.
 ##
-## rpat_elem -> LPAREN . IDENT COMMA IDENT RPAREN [ RPAREN COMMA ]
+## rpat_elem -> LPAREN . separated_nonempty_list(COMMA,ident_var) RPAREN [ RPAREN COMMA ]
 ##
 ## The known suffix of the stack is as follows:
 ## LPAREN
 ##
 
-After `(` in a refined-pattern element (DepRes pair form): expected two comma-separated identifiers and then `)` — the shape is `(<log-binder>, <res-binder>)`.
-
-rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN IDENT UNFOLD
-##
-## Ends in an error in state: 413.
-##
-## rpat_elem -> LPAREN IDENT . COMMA IDENT RPAREN [ RPAREN COMMA ]
-##
-## The known suffix of the stack is as follows:
-## LPAREN IDENT
-##
-
-After `(<log-binder>` in a DepRes pair pattern: expected `,` followed by the resource-binder name and then `)`.
-
-rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN IDENT COMMA UNFOLD
-##
-## Ends in an error in state: 414.
-##
-## rpat_elem -> LPAREN IDENT COMMA . IDENT RPAREN [ RPAREN COMMA ]
-##
-## The known suffix of the stack is as follows:
-## LPAREN IDENT COMMA
-##
-
-After `(<log-binder>,` in a DepRes pair pattern: expected the resource-binder name.
-
-rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN IDENT COMMA IDENT UNFOLD
-##
-## Ends in an error in state: 415.
-##
-## rpat_elem -> LPAREN IDENT COMMA IDENT . RPAREN [ RPAREN COMMA ]
-##
-## The known suffix of the stack is as follows:
-## LPAREN IDENT COMMA IDENT
-##
-
-After the second identifier in a DepRes pair pattern: expected `)` to close.
+After `(` in a refined-pattern tuple: expected comma-separated identifiers and then `)`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN IDENT UNFOLD
 ##
-## Ends in an error in state: 420.
+## Ends in an error in state: 483.
 ##
 ## separated_nonempty_list(COMMA,rpat_elem) -> rpat_elem . [ RPAREN ]
 ## separated_nonempty_list(COMMA,rpat_elem) -> rpat_elem . COMMA separated_nonempty_list(COMMA,rpat_elem) [ RPAREN ]
@@ -3677,7 +3642,7 @@ After a refined-pattern element: expected `,` for another element or `)` to clos
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN IDENT COMMA UNFOLD
 ##
-## Ends in an error in state: 421.
+## Ends in an error in state: 484.
 ##
 ## separated_nonempty_list(COMMA,rpat_elem) -> rpat_elem COMMA . separated_nonempty_list(COMMA,rpat_elem) [ RPAREN ]
 ##
@@ -3689,7 +3654,7 @@ After `,` in a refined pattern: expected the next element — an identifier, `lo
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT UNFOLD
 ##
-## Ends in an error in state: 424.
+## Ends in an error in state: 487.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat . EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3701,7 +3666,7 @@ After the refined-iter pattern: expected `=` followed by the initial-value refin
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL UNFOLD
 ##
-## Ends in an error in state: 425.
+## Ends in an error in state: 488.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL . crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3713,7 +3678,7 @@ After `iter [<res>](<rpat> =`: expected the initial-value refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF UNFOLD
 ##
-## Ends in an error in state: 426.
+## Ends in an error in state: 489.
 ##
 ## crt_seq_expr -> IF . LBRACKET IDENT RBRACKET expr THEN crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3725,7 +3690,7 @@ After `if` in a refined term: expected `[<log-name>]` — a log variable that re
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET UNFOLD
 ##
-## Ends in an error in state: 427.
+## Ends in an error in state: 490.
 ##
 ## crt_seq_expr -> IF LBRACKET . IDENT RBRACKET expr THEN crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3737,7 +3702,7 @@ After `if [` in a refined term: expected a lowercase identifier for the log-bind
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT UNFOLD
 ##
-## Ends in an error in state: 428.
+## Ends in an error in state: 491.
 ##
 ## crt_seq_expr -> IF LBRACKET IDENT . RBRACKET expr THEN crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3749,7 +3714,7 @@ After `if [<name>`: expected `]` to close the bracket.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET UNFOLD
 ##
-## Ends in an error in state: 429.
+## Ends in an error in state: 492.
 ##
 ## crt_seq_expr -> IF LBRACKET IDENT RBRACKET . expr THEN crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3761,7 +3726,7 @@ After `if [<name>]`: expected the condition expression (a core expression of sor
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE TYPE
 ##
-## Ends in an error in state: 430.
+## Ends in an error in state: 493.
 ##
 ## crt_seq_expr -> IF LBRACKET IDENT RBRACKET expr . THEN crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3785,7 +3750,7 @@ After the condition in a refined `if`: expected the keyword `then` followed by t
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE THEN UNFOLD
 ##
-## Ends in an error in state: 431.
+## Ends in an error in state: 494.
 ##
 ## crt_seq_expr -> IF LBRACKET IDENT RBRACKET expr THEN . crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3797,7 +3762,7 @@ After `if[<name>] <cond> then`: expected the then-branch refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IDENT UNFOLD
 ##
-## Ends in an error in state: 432.
+## Ends in an error in state: 495.
 ##
 ## crt_app_expr -> IDENT . spine_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3809,7 +3774,7 @@ After a function name in a refined term: expected an argument spine `(<args>)`. 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IDENT LPAREN UNFOLD
 ##
-## Ends in an error in state: 433.
+## Ends in an error in state: 496.
 ##
 ## spine_expr -> LPAREN . loption(separated_nonempty_list(COMMA,spine_arg)) RPAREN [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3821,7 +3786,7 @@ PLACEHOLDER: after `LPAREN`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE UNFOLD
 ##
-## Ends in an error in state: 438.
+## Ends in an error in state: 501.
 ##
 ## crt_seq_expr -> CASE . LBRACKET IDENT RBRACKET expr OF LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3833,7 +3798,7 @@ After `case` in a refined term: expected `[<log-name>]` — a log variable that 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET UNFOLD
 ##
-## Ends in an error in state: 439.
+## Ends in an error in state: 502.
 ##
 ## crt_seq_expr -> CASE LBRACKET . IDENT RBRACKET expr OF LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3845,7 +3810,7 @@ After `case [` in a refined term: expected a lowercase identifier for the log-bi
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT UNFOLD
 ##
-## Ends in an error in state: 440.
+## Ends in an error in state: 503.
 ##
 ## crt_seq_expr -> CASE LBRACKET IDENT . RBRACKET expr OF LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3857,7 +3822,7 @@ After `case [<name>`: expected `]` to close the bracket.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET UNFOLD
 ##
-## Ends in an error in state: 441.
+## Ends in an error in state: 504.
 ##
 ## crt_seq_expr -> CASE LBRACKET IDENT RBRACKET . expr OF LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3869,7 +3834,7 @@ After `case [<name>]`: expected the scrutinee expression (a core expression whos
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE TYPE
 ##
-## Ends in an error in state: 442.
+## Ends in an error in state: 505.
 ##
 ## crt_seq_expr -> CASE LBRACKET IDENT RBRACKET expr . OF LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3893,7 +3858,7 @@ After the scrutinee of a refined `case`: expected the keyword `of` followed by `
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF UNFOLD
 ##
-## Ends in an error in state: 443.
+## Ends in an error in state: 506.
 ##
 ## crt_seq_expr -> CASE LBRACKET IDENT RBRACKET expr OF . LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3905,11 +3870,10 @@ After `case[<name>] <e> of`: expected `{` to open the branch block.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE UNFOLD
 ##
-## Ends in an error in state: 444.
+## Ends in an error in state: 507.
 ##
 ## crt_seq_expr -> CASE LBRACKET IDENT RBRACKET expr OF LBRACE . separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
-## After `{` in a refined `case`: expected at least one branch `<Ctor> <var> -> <crt>`.
 ## The known suffix of the stack is as follows:
 ## CASE LBRACKET IDENT RBRACKET expr OF LBRACE
 ##
@@ -3918,7 +3882,7 @@ After `case[<name>] <e> of {`: expected at least one branch `<Ctor> <var> -> <cr
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL UNFOLD
 ##
-## Ends in an error in state: 445.
+## Ends in an error in state: 508.
 ##
 ## crt_case_branch -> LABEL . IDENT ARROW crt_expr [ RBRACE BAR ]
 ##
@@ -3930,7 +3894,7 @@ After a constructor `Label` in a refined term: this label cannot stand alone her
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT UNFOLD
 ##
-## Ends in an error in state: 446.
+## Ends in an error in state: 509.
 ##
 ## crt_case_branch -> LABEL IDENT . ARROW crt_expr [ RBRACE BAR ]
 ##
@@ -3942,7 +3906,7 @@ After `<Ctor> <var>` in a refined-case branch: expected `->` followed by the bra
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT ARROW UNFOLD
 ##
-## Ends in an error in state: 447.
+## Ends in an error in state: 510.
 ##
 ## crt_case_branch -> LABEL IDENT ARROW . crt_expr [ RBRACE BAR ]
 ##
@@ -3954,7 +3918,7 @@ After `<Ctor> <var> ->` in a refined-case branch: expected the branch body refin
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL UNFOLD
 ##
-## Ends in an error in state: 448.
+## Ends in an error in state: 511.
 ##
 ## crt_app_expr -> state_prim . LBRACKET sort RBRACKET spine_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3966,7 +3930,7 @@ After a state primitive (`New`, `Del`, `Get`, `Set`, `Own`, `Eq`) in a refined t
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET UNFOLD
 ##
-## Ends in an error in state: 449.
+## Ends in an error in state: 512.
 ##
 ## crt_app_expr -> state_prim LBRACKET . sort RBRACKET spine_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3978,7 +3942,7 @@ After `<prim>[`: expected the element sort (e.g. `New[Int] 5`, `Get[List(Int)] p
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET BOOL_KW TYPE
 ##
-## Ends in an error in state: 450.
+## Ends in an error in state: 513.
 ##
 ## crt_app_expr -> state_prim LBRACKET sort . RBRACKET spine_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3990,7 +3954,7 @@ After `<prim>[<sort>`: expected `]` to close the sort bracket, followed by the a
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET BOOL_KW RBRACKET UNFOLD
 ##
-## Ends in an error in state: 451.
+## Ends in an error in state: 514.
 ##
 ## crt_app_expr -> state_prim LBRACKET sort RBRACKET . spine_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4002,7 +3966,7 @@ After `<prim>[<sort>]`: expected the argument expression — state primitives ta
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO UNFOLD
 ##
-## Ends in an error in state: 454.
+## Ends in an error in state: 517.
 ##
 ## crt_expr -> crt_seq_expr . COLON pf_sort [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE BAR ]
 ## crt_expr -> crt_seq_expr . [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE BAR ]
@@ -4015,7 +3979,7 @@ After a refined term: expected a delimiter (`;`, `)`, `,`, `|`, `}`) or `:` to a
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO COLON UNFOLD
 ##
-## Ends in an error in state: 455.
+## Ends in an error in state: 518.
 ##
 ## crt_expr -> crt_seq_expr COLON . pf_sort [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE BAR ]
 ##
@@ -4027,7 +3991,7 @@ After `<crt> :`: expected a refined sort annotation — `pf_sort` — describing
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT ARROW EXFALSO TYPE
 ##
-## Ends in an error in state: 461.
+## Ends in an error in state: 524.
 ##
 ## separated_nonempty_list(BAR,crt_case_branch) -> crt_case_branch . [ RBRACE ]
 ## separated_nonempty_list(BAR,crt_case_branch) -> crt_case_branch . BAR separated_nonempty_list(BAR,crt_case_branch) [ RBRACE ]
@@ -4039,15 +4003,15 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
-## In state 457, spurious reduction of production crt_case_branch -> LABEL IDENT ARROW crt_expr
+## In state 517, spurious reduction of production crt_expr -> crt_seq_expr
+## In state 520, spurious reduction of production crt_case_branch -> LABEL IDENT ARROW crt_expr
 ##
 
 After a refined-case branch: expected `|` to begin another branch, or `}` to close the case block.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT ARROW EXFALSO BAR UNFOLD
 ##
-## Ends in an error in state: 462.
+## Ends in an error in state: 525.
 ##
 ## separated_nonempty_list(BAR,crt_case_branch) -> crt_case_branch BAR . separated_nonempty_list(BAR,crt_case_branch) [ RBRACE ]
 ##
@@ -4059,7 +4023,7 @@ After `|` in a refined-case block: expected the next branch `<Ctor> <var> -> <cr
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE THEN EXFALSO TYPE
 ##
-## Ends in an error in state: 464.
+## Ends in an error in state: 527.
 ##
 ## crt_seq_expr -> IF LBRACKET IDENT RBRACKET expr THEN crt_expr . ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4070,14 +4034,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
+## In state 517, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
 After the then-branch of a refined `if`: expected `else` followed by the else-branch refined term. Both branches are required.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE THEN EXFALSO ELSE UNFOLD
 ##
-## Ends in an error in state: 465.
+## Ends in an error in state: 528.
 ##
 ## crt_seq_expr -> IF LBRACKET IDENT RBRACKET expr THEN crt_expr ELSE . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4089,7 +4053,7 @@ After `else` in a refined `if`: expected the else-branch refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO TYPE
 ##
-## Ends in an error in state: 467.
+## Ends in an error in state: 530.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr . RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4100,14 +4064,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
+## In state 517, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
 After the refined-iter init-value term: expected `)` to close the binder, then `{ <body> }`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO RPAREN UNFOLD
 ##
-## Ends in an error in state: 468.
+## Ends in an error in state: 531.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN . LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4119,7 +4083,7 @@ After `iter [<res>](<rpat> = <init>)`: expected `{` to open the loop body.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO RPAREN LBRACE UNFOLD
 ##
-## Ends in an error in state: 469.
+## Ends in an error in state: 532.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE . crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4131,7 +4095,7 @@ After `iter [<res>](<rpat> = <init>) {`: expected the refined body term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO RPAREN LBRACE EXFALSO TYPE
 ##
-## Ends in an error in state: 470.
+## Ends in an error in state: 533.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr . RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4142,14 +4106,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
+## In state 517, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
 After the refined-iter body term: expected `}` to close the loop body.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON UNFOLD
 ##
-## Ends in an error in state: 473.
+## Ends in an error in state: 536.
 ##
 ## crt_seq_expr -> LET RES IDENT COLON . app_expr AT app_expr EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4161,7 +4125,7 @@ After `let res <name> :`: expected the resource sort (e.g. `Own[List(Int)](p)`) 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE UNFOLD
 ##
-## Ends in an error in state: 474.
+## Ends in an error in state: 537.
 ##
 ## crt_seq_expr -> LET RES IDENT COLON app_expr . AT app_expr EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4173,7 +4137,7 @@ After `let res <name> : <sort>`: expected `@ <index>` giving the resource's logi
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT UNFOLD
 ##
-## Ends in an error in state: 475.
+## Ends in an error in state: 538.
 ##
 ## crt_seq_expr -> LET RES IDENT COLON app_expr AT . app_expr EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4185,7 +4149,7 @@ After `let res <name> : <sort> @`: expected the logical-index expression (typica
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE UNFOLD
 ##
-## Ends in an error in state: 476.
+## Ends in an error in state: 539.
 ##
 ## crt_seq_expr -> LET RES IDENT COLON app_expr AT app_expr . EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4197,7 +4161,7 @@ After `let res <name> : <sort> @ <index>`: expected `=` followed by the resource
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE EQUAL UNFOLD
 ##
-## Ends in an error in state: 477.
+## Ends in an error in state: 540.
 ##
 ## crt_seq_expr -> LET RES IDENT COLON app_expr AT app_expr EQUAL . rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4209,7 +4173,7 @@ After `let res <name> : <sort> @ <index> =`: expected the resource proof term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE EQUAL IDENT RPAREN
 ##
-## Ends in an error in state: 478.
+## Ends in an error in state: 541.
 ##
 ## crt_seq_expr -> LET RES IDENT COLON app_expr AT app_expr EQUAL rpf_expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4220,14 +4184,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
+## In state 380, spurious reduction of production rpf_expr -> rpf_atom_expr
 ##
 
 After `let res <name> : <sort> @ <index> = <rpf>`: expected `;` followed by the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE EQUAL IDENT SEMICOLON UNFOLD
 ##
-## Ends in an error in state: 479.
+## Ends in an error in state: 542.
 ##
 ## crt_seq_expr -> LET RES IDENT COLON app_expr AT app_expr EQUAL rpf_expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4239,7 +4203,7 @@ After `let res <name> : <sort> @ <index> = <rpf>;`: expected the body refined te
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG UNFOLD
 ##
-## Ends in an error in state: 481.
+## Ends in an error in state: 544.
 ##
 ## crt_seq_expr -> LET LOG . IDENT EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ## crt_seq_expr -> LET LOG . IDENT COLON app_expr EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
@@ -4252,7 +4216,7 @@ After `let log`: expected a lowercase identifier for the log-variable binder, op
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT UNFOLD
 ##
-## Ends in an error in state: 482.
+## Ends in an error in state: 545.
 ##
 ## crt_seq_expr -> LET LOG IDENT . EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ## crt_seq_expr -> LET LOG IDENT . COLON app_expr EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
@@ -4265,7 +4229,7 @@ After `let log <name>`: expected `=` to give the right-hand side, or `:` followe
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT EQUAL TYPE
 ##
-## Ends in an error in state: 483.
+## Ends in an error in state: 546.
 ##
 ## crt_seq_expr -> LET LOG IDENT EQUAL . lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4277,7 +4241,7 @@ After `let log <name> =`: expected a logical proof term (`lpf`) of the appropria
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT EQUAL AUTO RPAREN
 ##
-## Ends in an error in state: 484.
+## Ends in an error in state: 547.
 ##
 ## crt_seq_expr -> LET LOG IDENT EQUAL lpf_expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4288,14 +4252,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 386, spurious reduction of production lpf_expr -> lpf_atom_expr
+## In state 389, spurious reduction of production lpf_expr -> lpf_atom_expr
 ##
 
 After `let log <name> = <lpf>`: expected `;` to end the binding, followed by the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT EQUAL AUTO SEMICOLON UNFOLD
 ##
-## Ends in an error in state: 485.
+## Ends in an error in state: 548.
 ##
 ## crt_seq_expr -> LET LOG IDENT EQUAL lpf_expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4307,7 +4271,7 @@ After `let log <name> = <lpf>;`: expected the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON UNFOLD
 ##
-## Ends in an error in state: 487.
+## Ends in an error in state: 550.
 ##
 ## crt_seq_expr -> LET LOG IDENT COLON . app_expr EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4319,7 +4283,7 @@ After `let log <name> :`: expected the sort (an `app_expr` in the grammar; typic
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE UNFOLD
 ##
-## Ends in an error in state: 488.
+## Ends in an error in state: 551.
 ##
 ## crt_seq_expr -> LET LOG IDENT COLON app_expr . EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4331,7 +4295,7 @@ After `let log <name> : <sort>`: expected `=` followed by the logical proof term
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE EQUAL TYPE
 ##
-## Ends in an error in state: 489.
+## Ends in an error in state: 552.
 ##
 ## crt_seq_expr -> LET LOG IDENT COLON app_expr EQUAL . lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4343,7 +4307,7 @@ After `let log <name> : <sort> =`: expected the logical proof term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE EQUAL AUTO RPAREN
 ##
-## Ends in an error in state: 490.
+## Ends in an error in state: 553.
 ##
 ## crt_seq_expr -> LET LOG IDENT COLON app_expr EQUAL lpf_expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4354,14 +4318,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 386, spurious reduction of production lpf_expr -> lpf_atom_expr
+## In state 389, spurious reduction of production lpf_expr -> lpf_atom_expr
 ##
 
 After `let log <name> : <sort> = <lpf>`: expected `;` to end the binding, followed by the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG IDENT COLON FALSE EQUAL AUTO SEMICOLON UNFOLD
 ##
-## Ends in an error in state: 491.
+## Ends in an error in state: 554.
 ##
 ## crt_seq_expr -> LET LOG IDENT COLON app_expr EQUAL lpf_expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4373,7 +4337,7 @@ After `let log <name> : <sort> = <lpf>;`: expected the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE UNFOLD
 ##
-## Ends in an error in state: 493.
+## Ends in an error in state: 556.
 ##
 ## crt_seq_expr -> LET CORE . LBRACKET IDENT RBRACKET IDENT EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ## crt_seq_expr -> LET CORE . LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
@@ -4386,7 +4350,7 @@ After `let core`: expected `[<sort-name>]` — the sort of the core term — fol
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET UNFOLD
 ##
-## Ends in an error in state: 494.
+## Ends in an error in state: 557.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET . IDENT RBRACKET IDENT EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ## crt_seq_expr -> LET CORE LBRACKET . IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
@@ -4399,7 +4363,7 @@ After `let core [`: expected a lowercase sort-parameter name (e.g. `let core[a] 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT UNFOLD
 ##
-## Ends in an error in state: 495.
+## Ends in an error in state: 558.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET IDENT . RBRACKET IDENT EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ## crt_seq_expr -> LET CORE LBRACKET IDENT . RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
@@ -4412,7 +4376,7 @@ After `let core[<name>`: expected `]` to close the sort bracket.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET UNFOLD
 ##
-## Ends in an error in state: 496.
+## Ends in an error in state: 559.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET . IDENT EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET . LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
@@ -4425,7 +4389,7 @@ After `let core[<sort>]`: expected a binder — either an identifier (`let core[
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN UNFOLD
 ##
-## Ends in an error in state: 497.
+## Ends in an error in state: 560.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET LPAREN . separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4437,7 +4401,7 @@ After `let core[<sort>] (`: expected at least one binder name (e.g. `let core[a]
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT UNFOLD
 ##
-## Ends in an error in state: 498.
+## Ends in an error in state: 421.
 ##
 ## separated_nonempty_list(COMMA,ident_var) -> IDENT . [ RPAREN ]
 ## separated_nonempty_list(COMMA,ident_var) -> IDENT . COMMA separated_nonempty_list(COMMA,ident_var) [ RPAREN ]
@@ -4450,7 +4414,7 @@ In a `let core[a] (x1, ..., xn)` binder list: expected `,` to continue or `)` to
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT COMMA UNFOLD
 ##
-## Ends in an error in state: 499.
+## Ends in an error in state: 422.
 ##
 ## separated_nonempty_list(COMMA,ident_var) -> IDENT COMMA . separated_nonempty_list(COMMA,ident_var) [ RPAREN ]
 ##
@@ -4462,7 +4426,7 @@ After `,` in a `let core[a] (x1, ..., xn)` binder list: expected another identif
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT RPAREN UNFOLD
 ##
-## Ends in an error in state: 502.
+## Ends in an error in state: 562.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN . EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4474,7 +4438,7 @@ After `let core[<sort>] (<binders>)`: expected `=` followed by the right-hand si
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT RPAREN EQUAL UNFOLD
 ##
-## Ends in an error in state: 503.
+## Ends in an error in state: 563.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL . expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4486,7 +4450,7 @@ After `let core[<sort>] (<binders>) =`: expected the right-hand side core expres
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT RPAREN EQUAL FALSE TYPE
 ##
-## Ends in an error in state: 504.
+## Ends in an error in state: 564.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4510,7 +4474,7 @@ PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_l
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET LPAREN IDENT RPAREN EQUAL FALSE SEMICOLON UNFOLD
 ##
-## Ends in an error in state: 505.
+## Ends in an error in state: 565.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET LPAREN separated_nonempty_list(COMMA,ident_var) RPAREN EQUAL expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4522,7 +4486,7 @@ After `let core[<sort>] (<binders>) = <rhs>;`: expected the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET IDENT UNFOLD
 ##
-## Ends in an error in state: 507.
+## Ends in an error in state: 567.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET IDENT . EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4534,7 +4498,7 @@ After `let core[<sort>] <binder>`: expected `=` followed by the right-hand side 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL UNFOLD
 ##
-## Ends in an error in state: 508.
+## Ends in an error in state: 568.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL . expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4546,7 +4510,7 @@ After `let core[<sort>] <binder> =`: expected the right-hand side core expressio
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL FALSE TYPE
 ##
-## Ends in an error in state: 509.
+## Ends in an error in state: 569.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4570,7 +4534,7 @@ PLACEHOLDER: after `LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL expr`, an unexp
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL FALSE SEMICOLON UNFOLD
 ##
-## Ends in an error in state: 510.
+## Ends in an error in state: 570.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET IDENT RBRACKET IDENT EQUAL expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4582,7 +4546,7 @@ After `let core[<sort>] <binder> = <rhs>;`: expected the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT UNFOLD
 ##
-## Ends in an error in state: 512.
+## Ends in an error in state: 572.
 ##
 ## crt_seq_expr -> LET rpat . EQUAL crt_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4594,7 +4558,7 @@ After `let <rpat>` in a refined term: expected `=` followed by the right-hand si
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQUAL UNFOLD
 ##
-## Ends in an error in state: 513.
+## Ends in an error in state: 573.
 ##
 ## crt_seq_expr -> LET rpat EQUAL . crt_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4606,7 +4570,7 @@ After `let <rpat> =` in a refined term: expected the right-hand side refined ter
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQUAL EXFALSO TYPE
 ##
-## Ends in an error in state: 514.
+## Ends in an error in state: 574.
 ##
 ## crt_seq_expr -> LET rpat EQUAL crt_expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4617,14 +4581,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQU
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
+## In state 517, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
 PLACEHOLDER: after `LET rpat EQUAL crt_expr`, an unexpected token appeared.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQUAL EXFALSO SEMICOLON UNFOLD
 ##
-## Ends in an error in state: 515.
+## Ends in an error in state: 575.
 ##
 ## crt_seq_expr -> LET rpat EQUAL crt_expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4636,7 +4600,7 @@ After `let <rpat> = <rhs>;` in a refined term: expected the body refined term �
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_TAKE LPAREN EXFALSO TYPE
 ##
-## Ends in an error in state: 517.
+## Ends in an error in state: 577.
 ##
 ## rpf_atom_expr -> MAKE_TAKE LPAREN crt_expr . RPAREN [ SEMICOLON RPAREN COMMA COLON ]
 ##
@@ -4647,14 +4611,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MA
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
+## In state 517, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
 After `make_take(<crt>`: expected `)` to close.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE LPAREN IDENT SEMICOLON
 ##
-## Ends in an error in state: 519.
+## Ends in an error in state: 579.
 ##
 ## crt_seq_expr -> OPEN_TAKE LPAREN rpf_expr . RPAREN [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4665,16 +4629,16 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE LPA
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 377, spurious reduction of production rpf_expr -> rpf_atom_expr
+## In state 380, spurious reduction of production rpf_expr -> rpf_atom_expr
 ##
 
 After `open_take(<rpf>`: expected `)` to close.
 
 rprog_eof: FUN UNFOLD
 ##
-## Ends in an error in state: 522.
+## Ends in an error in state: 582.
 ##
-## rdecl -> FUN . IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> FUN . IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## FUN
@@ -4684,9 +4648,9 @@ After `fun` in a refined program: expected the function's name — a lowercase i
 
 rprog_eof: FUN IDENT UNFOLD
 ##
-## Ends in an error in state: 523.
+## Ends in an error in state: 583.
 ##
-## rdecl -> FUN IDENT . LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> FUN IDENT . LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## FUN IDENT
@@ -4696,9 +4660,9 @@ After the function name in a refined-program `fun`: expected `(` to begin the pa
 
 rprog_eof: FUN IDENT LPAREN UNFOLD
 ##
-## Ends in an error in state: 524.
+## Ends in an error in state: 584.
 ##
-## rdecl -> FUN IDENT LPAREN . IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> FUN IDENT LPAREN . IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## FUN IDENT LPAREN
@@ -4708,9 +4672,9 @@ After `fun <name>(`: expected the parameter name (a lowercase identifier), follo
 
 rprog_eof: FUN IDENT LPAREN IDENT UNFOLD
 ##
-## Ends in an error in state: 525.
+## Ends in an error in state: 585.
 ##
-## rdecl -> FUN IDENT LPAREN IDENT . COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> FUN IDENT LPAREN IDENT . COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## FUN IDENT LPAREN IDENT
@@ -4720,9 +4684,9 @@ After the parameter name: expected `:` followed by the parameter's sort (e.g. `f
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON UNFOLD
 ##
-## Ends in an error in state: 526.
+## Ends in an error in state: 586.
 ##
-## rdecl -> FUN IDENT LPAREN IDENT COLON . sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> FUN IDENT LPAREN IDENT COLON . sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## FUN IDENT LPAREN IDENT COLON
@@ -4732,9 +4696,9 @@ After `<name> :` in the parameter binder: expected the parameter's sort (e.g. `I
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW TYPE
 ##
-## Ends in an error in state: 527.
+## Ends in an error in state: 587.
 ##
-## rdecl -> FUN IDENT LPAREN IDENT COLON sort . RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort . RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## FUN IDENT LPAREN IDENT COLON sort
@@ -4744,9 +4708,9 @@ After the parameter's sort: expected `)` to close the parameter binder. Refined-
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN UNFOLD
 ##
-## Ends in an error in state: 528.
+## Ends in an error in state: 588.
 ##
-## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN . ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN . ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN
@@ -4756,9 +4720,9 @@ After `fun <name>(<param>)`: expected `->` followed by the return sort.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW UNFOLD
 ##
-## Ends in an error in state: 529.
+## Ends in an error in state: 589.
 ##
-## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW . sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW . sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW
@@ -4768,9 +4732,9 @@ After `->`: expected the return sort (e.g. `Int`, `Bool`, `()`, `Pred Int`).
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW TYPE
 ##
-## Ends in an error in state: 530.
+## Ends in an error in state: 590.
 ##
-## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort . LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort . LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort
@@ -4780,9 +4744,9 @@ After the return sort: expected an effect annotation `[pure]`, `[impure]`, or `[
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET UNFOLD
 ##
-## Ends in an error in state: 531.
+## Ends in an error in state: 591.
 ##
-## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET . eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET . eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET
@@ -4792,9 +4756,9 @@ After `[`: expected an effect level — one of `pure`, `impure`, or `spec`.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IMPURE UNFOLD
 ##
-## Ends in an error in state: 532.
+## Ends in an error in state: 592.
 ##
-## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level . RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level . RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level
@@ -4804,9 +4768,9 @@ After the effect level: expected `]` to close the effect bracket.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IMPURE RBRACKET UNFOLD
 ##
-## Ends in an error in state: 533.
+## Ends in an error in state: 593.
 ##
-## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET . EQUAL expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET . EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET
@@ -4816,9 +4780,9 @@ After the effect annotation: expected `=` followed by the body expression.
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ##
-## Ends in an error in state: 534.
+## Ends in an error in state: 594.
 ##
-## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL . expr [ TYPE SORT RFUN MAIN FUN ]
+## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL . expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
 ## The known suffix of the stack is as follows:
 ## FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL
@@ -4828,7 +4792,7 @@ After `=` in a refined-program `fun`: expected the body expression. Unlike surfa
 
 rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE SEMICOLON
 ##
-## Ends in an error in state: 537.
+## Ends in an error in state: 601.
 ##
 ## list(rdecl) -> rdecl . list(rdecl) [ MAIN ]
 ##
@@ -4840,7 +4804,7 @@ After a top-level declaration in a refined program: expected another declaration
 
 rprog_eof: MAIN UNFOLD
 ##
-## Ends in an error in state: 540.
+## Ends in an error in state: 604.
 ##
 ## rprog_eof -> list(rdecl) MAIN . COLON pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr EOF [ # ]
 ##
@@ -4852,7 +4816,7 @@ After `main` in a refined program: expected `:` followed by the program's refine
 
 rprog_eof: MAIN COLON UNFOLD
 ##
-## Ends in an error in state: 541.
+## Ends in an error in state: 605.
 ##
 ## rprog_eof -> list(rdecl) MAIN COLON . pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr EOF [ # ]
 ##
@@ -4864,7 +4828,7 @@ After `main :` in a refined program: expected the refined return sort (`pf_sort`
 
 rprog_eof: MAIN COLON LPAREN RPAREN UNFOLD
 ##
-## Ends in an error in state: 542.
+## Ends in an error in state: 606.
 ##
 ## rprog_eof -> list(rdecl) MAIN COLON pf_sort . LBRACKET eff_level RBRACKET EQUAL crt_expr EOF [ # ]
 ##
@@ -4876,7 +4840,7 @@ After the refined-main return sort: expected `[` followed by an effect level (ty
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET UNFOLD
 ##
-## Ends in an error in state: 543.
+## Ends in an error in state: 607.
 ##
 ## rprog_eof -> list(rdecl) MAIN COLON pf_sort LBRACKET . eff_level RBRACKET EQUAL crt_expr EOF [ # ]
 ##
@@ -4888,7 +4852,7 @@ After `[` in the refined-main effect annotation: expected an effect level (`pure
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE UNFOLD
 ##
-## Ends in an error in state: 544.
+## Ends in an error in state: 608.
 ##
 ## rprog_eof -> list(rdecl) MAIN COLON pf_sort LBRACKET eff_level . RBRACKET EQUAL crt_expr EOF [ # ]
 ##
@@ -4900,7 +4864,7 @@ After the refined-main effect level: expected `]` to close the effect bracket.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ##
-## Ends in an error in state: 545.
+## Ends in an error in state: 609.
 ##
 ## rprog_eof -> list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET . EQUAL crt_expr EOF [ # ]
 ##
@@ -4912,7 +4876,7 @@ After the refined-main effect annotation: expected `=` followed by the program's
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ##
-## Ends in an error in state: 546.
+## Ends in an error in state: 610.
 ##
 ## rprog_eof -> list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET EQUAL . crt_expr EOF [ # ]
 ##
@@ -4924,7 +4888,7 @@ After `=` in refined-main: expected the body refined term.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO TYPE
 ##
-## Ends in an error in state: 547.
+## Ends in an error in state: 611.
 ##
 ## rprog_eof -> list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr . EOF [ # ]
 ##
@@ -4935,14 +4899,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO TYPE
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 454, spurious reduction of production crt_expr -> crt_seq_expr
+## In state 517, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
 After the refined-main body: expected end of file. `main` must be the last declaration in the program.
 
 sort_eof: UNFOLD
 ##
-## Ends in an error in state: 549.
+## Ends in an error in state: 613.
 ##
 ## sort_eof' -> . sort_eof [ # ]
 ##
@@ -4954,7 +4918,7 @@ Unexpected token at the start of input.
 
 sort_eof: BOOL_KW TYPE
 ##
-## Ends in an error in state: 551.
+## Ends in an error in state: 615.
 ##
 ## sort_eof -> sort . EOF [ # ]
 ##
@@ -4978,7 +4942,7 @@ Expected the start of a refined declaration: a `fun`/`rfun` declaration, or a `s
 
 repl_rdecl: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE TYPE
 ##
-## Ends in an error in state: 537.
+## Ends in an error in state: 597.
 ##
 ## repl_rdecl -> rdecl . EOF [ # ]
 ##
@@ -4988,3 +4952,507 @@ repl_rdecl: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE TYPE
 
 After a complete refined declaration, expected end of input.
 
+rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET AUTO UNFOLD
+##
+## Ends in an error in state: 303.
+##
+## pf_domain_entry -> LBRACKET LOG RBRACKET AUTO . COLON app_expr [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET LOG RBRACKET AUTO
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: RFUN IDENT LPAREN LBRACKET LOG RBRACKET AUTO COLON UNFOLD
+##
+## Ends in an error in state: 304.
+##
+## pf_domain_entry -> LBRACKET LOG RBRACKET AUTO COLON . app_expr [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LBRACKET LOG RBRACKET AUTO COLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES TYPE
+##
+## Ends in an error in state: 415.
+##
+## rpat_elem -> RES . rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## RES
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES UNFOLD UNFOLD
+##
+## Ends in an error in state: 416.
+##
+## rpat_res -> UNFOLD . SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## UNFOLD
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES UNFOLD SEMICOLON TYPE
+##
+## Ends in an error in state: 417.
+##
+## rpat_res -> UNFOLD SEMICOLON . rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## UNFOLD SEMICOLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES TAKE UNFOLD
+##
+## Ends in an error in state: 418.
+##
+## rpat_res -> TAKE . LPAREN cpat_inner COMMA rpat_res RPAREN SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## TAKE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES TAKE LPAREN UNFOLD
+##
+## Ends in an error in state: 419.
+##
+## rpat_res -> TAKE LPAREN . cpat_inner COMMA rpat_res RPAREN SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## TAKE LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES TAKE LPAREN LPAREN UNFOLD
+##
+## Ends in an error in state: 420.
+##
+## cpat_inner -> LPAREN . separated_nonempty_list(COMMA,ident_var) RPAREN [ SEMICOLON RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES TAKE LPAREN IDENT UNFOLD
+##
+## Ends in an error in state: 427.
+##
+## rpat_res -> TAKE LPAREN cpat_inner . COMMA rpat_res RPAREN SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## TAKE LPAREN cpat_inner
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES TAKE LPAREN IDENT COMMA TYPE
+##
+## Ends in an error in state: 428.
+##
+## rpat_res -> TAKE LPAREN cpat_inner COMMA . rpat_res RPAREN SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## TAKE LPAREN cpat_inner COMMA
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES RETURN UNFOLD
+##
+## Ends in an error in state: 429.
+##
+## rpat_res -> RETURN . lpat_inner [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## RETURN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES LET UNFOLD
+##
+## Ends in an error in state: 433.
+##
+## rpat_res -> LET . LBRACKET lpat_inner RBRACKET cpat_inner SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LET
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES LET LBRACKET UNFOLD
+##
+## Ends in an error in state: 434.
+##
+## rpat_res -> LET LBRACKET . lpat_inner RBRACKET cpat_inner SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LET LBRACKET
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES LET LBRACKET AUTO UNFOLD
+##
+## Ends in an error in state: 435.
+##
+## rpat_res -> LET LBRACKET lpat_inner . RBRACKET cpat_inner SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LET LBRACKET lpat_inner
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES LET LBRACKET AUTO RBRACKET UNFOLD
+##
+## Ends in an error in state: 436.
+##
+## rpat_res -> LET LBRACKET lpat_inner RBRACKET . cpat_inner SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LET LBRACKET lpat_inner RBRACKET
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES LET LBRACKET AUTO RBRACKET IDENT UNFOLD
+##
+## Ends in an error in state: 437.
+##
+## rpat_res -> LET LBRACKET lpat_inner RBRACKET cpat_inner . SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LET LBRACKET lpat_inner RBRACKET cpat_inner
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES LET LBRACKET AUTO RBRACKET IDENT SEMICOLON TYPE
+##
+## Ends in an error in state: 438.
+##
+## rpat_res -> LET LBRACKET lpat_inner RBRACKET cpat_inner SEMICOLON . rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LET LBRACKET lpat_inner RBRACKET cpat_inner SEMICOLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES IFTRUE UNFOLD
+##
+## Ends in an error in state: 439.
+##
+## rpat_res -> IFTRUE . SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## IFTRUE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES IFTRUE SEMICOLON TYPE
+##
+## Ends in an error in state: 440.
+##
+## rpat_res -> IFTRUE SEMICOLON . rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## IFTRUE SEMICOLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES IFFALSE UNFOLD
+##
+## Ends in an error in state: 441.
+##
+## rpat_res -> IFFALSE . SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## IFFALSE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES IFFALSE SEMICOLON TYPE
+##
+## Ends in an error in state: 442.
+##
+## rpat_res -> IFFALSE SEMICOLON . rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## IFFALSE SEMICOLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES FAIL UNFOLD
+##
+## Ends in an error in state: 444.
+##
+## rpat_res -> FAIL . LBRACKET lpat_inner RBRACKET [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## FAIL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES FAIL LBRACKET UNFOLD
+##
+## Ends in an error in state: 445.
+##
+## rpat_res -> FAIL LBRACKET . lpat_inner RBRACKET [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## FAIL LBRACKET
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES FAIL LBRACKET AUTO UNFOLD
+##
+## Ends in an error in state: 446.
+##
+## rpat_res -> FAIL LBRACKET lpat_inner . RBRACKET [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## FAIL LBRACKET lpat_inner
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES CASE UNFOLD
+##
+## Ends in an error in state: 448.
+##
+## rpat_res -> CASE . LBRACKET lpat_inner RBRACKET LABEL LPAREN cpat_inner RPAREN SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## CASE
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES CASE LBRACKET UNFOLD
+##
+## Ends in an error in state: 449.
+##
+## rpat_res -> CASE LBRACKET . lpat_inner RBRACKET LABEL LPAREN cpat_inner RPAREN SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## CASE LBRACKET
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES CASE LBRACKET AUTO UNFOLD
+##
+## Ends in an error in state: 450.
+##
+## rpat_res -> CASE LBRACKET lpat_inner . RBRACKET LABEL LPAREN cpat_inner RPAREN SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## CASE LBRACKET lpat_inner
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES CASE LBRACKET AUTO RBRACKET UNFOLD
+##
+## Ends in an error in state: 451.
+##
+## rpat_res -> CASE LBRACKET lpat_inner RBRACKET . LABEL LPAREN cpat_inner RPAREN SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## CASE LBRACKET lpat_inner RBRACKET
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES CASE LBRACKET AUTO RBRACKET LABEL UNFOLD
+##
+## Ends in an error in state: 452.
+##
+## rpat_res -> CASE LBRACKET lpat_inner RBRACKET LABEL . LPAREN cpat_inner RPAREN SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## CASE LBRACKET lpat_inner RBRACKET LABEL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES CASE LBRACKET AUTO RBRACKET LABEL LPAREN UNFOLD
+##
+## Ends in an error in state: 453.
+##
+## rpat_res -> CASE LBRACKET lpat_inner RBRACKET LABEL LPAREN . cpat_inner RPAREN SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## CASE LBRACKET lpat_inner RBRACKET LABEL LPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES CASE LBRACKET AUTO RBRACKET LABEL LPAREN IDENT UNFOLD
+##
+## Ends in an error in state: 454.
+##
+## rpat_res -> CASE LBRACKET lpat_inner RBRACKET LABEL LPAREN cpat_inner . RPAREN SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## CASE LBRACKET lpat_inner RBRACKET LABEL LPAREN cpat_inner
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES CASE LBRACKET AUTO RBRACKET LABEL LPAREN IDENT RPAREN UNFOLD
+##
+## Ends in an error in state: 455.
+##
+## rpat_res -> CASE LBRACKET lpat_inner RBRACKET LABEL LPAREN cpat_inner RPAREN . SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## CASE LBRACKET lpat_inner RBRACKET LABEL LPAREN cpat_inner RPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES CASE LBRACKET AUTO RBRACKET LABEL LPAREN IDENT RPAREN SEMICOLON TYPE
+##
+## Ends in an error in state: 456.
+##
+## rpat_res -> CASE LBRACKET lpat_inner RBRACKET LABEL LPAREN cpat_inner RPAREN SEMICOLON . rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## CASE LBRACKET lpat_inner RBRACKET LABEL LPAREN cpat_inner RPAREN SEMICOLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES ANNOT UNFOLD
+##
+## Ends in an error in state: 457.
+##
+## rpat_res -> ANNOT . SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## ANNOT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES ANNOT SEMICOLON TYPE
+##
+## Ends in an error in state: 458.
+##
+## rpat_res -> ANNOT SEMICOLON . rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## ANNOT SEMICOLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES TAKE LPAREN IDENT COMMA IDENT UNFOLD
+##
+## Ends in an error in state: 464.
+##
+## rpat_res -> TAKE LPAREN cpat_inner COMMA rpat_res . RPAREN SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## TAKE LPAREN cpat_inner COMMA rpat_res
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES TAKE LPAREN IDENT COMMA IDENT RPAREN UNFOLD
+##
+## Ends in an error in state: 465.
+##
+## rpat_res -> TAKE LPAREN cpat_inner COMMA rpat_res RPAREN . SEMICOLON rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## TAKE LPAREN cpat_inner COMMA rpat_res RPAREN
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES TAKE LPAREN IDENT COMMA IDENT RPAREN SEMICOLON TYPE
+##
+## Ends in an error in state: 466.
+##
+## rpat_res -> TAKE LPAREN cpat_inner COMMA rpat_res RPAREN SEMICOLON . rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## TAKE LPAREN cpat_inner COMMA rpat_res RPAREN SEMICOLON
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LOG UNFOLD
+##
+## Ends in an error in state: 473.
+##
+## rpat_elem -> LOG . IDENT [ RPAREN COMMA ]
+## rpat_elem -> LOG . AUTO [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## LOG
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN DO UNFOLD
+##
+## Ends in an error in state: 477.
+##
+## rpat_elem -> DO . IDENT EQUAL rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## DO
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN DO IDENT UNFOLD
+##
+## Ends in an error in state: 478.
+##
+## rpat_elem -> DO IDENT . EQUAL rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## DO IDENT
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN DO IDENT EQUAL TYPE
+##
+## Ends in an error in state: 479.
+##
+## rpat_elem -> DO IDENT EQUAL . rpat_res [ RPAREN COMMA ]
+##
+## The known suffix of the stack is as follows:
+## DO IDENT EQUAL
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>

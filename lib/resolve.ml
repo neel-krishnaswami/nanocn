@@ -220,44 +220,50 @@ let resolve_pf env (pf : (SurfExpr.parsed_se, _, string) ProofSort.t)
 (* Domain resolution: pattern element and Pf entry are resolved together
    so that shared binder names get the same Var.t. *)
 let resolve_pf_domain_entry env
-    (pat_elem : (string, _) RPat.pat_elem)
+    (qb : (string, _) RPat.qbase)
     (entry : (SurfExpr.parsed_se, _, string) ProofSort.entry)
-  : ((Var.t, _) RPat.pat_elem * (SurfExpr.se, _, Var.t) ProofSort.entry * env) ElabM.t =
-  match pat_elem, entry with
-  | RPat.Single (bi, name), ProofSort.Comp { info; var = name'; sort; eff } when name = name' ->
+  : ((Var.t, _) RPat.qbase * (SurfExpr.se, _, Var.t) ProofSort.entry * env) ElabM.t =
+  match qb, entry with
+  | RPat.QCore (RPat.CVar (bi, name)), ProofSort.Comp { info; var = name'; sort; eff } when name = name' ->
     let* v = mk_var name (Sort.info sort)#loc in
-    return (RPat.Single (bi, v),
+    return (RPat.QCore (RPat.CVar (bi, v)),
             ProofSort.Comp { info; var = v; sort; eff },
             (name, v) :: env)
-  | RPat.Single (bi, name), ProofSort.Log { info; prop } ->
+  | RPat.QLog (RPat.LVar (bi, name)), ProofSort.Log { info; prop } ->
     let* prop' = resolve_expr env prop in
     let pos = (SurfExpr.info prop)#loc in
     let* v = mk_var name pos in
-    return (RPat.Single (bi, v),
+    return (RPat.QLog (RPat.LVar (bi, v)),
             ProofSort.Log { info; prop = prop' },
             (name, v) :: env)
-  | RPat.Single (bi, name), ProofSort.Res { info; pred; value } ->
+  | RPat.QLog (RPat.LAuto bi), ProofSort.Log { info; prop } ->
+    let* prop' = resolve_expr env prop in
+    return (RPat.QLog (RPat.LAuto bi),
+            ProofSort.Log { info; prop = prop' },
+            env)
+  | RPat.QRes (RPat.RVar (bi, name)), ProofSort.Res { info; pred; value } ->
     let* pred' = resolve_expr env pred in
     let* value' = resolve_expr env value in
     let pos = (SurfExpr.info pred)#loc in
     let* v = mk_var name pos in
-    return (RPat.Single (bi, v),
+    return (RPat.QRes (RPat.RVar (bi, v)),
             ProofSort.Res { info; pred = pred'; value = value' },
             (name, v) :: env)
-  | RPat.Pair (bi, bname, rname), ProofSort.DepRes { info; bound_var = bname'; pred }
+  | RPat.QDepRes (RPat.CVar (bi_c, bname), RPat.RVar (bi_r, rname)),
+    ProofSort.DepRes { info; bound_var = bname'; pred }
     when bname = bname' ->
     let pos = (SurfExpr.info pred)#loc in
     let* bv = mk_var bname pos in
     let env_with_bound = (bname, bv) :: env in
     let* pred' = resolve_expr env_with_bound pred in
     let* rv = mk_var rname pos in
-    return (RPat.Pair (bi, bv, rv),
+    return (RPat.QDepRes (RPat.CVar (bi_c, bv), RPat.RVar (bi_r, rv)),
             ProofSort.DepRes { info; bound_var = bv; pred = pred' },
             (rname, rv) :: (bname, bv) :: env)
   | _ ->
     invariant_at (entry_loc entry) ~rule:"resolve_pf_domain_entry"
       "pattern element does not match the Pf entry \
-       (shared-binder name disagreement, or Single/Pair shape mismatch)"
+       (shared-binder name disagreement, or pattern shape mismatch)"
 
 let resolve_pf_domain env
     (pat : (string, _) RPat.t)
@@ -284,25 +290,96 @@ let resolve_pf_domain env
 
 (* ===== Refined patterns ===== *)
 
-let resolve_rpat_elem env (elem : (string, _) RPat.pat_elem)
-  : ((Var.t, _) RPat.pat_elem * env) ElabM.t =
-  match elem with
-  | RPat.Single (b, name) ->
+let rec resolve_cpat env (cp : (string, _) RPat.cpat)
+  : ((Var.t, _) RPat.cpat * env) ElabM.t =
+  match cp with
+  | RPat.CVar (b, name) ->
     let* v = mk_var name SourcePos.dummy in
-    return (RPat.Single (b, v), (name, v) :: env)
-  | RPat.Pair (b, name1, name2) ->
-    let* v1 = mk_var name1 SourcePos.dummy in
-    let* v2 = mk_var name2 SourcePos.dummy in
-    return (RPat.Pair (b, v1, v2), (name2, v2) :: (name1, v1) :: env)
+    return (RPat.CVar (b, v), (name, v) :: env)
+  | RPat.CTuple (b, cps) ->
+    let* (cps', env') =
+      List.fold_left (fun acc cp ->
+        let* (cps_rev, env) = acc in
+        let* (cp', env') = resolve_cpat env cp in
+        return (cp' :: cps_rev, env'))
+        (return ([], env)) cps
+    in
+    return (RPat.CTuple (b, List.rev cps'), env')
+
+let resolve_lpat env (lp : (string, _) RPat.lpat)
+  : ((Var.t, _) RPat.lpat * env) ElabM.t =
+  match lp with
+  | RPat.LVar (b, name) ->
+    let* v = mk_var name SourcePos.dummy in
+    return (RPat.LVar (b, v), (name, v) :: env)
+  | RPat.LAuto b ->
+    return (RPat.LAuto b, env)
+
+let rec resolve_rpat_res env (rp : (string, _) RPat.rpat)
+  : ((Var.t, _) RPat.rpat * env) ElabM.t =
+  match rp with
+  | RPat.RVar (b, name) ->
+    let* v = mk_var name SourcePos.dummy in
+    return (RPat.RVar (b, v), (name, v) :: env)
+  | RPat.RReturn (b, lp) ->
+    let* (lp', env') = resolve_lpat env lp in
+    return (RPat.RReturn (b, lp'), env')
+  | RPat.RTake (b, cp, rp1, rp2) ->
+    let* (cp', env') = resolve_cpat env cp in
+    let* (rp1', env'') = resolve_rpat_res env' rp1 in
+    let* (rp2', env''') = resolve_rpat_res env'' rp2 in
+    return (RPat.RTake (b, cp', rp1', rp2'), env''')
+  | RPat.RFail (b, lp) ->
+    let* (lp', env') = resolve_lpat env lp in
+    return (RPat.RFail (b, lp'), env')
+  | RPat.RLet (b, lp, cp, rp) ->
+    let* (cp', env') = resolve_cpat env cp in
+    let* (lp', env'') = resolve_lpat env' lp in
+    let* (rp', env''') = resolve_rpat_res env'' rp in
+    return (RPat.RLet (b, lp', cp', rp'), env''')
+  | RPat.RCase (b, lp, l, cp, rp) ->
+    let* (cp', env') = resolve_cpat env cp in
+    let* (lp', env'') = resolve_lpat env' lp in
+    let* (rp', env''') = resolve_rpat_res env'' rp in
+    return (RPat.RCase (b, lp', l, cp', rp'), env''')
+  | RPat.RIfTrue (b, rp) ->
+    let* (rp', env') = resolve_rpat_res env rp in
+    return (RPat.RIfTrue (b, rp'), env')
+  | RPat.RIfFalse (b, rp) ->
+    let* (rp', env') = resolve_rpat_res env rp in
+    return (RPat.RIfFalse (b, rp'), env')
+  | RPat.RUnfold (b, rp) ->
+    let* (rp', env') = resolve_rpat_res env rp in
+    return (RPat.RUnfold (b, rp'), env')
+  | RPat.RAnnot (b, rp) ->
+    let* (rp', env') = resolve_rpat_res env rp in
+    return (RPat.RAnnot (b, rp'), env')
+
+let resolve_qbase env (qb : (string, _) RPat.qbase)
+  : ((Var.t, _) RPat.qbase * env) ElabM.t =
+  match qb with
+  | RPat.QCore cp ->
+    let* (cp', env') = resolve_cpat env cp in
+    return (RPat.QCore cp', env')
+  | RPat.QLog lp ->
+    let* (lp', env') = resolve_lpat env lp in
+    return (RPat.QLog lp', env')
+  | RPat.QRes rp ->
+    let* (rp', env') = resolve_rpat_res env rp in
+    return (RPat.QRes rp', env')
+  | RPat.QDepRes (cp, rp) ->
+    let* (cp', env') = resolve_cpat env cp in
+    let* (rp', env'') = resolve_rpat_res env' rp in
+    return (RPat.QDepRes (cp', rp'), env'')
 
 let resolve_rpat env (rp : (string, _) RPat.t)
   : ((Var.t, _) RPat.t * env) ElabM.t =
   let rec go env = function
     | [] -> return ([], env)
-    | elem :: rest ->
-      let* (elem', env') = resolve_rpat_elem env elem in
+    | qb :: rest ->
+      let* (qb', env') = resolve_qbase env qb in
       let* (rest', env'') = go env' rest in
-      return (elem' :: rest', env'')
+      return (qb' :: rest', env'')
   in
   go env rp
 

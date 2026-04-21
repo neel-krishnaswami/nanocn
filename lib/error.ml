@@ -72,6 +72,8 @@ type kind =
   | K_unfold_not_fundef of { name : string }
   | K_resource_leak of { name : Var.t option }
   | K_let_pattern_resource_leak of { leftovers : string list }
+  | K_rpat_length_mismatch of { pat_len : int; pf_len : int }
+  | K_rpat_kind_mismatch of { pat_kind : string; pf_kind : string }
   | K_internal_invariant of { rule : string; invariant : string }
 
 type t =
@@ -446,6 +448,14 @@ let print_kind fmt = function
     Format.fprintf fmt
       "  unfold: %a is not an elaborated function definition."
       (print_emph Format.pp_print_string) name
+  | K_rpat_length_mismatch { pat_len; pf_len } ->
+    Format.fprintf fmt
+      "  refined pattern has %d element(s) but the proof sort has %d entry/entries."
+      pat_len pf_len
+  | K_rpat_kind_mismatch { pat_kind; pf_kind } ->
+    Format.fprintf fmt
+      "  refined pattern element is %s but the proof sort entry is %s."
+      pat_kind pf_kind
   | K_let_pattern_resource_leak { leftovers } ->
     Format.fprintf fmt "@[<v>";
     Format.fprintf fmt "  let-pattern's resources were not fully consumed.";
@@ -522,6 +532,8 @@ let kind_header = function
   | K_unfold_not_fundef _ -> "Type error: cannot unfold"
   | K_resource_leak _
   | K_let_pattern_resource_leak _ -> "Type error: unconsumed resource"
+  | K_rpat_length_mismatch _
+  | K_rpat_kind_mismatch _ -> "Type error: refined pattern mismatch"
   | K_internal_invariant _ -> "Internal error: invariant failed"
 
 let rec to_string e =

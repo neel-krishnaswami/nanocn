@@ -69,7 +69,7 @@ let node_of_rinfo (b : RProg.typed_rinfo) : node =
 (** Collect typed nodes from refined pattern elements. *)
 let collect_rpat acc pat =
   List.fold_left (fun acc elem ->
-    node_of_rinfo (RPat.elem_info elem) :: acc
+    node_of_rinfo (RPat.qbase_info elem) :: acc
   ) acc pat
 
 (** Collect typed nodes from a proof sort entry list. *)
