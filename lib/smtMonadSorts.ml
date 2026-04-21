@@ -110,6 +110,7 @@ let rec walk_ct ct acc =
   | Constraint.Forall (_, _, a) -> walk_ct a acc
   | Constraint.Impl (e, a) -> walk_ct a (walk_ce e acc)
   | Constraint.Atom e -> walk_ce e acc
+  | Constraint.Is (_, e) -> walk_ce e acc
 
 let walk_rsig rsig acc =
   let rec loop entries acc =

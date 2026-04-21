@@ -129,6 +129,17 @@ let rec walk config ct parent next
     let assert_cmd = located (list_of pos [res pos SmtAtom.R_assert; neg]) in
     let cs = located (list_of pos [res pos SmtAtom.R_check_sat]) in
     Ok (pre @ [assert_cmd] @ post @ [cs], n + 1)
+  | Constraint.Is (l, e) ->
+    let* e' = SmtExpr.of_ce e in
+    let n = next in
+    let pre = scope_cmds n in
+    let post = close_cmd n in
+    let tester = sym pos (Format.asprintf "is-%a" Label.print l) in
+    let is_expr = list_of pos [tester; e'] in
+    let neg = list_of pos [sym pos "not"; is_expr] in
+    let assert_cmd = located (list_of pos [res pos SmtAtom.R_assert; neg]) in
+    let cs = located (list_of pos [res pos SmtAtom.R_check_sat]) in
+    Ok (pre @ [assert_cmd] @ post @ [cs], n + 1)
 
 (* ---------- Free-variable collection ----------
 
@@ -190,6 +201,8 @@ let rec free_ct bound ct acc =
   | Constraint.Impl (e, a) ->
     free_ct bound a (free_ce bound e acc)
   | Constraint.Atom e ->
+    free_ce bound e acc
+  | Constraint.Is (_, e) ->
     free_ce bound e acc
 
 let free_vars_of_ct ct =

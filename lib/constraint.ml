@@ -5,6 +5,7 @@ type ('a, 'e) ctF =
   | Forall of Var.t * Sort.sort * 'a
   | Impl of 'e * 'a
   | Atom of 'e
+  | Is of Label.t * 'e
 
 let map_shape f = function
   | Top -> Top
@@ -13,6 +14,7 @@ let map_shape f = function
   | Forall (x, s, a) -> Forall (x, s, f a)
   | Impl (e, a) -> Impl (e, f a)
   | Atom e -> Atom e
+  | Is (l, e) -> Is (l, e)
 
 type ('e, 'b) t = In of 'b * (('e, 'b) t, 'e) ctF
 
@@ -40,6 +42,7 @@ let conj pos c1 c2 =
 let impl pos ce ct = In (loc pos, Impl (ce, ct))
 let forall_ pos x sort ct = In (loc pos, Forall (x, sort, ct))
 let atom pos ce = In (loc pos, Atom ce)
+let is_ pos label ce = In (loc pos, Is (label, ce))
 
 let rec print_gen pp_var fmt ct =
   match shape ct with
@@ -54,6 +57,8 @@ let rec print_gen pp_var fmt ct =
     Format.fprintf fmt "@[<hov 2>%a ⇒@ %a@]" (CoreExpr.print_gen pp_var) ce (print_gen pp_var) c
   | Atom ce ->
     CoreExpr.print_gen pp_var fmt ce
+  | Is (l, ce) ->
+    Format.fprintf fmt "is(%a, %a)" (CoreExpr.print_gen pp_var) ce Label.print l
 
 let print fmt t = print_gen Var.print fmt t
 let to_string t = Format.asprintf "%a" (print_gen Var.print_unique) t

@@ -681,8 +681,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
           (* Check init (pure) *)
           let* (checked_crt1, delta', ct) = check_crt rs delta Effect.Pure crt1 init_pf in
           (* Build body input context: delta' + pattern bindings from init_pf *)
-          let gamma = RCtx.erase delta' in
-          let* delta_pat = lift_at binfo#loc (rpat_match cs gamma pat init_pf) in
+          let* (delta_pat, _ct_pat) = rpat_match rs delta' (Effect.purify eff) pat init_pf in
           let delta_body = RCtx.concat delta' delta_pat in
           (* Build body proof sort: z:D(A,B) [pure], y2:ce @ z [res], pfnil *)
           let* z_var = fresh SourcePos.dummy in
@@ -755,16 +754,12 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
        The body's constraint is closed under the pattern's bindings
        (Δ'''') so that comp/log entries introduced by the pattern act
        as hypotheses for subsequent atoms. *)
-    let* (checked_crt1, pf', delta', ct1) = synth_crt rs delta eff crt1 in
-    let gamma = RCtx.erase delta' in
-    let cs = RSig.comp rs in
-    let* delta_pat = lift_at pos (rpat_match cs gamma pat pf') in
-    let delta_ext = RCtx.concat delta' delta_pat in
-    let* (checked_crt2, delta'', ct2) = check_crt rs delta_ext eff crt2 pf in
-    let n = RCtx.length delta' in
-    let n_pat = RCtx.length delta_pat in
-    let (delta_out, delta_pat_out) = RCtx.split n delta'' in
-    let _ = n_pat in
+    let* (checked_crt1, pf', delta1, ct) = synth_crt rs delta eff crt1 in
+    let eff_pat = Effect.purify eff in
+    let* (delta2, ct_pat) = rpat_match rs delta1 eff_pat pat pf' in
+    let* (checked_crt2, delta3, ct2) = check_crt rs delta2 eff crt2 pf in
+    let n = RCtx.length delta1 in
+    let (delta_out, delta_pat_out) = RCtx.split n delta3 in
     if not (RCtx.zero delta_pat_out) then
       let leftovers =
         List.filter_map (function
@@ -780,11 +775,11 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       ElabM.fail
         (Error.let_pattern_resource_leak ~loc:pos ~leftovers)
     else
-      let ct2_closed = close_ctx pos delta_pat_out ct2 in
+      let ct_closed = close_ctx pos delta_pat_out (Constraint.conj pos ct_pat ct2) in
       let rinfo = mk_rinfo pos delta (ProofSort.comp pf) eff in
       let typed_pat = RPat.map_info (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp pf') eff) pat in
       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLet (typed_pat, checked_crt1, checked_crt2)) in
-      return (checked, delta_out, Constraint.conj pos ct1 ct2_closed)
+      return (checked, delta_out, Constraint.conj pos ct ct_closed)
 
   | RefinedExpr.CLetLog (x, lpf, body) ->
     (* Synthesize the lpf, extend delta with x:ce[log], check the body
@@ -1171,52 +1166,281 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ty
   go pf1 pf2
 
 (* Refined pattern matching: RS; Delta |- [eff] q : Pf -| Delta' ~~> Ct
-   Currently implements the simple variable-binding cases only.
-   Full Phase 1 pattern matching (resource destructuring) is TODO. *)
-and rpat_match (_cs : _ Sig.t) (_gamma : Context.t) (pat : (Var.t, _) RPat.t) (pf : (CoreExpr.typed_ce, _, Var.t) ProofSort.t) : (RCtx.t, Error.kind) result =
-  let ( let* ) = Result.bind in
+   Per [doc/surface-refinement-types.md]: the judgement takes a refined
+   context Delta (not erased Gamma), an effect, and returns both an
+   extended context and a constraint.
+
+   The implementation processes qbase elements left-to-right against
+   proof sort entries.  Resource patterns (rpat) that destructure
+   predicates do so by inspecting the head constructor of the predicate
+   expression and expanding into sub-patterns that are prepended to
+   the remaining work list. *)
+and rpat_match (rs : RSig.t) (delta : RCtx.t) (_eff : Effect.t)
+    (pat : (Var.t, _) RPat.t)
+    (pf : (CoreExpr.typed_ce, _, Var.t) ProofSort.t)
+  : (RCtx.t * Constraint.typed_ct) ElabM.t =
+  let pos = SourcePos.dummy in (* TODO: thread position from pattern info *)
+  let cs = RSig.comp rs in
+  let fail_length () =
+    ElabM.fail (Error.structured ~loc:pos
+      (Error.K_rpat_length_mismatch { pat_len = List.length pat; pf_len = List.length pf }))
+  in
+  let fail_kind elems entries =
+    let pat_kind = match List.hd elems with
+      | RPat.QCore _ -> "core" | RPat.QLog _ -> "log"
+      | RPat.QRes _ -> "res" | RPat.QDepRes _ -> "depres" in
+    let pf_kind = match List.hd entries with
+      | ProofSort.Comp _ -> "comp" | ProofSort.Log _ -> "log"
+      | ProofSort.Res _ -> "res" | ProofSort.DepRes _ -> "depres" in
+    ElabM.fail (Error.structured ~loc:pos
+      (Error.K_rpat_kind_mismatch { pat_kind; pf_kind }))
+  in
+  let fail_pred_shape construct expected got =
+    ElabM.fail (Error.structured ~loc:pos
+      (Error.K_wrong_pred_shape { construct; expected_shape = expected;
+                                  got = CoreExpr.to_string got }))
+  in
   let rec go elems entries delta =
     match elems, entries with
-    | [], [] -> Ok delta
-    | RPat.QCore (RPat.CVar (_, x)) :: rest_elems, ProofSort.Comp { info = _; var = y; sort; eff } :: rest_pf ->
+    (* ---- Base case ---- *)
+    | [], [] -> return (delta, Constraint.top pos)
+
+    (* ---- Core variable ---- *)
+    | RPat.QCore (RPat.CVar (_, x)) :: rest_elems,
+      ProofSort.Comp { info = _; var = y; sort; eff } :: rest_pf ->
       let ce_x = ce_of_var x sort in
       let rest_pf' = ProofSort.subst y ce_x rest_pf in
       let delta' = RCtx.extend_comp x sort eff delta in
       go rest_elems rest_pf' delta'
-    | RPat.QLog (RPat.LVar (_, x)) :: rest_elems, ProofSort.Log { info = _; prop } :: rest_pf ->
+
+    (* ---- Core tuple: expand into individual CVar bindings ---- *)
+    | RPat.QCore (RPat.CTuple (_, _cpats)) :: _rest_elems,
+      ProofSort.Comp { info = _; sort; _ } :: _rest_pf ->
+      let _ = sort in
+      (* TODO: expand tuple into n individual cpat bindings *)
+      ElabM.fail (Error.structured ~loc:pos
+        (Error.K_internal_invariant { rule = "rpat_match:tuple";
+          invariant = "tuple cpat not yet implemented" }))
+
+    (* ---- Log variable ---- *)
+    | RPat.QLog (RPat.LVar (_, x)) :: rest_elems,
+      ProofSort.Log { info = _; prop } :: rest_pf ->
       let delta' = RCtx.extend_log x prop delta in
       go rest_elems rest_pf delta'
-    | RPat.QRes (RPat.RVar (_, x)) :: rest_elems, ProofSort.Res { info = _; pred; value } :: rest_pf ->
-      let delta' = RCtx.extend_res x pred value Usage.Avail delta in
-      go rest_elems rest_pf delta'
-    | RPat.QDepRes (RPat.CVar (_, x), RPat.RVar (_, w)) :: rest_elems, ProofSort.DepRes { info = _; bound_var = z; pred } :: rest_pf ->
+
+    (* ---- Log auto: assert prop as constraint ---- *)
+    | RPat.QLog (RPat.LAuto _) :: rest_elems,
+      ProofSort.Log { info = _; prop } :: rest_pf ->
+      let* (delta', ct_rest) = go rest_elems rest_pf delta in
+      return (delta', Constraint.conj pos (Constraint.atom pos prop) ct_rest)
+
+    (* ---- DepRes: expand (do cpat = rpat) against (y).ce[res] ---- *)
+    | RPat.QDepRes (cpat, rpat) :: rest_elems,
+      ProofSort.DepRes { info; bound_var = z; pred } :: rest_pf ->
       let pred_sort = (CoreExpr.info pred)#sort in
       (match Sort.shape pred_sort with
        | Sort.Pred inner_sort ->
-         let ce_x = ce_of_var x inner_sort in
+         (* Expand: cpat matches x:τ[spec], rpat matches ce@x[res] *)
+         let expanded_elems = RPat.QCore cpat :: RPat.QRes rpat :: rest_elems in
+         (* We need a fresh variable for x to substitute into pred *)
+         let* x_var = fresh pos in
+         let ce_x = ce_of_var x_var inner_sort in
          let sub = Subst.extend_var z ce_x Subst.empty in
          let pred' = Subst.apply_ce sub pred in
-         let rest_pf' = ProofSort.subst z ce_x rest_pf in
-         let delta = RCtx.extend_comp x inner_sort Effect.Spec delta in
-         let delta = RCtx.extend_res w pred' ce_x Usage.Avail delta in
-         go rest_elems rest_pf' delta
+         let expanded_pf =
+           ProofSort.Comp { info; var = x_var; sort = inner_sort; eff = Effect.Spec }
+           :: ProofSort.Res { info; pred = pred'; value = ce_x }
+           :: ProofSort.subst z ce_x rest_pf
+         in
+         go expanded_elems expanded_pf delta
        | _ ->
-         Error (Error.K_dep_res_not_pred { got = pred_sort }))
-    | [], _ :: _ ->
-      Error (Error.K_rpat_length_mismatch { pat_len = List.length pat; pf_len = List.length pf })
-    | _ :: _, [] ->
-      Error (Error.K_rpat_length_mismatch { pat_len = List.length pat; pf_len = List.length pf })
-    | _ ->
-      let pat_kind = match List.hd elems with
-        | RPat.QCore _ -> "core" | RPat.QLog _ -> "log"
-        | RPat.QRes _ -> "res" | RPat.QDepRes _ -> "depres" in
-      let pf_kind = match List.hd entries with
-        | ProofSort.Comp _ -> "comp" | ProofSort.Log _ -> "log"
-        | ProofSort.Res _ -> "res" | ProofSort.DepRes _ -> "depres" in
-      Error (Error.K_rpat_kind_mismatch { pat_kind; pf_kind })
+         ElabM.fail (Error.structured ~loc:pos
+           (Error.K_dep_res_not_pred { got = pred_sort })))
+
+    (* ---- Res variable: bind x:pred@value[res(1)] ---- *)
+    | RPat.QRes (RPat.RVar (_, x)) :: rest_elems,
+      ProofSort.Res { info = _; pred; value } :: rest_pf ->
+      let delta' = RCtx.extend_res x pred value Usage.Avail delta in
+      go rest_elems rest_pf delta'
+
+    (* ---- Res return: (return ce)@ce' → log lpat : ce=ce' ---- *)
+    | RPat.QRes (RPat.RReturn (_, lpat)) :: rest_elems,
+      ProofSort.Res { info; pred; value } :: rest_pf ->
+      let pred' = strip_annots pred in
+      (match CoreExpr.shape pred' with
+       | CoreExpr.Return ret_ce ->
+         let eq_ce = CoreExpr.mk (CoreExpr.info pred)
+           (CoreExpr.Eq (ret_ce, value)) in
+         let expanded_elems = RPat.QLog lpat :: rest_elems in
+         let expanded_pf = ProofSort.Log { info; prop = eq_ce } :: rest_pf in
+         go expanded_elems expanded_pf delta
+       | _ ->
+         fail_pred_shape "return pattern" "return ce" pred')
+
+    (* ---- Res take: (take x=ce1;ce2)@ce' → cpat:τ, rpat1:ce1@x, rpat2:ce2@ce' ---- *)
+    | RPat.QRes (RPat.RTake (_, cpat, rpat1, rpat2)) :: rest_elems,
+      ProofSort.Res { info; pred; value } :: rest_pf ->
+      let pred' = strip_annots pred in
+      (match CoreExpr.shape pred' with
+       | CoreExpr.Take ((x, _), ce1, ce2) ->
+         let ce1_sort = (CoreExpr.info ce1)#sort in
+         (match Sort.shape ce1_sort with
+          | Sort.Pred inner_sort ->
+            let ce_x = ce_of_var x inner_sort in
+            let expanded_elems = RPat.QCore cpat :: RPat.QRes rpat1 :: RPat.QRes rpat2 :: rest_elems in
+            let expanded_pf =
+              ProofSort.Comp { info; var = x; sort = inner_sort; eff = Effect.Spec }
+              :: ProofSort.Res { info; pred = ce1; value = ce_x }
+              :: ProofSort.Res { info; pred = ce2; value }
+              :: rest_pf
+            in
+            go expanded_elems expanded_pf delta
+          | _ ->
+            ElabM.fail (Error.structured ~loc:pos
+              (Error.K_dep_res_not_pred { got = ce1_sort })))
+       | _ ->
+         fail_pred_shape "take pattern" "take x = ce1; ce2" pred')
+
+    (* ---- Res fail: fail@ce → log lpat : false, constraint Bot ---- *)
+    | RPat.QRes (RPat.RFail (_, lpat)) :: rest_elems,
+      ProofSort.Res { info; pred; value = _ } :: rest_pf ->
+      let pred' = strip_annots pred in
+      (match CoreExpr.shape pred' with
+       | CoreExpr.Fail ->
+         let false_ce = CoreExpr.mk (CoreExpr.info pred) (CoreExpr.BoolLit false) in
+         let expanded_elems = RPat.QLog lpat :: rest_elems in
+         let expanded_pf = ProofSort.Log { info; prop = false_ce } :: rest_pf in
+         let* (delta', _ct) = go expanded_elems expanded_pf delta in
+         return (delta', Constraint.bot pos)
+       | _ ->
+         fail_pred_shape "fail pattern" "fail" pred')
+
+    (* ---- Res let: (let x=ce1;ce2)@ce' → cpat:τ, lpat:x=ce1, rpat:ce2@ce' ---- *)
+    | RPat.QRes (RPat.RLet (_, lpat, cpat, rpat)) :: rest_elems,
+      ProofSort.Res { info; pred; value } :: rest_pf ->
+      let pred' = strip_annots pred in
+      (match CoreExpr.shape pred' with
+       | CoreExpr.Let ((x, _), ce1, ce2) ->
+         let ce1_sort = (CoreExpr.info ce1)#sort in
+         (match Sort.shape ce1_sort with
+          | Sort.Pred inner_sort ->
+            let ce_x = ce_of_var x inner_sort in
+            let eq_ce = CoreExpr.mk (CoreExpr.info pred) (CoreExpr.Eq (ce_x, ce1)) in
+            let expanded_elems = RPat.QCore cpat :: RPat.QLog lpat :: RPat.QRes rpat :: rest_elems in
+            let expanded_pf =
+              ProofSort.Comp { info; var = x; sort = inner_sort; eff = Effect.Spec }
+              :: ProofSort.Log { info; prop = eq_ce }
+              :: ProofSort.Res { info; pred = ce2; value }
+              :: rest_pf
+            in
+            go expanded_elems expanded_pf delta
+          | _ ->
+            ElabM.fail (Error.structured ~loc:pos
+              (Error.K_dep_res_not_pred { got = ce1_sort })))
+       | _ ->
+         fail_pred_shape "let pattern" "let x = ce1; ce2" pred')
+
+    (* ---- Res iftrue: (if ce then ce1 else ce2)@ce' → rpat:ce1@ce', assert ce ---- *)
+    | RPat.QRes (RPat.RIfTrue (_, rpat)) :: rest_elems,
+      ProofSort.Res { info; pred; value } :: rest_pf ->
+      let pred' = strip_annots pred in
+      (match CoreExpr.shape pred' with
+       | CoreExpr.If (ce, ce1, _ce2) ->
+         let expanded_elems = RPat.QRes rpat :: rest_elems in
+         let expanded_pf = ProofSort.Res { info; pred = ce1; value } :: rest_pf in
+         let* (delta', ct_rest) = go expanded_elems expanded_pf delta in
+         return (delta', Constraint.conj pos (Constraint.atom pos ce) ct_rest)
+       | _ ->
+         fail_pred_shape "iftrue pattern" "if ce then ce1 else ce2" pred')
+
+    (* ---- Res iffalse: (if ce then ce1 else ce2)@ce' → rpat:ce2@ce', assert ¬ce ---- *)
+    | RPat.QRes (RPat.RIfFalse (_, rpat)) :: rest_elems,
+      ProofSort.Res { info; pred; value } :: rest_pf ->
+      let pred' = strip_annots pred in
+      (match CoreExpr.shape pred' with
+       | CoreExpr.If (ce, _ce1, ce2) ->
+         let expanded_elems = RPat.QRes rpat :: rest_elems in
+         let expanded_pf = ProofSort.Res { info; pred = ce2; value } :: rest_pf in
+         let not_ce = CoreExpr.mk (CoreExpr.info ce) (CoreExpr.App (Prim.Not, ce)) in
+         let* (delta', ct_rest) = go expanded_elems expanded_pf delta in
+         return (delta', Constraint.conj pos (Constraint.atom pos not_ce) ct_rest)
+       | _ ->
+         fail_pred_shape "iffalse pattern" "if ce then ce1 else ce2" pred')
+
+    (* ---- Res case: case(ce, ...)@ce' → cpat:τ, lpat:L xk=ce, rpat:cek@ce' ---- *)
+    | RPat.QRes (RPat.RCase (_, lpat, label, cpat, rpat)) :: rest_elems,
+      ProofSort.Res { info; pred; value } :: rest_pf ->
+      let pred' = strip_annots pred in
+      (match CoreExpr.shape pred' with
+       | CoreExpr.Case (scrutinee, branches) ->
+         let scr_sort = (CoreExpr.info scrutinee)#sort in
+         (match List.find_opt (fun (l, _, _, _) -> Label.compare l label = 0) branches with
+          | Some (_l, x_br, ce_br, _bi) ->
+            (* Look up the payload sort for this constructor *)
+            let payload_sort =
+              match Sig.lookup_ctor label cs with
+              | Some (_dsort, decl) ->
+                (match DsortDecl.lookup_ctor label decl with
+                 | Some ctor_sort -> ctor_sort
+                 | None -> scr_sort)
+              | None -> scr_sort
+            in
+            let ce_x = ce_of_var x_br payload_sort in
+            let inject_ce = CoreExpr.mk (CoreExpr.info scrutinee)
+              (CoreExpr.Inject (label, ce_x)) in
+            let eq_ce = CoreExpr.mk (CoreExpr.info pred)
+              (CoreExpr.Eq (inject_ce, scrutinee)) in
+            let expanded_elems = RPat.QCore cpat :: RPat.QLog lpat :: RPat.QRes rpat :: rest_elems in
+            let expanded_pf =
+              ProofSort.Comp { info; var = x_br; sort = payload_sort; eff = Effect.Spec }
+              :: ProofSort.Log { info; prop = eq_ce }
+              :: ProofSort.Res { info; pred = ce_br; value }
+              :: rest_pf
+            in
+            let* (delta', ct_rest) = go expanded_elems expanded_pf delta in
+            let _ = scr_sort in
+            return (delta', Constraint.conj pos (Constraint.is_ pos label scrutinee) ct_rest)
+          | None ->
+            ElabM.fail (Error.structured ~loc:pos
+              (Error.K_internal_invariant { rule = "rpat_match:case";
+                invariant = Format.asprintf "branch %a not found in case expression" Label.print label })))
+       | _ ->
+         fail_pred_shape "case pattern" "case ce of { ... }" pred')
+
+    (* ---- Res unfold: f(ce)@ce' → rpat:[ce/x]body@ce' ---- *)
+    | RPat.QRes (RPat.RUnfold (_, rpat)) :: rest_elems,
+      ProofSort.Res { info; pred; value } :: rest_pf ->
+      let pred' = strip_annots pred in
+      (match CoreExpr.shape pred' with
+       | CoreExpr.Call (f, arg) ->
+         (match Sig.lookup_fundef f cs with
+          | Some (param, _arg_sort, _ret_sort, _eff, body) ->
+            let sub = Subst.extend_var param arg Subst.empty in
+            let unfolded = Subst.apply_ce sub body in
+            let expanded_elems = RPat.QRes rpat :: rest_elems in
+            let expanded_pf = ProofSort.Res { info; pred = unfolded; value } :: rest_pf in
+            go expanded_elems expanded_pf delta
+          | None ->
+            ElabM.fail (Error.structured ~loc:pos
+              (Error.K_unfold_not_fundef { name = f })))
+       | _ ->
+         fail_pred_shape "unfold pattern" "f(ce)" pred')
+
+    (* ---- Res annot: (ce : Pred τ)@ce' → rpat:ce@ce' ---- *)
+    | RPat.QRes (RPat.RAnnot (_, rpat)) :: rest_elems,
+      ProofSort.Res { info; pred; value } :: rest_pf ->
+      let pred' = strip_annots pred in
+      let expanded_elems = RPat.QRes rpat :: rest_elems in
+      let expanded_pf = ProofSort.Res { info; pred = pred'; value } :: rest_pf in
+      go expanded_elems expanded_pf delta
+
+    (* ---- Length mismatch ---- *)
+    | [], _ :: _ | _ :: _, [] -> fail_length ()
+
+    (* ---- Kind mismatch ---- *)
+    | _ -> fail_kind elems entries
   in
-  let* result = go pat pf RCtx.empty in
-  Ok result
+  go pat pf delta
 
 (* ---------- Program checking ---------- *)
 
@@ -1255,17 +1479,28 @@ let check_rdecl rs ct_acc = function
     let* gamma' = lift_at loc (ProofSort.bind gamma domain) in
     let* codomain = elab_pf rs gamma' eff se_codomain in
     let rf = RFunType.{ domain; codomain; eff } in
-    let cs = RSig.comp rs in
-    let* delta = lift_at loc (rpat_match cs gamma pat domain) in
+    let pat_eff = match eff with Effect.Spec -> Effect.Spec | _ -> Effect.Pure in
+    let* (delta, ct_pat) = rpat_match rs RCtx.empty pat_eff pat domain in
     let rs' = match eff with
       | Effect.Pure -> rs
       | _ -> RSig.extend name (RSig.RFunSig rf) rs
     in
-    let* (checked, _delta', ct) = check_crt rs' delta eff body codomain in
-    let entry = RSig.RFunSig rf in
-    let typed_pat = RPat.map_info (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp domain) eff) pat in
-    let typed_decl = RProg.RFunDecl { name; pat = typed_pat; domain; codomain; eff; body = checked; loc } in
-    return (typed_decl, RSig.extend name entry rs, Constraint.conj loc ct_acc ct)
+    let* (checked, delta', ct_body) = check_crt rs' delta eff body codomain in
+    if not (RCtx.zero delta') then
+      ElabM.fail
+        (Error.let_pattern_resource_leak ~loc
+           ~leftovers:(List.filter_map (function
+             | RCtx.Res { var; pred; value; usage } when not (Usage.is_zero usage) ->
+               Some (Format.asprintf "@[<hov 2>%a : %a @@ %a [%a]@]"
+                       Var.print var CoreExpr.print pred
+                       CoreExpr.print value Usage.print usage)
+             | _ -> None) (RCtx.entries delta')))
+    else
+      let ct_closed = close_ctx loc delta' (Constraint.conj loc ct_pat ct_body) in
+      let entry = RSig.RFunSig rf in
+      let typed_pat = RPat.map_info (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp domain) eff) pat in
+      let typed_decl = RProg.RFunDecl { name; pat = typed_pat; domain; codomain; eff; body = checked; loc } in
+      return (typed_decl, RSig.extend name entry rs, Constraint.conj loc ct_acc ct_closed)
 
 let check_rprog (prog : RProg.parsed) : (RProg.typed * RSig.t * Constraint.typed_ct) ElabM.t =
   let rec check_rprog_decls rs ct_acc = function

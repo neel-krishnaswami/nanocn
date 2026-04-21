@@ -13,6 +13,7 @@ type ('a, 'e) ctF =
   | Forall of Var.t * Sort.sort * 'a
   | Impl of 'e * 'a
   | Atom of 'e
+  | Is of Label.t * 'e
 
 val map_shape : ('a -> 'b) -> ('a, 'e) ctF -> ('b, 'e) ctF
 
@@ -40,6 +41,7 @@ val conj : SourcePos.t -> ('e, < loc : SourcePos.t >) t -> ('e, < loc : SourcePo
 val impl : SourcePos.t -> 'e -> ('e, < loc : SourcePos.t >) t -> ('e, < loc : SourcePos.t >) t
 val forall_ : SourcePos.t -> Var.t -> Sort.sort -> ('e, < loc : SourcePos.t >) t -> ('e, < loc : SourcePos.t >) t
 val atom : SourcePos.t -> 'e -> ('e, < loc : SourcePos.t >) t
+val is_ : SourcePos.t -> Label.t -> 'e -> ('e, < loc : SourcePos.t >) t
 
 (** {1 Printing} *)
 
