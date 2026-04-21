@@ -1,0 +1,24 @@
+// Test: take pattern — destructure a take resource directly.
+//
+// Exercises: res take(cpat, rpat); rpat
+
+// A two-step predicate: take from p, then return the value.
+fun read_pred (p : Ptr Int) -> Pred Int [spec] =
+  take v = Own[Int](p);
+  return v
+
+rfun read_and_return
+    (p : Ptr Int, [res] r : (do x : Int = read_pred(p)))
+  -> (v : Int, [res] (do x' : Int = Own[Int](p))) [impure] =
+  let log prop = unfold read_pred(p);
+  // r : read_pred(p) @ x, unfold to (take v = Own[Int](p); return v) @ x
+  let res r1 : (take v = Own[Int](p); return v : Pred Int) @ x = r;
+  // open-take gives: v0 : Int[spec], own : Own[Int](p) @ v0, ret : (return v0) @ x
+  let (v0, res own, res ret) = open-take(r1);
+  // Read the actual value
+  let (val_read, log veq, res own2) = Get[Int](p, res own);
+  // open-ret on ret gives: v0 = x
+  let log eq = open-ret(ret);
+  (val_read, res own2)
+
+main : () [impure] = ()

@@ -1,0 +1,32 @@
+// Test: iftrue and iffalse resource pattern usage.
+//
+// Uses if-then-else in a predicate, then checks each branch using
+// the existing let-res ascription mechanism.
+
+fun choose_true (x : Int) -> Pred Int [spec] =
+  if true then return x else return 0
+
+fun choose_false (x : Int) -> Pred Int [spec] =
+  if false then return 0 else return x
+
+rfun check_true (x : Int,
+                 [res] r : (do v : Int = choose_true(x)))
+  -> (n : Int, [log] (n == x)) [pure] =
+  let log prop = unfold choose_true(x);
+  // r : (if true then return x else return 0) @ v after unfold
+  let res r1 : (if true then return x else return 0 : Pred Int) @ v = r;
+  // Ascribe to the true-branch form:
+  let res r2 : (return x : Pred Int) @ v = r1;
+  let log eq = open-ret(r2);
+  (x, log auto)
+
+rfun check_false (x : Int,
+                  [res] r : (do v : Int = choose_false(x)))
+  -> (n : Int, [log] (n == x)) [pure] =
+  let log prop = unfold choose_false(x);
+  let res r1 : (if false then return 0 else return x : Pred Int) @ v = r;
+  let res r2 : (return x : Pred Int) @ v = r1;
+  let log eq = open-ret(r2);
+  (x, log auto)
+
+main : () [pure] = ()

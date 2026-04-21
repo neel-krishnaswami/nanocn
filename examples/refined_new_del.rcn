@@ -1,4 +1,4 @@
 // Allocate a pointer, then immediately deallocate it.
 main : () [impure] =
-  let (p, r) = New[Int](42);
+  let (p, res r) = New[Int](42);
   Del[Int](p, 42, res r)

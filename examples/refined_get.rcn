@@ -1,5 +1,5 @@
 // Allocate, read back, deallocate.
 main : () [impure] =
-  let (p, r) = New[Int](42);
-  let (v, pf, r2) = Get[Int](p, 42, res r);
-  Del[Int](p, 42, res r2)
+  let (p, res r) = New[Int](42);
+  let (v, log pf, res r2) = Get[Int](p, res r);
+  Del[Int](p, v, res r2)

@@ -1,0 +1,11 @@
+// Test: tuple cpat — destructure a tuple binding in a let pattern.
+//
+// Exercises: (x, y) cpat form in let patterns.
+
+rfun swap (x : Int, y : Int)
+  -> (a : Int, b : Int, [log] (a == y), [log] (b == x)) [pure] =
+  (y, x, log auto, log auto)
+
+main : (r1 : Int, r2 : Int, [log] (r1 == 2), [log] (r2 == 1)) [pure] =
+  let (a, b, log p1, log p2) = swap(1, 2);
+  (a, b, log auto, log auto)
