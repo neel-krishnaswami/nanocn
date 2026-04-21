@@ -19,8 +19,8 @@ rpat-base ::= do cpat = rpat | rpat
 rpat ::= x 
       | return lpat 
       | take(cpat, rpat); rpat 
-      | fail 
-      | let[a] cpat; rpat 
+      | fail[lpat] 
+      | let[lpat] cpat; rpat 
       | case L(cpat); lpat; rpat
       | iftrue; rpat
       | iffalse; rpat
@@ -65,7 +65,7 @@ Next, the rules for the logical patterns:
 
 Σ; Δ ⊢[eff] q : Pf ⊣ Δ'  ↝ C
 ———————————————————————————————————————————————————————————————————
-Σ; Δ ⊢[eff] auto, q : (ϕ [log], Pf) ⊣ Δ'  ↝ C ∧ ϕ 
+Σ; Δ ⊢[eff] auto, q : (ϕ [log], Pf) ⊣ Δ'  ↝ ϕ ∧ C 
 
 (auto in pattern position asserts the constraint is already satisfied by the context)
 
@@ -83,7 +83,7 @@ Finally, the rules for the resource patterns:
 Σ; Δ ⊢[eff] x, q : (ce@ce'[res], Pf) ⊣ Δ' ↝ C
 
 
-Σ; Δ ⊢[eff] lpat, q : (ce = ce' [log], Pf) ⊣ Δ' ↝ C
+Σ; Δ ⊢[eff] lpat, q : (ce = ce' [log], Pf) ⊣ Δ' ↝ Cw
 ————————————————————————————————————————————————————————————————————
 Σ; Δ ⊢[eff] return lpat, q : ((return ce)@ce'[res], Pf) ⊣ Δ' ↝ C
 
@@ -94,15 +94,15 @@ Finally, the rules for the resource patterns:
 Σ; Δ ⊢[eff] (take(cpat, rpat); rpat'), q : ((take x=ce1; ce2)@ce'[res], Pf) ⊣ Δ'  ↝ C
 
 
-Σ; Δ ⊢[eff] q : Pf ⊣ Δ' ↝ C
+Σ; Δ ⊢[eff] (lpat, q) : (⊥ [log], Pf) ⊣ Δ' ↝ C
 ——————————————————————————————————————————————————————————
-Σ; Δ ⊢[eff] (fail, q) : ((fail@ce)[res], Pf) ⊣ Δ' ↝ ⊥
+Σ; Δ ⊢[eff] (fail[lpat], q) : ((fail@ce)[res], Pf) ⊣ Δ' ↝ ⊥
 
 
 Σ; |Δ| ⊢[spec] ce1 ==> Pred τ
-Σ; Δ ⊢[eff] (cpat, [log] a, rpat, q) : (x:τ[spec], x=ce1[log], ce2@ce[res], Pf) ⊣ Δ' ↝ C
+Σ; Δ ⊢[eff] (cpat, lpat, rpat, q) : (x:τ[spec], x=ce1[log], ce2@ce[res], Pf) ⊣ Δ' ↝ C
 ——————————————————————————————————————————————————————————————————————————————————————————————
-Σ; Δ ⊢[eff] ((let[a]cpat; rpat), q) : ((let x=ce1;ce2)@ce[res], Pf) ⊣ Δ' ↝ C
+Σ; Δ ⊢[eff] ((let[lpat]cpat; rpat), q) : ((let x=ce1;ce2)@ce[res], Pf) ⊣ Δ' ↝ C
 
 
 Σ; Δ ⊢[eff] (rpat, q) : (ce1@ce'[res], Pf) ⊣ Δ' ↝  C

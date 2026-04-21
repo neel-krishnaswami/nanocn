@@ -324,8 +324,8 @@ rpat :: 'RPR_' ::=                                   {{ com resource patterns }}
   | x                               :: :: Var
   | return lpat                     :: :: Return      {{ tex \mathsf{return}\;[[lpat]] }}
   | take ( cpat , rpat1 ) ; rpat2   :: :: Take        {{ tex \mathsf{take}([[cpat]], [[rpat1]]); [[rpat2]] }}
-  | fail                            :: :: Fail        {{ tex \mathsf{fail} }}
-  | let [ w ] cpat ; rpat          :: :: Let          {{ tex \mathsf{let}[[[w]]]\;[[cpat]]; [[rpat]] }}
+  | fail [ lpat ]                   :: :: Fail        {{ tex \mathsf{fail}[[[lpat]]] }}
+  | let [ lpat ] cpat ; rpat       :: :: Let          {{ tex \mathsf{let}[[[lpat]]]\;[[cpat]]; [[rpat]] }}
   | case L ( cpat ) ; lpat ; rpat  :: :: Case         {{ tex \mathsf{case}\;[[L]]([[cpat]]); [[lpat]]; [[rpat]] }}
   | iftrue ; rpat                   :: :: IfTrue      {{ tex \mathsf{iftrue}; [[rpat]] }}
   | iffalse ; rpat                  :: :: IfFalse     {{ tex \mathsf{iffalse}; [[rpat]] }}
@@ -1686,14 +1686,14 @@ defns Jrefine :: '' ::=
     ----------------------------------------------------------------------------- :: take
     RS ; Delta |- [ eff ] ( res take ( cpat , rpat1 ) ; rpat2 , q ) : take x = ce1 ; ce2 @ ce' [ res ] , Pf -| Delta' ~~> Ct
 
-    RS ; Delta |- [ eff ] q : Pf -| Delta' ~~> Ct
+    RS ; Delta |- [ eff ] ( log lpat , q ) : false [ log ] , Pf -| Delta' ~~> Ct
     ---------------------------------------------------------------------------- :: fail
-    RS ; Delta |- [ eff ] ( res fail , q ) : fail @ ce [ res ] , Pf -| Delta' ~~> Bot
+    RS ; Delta |- [ eff ] ( res fail [ lpat ] , q ) : fail @ ce [ res ] , Pf -| Delta' ~~> Bot
 
     CS = comp RS    G = erase Delta    CS ; G |- [ spec ] ce1 ==> pred tau
-    RS ; Delta |- [ eff ] ( cpat , ( log w , ( res rpat , q ) ) ) : x : tau [ spec ] , x == ce1 [ log ] , ce2 @ ce' [ res ] , Pf -| Delta' ~~> Ct
+    RS ; Delta |- [ eff ] ( cpat , ( log lpat , ( res rpat , q ) ) ) : x : tau [ spec ] , x == ce1 [ log ] , ce2 @ ce' [ res ] , Pf -| Delta' ~~> Ct
     ----------------------------------------------------------------------------- :: rlet
-    RS ; Delta |- [ eff ] ( res let [ w ] cpat ; rpat , q ) : let x = ce1 ; ce2 @ ce' [ res ] , Pf -| Delta' ~~> Ct
+    RS ; Delta |- [ eff ] ( res let [ lpat ] cpat ; rpat , q ) : let x = ce1 ; ce2 @ ce' [ res ] , Pf -| Delta' ~~> Ct
 
     RS ; Delta |- [ eff ] ( res rpat , q ) : ce1 @ ce' [ res ] , Pf -| Delta' ~~> Ct
     ----------------------------------------------------------------------------- :: iftrue
