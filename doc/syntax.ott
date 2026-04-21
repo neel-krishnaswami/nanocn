@@ -33,6 +33,17 @@ terminals :: 'terminals_' ::=
   | res                                :: :: res        {{ tex \mathsf{res} }}
   | core                               :: :: core       {{ tex \mathsf{core} }}
   | log                                :: :: log        {{ tex \mathsf{log} }}
+  | auto                               :: :: auto       {{ tex \mathsf{auto} }}
+  | return                             :: :: return     {{ tex \mathsf{return} }}
+  | take                               :: :: take       {{ tex \mathsf{take} }}
+  | fail                               :: :: fail       {{ tex \mathsf{fail} }}
+  | case                               :: :: case_kw    {{ tex \mathsf{case} }}
+  | iftrue                             :: :: iftrue     {{ tex \mathsf{iftrue} }}
+  | iffalse                            :: :: iffalse    {{ tex \mathsf{iffalse} }}
+  | unfold                             :: :: unfold     {{ tex \mathsf{unfold} }}
+  | annot                              :: :: annot      {{ tex \mathsf{annot} }}
+  | do                                 :: :: do_kw      {{ tex \mathsf{do} }}
+  | rpempty                            :: :: rpempty    {{ tex \cdot }}
 
 blit :: 'BLit_' ::=                                       {{ com boolean literals }}
   | true                               :: :: True
@@ -318,26 +329,26 @@ cpat :: 'CPat_' ::=                                  {{ com core patterns }}
 
 lpat :: 'LPat_' ::=                                  {{ com logical patterns }}
   | x                               :: :: Var
-  | auto                            :: :: Auto        {{ tex \mathsf{auto} }}
+  | auto                            :: :: Auto
 
 rpat :: 'RPR_' ::=                                   {{ com resource patterns }}
   | x                               :: :: Var
-  | return lpat                     :: :: Return      {{ tex \mathsf{return}\;[[lpat]] }}
-  | take ( cpat , rpat1 ) ; rpat2   :: :: Take        {{ tex \mathsf{take}([[cpat]], [[rpat1]]); [[rpat2]] }}
-  | fail [ lpat ]                   :: :: Fail        {{ tex \mathsf{fail}[[[lpat]]] }}
-  | let [ lpat ] cpat ; rpat       :: :: Let          {{ tex \mathsf{let}[[[lpat]]]\;[[cpat]]; [[rpat]] }}
-  | case L ( cpat ) ; lpat ; rpat  :: :: Case         {{ tex \mathsf{case}\;[[L]]([[cpat]]); [[lpat]]; [[rpat]] }}
-  | iftrue ; rpat                   :: :: IfTrue      {{ tex \mathsf{iftrue}; [[rpat]] }}
-  | iffalse ; rpat                  :: :: IfFalse     {{ tex \mathsf{iffalse}; [[rpat]] }}
-  | unfold ; rpat                   :: :: Unfold      {{ tex \mathsf{unfold}; [[rpat]] }}
-  | annot ; rpat                    :: :: Annot       {{ tex \mathsf{annot}; [[rpat]] }}
+  | return lpat                     :: :: Return
+  | take ( cpat , rpat1 ) ; rpat2   :: :: Take
+  | fail [ lpat ]                   :: :: Fail
+  | let [ lpat ] cpat ; rpat       :: :: Let
+  | case L ( cpat ) ; lpat ; rpat  :: :: Case
+  | iftrue ; rpat                   :: :: IfTrue
+  | iffalse ; rpat                  :: :: IfFalse
+  | unfold ; rpat                   :: :: Unfold
+  | annot ; rpat                    :: :: Annot
 
 q :: 'RPat_' ::=                                     {{ com refined patterns }}
-  | rpempty                         :: :: Empty       {{ tex \cdot }}
+  | rpempty                         :: :: Empty
   | ( cpat , q )                    :: :: Core
-  | ( log lpat , q )                :: :: Log         {{ tex (\mathsf{log}\;[[lpat]], [[q]]) }}
-  | ( res rpat , q )                :: :: Res         {{ tex (\mathsf{res}\;[[rpat]], [[q]]) }}
-  | ( do cpat = rpat , q )          :: :: DepRes      {{ tex (\mathsf{do}\;[[cpat]] = [[rpat]], [[q]]) }}
+  | ( log lpat , q )                :: :: Log
+  | ( res rpat , q )                :: :: Res
+  | ( do cpat = rpat , q )          :: :: DepRes
 
 crt :: 'CRT_' ::=                                    {{ com core refined terms }}
   | let q = crt1 ; crt2            :: :: Let

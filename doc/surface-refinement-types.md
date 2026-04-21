@@ -83,7 +83,7 @@ Finally, the rules for the resource patterns:
 Σ; Δ ⊢[eff] x, q : (ce@ce'[res], Pf) ⊣ Δ' ↝ C
 
 
-Σ; Δ ⊢[eff] lpat, q : (ce = ce' [log], Pf) ⊣ Δ' ↝ Cw
+Σ; Δ ⊢[eff] lpat, q : (ce = ce' [log], Pf) ⊣ Δ' ↝ C
 ————————————————————————————————————————————————————————————————————
 Σ; Δ ⊢[eff] return lpat, q : ((return ce)@ce'[res], Pf) ⊣ Δ' ↝ C
 
@@ -147,6 +147,45 @@ zero(Δ'')
 (Δ'' ⇒ (C1 ∧ C2)) = C'
 —————————————————————————————————————————————————————————
 Σ; Δ0 ⊢[eff] let q = crt1; crt2 <== Pf ⊣ Δ4 ↝ C ∧ C'
+
+
+#### Let-res/core/log 
+
+Σ; Δ0 ⊢ rpf ==> ce@ce' ⊣ Δ1 ↝ C
+Σ; Δ1 ⊢[⌊eff⌋] (rpat, ·) : (ce@ce' [res], ·) ⊣ Δ2 ↝ C1
+Σ; Δ2 ⊢[eff] crt <== Pf ⊣ Δ3 ↝ C2
+Δ3 = Δ4, Δ''
+|Δ1| = |Δ4|
+zero(Δ'')
+(Δ'' ⇒ (C1 ∧ C2)) = C'
+————————————————————————————————————————————
+Σ; Δ0 ⊢[eff] let res rpat = rpf; crt <== Pf ⊣ Δ4 ↝ C ∧ C'
+
+
+Σ; Δ0 ⊢ lpf ==> ce ⊣ Δ1 ↝ C
+Σ; Δ1 ⊢[⌊eff⌋] (lpat, ·) : (ce [log], ·) ⊣ Δ2 ↝ C1
+Σ; Δ2 ⊢[eff] crt <== Pf ⊣ Δ3 ↝ C2
+Δ3 = Δ4, Δ''
+|Δ1| = |Δ4|
+zero(Δ'')
+(Δ'' ⇒ (C1 ∧ C2)) = C'
+————————————————————————————————————————————
+Σ; Δ0 ⊢[eff] let log lpat = lpf; crt <== Pf ⊣ Δ4 ↝ C ∧ C'
+
+
+
+Σ; |Δ0| ⊢[⌊eff⌋] ce ==> τ 
+Σ; Δ0 ⊢[⌊eff⌋] (cpat, lpat) : (y:τ[⌊eff⌋], y = ce [log], ·) ⊣ Δ1 ↝ C1
+Σ; Δ1 ⊢[eff] crt <== Pf ⊣ Δ2 ↝ C2
+Δ2 = Δ3, Δ''
+|Δ0| = |Δ3|
+zero(Δ'')
+(Δ'' ⇒ (C1 ∧ C2)) = C
+——————————————————————————————————————————————————————————
+Σ; Δ0 ⊢[eff] let core[lpat] cpat = ce; crt <== Pf ⊣ Δ3 ↝ C
+
+
+
 
 #### Refined Function Declarations
 
