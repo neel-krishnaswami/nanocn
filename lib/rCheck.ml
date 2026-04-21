@@ -781,40 +781,50 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLet (typed_pat, checked_crt1, checked_crt2)) in
       return (checked, delta_out, Constraint.conj pos ct ct_closed)
 
-  | RefinedExpr.CLetLog (x, lpf, body) ->
-    (* Synthesize the lpf, extend delta with x:ce[log], check the body
-       against pf, then drop the binding from the output context.
-
-       Per the [letlog] rule in [doc/syntax.ott] / [doc/refinement-types.md]:
-         RS;Δ ⊢[eff] let log x = lpf; crt ⇐ Pf ⊣ Δ₂ ↝ Ct ∧ (ce ⇒ Ct')
-       The body's constraint is closed under the log fact [ce] so the
-       hypothesis is visible to subsequent atoms. *)
-    let* (checked_lpf, ce, delta', ct1) = synth_lpf rs delta lpf in
-    let delta_ext = RCtx.extend_log x ce delta' in
-    let* (checked_body, delta'', ct2) = check_crt rs delta_ext eff body pf in
-    let n = RCtx.length delta' in
-    let (delta_out, _delta_x) = RCtx.split n delta'' in
+  | RefinedExpr.CLetLog (lp, lpf, body) ->
+    (* Per [doc/surface-refinement-types.md] let-log rule:
+       Synthesize lpf to get ce, pattern-match lpat against ce[log],
+       check body, close (Δ'' ⇒ (C_pat ∧ C_body)). *)
+    let* (checked_lpf, ce, delta1, ct) = synth_lpf rs delta lpf in
+    let eff_pat = Effect.purify eff in
+    let pf_log = [ProofSort.Log { info = rinfo_dummy; prop = ce }] in
+    let* (delta2, ct_pat) = rpat_match rs delta1 eff_pat [RPat.QLog lp] pf_log in
+    let* (checked_body, delta3, ct_body) = check_crt rs delta2 eff body pf in
+    let n = RCtx.length delta1 in
+    let (delta_out, delta_close) = RCtx.split n delta3 in
+    let ct_closed = close_ctx pos delta_close (Constraint.conj pos ct_pat ct_body) in
     let rinfo = mk_rinfo pos delta (ProofSort.comp pf) eff in
-    let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLetLog (x, checked_lpf, checked_body)) in
-    return (checked, delta_out,
-            Constraint.conj pos ct1 (Constraint.impl pos ce ct2))
+    let typed_lp = RPat.map_info_lpat (fun b -> mk_rinfo b#loc RCtx.empty bool_sort eff) lp in
+    let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLetLog (typed_lp, checked_lpf, checked_body)) in
+    return (checked, delta_out, Constraint.conj pos ct ct_closed)
 
-  | RefinedExpr.CLetRes (x, rpf, body) ->
-    (* Synthesize the rpf as ce@ce', extend delta with x:ce@ce'[res(avail)],
-       check the body against pf. The body's output context must have x in
-       state {Used, Opt} (the linear-resource consumption check). Then drop
-       the binding from the output context. *)
-    let* (checked_rpf, ce_pred, ce_val, delta', ct1) = synth_rpf rs delta rpf in
-    let delta_ext = RCtx.extend_res x ce_pred ce_val Usage.Avail delta' in
-    let* (checked_body, delta'', ct2) = check_crt rs delta_ext eff body pf in
-    let n = RCtx.length delta' in
-    let (delta_out, delta_x) = RCtx.split n delta'' in
-    if not (RCtx.zero delta_x) then
-      ElabM.fail (Error.resource_leak ~loc:pos ~name:(Some x))
+  | RefinedExpr.CLetRes (rp, rpf, body) ->
+    (* Per [doc/surface-refinement-types.md] let-res rule:
+       Synthesize rpf to get ce@ce', pattern-match rpat against ce@ce'[res],
+       check body, verify resource consumption, close constraints. *)
+    let* (checked_rpf, ce_pred, ce_val, delta1, ct) = synth_rpf rs delta rpf in
+    let eff_pat = Effect.purify eff in
+    let pf_res = [ProofSort.Res { info = rinfo_dummy; pred = ce_pred; value = ce_val }] in
+    let* (delta2, ct_pat) = rpat_match rs delta1 eff_pat [RPat.QRes rp] pf_res in
+    let* (checked_body, delta3, ct_body) = check_crt rs delta2 eff body pf in
+    let n = RCtx.length delta1 in
+    let (delta_out, delta_close) = RCtx.split n delta3 in
+    if not (RCtx.zero delta_close) then
+      let leftovers =
+        List.filter_map (function
+          | RCtx.Res { var; pred; value; usage } when not (Usage.is_zero usage) ->
+            Some (Format.asprintf "@[<hov 2>%a : %a @@ %a [%a]@]"
+                    Var.print var CoreExpr.print pred
+                    CoreExpr.print value Usage.print usage)
+          | _ -> None) (RCtx.entries delta_close)
+      in
+      ElabM.fail (Error.let_pattern_resource_leak ~loc:pos ~leftovers)
     else
+      let ct_closed = close_ctx pos delta_close (Constraint.conj pos ct_pat ct_body) in
       let rinfo = mk_rinfo pos delta (ProofSort.comp pf) eff in
-      let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLetRes (x, checked_rpf, checked_body)) in
-      return (checked, delta_out, Constraint.conj pos ct1 ct2)
+      let typed_rp = RPat.map_info_rpat (fun b -> mk_rinfo b#loc RCtx.empty bool_sort eff) rp in
+      let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLetRes (typed_rp, checked_rpf, checked_body)) in
+      return (checked, delta_out, Constraint.conj pos ct ct_closed)
 
   | RefinedExpr.CIf (_x, se, crt1, crt2) ->
     let eff' = Effect.purify eff in
@@ -891,71 +901,33 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let checked = RefinedExpr.mk_crt rinfo RefinedExpr.CExfalso in
     return (checked, delta', Constraint.bot pos)
 
-  | RefinedExpr.CLetCore (xs, a, se_ce, body) ->
-    (* Per the [letcore]/[letcoretup] rule (doc/refinement-types.md
-       :574-587, doc/syntax.ott :: letcore / letcoretup):
-         Σ; |Δ0| ⊢[⌊eff⌋] ce ==> τ
-         Σ; Δ0, x:τ[⌊eff⌋], a:(x = ce)[log] ⊢[eff] crt ⇐ Pf ⊣ ... ↝ C
-         ─────────────────────────────────────────────────────────
-         Σ; Δ0 ⊢[eff] let core[a] x = ce; crt ⇐ Pf ⊣ Δ1
-                                    ↝ ∀x:τ. (x = ce) ⇒ C
-       (and similarly for the n-ary tuple variant). The closure
-       happens via [close_ctx] over the two new entries. *)
+  | RefinedExpr.CLetCore (lp, cp, se_ce, body) ->
+    (* Per [doc/surface-refinement-types.md] let-core rule:
+       Elaborate ce, build proof sort (y:τ[⌊eff⌋], y=ce[log]),
+       pattern-match (cpat, lpat) against it, check body, close. *)
     let eff_pure = Effect.purify eff in
     let gamma = RCtx.erase delta in
     let* (ce, sort) = elab_se rs gamma eff_pure se_ce in
-    (* Determine the per-binder sorts: singleton uses [sort] directly;
-       tuple unpacks [sort = Record [τ1; ...; τn]]. *)
-    let* binder_sorts =
-      match xs with
-      | [_] -> return [sort]
-      | _ ->
-        (match Sort.shape sort with
-         | Sort.Record sorts when List.length sorts = List.length xs ->
-           return sorts
-         | Sort.Record sorts ->
-           ElabM.fail
-             (Error.tuple_arity_mismatch ~loc:pos
-                ~construct:"let core pattern"
-                ~expected:(List.length sorts)
-                ~actual:(List.length xs))
-         | _ ->
-           ElabM.fail
-             (Error.construct_sort_mismatch ~loc:pos
-                ~construct:"let core tuple pattern"
-                ~expected_shape:"Record _" ~got:sort))
-    in
-    (* Build the equation [x = ce] (singleton) or
-       [(x1, ..., xn) = ce] (tuple) as the proposition bound to [a]. *)
-    let lhs_ce =
-      match xs, binder_sorts with
-      | [x], [s] -> ce_of_var x s
-      | xs, ss ->
-        let elems =
-          List.map2 (fun x s -> ce_of_var x s) xs ss
-        in
-        CoreExpr.mk (mk_info sort) (CoreExpr.Tuple elems)
-    in
-    let prop = mk_eq lhs_ce ce in
-    (* Extend delta with the new binders, in source order. *)
-    let delta_ext =
-      let with_xs =
-        List.fold_left2
-          (fun d x s -> RCtx.extend_comp x s eff_pure d)
-          delta xs binder_sorts
-      in
-      RCtx.extend_log a prop with_xs
-    in
-    let* (checked_body, delta'', ct_body) =
-      check_crt rs delta_ext eff body pf
-    in
+    let* y = fresh pos in
+    let ce_y = ce_of_var y sort in
+    let prop = mk_eq ce_y ce in
+    let pf_core = [
+      ProofSort.Comp { info = rinfo_dummy; var = y; sort; eff = eff_pure };
+      ProofSort.Log { info = rinfo_dummy; prop }
+    ] in
+    let pat = [RPat.QCore cp; RPat.QLog lp] in
+    let* (delta1, ct_pat) = rpat_match rs delta eff_pure pat pf_core in
+    let* (checked_body, delta2, ct_body) = check_crt rs delta1 eff body pf in
     let n = RCtx.length delta in
-    let (delta_out, delta_close) = RCtx.split n delta'' in
-    let ct_closed = close_ctx pos delta_close ct_body in
+    let (delta_out, delta_close) = RCtx.split n delta2 in
+    let ct_closed = close_ctx pos delta_close (Constraint.conj pos ct_pat ct_body) in
     let rinfo = mk_rinfo pos delta (ProofSort.comp pf) eff in
     let checked =
       RefinedExpr.mk_crt rinfo
-        (RefinedExpr.CLetCore (xs, a, ce, checked_body))
+        (RefinedExpr.CLetCore (
+           RPat.map_info_lpat (fun b -> mk_rinfo b#loc RCtx.empty bool_sort eff) lp,
+           RPat.map_info_cpat (fun b -> mk_rinfo b#loc RCtx.empty sort eff) cp,
+           ce, checked_body))
     in
     return (checked, delta_out, ct_closed)
 

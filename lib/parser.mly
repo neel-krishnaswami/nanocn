@@ -429,28 +429,23 @@ crt_expr:
 crt_seq_expr:
   | LET; q = rpat; EQUAL; e1 = crt_expr; SEMICOLON; e2 = crt_seq_expr
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CLet (q, e1, e2)) }
-  | LET; LOG; x = ident_var; EQUAL; l = lpf_expr; SEMICOLON; e = crt_seq_expr
-    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CLetLog (x, l, e)) }
-  | LET; LOG; x = ident_var; COLON; phi = app_expr; EQUAL; l = lpf_expr; SEMICOLON; e = crt_seq_expr
-    { (* sugar: let log x : phi = lpf; e   ≡   let log x = (lpf : phi); e *)
+  | LET; LOG; lp = lpat_inner; EQUAL; l = lpf_expr; SEMICOLON; e = crt_seq_expr
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CLetLog (lp, l, e)) }
+  | LET; LOG; lp = lpat_inner; COLON; phi = app_expr; EQUAL; l = lpf_expr; SEMICOLON; e = crt_seq_expr
+    { (* sugar: let log lp : phi = lpf; e   ≡   let log lp = (lpf : phi); e *)
       let loc = loc_obj $startpos $endpos in
       let annot_l = RefinedExpr.mk_lpf loc (RefinedExpr.LAnnot (l, phi)) in
-      RefinedExpr.mk_crt loc (RefinedExpr.CLetLog (x, annot_l, e)) }
-  | LET; RES; x = ident_var; EQUAL; r = rpf_expr; SEMICOLON; e = crt_seq_expr
-    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CLetRes (x, r, e)) }
-  | LET; RES; x = ident_var; COLON; ce1 = app_expr; AT; ce2 = app_expr; EQUAL; r = rpf_expr; SEMICOLON; e = crt_seq_expr
-    { (* sugar: let res x : ce@ce' = rpf; e   ≡   let res x = (rpf : ce@ce'); e *)
+      RefinedExpr.mk_crt loc (RefinedExpr.CLetLog (lp, annot_l, e)) }
+  | LET; RES; rp = rpat_res; EQUAL; r = rpf_expr; SEMICOLON; e = crt_seq_expr
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CLetRes (rp, r, e)) }
+  | LET; RES; rp = rpat_res; COLON; ce1 = app_expr; AT; ce2 = app_expr; EQUAL; r = rpf_expr; SEMICOLON; e = crt_seq_expr
+    { (* sugar: let res rp : ce@ce' = rpf; e   ≡   let res rp = (rpf : ce@ce'); e *)
       let loc = loc_obj $startpos $endpos in
       let annot_r = RefinedExpr.mk_rpf loc (RefinedExpr.RAnnot (r, ce1, ce2)) in
-      RefinedExpr.mk_crt loc (RefinedExpr.CLetRes (x, annot_r, e)) }
-  | LET; CORE; LBRACKET; a = ident_var; RBRACKET; x = ident_var; EQUAL; ce = expr; SEMICOLON; body = crt_seq_expr
+      RefinedExpr.mk_crt loc (RefinedExpr.CLetRes (rp, annot_r, e)) }
+  | LET; CORE; LBRACKET; lp = lpat_inner; RBRACKET; cp = cpat_inner; EQUAL; ce = expr; SEMICOLON; body = crt_seq_expr
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos)
-        (RefinedExpr.CLetCore ([x], a, ce, body)) }
-  | LET; CORE; LBRACKET; a = ident_var; RBRACKET;
-    LPAREN; xs = separated_nonempty_list(COMMA, ident_var); RPAREN;
-    EQUAL; ce = expr; SEMICOLON; body = crt_seq_expr
-    { RefinedExpr.mk_crt (loc_obj $startpos $endpos)
-        (RefinedExpr.CLetCore (xs, a, ce, body)) }
+        (RefinedExpr.CLetCore (lp, cp, ce, body)) }
   | ITER; LBRACKET; ce = expr; RBRACKET; LPAREN; q = rpat; EQUAL; e1 = crt_expr; RPAREN; LBRACE; e2 = crt_expr; RBRACE
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CIter (ce, q, e1, e2)) }
   | IF; LBRACKET; x = ident_var; RBRACKET; ce = expr; THEN; e1 = crt_expr; ELSE; e2 = crt_seq_expr

@@ -394,40 +394,27 @@ let rec resolve_crt env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string)
     let* e1' = resolve_crt env e1 in
     let* e2' = resolve_crt env' e2 in
     return (RefinedExpr.mk_crt b (RefinedExpr.CLet (q', e1', e2')))
-  | RefinedExpr.CLetLog (name, lpf, body) ->
-    (* Resolve the lpf in the OUTER env (x is not yet in scope), then
-       fresh-bind x for the body. *)
+  | RefinedExpr.CLetLog (lp, lpf, body) ->
+    (* Resolve the lpf in the OUTER env, then resolve the lpat and
+       bind its variables for the body. *)
     let* lpf' = resolve_lpf env lpf in
-    let* x = mk_var name b#loc in
-    let env' = (name, x) :: env in
+    let* (lp', env') = resolve_lpat env lp in
     let* body' = resolve_crt env' body in
-    return (RefinedExpr.mk_crt b (RefinedExpr.CLetLog (x, lpf', body')))
-  | RefinedExpr.CLetRes (name, rpf, body) ->
+    return (RefinedExpr.mk_crt b (RefinedExpr.CLetLog (lp', lpf', body')))
+  | RefinedExpr.CLetRes (rp, rpf, body) ->
     let* rpf' = resolve_rpf env rpf in
-    let* x = mk_var name b#loc in
-    let env' = (name, x) :: env in
+    let* (rp', env') = resolve_rpat_res env rp in
     let* body' = resolve_crt env' body in
-    return (RefinedExpr.mk_crt b (RefinedExpr.CLetRes (x, rpf', body')))
-  | RefinedExpr.CLetCore (names, a_name, ce, body) ->
+    return (RefinedExpr.mk_crt b (RefinedExpr.CLetRes (rp', rpf', body')))
+  | RefinedExpr.CLetCore (lp, cp, ce, body) ->
     (* The core expression [ce] is a SurfExpr — resolve it in the
-       outer env (none of the binders are in scope yet). Then fresh-
-       bind each [xi] and the proof name [a] before checking the body. *)
+       outer env (none of the binders are in scope yet). Then resolve
+       cpat and lpat to bind their variables for the body. *)
     let* ce' = resolve_expr env ce in
-    let rec mk_vars = function
-      | [] -> return []
-      | nm :: rest ->
-        let* v = mk_var nm b#loc in
-        let* vs = mk_vars rest in
-        return (v :: vs)
-    in
-    let* xs = mk_vars names in
-    let env_xs =
-      List.fold_left2 (fun e nm v -> (nm, v) :: e) env names xs
-    in
-    let* a = mk_var a_name b#loc in
-    let env' = (a_name, a) :: env_xs in
+    let* (cp', env_cp) = resolve_cpat env cp in
+    let* (lp', env') = resolve_lpat env_cp lp in
     let* body' = resolve_crt env' body in
-    return (RefinedExpr.mk_crt b (RefinedExpr.CLetCore (xs, a, ce', body')))
+    return (RefinedExpr.mk_crt b (RefinedExpr.CLetCore (lp', cp', ce', body')))
   | RefinedExpr.CAnnot (e, pf) ->
     let* e' = resolve_crt env e in
     let* (pf', _env') = resolve_pf env pf in

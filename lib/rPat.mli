@@ -71,6 +71,9 @@ val map_info : ('b -> 'c) -> ('var, 'b) t -> ('var, 'c) t
 
 (** {1 Printing} *)
 
+val print_cpat : (Format.formatter -> 'var -> unit) -> Format.formatter -> ('var, _) cpat -> unit
+val print_lpat : (Format.formatter -> 'var -> unit) -> Format.formatter -> ('var, _) lpat -> unit
+val print_rpat : (Format.formatter -> 'var -> unit) -> Format.formatter -> ('var, _) rpat -> unit
 val print_gen : (Format.formatter -> 'var -> unit) -> Format.formatter -> ('var, _) t -> unit
 val print : Format.formatter -> (Var.t, _) t -> unit
 val to_string : (Var.t, _) t -> string
