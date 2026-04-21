@@ -28,13 +28,9 @@ fun sequence (p : Ptr(List(Int))) -> Pred Lst(Int) [spec] =
                    return (Cons (x, xs))
   }
 
-// TODO: This example has a resource leak — Get[List(Int)] returns ownership
-// which must be threaded back into the make-take reconstruction. The old
-// typechecker silently dropped unmatched proof sort entries, masking the bug.
-// Fixing requires restructuring the proof to pass own2 through both case
-// branches into the final make-take.
-//
 // Refined length: walks the heap list, returns (len, proof, resource).
+// The proof threads ownership of p through Get and back into make-take
+// to reconstruct the sequence(p) resource for the caller.
 rfun length
     (p : Ptr(List(Int)),
      [res] r : (do xs : Lst(Int) = sequence(p)))
@@ -44,7 +40,6 @@ rfun length
   [impure] =
   let log prop = unfold sequence(p);
   // Refine r's type by ascribing the unfolded take-form of sequence(p).
-  // The SMT solver checks this ascription equals the original (do xs = sequence(p)) type.
   let res r1 : (take v_in = (Own[List(Int)](p) : Pred List(Int));
                 case v_in of {
                     Nil u -> return (Nil ())
@@ -56,31 +51,43 @@ rfun length
   let (v, log veq, res own2) = Get[List(Int)](p, res own);
   case [a] v of {
       Nil u ->
-        // Specialize rest to the Nil branch's take-continuation.
+        // rest : (case v0 of {...}) @ xs, specialized to the Nil branch
         let res rest_nil : (return (Nil ()) : Pred Lst(Int)) @ xs = rest;
         let log prop1 = open-ret(rest_nil);
-        (0,
-         log auto,
-         res make-ret(auto) : (return (Nil ()) : Pred Lst(Int))
-                              @ (Nil () : Lst(Int)))
+        // Reconstruct: branch result = return(Nil()) @ Nil()
+        let res branch_res : (return (Nil ()) : Pred Lst(Int))
+                             @ (Nil () : Lst(Int))
+          = make-ret(auto);
+        // Wrap ownership + branch into the take form of sequence(p)
+        let res r_out : ((take v_in = (Own[List(Int)](p) : Pred List(Int));
+                          return (Nil ())) : Pred Lst(Int))
+                        @ (Nil () : Lst(Int))
+          = make-take((v0, res own2, res branch_res));
+        (0, log auto, res r_out)
     | Cons pair ->
         let core[pair_eq] (x, q) = pair;
-        // Specialize rest to the Cons branch's take-continuation.
+        // rest : (case v0 of {...}) @ xs, specialized to the Cons branch
         let res rest_cons : (take xs_tl = (sequence(q) : Pred Lst(Int));
                              return (Cons (x, xs_tl))) @ xs = rest;
         let (xs0, res rq, res rret) = open-take(rest_cons);
         let log prop2 = open-ret(rret);
         let (m, log prop3, do xs_new = rq2) = length(q, res rq);
-        // rest2 : (take xs_tl = sequence(q); return (Cons(x, xs_tl))) @ (Cons(x, xs0))
-        let res rest2 : ((take xs_tl = (sequence(q) : Pred Lst(Int));
-                          return (Cons (x, xs_tl))) : Pred Lst(Int))
-                        @ (Cons (x, xs0) : Lst(Int))
+        // Reconstruct the Cons-branch continuation
+        let res branch_res : ((take xs_tl = (sequence(q) : Pred Lst(Int));
+                               return (Cons (x, xs_tl))) : Pred Lst(Int))
+                             @ (Cons (x, xs0) : Lst(Int))
           = make-take((xs0,
                        res rq2,
                        res make-ret(auto)
                          : (return (Cons (x, xs0)) : Pred Lst(Int))
                            @ (Cons (x, xs0) : Lst(Int))));
-        (m + 1, log auto, res rest2)
+        // Wrap ownership + branch into the take form of sequence(p)
+        let res r_out : ((take v_in = (Own[List(Int)](p) : Pred List(Int));
+                          take xs_tl = (sequence(q) : Pred Lst(Int));
+                          return (Cons (x, xs_tl))) : Pred Lst(Int))
+                        @ (Cons (x, xs0) : Lst(Int))
+          = make-take((v0, res own2, res branch_res));
+        (m + 1, log auto, res r_out)
   }
 
 main : () [impure] = ()

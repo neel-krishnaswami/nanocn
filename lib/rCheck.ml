@@ -1213,14 +1213,41 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (_eff : Effect.t)
       let delta' = RCtx.extend_comp x sort eff delta in
       go rest_elems rest_pf' delta'
 
-    (* ---- Core tuple: expand into individual CVar bindings ---- *)
-    | RPat.QCore (RPat.CTuple (_, _cpats)) :: _rest_elems,
-      ProofSort.Comp { info = _; sort; _ } :: _rest_pf ->
-      let _ = sort in
-      (* TODO: expand tuple into n individual cpat bindings *)
-      ElabM.fail (Error.structured ~loc:pos
-        (Error.K_internal_invariant { rule = "rpat_match:tuple";
-          invariant = "tuple cpat not yet implemented" }))
+    (* ---- Core tuple: expand (cpat1,...,cpatn) into individual cpat bindings ---- *)
+    | RPat.QCore (RPat.CTuple (_, cpats)) :: rest_elems,
+      ProofSort.Comp { info; var = y; sort; eff } :: rest_pf ->
+      (match Sort.shape sort with
+       | Sort.Record component_sorts when List.length cpats = List.length component_sorts ->
+         (* Generate fresh variables for each component *)
+         let rec map_m f = function
+           | [] -> return []
+           | x :: xs -> let* y = f x in let* ys = map_m f xs in return (y :: ys) in
+         let* fresh_vars = map_m (fun s ->
+           let* v = fresh pos in
+           return (v, s)) component_sorts in
+         (* Build the tuple expression (x1, ..., xn) for substitution *)
+         let tuple_ce = CoreExpr.mk (mk_info sort)
+           (CoreExpr.Tuple (List.map (fun (v, s) -> ce_of_var v s) fresh_vars)) in
+         let rest_pf' = ProofSort.subst y tuple_ce rest_pf in
+         (* Expand: each cpat_i matches x_i : τ_i [eff] *)
+         let expanded_elems =
+           List.map (fun cp -> RPat.QCore cp) cpats @ rest_elems in
+         let expanded_pf =
+           List.map (fun (v, s) ->
+             ProofSort.Comp { info; var = v; sort = s; eff }) fresh_vars
+           @ rest_pf' in
+         go expanded_elems expanded_pf delta
+       | Sort.Record component_sorts ->
+         ElabM.fail (Error.structured ~loc:pos
+           (Error.K_rpat_length_mismatch {
+             pat_len = List.length cpats;
+             pf_len = List.length component_sorts }))
+       | _ ->
+         ElabM.fail (Error.structured ~loc:pos
+           (Error.K_wrong_pred_shape {
+             construct = "tuple pattern";
+             expected_shape = "(τ1, ..., τn)";
+             got = Format.asprintf "%a" Sort.print sort })))
 
     (* ---- Log variable ---- *)
     | RPat.QLog (RPat.LVar (_, x)) :: rest_elems,
