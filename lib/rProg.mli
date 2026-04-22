@@ -50,7 +50,7 @@ type checked = (CoreExpr.ce, < loc : SourcePos.t >, Var.t) t
 
 (** Info annotation for typed refined expression nodes.
     Extends [CoreExpr.typed_info] with the refined context. *)
-type typed_rinfo = < loc : SourcePos.t; ctx : Context.t; rctx : RCtx.t; sort : Sort.sort; eff : Effect.t >
+type typed_rinfo = < loc : SourcePos.t; ctx : Context.t; rctx : RCtx.t; sort : Sort.sort; eff : Effect.t; pf : (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t >
 
 (** Fully annotated type (typed core expressions with refined context/sort/effect). *)
 type typed = (CoreExpr.typed_ce, typed_rinfo, Var.t) t

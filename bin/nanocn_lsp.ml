@@ -216,8 +216,11 @@ let handle_hover (doc : doc_state) (params : Lsp.Types.HoverParams.t) : Lsp.Type
   let col = pos.character in
   match HoverIndex.lookup doc.hover ~line ~col with
   | None -> None
-  | Some (_loc, ctx, rctx, sort, eff) ->
-    let sort_str = Format.asprintf "%a" Sort.print sort in
+  | Some (_loc, ctx, rctx, sort, eff, pf) ->
+    let sort_str = match pf with
+      | [] -> Format.asprintf "%a" Sort.print sort
+      | _ -> Format.asprintf "%a" ProofSort.print_ce pf
+    in
     let eff_str = Format.asprintf "%a" Effect.print eff in
     (* Format context: prefer refined context (with logical facts and
        resources) when available; fall back to core context. *)

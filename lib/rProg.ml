@@ -32,7 +32,7 @@ type raw_parsed = (SurfExpr.parsed_se, < loc : SourcePos.t >, string) t
 type raw_parsed_decl = (SurfExpr.parsed_se, < loc : SourcePos.t >, string) decl
 type parsed = (SurfExpr.se, < loc : SourcePos.t >, Var.t) t
 type checked = (CoreExpr.ce, < loc : SourcePos.t >, Var.t) t
-type typed_rinfo = < loc : SourcePos.t; ctx : Context.t; rctx : RCtx.t; sort : Sort.sort; eff : Effect.t >
+type typed_rinfo = < loc : SourcePos.t; ctx : Context.t; rctx : RCtx.t; sort : Sort.sort; eff : Effect.t; pf : (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t >
 type typed = (CoreExpr.typed_ce, typed_rinfo, Var.t) t
 
 let print_gen pp_var pp_e fmt prog =

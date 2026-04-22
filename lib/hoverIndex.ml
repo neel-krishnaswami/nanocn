@@ -7,6 +7,7 @@ type node = {
   rctx : RCtx.t option;
   sort : Sort.sort;
   eff  : Effect.t;
+  pf   : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t;
 }
 
 (** The index is a flat list of nodes.  Lookup scans for the tightest
@@ -19,7 +20,7 @@ let empty = []
 
 (** Extract a node from a typed_ce info object (core — no refined context). *)
 let node_of_info (b : Typecheck.typed_info) : node =
-  { loc = b#loc; ctx = b#ctx; rctx = None; sort = b#sort; eff = b#eff }
+  { loc = b#loc; ctx = b#ctx; rctx = None; sort = b#sort; eff = b#eff; pf = [] }
 
 (** Collect all nodes from a typed_ce tree by structural recursion. *)
 let rec collect (acc : node list) (e : Typecheck.typed_ce) : node list =
@@ -65,7 +66,7 @@ let of_typed_decls decls =
 
 (** Extract a hover node from a refined expression's typed_rinfo annotation. *)
 let node_of_rinfo (b : RProg.typed_rinfo) : node =
-  { loc = b#loc; ctx = b#ctx; rctx = Some b#rctx; sort = b#sort; eff = b#eff }
+  { loc = b#loc; ctx = b#ctx; rctx = Some b#rctx; sort = b#sort; eff = b#eff; pf = b#pf }
 
 (** Collect typed nodes from refined pattern elements. *)
 let collect_rpat acc pat =
@@ -198,7 +199,7 @@ let lookup idx ~line ~col =
         if tighter_span n.loc prev.loc then Some n else best
     else best
   ) None idx
-  |> Option.map (fun n -> (n.loc, n.ctx, n.rctx, n.sort, n.eff))
+  |> Option.map (fun n -> (n.loc, n.ctx, n.rctx, n.sort, n.eff, n.pf))
 
 module Test = struct
   let test = []

@@ -1701,7 +1701,7 @@ defns Jrefine :: '' ::=
     ---------------------------------------------------------------------------- :: fail
     RS ; Delta |- [ eff ] ( res fail [ lpat ] , q ) : fail @ ce [ res ] , Pf -| Delta' ~~> Bot
 
-    CS = comp RS    G = erase Delta    CS ; G |- [ spec ] ce1 ==> pred tau
+    CS = comp RS    G = erase Delta    CS ; G |- [ spec ] ce1 ==> tau
     RS ; Delta |- [ eff ] ( cpat , ( log lpat , ( res rpat , q ) ) ) : x : tau [ spec ] , x == ce1 [ log ] , ce2 @ ce' [ res ] , Pf -| Delta' ~~> Ct
     ----------------------------------------------------------------------------- :: rlet
     RS ; Delta |- [ eff ] ( res let [ lpat ] cpat ; rpat , q ) : let x = ce1 ; ce2 @ ce' [ res ] , Pf -| Delta' ~~> Ct

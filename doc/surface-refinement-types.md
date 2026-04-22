@@ -99,7 +99,7 @@ Finally, the rules for the resource patterns:
 Σ; Δ ⊢[eff] (fail[lpat], q) : ((fail@ce)[res], Pf) ⊣ Δ' ↝ ⊥
 
 
-Σ; |Δ| ⊢[spec] ce1 ==> Pred τ
+Σ; |Δ| ⊢[spec] ce1 ==> τ
 Σ; Δ ⊢[eff] (cpat, lpat, rpat, q) : (x:τ[spec], x=ce1[log], ce2@ce[res], Pf) ⊣ Δ' ↝ C
 ——————————————————————————————————————————————————————————————————————————————————————————————
 Σ; Δ ⊢[eff] ((let[lpat]cpat; rpat), q) : ((let x=ce1;ce2)@ce[res], Pf) ⊣ Δ' ↝ C

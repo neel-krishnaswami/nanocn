@@ -1124,7 +1124,7 @@ let () =
         let ce = CoreExpr.mk (mk_info bool_sort) (CoreExpr.IntLit 0) in
         let ri : RProg.typed_rinfo =
           (object method loc = SourcePos.dummy method ctx = Context.empty
-                  method rctx = RCtx.empty method sort = int_sort method eff = Effect.Spec end) in
+                  method rctx = RCtx.empty method sort = int_sort method eff = Effect.Spec method pf = [] end) in
         let pf1 = [
           ProofSort.Comp { info = ri; var = x; sort = int_sort; eff = Effect.Pure };
           ProofSort.Log { info = ri; prop = ce };

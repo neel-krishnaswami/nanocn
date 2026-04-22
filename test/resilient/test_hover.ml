@@ -13,7 +13,7 @@ main : () [impure] = ()|} in
   let test_pos line col =
     match HoverIndex.lookup hover ~line ~col with
     | None -> Format.printf "  (%d,%d): no hover@." line col
-    | Some (loc, _ctx, _rctx, sort, eff) ->
+    | Some (loc, _ctx, _rctx, sort, eff, _pf) ->
       Format.printf "  (%d,%d): %a [%a] at %a@."
         line col Sort.print sort Effect.print eff SourcePos.print loc
   in

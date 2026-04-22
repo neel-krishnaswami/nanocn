@@ -27,5 +27,9 @@ go.mod
 bindings/swift/
 Package.swift
 
+# Rust bindings (unused)
+bindings/rust/
+Cargo.toml
+
 # C bindings binding.gyp is fine; keep src/parser.c as build artifact
 # src/parser.c is KEPT in git so rebuild needs only a C compiler.

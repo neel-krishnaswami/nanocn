@@ -645,11 +645,18 @@ changes take effect without reloading."
     (add-hook 'eglot-managed-mode-hook
               (lambda ()
                 (when (derived-mode-p 'nanocn-ts-mode)
-                  (let ((buf (eldoc-doc-buffer)))
-                    (display-buffer buf '(display-buffer-in-side-window
-                                          (side . bottom)
-                                          (slot . 1)
-                                          (window-height . 0.2))))))
+                  ;; Ensure eldoc is active so the buffer exists.
+                  (eldoc-mode 1)
+                  ;; Trigger an initial eldoc cycle to create the buffer.
+                  (when (fboundp 'eldoc--invoke-strategy)
+                    (eldoc--invoke-strategy))
+                  (condition-case nil
+                      (let ((buf (eldoc-doc-buffer)))
+                        (display-buffer buf '(display-buffer-in-side-window
+                                              (side . bottom)
+                                              (slot . 1)
+                                              (window-height . 0.2))))
+                    (error nil))))
               nil t)))
 
 (add-hook 'nanocn-ts-mode-hook #'nanocn-ts--setup)

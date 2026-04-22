@@ -96,13 +96,14 @@ rfun len2
      [res] r : (do xs : Lst(Int) = sequence(p)))
   -> (n : Int,
       [log] (n == length(xs)),
-      [res] (do xs' : Lst(Int) = sequence(p)))
+      [res] sequence(p)@xs)
   [impure] =
   let res unfold; take(v, own); rest = r;
   let (val, log pf, res own) = Get[List(Int)] (p, res own);
-  case[eq] val of {
-     Nil u -> $hole1
-   | Cons p -> $hole2
+  case[val_eq] val of {
+    Nil u -> let res case[foo] Nil(); let[u_eq] y; return[eq] = rest;
+	     (0, log auto, res $hole1)
+  | Cons p -> $hole2
   }
 
   
