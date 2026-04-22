@@ -25,7 +25,7 @@ Use it proactively whenever any of these apply:
 3. The user asks about a specific state number or a specific syntactic form's error messages.
 4. The user wants to audit coverage of error states or check drift between grammar and messages.
 
-Even if the user says something vague like "these parse errors are unhelpful", run a quick coverage audit (`placeholder_audit.sh`) and offer concrete next steps.
+Even if the user says something vague like "these parse errors are unhelpful", run a quick coverage audit (`python3 scripts/placeholder_audit.py`) and offer concrete next steps.
 
 ## The two flows
 
@@ -33,15 +33,16 @@ Even if the user says something vague like "these parse errors are unhelpful", r
 
 Triggered when the user says "I changed the grammar" or after you observe an edit to `lib/parser.mly`, `lib/lexer.ml`, or any syntax-tree module that the parser consumes. Run this sequence:
 
-1. **Baseline check.** Run `scripts/verify_baselines.sh`. Report any regressions — these need the *programs* updated, not the messages.
-2. **State diff.** Run `scripts/diff_states.sh`. Categorises states as new, removed, or renumbered.
-3. **Mutant sweep.** Run `scripts/verify_mutants.sh`. Reports which mutants now parse OK (mutation is stale), which hit an unexpected state (target drifted), and which are still correct.
-4. **Triage**:
+1. **Baseline check.** Run `python3 scripts/verify_baselines.py`. Report any regressions — these need the *programs* updated, not the messages.
+2. **State diff.** Run `python3 scripts/diff_states.py`. Categorises states as new, removed, or renumbered.
+3. **Tree-sitter sync.** Run `python3 scripts/verify_treesitter.py`. If any examples fail to parse with tree-sitter, `grammar.js` needs updating to match the parser.mly changes. See `references/treesitter-mapping.md` for the nonterminal correspondence.
+4. **Mutant sweep.** Run `python3 scripts/verify_mutants.py`. Reports which mutants now parse OK (mutation is stale), which hit an unexpected state (target drifted), and which are still correct.
+5. **Triage**:
    - New states → identify the form they belong to (see `references/form-index.md`), then apply Flow B.
    - Removed states → delete the corresponding entries from `parser.messages` and the stale mutants from `examples/errors/parsing/`.
    - Renumbered states → the message may still be correct in prose; verify, but expect Menhir's `--compare-errors` CI gate to force consistency.
    - Stale mutants → rewrite or delete; if the mutation targets a form the user removed, delete.
-5. **Rebuild**: `dune build`. Must succeed — Menhir's `--compare-errors` step in `lib/dune` will fail if `parser.messages` doesn't cover every error state.
+6. **Rebuild**: `dune build`. Must succeed — Menhir's `--compare-errors` step in `lib/dune` will fail if `parser.messages` doesn't cover every error state.
 
 ### Flow B: tackle one form or one state
 
