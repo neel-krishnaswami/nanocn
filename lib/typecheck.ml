@@ -156,8 +156,8 @@ let rec synth sig_ ctx eff0 ce =
     let* ce' = check sig_ ctx ce s eff0 in
     Ok (mk ctx pos s eff0 (CoreExpr.Annot (ce', lift_sort s)))
 
-  | CoreExpr.Return _ | CoreExpr.Take _ | CoreExpr.Fail | CoreExpr.Let _
-  | CoreExpr.Inject _ | CoreExpr.Case _ | CoreExpr.Tuple _
+  | CoreExpr.Return _ | CoreExpr.Take _ | CoreExpr.Fail | CoreExpr.Hole _
+  | CoreExpr.Let _ | CoreExpr.Inject _ | CoreExpr.Case _ | CoreExpr.Tuple _
   | CoreExpr.LetTuple _ | CoreExpr.If _ | CoreExpr.Iter _ ->
     Error (Error.cannot_synthesize ~loc:pos ~construct:"sort")
 
@@ -322,6 +322,9 @@ and check sig_ ctx ce sort eff0 =
                ~loc:pos ~inner:sort ~annot:ann_sort)
     else
       Ok (mk ctx pos sort eff0 (CoreExpr.Annot (inner', lift_sort ann_sort)))
+
+  | CoreExpr.Hole h ->
+    Ok (mk ctx pos sort eff0 (CoreExpr.Hole h))
 
   | _ ->
     let* e' = synth sig_ ctx eff0 ce in

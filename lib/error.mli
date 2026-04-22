@@ -186,6 +186,24 @@ type kind =
     (** Refined pattern element kind (core/log/res/depres) does not
         match the corresponding proof sort entry kind. *)
 
+  | K_spine_tag_mismatch of
+      { expected_tag : string
+      ; expected_entry : string
+      ; actual_tag : string }
+    (** A spine argument (core/log/res) doesn't match the
+        expected proof sort entry tag. *)
+  | K_pf_structure_mismatch of
+      { synthesized_entry : string
+      ; expected_entry : string }
+    (** Two proof sort entries disagree in kind (comp/log/res/depres). *)
+  | K_pf_effect_mismatch of
+      { sort : Sort.sort
+      ; synthesized_eff : Effect.t
+      ; expected_eff : Effect.t }
+    (** Two proof sort Comp entries agree on sort but disagree on effect. *)
+  | K_iter_pattern_shape of { got : string }
+    (** Iter pattern is not a single variable binder. *)
+
   (* Last-resort escape hatches *)
   | K_internal_invariant of { rule : string; invariant : string }
     (** A check in the typechecker's internal logic failed —
@@ -331,6 +349,20 @@ val iter_requires_impure :
 (** [iter_requires_impure ~loc ~actual] reports that a refined
     [iter] was used where the ambient effect does not allow
     [impure]. *)
+
+val spine_tag_mismatch :
+  loc:SourcePos.t -> expected_tag:string -> expected_entry:string ->
+  actual_tag:string -> t
+
+val pf_structure_mismatch :
+  loc:SourcePos.t -> synthesized_entry:string -> expected_entry:string -> t
+
+val pf_effect_mismatch :
+  loc:SourcePos.t -> sort:Sort.sort ->
+  synthesized_eff:Effect.t -> expected_eff:Effect.t -> t
+
+val iter_pattern_shape :
+  loc:SourcePos.t -> got:string -> t
 
 val internal_invariant :
   loc:SourcePos.t -> rule:string -> invariant:string -> t

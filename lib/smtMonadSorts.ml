@@ -48,7 +48,7 @@ let payload_of_pred s =
 let rec walk_ce ce acc =
   match CoreExpr.shape ce with
   | CoreExpr.Var _ | CoreExpr.IntLit _ | CoreExpr.BoolLit _
-  | CoreExpr.Fail ->
+  | CoreExpr.Fail | CoreExpr.Hole _ ->
     (match CoreExpr.shape ce with
      | CoreExpr.Fail ->
        (match payload_of_pred (CoreExpr.info ce)#sort with

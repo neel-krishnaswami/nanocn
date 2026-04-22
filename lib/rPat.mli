@@ -5,78 +5,114 @@
     - [lpat]: logical patterns — variable binding or [auto]
     - [rpat]: resource patterns — destructuring resource predicates
     - [qbase]: tagged union of core/log/res/depres
-    - [t]: a list of [qbase] elements
+    - [t]: an annotated list of [qbase] elements
 
-    All types are parameterized by ['var] (string at parse time, [Var.t] after
-    resolution) and ['b] (location at parse time, typing info after checking). *)
+    All types follow the shape+knot pattern (see [doc/instructions/syntax-trees.md]).
+    Parameterized by ['b] (location at parse time, typing info after checking)
+    and ['var] (string at parse time, [Var.t] after resolution). *)
 
-(** {1 Core patterns} *)
+(** {1 Shape functors} *)
 
-type ('var, 'b) cpat =
-  | CVar of 'b * 'var
-  | CTuple of 'b * ('var, 'b) cpat list
+type ('cpat, 'var) cpatF =
+  | CVar of 'var
+  | CTuple of 'cpat list
 
-(** {1 Logical patterns} *)
+type 'var lpatF =
+  | LVar of 'var
+  | LAuto
 
-type ('var, 'b) lpat =
-  | LVar of 'b * 'var
-  | LAuto of 'b
+type ('cpat, 'lpat, 'rpat, 'var) rpatF =
+  | RVar of 'var
+  | RReturn of 'lpat
+  | RTake of 'cpat * 'rpat * 'rpat
+  | RFail of 'lpat
+  | RLet of 'lpat * 'cpat * 'rpat
+  | RCase of 'lpat * Label.t * 'cpat * 'rpat
+  | RIfTrue of 'rpat
+  | RIfFalse of 'rpat
+  | RUnfold of 'rpat
+  | RAnnot of 'rpat
 
-(** {1 Resource patterns} *)
+type ('cpat, 'lpat, 'rpat) qbaseF =
+  | QCore of 'cpat
+  | QLog of 'lpat
+  | QRes of 'rpat
+  | QDepRes of 'cpat * 'rpat
 
-type ('var, 'b) rpat =
-  | RVar of 'b * 'var
-  | RReturn of 'b * ('var, 'b) lpat
-  | RTake of 'b * ('var, 'b) cpat * ('var, 'b) rpat * ('var, 'b) rpat
-  | RFail of 'b * ('var, 'b) lpat
-  | RLet of 'b * ('var, 'b) lpat * ('var, 'b) cpat * ('var, 'b) rpat
-  | RCase of 'b * ('var, 'b) lpat * Label.t * ('var, 'b) cpat * ('var, 'b) rpat
-  | RIfTrue of 'b * ('var, 'b) rpat
-  | RIfFalse of 'b * ('var, 'b) rpat
-  | RUnfold of 'b * ('var, 'b) rpat
-  | RAnnot of 'b * ('var, 'b) rpat
+(** {1 Mapper record} *)
 
-(** {1 Pattern elements and full patterns} *)
+type ('c1, 'c2, 'l1, 'l2, 'r1, 'r2, 'v1, 'v2) mapper = {
+  cpat : 'c1 -> 'c2;
+  lpat : 'l1 -> 'l2;
+  rpat : 'r1 -> 'r2;
+  var  : 'v1 -> 'v2;
+}
 
-type ('var, 'b) qbase =
-  | QCore of ('var, 'b) cpat
-  | QLog of ('var, 'b) lpat
-  | QRes of ('var, 'b) rpat
-  | QDepRes of ('var, 'b) cpat * ('var, 'b) rpat
+(** {1 Shape mapping} *)
 
-type ('var, 'b) t = ('var, 'b) qbase list
+val map_cpatF  : ('c1, 'c2, _, _, _, _, 'v1, 'v2) mapper ->
+  ('c1, 'v1) cpatF -> ('c2, 'v2) cpatF
+val map_lpatF  : (_, _, _, _, _, _, 'v1, 'v2) mapper ->
+  'v1 lpatF -> 'v2 lpatF
+val map_rpatF  : ('c1, 'c2, 'l1, 'l2, 'r1, 'r2, 'v1, 'v2) mapper ->
+  ('c1, 'l1, 'r1, 'v1) rpatF -> ('c2, 'l2, 'r2, 'v2) rpatF
+val map_qbaseF : ('c1, 'c2, 'l1, 'l2, 'r1, 'r2, _, _) mapper ->
+  ('c1, 'l1, 'r1) qbaseF -> ('c2, 'l2, 'r2) qbaseF
 
-(** {1 Info extraction} *)
+(** {1 Knot-tied abstract types} *)
 
-val cpat_info : ('var, 'b) cpat -> 'b
-val lpat_info : ('var, 'b) lpat -> 'b
-val rpat_info : ('var, 'b) rpat -> 'b
-val qbase_info : ('var, 'b) qbase -> 'b
+type ('b, 'var) cpat
+type ('b, 'var) lpat
+type ('b, 'var) rpat
+type ('b, 'var) qbase
+type ('b, 'var) t
 
-(** {1 Variable mapping} *)
+(** {1 Constructors} *)
 
-val map_var_cpat : ('v -> 'w) -> ('v, 'b) cpat -> ('w, 'b) cpat
-val map_var_lpat : ('v -> 'w) -> ('v, 'b) lpat -> ('w, 'b) lpat
-val map_var_rpat : ('v -> 'w) -> ('v, 'b) rpat -> ('w, 'b) rpat
-val map_var_qbase : ('v -> 'w) -> ('v, 'b) qbase -> ('w, 'b) qbase
-val map_var : ('v -> 'w) -> ('v, 'b) t -> ('w, 'b) t
+val mk_cpat  : 'b -> (('b, 'var) cpat, 'var) cpatF -> ('b, 'var) cpat
+val mk_lpat  : 'b -> 'var lpatF -> ('b, 'var) lpat
+val mk_rpat  : 'b -> (('b, 'var) cpat, ('b, 'var) lpat, ('b, 'var) rpat, 'var) rpatF -> ('b, 'var) rpat
+val mk_qbase : 'b -> (('b, 'var) cpat, ('b, 'var) lpat, ('b, 'var) rpat) qbaseF -> ('b, 'var) qbase
+val mk       : 'b -> ('b, 'var) qbase list -> ('b, 'var) t
 
-(** {1 Info mapping} *)
+(** {1 Accessors} *)
 
-val map_info_cpat : ('b -> 'c) -> ('var, 'b) cpat -> ('var, 'c) cpat
-val map_info_lpat : ('b -> 'c) -> ('var, 'b) lpat -> ('var, 'c) lpat
-val map_info_rpat : ('b -> 'c) -> ('var, 'b) rpat -> ('var, 'c) rpat
-val map_info_qbase : ('b -> 'c) -> ('var, 'b) qbase -> ('var, 'c) qbase
-val map_info : ('b -> 'c) -> ('var, 'b) t -> ('var, 'c) t
+val cpat_info  : ('b, _) cpat  -> 'b
+val lpat_info  : ('b, _) lpat  -> 'b
+val rpat_info  : ('b, _) rpat  -> 'b
+val qbase_info : ('b, _) qbase -> 'b
+val info       : ('b, _) t     -> 'b
+val elems      : ('b, 'var) t  -> ('b, 'var) qbase list
+
+val cpat_shape  : ('b, 'var) cpat  -> (('b, 'var) cpat, 'var) cpatF
+val lpat_shape  : ('b, 'var) lpat  -> 'var lpatF
+val rpat_shape  : ('b, 'var) rpat  -> (('b, 'var) cpat, ('b, 'var) lpat, ('b, 'var) rpat, 'var) rpatF
+val qbase_shape : ('b, 'var) qbase -> (('b, 'var) cpat, ('b, 'var) lpat, ('b, 'var) rpat) qbaseF
+
+(** {1 Whole-tree info mapping} *)
+
+val map_info_cpat  : ('b -> 'c) -> ('b, 'var) cpat  -> ('c, 'var) cpat
+val map_info_lpat  : ('b -> 'c) -> ('b, 'var) lpat  -> ('c, 'var) lpat
+val map_info_rpat  : ('b -> 'c) -> ('b, 'var) rpat  -> ('c, 'var) rpat
+val map_info_qbase : ('b -> 'c) -> ('b, 'var) qbase -> ('c, 'var) qbase
+val map_info       : ('b -> 'c) -> ('b, 'var) t     -> ('c, 'var) t
+
+(** {1 Whole-tree variable mapping} *)
+
+val map_var_cpat  : ('v -> 'w) -> ('b, 'v) cpat  -> ('b, 'w) cpat
+val map_var_lpat  : ('v -> 'w) -> ('b, 'v) lpat  -> ('b, 'w) lpat
+val map_var_rpat  : ('v -> 'w) -> ('b, 'v) rpat  -> ('b, 'w) rpat
+val map_var_qbase : ('v -> 'w) -> ('b, 'v) qbase -> ('b, 'w) qbase
+val map_var       : ('v -> 'w) -> ('b, 'v) t     -> ('b, 'w) t
 
 (** {1 Printing} *)
 
-val print_cpat : (Format.formatter -> 'var -> unit) -> Format.formatter -> ('var, _) cpat -> unit
-val print_lpat : (Format.formatter -> 'var -> unit) -> Format.formatter -> ('var, _) lpat -> unit
-val print_rpat : (Format.formatter -> 'var -> unit) -> Format.formatter -> ('var, _) rpat -> unit
-val print_gen : (Format.formatter -> 'var -> unit) -> Format.formatter -> ('var, _) t -> unit
-val print : Format.formatter -> (Var.t, _) t -> unit
-val to_string : (Var.t, _) t -> string
+val print_cpat : (Format.formatter -> 'var -> unit) -> Format.formatter -> (_, 'var) cpat -> unit
+val print_lpat : (Format.formatter -> 'var -> unit) -> Format.formatter -> (_, 'var) lpat -> unit
+val print_rpat : (Format.formatter -> 'var -> unit) -> Format.formatter -> (_, 'var) rpat -> unit
+val print_gen  : (Format.formatter -> 'var -> unit) -> Format.formatter -> (_, 'var) t -> unit
+val print      : Format.formatter -> (_, Var.t) t -> unit
+val to_string  : (_, Var.t) t -> string
 
 module Test : sig
   val test : QCheck.Test.t list

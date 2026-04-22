@@ -27,7 +27,8 @@ let rec collect (acc : node list) (e : Typecheck.typed_ce) : node list =
   let n = node_of_info b in
   let acc = n :: acc in
   match CoreExpr.shape e with
-  | CoreExpr.Var _ | CoreExpr.IntLit _ | CoreExpr.BoolLit _ | CoreExpr.Fail ->
+  | CoreExpr.Var _ | CoreExpr.IntLit _ | CoreExpr.BoolLit _ | CoreExpr.Fail
+  | CoreExpr.Hole _ ->
     acc
   | CoreExpr.Let ((_, _), e1, e2)
   | CoreExpr.LetTuple (_, e1, e2)
@@ -70,7 +71,7 @@ let node_of_rinfo (b : RProg.typed_rinfo) : node =
 let collect_rpat acc pat =
   List.fold_left (fun acc elem ->
     node_of_rinfo (RPat.qbase_info elem) :: acc
-  ) acc pat
+  ) acc (RPat.elems pat)
 
 (** Collect typed nodes from a proof sort entry list. *)
 let collect_pf acc pf =
@@ -114,14 +115,14 @@ let rec collect_crt acc crt =
     List.fold_left (fun acc (_, b, _, body) ->
       collect_crt (node_of_rinfo b :: acc) body)
       (collect acc e) branches
-  | RefinedExpr.CExfalso -> acc
+  | RefinedExpr.CExfalso | RefinedExpr.CHole _ -> acc
   | RefinedExpr.COpenTake rpf ->
     collect_rpf acc rpf
 
 and collect_lpf acc lpf =
   let acc = node_of_rinfo (RefinedExpr.lpf_info lpf) :: acc in
   match RefinedExpr.lpf_shape lpf with
-  | RefinedExpr.LVar _ | RefinedExpr.LAuto -> acc
+  | RefinedExpr.LVar _ | RefinedExpr.LAuto | RefinedExpr.LHole _ -> acc
   | RefinedExpr.LUnfold (_, e) -> collect acc e
   | RefinedExpr.LOpenRet rpf -> collect_rpf acc rpf
   | RefinedExpr.LAnnot (lpf', e) ->
@@ -130,7 +131,7 @@ and collect_lpf acc lpf =
 and collect_rpf acc rpf =
   let acc = node_of_rinfo (RefinedExpr.rpf_info rpf) :: acc in
   match RefinedExpr.rpf_shape rpf with
-  | RefinedExpr.RVar _ -> acc
+  | RefinedExpr.RVar _ | RefinedExpr.RHole _ -> acc
   | RefinedExpr.RMakeRet lpf -> collect_lpf acc lpf
   | RefinedExpr.RMakeTake crt -> collect_crt acc crt
   | RefinedExpr.RAnnot (rpf', e1, e2) ->

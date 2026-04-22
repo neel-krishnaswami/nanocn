@@ -95,6 +95,8 @@ let rec apply_ce sub e =
     CoreExpr.mk b (CoreExpr.Return (apply_ce sub e1))
   | CoreExpr.Fail ->
     CoreExpr.mk b CoreExpr.Fail
+  | CoreExpr.Hole _ ->
+    e
 
 let of_lists tvars sorts =
   let n = List.length tvars in

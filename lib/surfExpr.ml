@@ -17,6 +17,7 @@ type ('a, 'b, 'var) seF =
   | Take of ('b, 'var) Pat.t * 'a * 'a
   | Return of 'a
   | Fail
+  | Hole of string
 
 let map_shape f = function
   | Var x -> Var x
@@ -38,6 +39,7 @@ let map_shape f = function
   | Take (p, e1, e2) -> Take (p, f e1, f e2)
   | Return a -> Return (f a)
   | Fail -> Fail
+  | Hole h -> Hole h
 
 let map_info f = function
   | Var x -> Var x
@@ -59,6 +61,7 @@ let map_info f = function
   | Take (p, e1, e2) -> Take (Pat.map f p, e1, e2)
   | Return a -> Return a
   | Fail -> Fail
+  | Hole h -> Hole h
 
 type ('b, 'var) t = In of 'b * (('b, 'var) t, 'b, 'var) seF
 
@@ -129,6 +132,7 @@ let rec print_gen pp_var fmt t =
       pp p pr e1 pr e2
   | Return a -> Format.fprintf fmt "@[<hov 2>return@ %a@]" pr a
   | Fail -> Format.fprintf fmt "fail"
+  | Hole h -> Format.fprintf fmt "$%s" h
 
 let print fmt t = print_gen Var.print fmt t
 let to_string t = Format.asprintf "%a" (print_gen Var.print_unique) t
@@ -164,6 +168,7 @@ let rec json jb t =
        "bound", json jb e1; "body", json jb e2]
     | Return a -> ["tag", Json.String "Return"; "arg", json jb a]
     | Fail -> ["tag", Json.String "Fail"]
+    | Hole h -> ["tag", Json.String "Hole"; "name", Json.String h]
   in
   Json.Object (shape_fields @ node_info)
 

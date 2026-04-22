@@ -87,3 +87,10 @@ Instructions to Claude for writing OCaml code:
 
 5. To write or edit a syntax tree, look in doc/instructions/syntax-trees.md for instructions. 
 
+6. `invariant_at` / `K_internal_invariant` must only be used for conditions that are genuinely
+   unreachable from any user program, no matter how ill-typed. If a user can write a program
+   (even a nonsensical one) that triggers the error, it must use a proper error kind with a
+   helpful message. The parser does not reject all ill-formed refined programs, so assume any
+   syntactically valid program can reach the typechecker. See `doc/errors/type-errors.md` for
+   error message guidelines.
+

@@ -343,8 +343,8 @@ let rec synth sig_ ctx eff0 se =
     let* ce = check sig_ ctx se s eff0 in
     ElabM.return (mk_typed ctx pos s eff0 (CoreExpr.Annot (ce, lift_sort s)), s)
 
-  | SurfExpr.Return _ | SurfExpr.Take _ | SurfExpr.Fail | SurfExpr.Let _
-  | SurfExpr.Tuple _ | SurfExpr.Inject _ | SurfExpr.Case _
+  | SurfExpr.Return _ | SurfExpr.Take _ | SurfExpr.Fail | SurfExpr.Hole _
+  | SurfExpr.Let _ | SurfExpr.Tuple _ | SurfExpr.Inject _ | SurfExpr.Case _
   | SurfExpr.Iter _ | SurfExpr.If _ ->
     ElabM.fail (Error.cannot_synthesize ~loc:pos ~construct:"sort")
 
@@ -527,6 +527,9 @@ and check sig_ ctx se sort eff0 =
     let* ce2 = check sig_ ctx se2 sort eff0 in
     let* ce3 = check sig_ ctx se3 sort eff0 in
     ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.If (ce1, ce2, ce3)))
+
+  | SurfExpr.Hole h ->
+    ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Hole h))
 
   | _ ->
     let* (ce, syn_sort) = synth sig_ ctx eff0 se in

@@ -36,6 +36,7 @@
 %token <int> INT_LIT
 %token <string> IDENT
 %token <string> LABEL
+%token <string> HOLE
 %token LET CASE ITER FUN RFUN MAIN
 %token INT_KW BOOL_KW PTR
 %token PURE IMPURE
@@ -297,6 +298,8 @@ state_prim:
 simple_expr:
   | x = ident_var
     { mk_surfexpr $startpos $endpos (SurfExpr.Var x) }
+  | h = HOLE
+    { mk_surfexpr $startpos $endpos (SurfExpr.Hole h) }
   | n = INT_LIT
     { mk_surfexpr $startpos $endpos (SurfExpr.IntLit n) }
   | TRUE
@@ -322,7 +325,8 @@ rdecl:
     { RProg.FunDecl { name = f; param = x; arg_sort = a; ret_sort = b; eff;
                        body; loc = mk_loc $startpos $endpos } }
   | RFUN; f = ident_var; dom = pf_domain; ARROW; pf2 = pf_sort; LBRACKET; eff = eff_level; RBRACKET; EQUAL; e = crt_expr
-    { let (pat, pf1) = List.split dom in
+    { let (pat_elems, pf1) = List.split dom in
+      let pat = RPat.mk (loc_obj $startpos $endpos) pat_elems in
       RProg.RFunDecl { name = f; pat; domain = pf1; codomain = pf2; eff;
                         body = e; loc = mk_loc $startpos $endpos } }
   | SORT; d = LABEL; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
@@ -390,32 +394,35 @@ pf_domain:
 pf_domain_entry:
   | x = ident_var; COLON; s = sort
     { let b = loc_obj $startpos $endpos in
-      (RPat.QCore (RPat.CVar (b, x)),
+      (RPat.mk_qbase b (RPat.QCore (RPat.mk_cpat b (RPat.CVar x))),
        ProofSort.Comp { info = b; var = x; sort = s; eff = Effect.Pure }) }
   | LBRACKET; eff = eff_level; RBRACKET; x = ident_var; COLON; s = sort
     { let b = loc_obj $startpos $endpos in
-      (RPat.QCore (RPat.CVar (b, x)),
+      (RPat.mk_qbase b (RPat.QCore (RPat.mk_cpat b (RPat.CVar x))),
        ProofSort.Comp { info = b; var = x; sort = s; eff }) }
   | LBRACKET; LOG; RBRACKET; x = ident_var; COLON; e = app_expr
     { let b = loc_obj $startpos $endpos in
-      (RPat.QLog (RPat.LVar (b, x)), ProofSort.Log { info = b; prop = e }) }
+      (RPat.mk_qbase b (RPat.QLog (RPat.mk_lpat b (RPat.LVar x))),
+       ProofSort.Log { info = b; prop = e }) }
   | LBRACKET; LOG; RBRACKET; AUTO; COLON; e = app_expr
     { let b = loc_obj $startpos $endpos in
-      (RPat.QLog (RPat.LAuto b), ProofSort.Log { info = b; prop = e }) }
+      (RPat.mk_qbase b (RPat.QLog (RPat.mk_lpat b RPat.LAuto)),
+       ProofSort.Log { info = b; prop = e }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON; e1 = app_expr; AT; e2 = app_expr
     { let b = loc_obj $startpos $endpos in
-      (RPat.QRes (RPat.RVar (b, x)), ProofSort.Res { info = b; pred = e1; value = e2 }) }
+      (RPat.mk_qbase b (RPat.QRes (RPat.mk_rpat b (RPat.RVar x))),
+       ProofSort.Res { info = b; pred = e1; value = e2 }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON;
     LPAREN; DO; y = ident_var; COLON; s = sort; EQUAL; e = app_expr; RPAREN
     { let b = loc_obj $startpos $endpos in
       let pred_sort = mk_sort $startpos $endpos (Sort.Pred s) in
       let annot_e = mk_surfexpr $startpos $endpos (SurfExpr.Annot (e, pred_sort)) in
-      (RPat.QDepRes (RPat.CVar (b, y), RPat.RVar (b, x)),
+      (RPat.mk_qbase b (RPat.QDepRes (RPat.mk_cpat b (RPat.CVar y), RPat.mk_rpat b (RPat.RVar x))),
        ProofSort.DepRes { info = b; bound_var = y; pred = annot_e }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON;
     LPAREN; DO; y = ident_var; EQUAL; e = app_expr; RPAREN
     { let b = loc_obj $startpos $endpos in
-      (RPat.QDepRes (RPat.CVar (b, y), RPat.RVar (b, x)),
+      (RPat.mk_qbase b (RPat.QDepRes (RPat.mk_cpat b (RPat.CVar y), RPat.mk_rpat b (RPat.RVar x))),
        ProofSort.DepRes { info = b; bound_var = y; pred = e }) }
 
 (* ===== Core refined terms ===== *)
@@ -454,6 +461,8 @@ crt_seq_expr:
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CCase (y, ce, bs)) }
   | EXFALSO
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos) RefinedExpr.CExfalso }
+  | h = HOLE
+    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CHole h) }
   | OPEN_TAKE; LPAREN; r = rpf_expr; RPAREN
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.COpenTake r) }
   | e = crt_spine_expr
@@ -487,64 +496,69 @@ crt_app_expr:
 
 rpat_elem:
   | x = ident_var
-    { RPat.QCore (RPat.CVar (loc_obj $startpos $endpos, x)) }
+    { let b = loc_obj $startpos $endpos in
+      RPat.mk_qbase b (RPat.QCore (RPat.mk_cpat b (RPat.CVar x))) }
   | LPAREN; xs = separated_nonempty_list(COMMA, ident_var); RPAREN
     { let b = loc_obj $startpos $endpos in
-      RPat.QCore (RPat.CTuple (b, List.map (fun x -> RPat.CVar (b, x)) xs)) }
+      RPat.mk_qbase b (RPat.QCore (RPat.mk_cpat b (RPat.CTuple (List.map (fun x -> RPat.mk_cpat b (RPat.CVar x)) xs)))) }
   | LOG; x = ident_var
-    { RPat.QLog (RPat.LVar (loc_obj $startpos $endpos, x)) }
+    { let b = loc_obj $startpos $endpos in
+      RPat.mk_qbase b (RPat.QLog (RPat.mk_lpat b (RPat.LVar x))) }
   | LOG; AUTO
-    { RPat.QLog (RPat.LAuto (loc_obj $startpos $endpos)) }
+    { let b = loc_obj $startpos $endpos in
+      RPat.mk_qbase b (RPat.QLog (RPat.mk_lpat b RPat.LAuto)) }
   | RES; rp = rpat_res
-    { RPat.QRes rp }
+    { let b = loc_obj $startpos $endpos in
+      RPat.mk_qbase b (RPat.QRes rp) }
   | DO; x = ident_var; EQUAL; rp = rpat_res
     { let b = loc_obj $startpos $endpos in
-      RPat.QDepRes (RPat.CVar (b, x), rp) }
+      RPat.mk_qbase b (RPat.QDepRes (RPat.mk_cpat b (RPat.CVar x), rp)) }
 
 rpat_res:
   | x = ident_var
-    { RPat.RVar (loc_obj $startpos $endpos, x) }
+    { RPat.mk_rpat (loc_obj $startpos $endpos) (RPat.RVar x) }
   | RETURN; LBRACKET; lp = lpat_inner; RBRACKET
-    { RPat.RReturn (loc_obj $startpos $endpos, lp) }
+    { RPat.mk_rpat (loc_obj $startpos $endpos) (RPat.RReturn lp) }
   | TAKE; LPAREN; cp = cpat_inner; COMMA; rp1 = rpat_res; RPAREN; SEMICOLON; rp2 = rpat_res
-    { RPat.RTake (loc_obj $startpos $endpos, cp, rp1, rp2) }
+    { RPat.mk_rpat (loc_obj $startpos $endpos) (RPat.RTake (cp, rp1, rp2)) }
   | FAIL; LBRACKET; lp = lpat_inner; RBRACKET
-    { RPat.RFail (loc_obj $startpos $endpos, lp) }
+    { RPat.mk_rpat (loc_obj $startpos $endpos) (RPat.RFail lp) }
   | LET; LBRACKET; lp = lpat_inner; RBRACKET; cp = cpat_inner; SEMICOLON; rp = rpat_res
-    { RPat.RLet (loc_obj $startpos $endpos, lp, cp, rp) }
+    { RPat.mk_rpat (loc_obj $startpos $endpos) (RPat.RLet (lp, cp, rp)) }
   | CASE; LBRACKET; lp = lpat_inner; RBRACKET; l = LABEL; cp = cpat_inner; SEMICOLON; rp = rpat_res
-    { RPat.RCase (loc_obj $startpos $endpos, lp, label l, cp, rp) }
+    { RPat.mk_rpat (loc_obj $startpos $endpos) (RPat.RCase (lp, label l, cp, rp)) }
   | IFTRUE; SEMICOLON; rp = rpat_res
-    { RPat.RIfTrue (loc_obj $startpos $endpos, rp) }
+    { RPat.mk_rpat (loc_obj $startpos $endpos) (RPat.RIfTrue rp) }
   | IFFALSE; SEMICOLON; rp = rpat_res
-    { RPat.RIfFalse (loc_obj $startpos $endpos, rp) }
+    { RPat.mk_rpat (loc_obj $startpos $endpos) (RPat.RIfFalse rp) }
   | UNFOLD; SEMICOLON; rp = rpat_res
-    { RPat.RUnfold (loc_obj $startpos $endpos, rp) }
+    { RPat.mk_rpat (loc_obj $startpos $endpos) (RPat.RUnfold rp) }
   | ANNOT; SEMICOLON; rp = rpat_res
-    { RPat.RAnnot (loc_obj $startpos $endpos, rp) }
+    { RPat.mk_rpat (loc_obj $startpos $endpos) (RPat.RAnnot rp) }
 
 lpat_inner:
   | x = ident_var
-    { RPat.LVar (loc_obj $startpos $endpos, x) }
+    { RPat.mk_lpat (loc_obj $startpos $endpos) (RPat.LVar x) }
   | AUTO
-    { RPat.LAuto (loc_obj $startpos $endpos) }
+    { RPat.mk_lpat (loc_obj $startpos $endpos) RPat.LAuto }
 
 cpat_inner:
   | x = ident_var
-    { RPat.CVar (loc_obj $startpos $endpos, x) }
+    { RPat.mk_cpat (loc_obj $startpos $endpos) (RPat.CVar x) }
   | LPAREN; RPAREN
-    { RPat.CTuple (loc_obj $startpos $endpos, []) }
+    { RPat.mk_cpat (loc_obj $startpos $endpos) (RPat.CTuple []) }
   | LPAREN; xs = separated_nonempty_list(COMMA, ident_var); RPAREN
     { let b = loc_obj $startpos $endpos in
-      RPat.CTuple (b, List.map (fun x -> RPat.CVar (b, x)) xs) }
+      RPat.mk_cpat b (RPat.CTuple (List.map (fun x -> RPat.mk_cpat b (RPat.CVar x)) xs)) }
 
 rpat:
   | LPAREN; RPAREN
-    { [] }
+    { RPat.mk (loc_obj $startpos $endpos) [] }
   | LPAREN; xs = separated_nonempty_list(COMMA, rpat_elem); RPAREN
-    { xs }
+    { RPat.mk (loc_obj $startpos $endpos) xs }
   | x = ident_var
-    { [RPat.QCore (RPat.CVar (loc_obj $startpos $endpos, x))] }
+    { let b = loc_obj $startpos $endpos in
+      RPat.mk b [RPat.mk_qbase b (RPat.QCore (RPat.mk_cpat b (RPat.CVar x)))] }
 
 (* ===== Spine expressions ===== *)
 
@@ -583,6 +597,8 @@ lpf_atom_expr:
     { RefinedExpr.mk_lpf (loc_obj $startpos $endpos) (RefinedExpr.LUnfold (f, ce)) }
   | OPEN_RET; LPAREN; r = rpf_expr; RPAREN
     { RefinedExpr.mk_lpf (loc_obj $startpos $endpos) (RefinedExpr.LOpenRet r) }
+  | h = HOLE
+    { RefinedExpr.mk_lpf (loc_obj $startpos $endpos) (RefinedExpr.LHole h) }
 
 (* ===== Resource proof facts ===== *)
 
@@ -599,3 +615,5 @@ rpf_atom_expr:
     { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RMakeRet l) }
   | MAKE_TAKE; LPAREN; e = crt_expr; RPAREN
     { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RMakeTake e) }
+  | h = HOLE
+    { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RHole h) }

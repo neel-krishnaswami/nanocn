@@ -22,6 +22,7 @@ let ident_rest = [%sedlex.regexp? lower | upper | digit | '_' | '\'']
 let hyphenated_ident = [%sedlex.regexp? lower, Star ident_rest, '-', lower, Star ident_rest]
 let ident = [%sedlex.regexp? lower, Star ident_rest]
 let label = [%sedlex.regexp? upper, Plus ident_rest]
+let hole = [%sedlex.regexp? '$', lower, Star ident_rest]
 let integer = [%sedlex.regexp? Plus digit]
 let whitespace = [%sedlex.regexp? Plus (' ' | '\t')]
 let newline = [%sedlex.regexp? '\n' | "\r\n"]
@@ -89,6 +90,9 @@ let rec token buf =
      | "make-ret" -> Parser.MAKE_RET
      | "make-take" -> Parser.MAKE_TAKE
      | s -> failwith (Format.asprintf "unexpected hyphenated identifier '%s' at %a" s SourcePos.print (pos_of_lexbuf buf)))
+  | hole ->
+    let s = Sedlexing.Utf8.lexeme buf in
+    Parser.HOLE (String.sub s 1 (String.length s - 1))
   | ident -> keyword_or_ident (Sedlexing.Utf8.lexeme buf)
   | label -> keyword_or_label (Sedlexing.Utf8.lexeme buf)
   | '[' -> Parser.LBRACKET

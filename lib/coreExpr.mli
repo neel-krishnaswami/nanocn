@@ -26,6 +26,7 @@ type ('a, 'b) ceF =
   | Take of (Var.t * 'b) * 'a * 'a
   | Return of 'a
   | Fail
+  | Hole of string
 
 val map_shape : ('a -> 'c) -> ('a, 'b) ceF -> ('c, 'b) ceF
 val map_info : ('b -> 'c) -> ('a, 'b) ceF -> ('a, 'c) ceF

@@ -74,6 +74,18 @@ type kind =
   | K_let_pattern_resource_leak of { leftovers : string list }
   | K_rpat_length_mismatch of { pat_len : int; pf_len : int }
   | K_rpat_kind_mismatch of { pat_kind : string; pf_kind : string }
+  | K_spine_tag_mismatch of
+      { expected_tag : string
+      ; expected_entry : string
+      ; actual_tag : string }
+  | K_pf_structure_mismatch of
+      { synthesized_entry : string
+      ; expected_entry : string }
+  | K_pf_effect_mismatch of
+      { sort : Sort.sort
+      ; synthesized_eff : Effect.t
+      ; expected_eff : Effect.t }
+  | K_iter_pattern_shape of { got : string }
   | K_internal_invariant of { rule : string; invariant : string }
 
 type t =
@@ -211,6 +223,21 @@ let let_pattern_resource_leak ~loc ~leftovers =
 
 let iter_requires_impure ~loc ~actual =
   structured ~loc (K_iter_requires_impure { actual })
+
+let spine_tag_mismatch ~loc ~expected_tag ~expected_entry ~actual_tag =
+  structured ~loc
+    (K_spine_tag_mismatch { expected_tag; expected_entry; actual_tag })
+
+let pf_structure_mismatch ~loc ~synthesized_entry ~expected_entry =
+  structured ~loc
+    (K_pf_structure_mismatch { synthesized_entry; expected_entry })
+
+let pf_effect_mismatch ~loc ~sort ~synthesized_eff ~expected_eff =
+  structured ~loc
+    (K_pf_effect_mismatch { sort; synthesized_eff; expected_eff })
+
+let iter_pattern_shape ~loc ~got =
+  structured ~loc (K_iter_pattern_shape { got })
 
 let internal_invariant ~loc ~rule ~invariant =
   structured ~loc (K_internal_invariant { rule; invariant })
@@ -484,6 +511,48 @@ let print_kind fmt = function
     Format.fprintf fmt "  but the current effect is %a."
       (print_emph Effect.print) actual;
     Format.fprintf fmt "@]"
+  | K_spine_tag_mismatch { expected_tag; expected_entry; actual_tag } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  the function expects a %a parameter:"
+      (print_emph Format.pp_print_string) expected_tag;
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "    %s" expected_entry;
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  but the argument is %a."
+      (print_emph Format.pp_print_string) actual_tag;
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  Hint: prefix the argument with `res` for resource arguments,";
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  or `[log]` for logical arguments.";
+    Format.fprintf fmt "@]"
+  | K_pf_structure_mismatch { synthesized_entry; expected_entry } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  the synthesized result and the expected type disagree:";
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  synthesized: %a"
+      (print_emph Format.pp_print_string) synthesized_entry;
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  expected:    %a"
+      (print_emph Format.pp_print_string) expected_entry;
+    Format.fprintf fmt "@]"
+  | K_pf_effect_mismatch { sort; synthesized_eff; expected_eff } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  proof sort entries agree on sort %a,"
+      Sort.print sort;
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  but disagree on effect: synthesized %a, expected %a."
+      (print_emph Effect.print) synthesized_eff
+      (print_emph Effect.print) expected_eff;
+    Format.fprintf fmt "@]"
+  | K_iter_pattern_shape { got } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  iter requires a single variable pattern, e.g.";
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "    iter[pred](x = init) { body }";
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  but the pattern has shape: %a."
+      (print_emph Format.pp_print_string) got;
+    Format.fprintf fmt "@]"
   | K_internal_invariant { rule; invariant } ->
     Format.fprintf fmt "@[<v>";
     Format.fprintf fmt "  internal invariant failed in rule %a:"
@@ -534,6 +603,10 @@ let kind_header = function
   | K_let_pattern_resource_leak _ -> "Type error: unconsumed resource"
   | K_rpat_length_mismatch _
   | K_rpat_kind_mismatch _ -> "Type error: refined pattern mismatch"
+  | K_spine_tag_mismatch _ -> "Type error: spine argument mismatch"
+  | K_pf_structure_mismatch _ -> "Type error: proof sort structure mismatch"
+  | K_pf_effect_mismatch _ -> "Type error: proof sort effect mismatch"
+  | K_iter_pattern_shape _ -> "Type error: iter pattern shape"
   | K_internal_invariant _ -> "Internal error: invariant failed"
 
 let rec to_string e =

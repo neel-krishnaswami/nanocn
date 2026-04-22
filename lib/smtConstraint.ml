@@ -157,7 +157,8 @@ let rec free_ce bound ce acc =
   | CoreExpr.Var v ->
     if VarMap.mem v bound then acc
     else VarMap.add v (CoreExpr.info ce)#sort acc
-  | CoreExpr.IntLit _ | CoreExpr.BoolLit _ | CoreExpr.Fail ->
+  | CoreExpr.IntLit _ | CoreExpr.BoolLit _ | CoreExpr.Fail
+  | CoreExpr.Hole _ ->
     acc
   | CoreExpr.Let ((x, _), e1, e2) ->
     let acc = free_ce bound e1 acc in

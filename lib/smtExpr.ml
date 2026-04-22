@@ -323,6 +323,9 @@ let rec of_ce ce =
     let* tau = payload_of_pred (CoreExpr.info ce)#sort in
     Ok (sym_at loc (SmtSym.fail_sym tau))
 
+  | CoreExpr.Hole _ ->
+    Error "typed holes must not reach SMT encoding"
+
 (* Suppress the `string_at` helper's unused warning — it's exported
    internally for future string-literal translation but no CoreExpr
    constructor currently carries a string payload. *)

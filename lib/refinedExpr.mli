@@ -17,10 +17,10 @@
     ['var] is the variable type. *)
 
 type ('crt, 'lpf, 'rpf, 'spine, 'e, 'b, 'var) crtF =
-  | CLet of ('var, 'b) RPat.t * 'crt * 'crt
-  | CLetLog of ('var, 'b) RPat.lpat * 'lpf * 'crt
-  | CLetRes of ('var, 'b) RPat.rpat * 'rpf * 'crt
-  | CLetCore of ('var, 'b) RPat.lpat * ('var, 'b) RPat.cpat * 'e * 'crt
+  | CLet of ('b, 'var) RPat.t * 'crt * 'crt
+  | CLetLog of ('b, 'var) RPat.lpat * 'lpf * 'crt
+  | CLetRes of ('b, 'var) RPat.rpat * 'rpf * 'crt
+  | CLetCore of ('b, 'var) RPat.lpat * ('b, 'var) RPat.cpat * 'e * 'crt
     (** [CLetCore (lpat, cpat, ce, body)] is the source form
         [let core[lpat] cpat = ce; body]. The [lpat] binds the equation
         [y = ce] and [cpat] binds the value [y]. *)
@@ -28,11 +28,12 @@ type ('crt, 'lpf, 'rpf, 'spine, 'e, 'b, 'var) crtF =
   | CPrimApp of Prim.t * 'spine
   | CCall of string * 'spine
   | CTuple of 'spine
-  | CIter of 'e * ('var, 'b) RPat.t * 'crt * 'crt
+  | CIter of 'e * ('b, 'var) RPat.t * 'crt * 'crt
   | CIf of 'var * 'e * 'crt * 'crt
   | CCase of 'var * 'e * (Label.t * 'b * 'var * 'crt) list
   | CExfalso
   | COpenTake of 'rpf
+  | CHole of string
 
 type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) lpfF =
   | LVar of 'var
@@ -40,12 +41,14 @@ type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) lpfF =
   | LUnfold of string * 'e
   | LOpenRet of 'rpf
   | LAnnot of 'lpf * 'e
+  | LHole of string
 
 type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) rpfF =
   | RVar of 'var
   | RMakeRet of 'lpf
   | RMakeTake of 'crt
   | RAnnot of 'rpf * 'e * 'e
+  | RHole of string
 
 type ('crt, 'lpf, 'rpf, 'spine, 'e) spineF =
   | SNil

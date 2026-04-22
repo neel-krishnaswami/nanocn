@@ -97,6 +97,55 @@ let compile_and_diagnose (doc : doc_state) : doc_state =
     let hover = HoverIndex.of_typed_decls r.typed_decls in
     { doc with outcome = Some r; rfile = None; hover }
 
+(* Collect typed holes from a typed core expression tree. *)
+let rec collect_holes acc (e : Typecheck.typed_ce) =
+  let b = CoreExpr.info e in
+  let acc = match CoreExpr.shape e with
+    | CoreExpr.Hole h -> (h, b#loc, b#sort, b#ctx) :: acc
+    | _ -> acc
+  in
+  match CoreExpr.shape e with
+  | CoreExpr.Var _ | CoreExpr.IntLit _ | CoreExpr.BoolLit _
+  | CoreExpr.Fail | CoreExpr.Hole _ -> acc
+  | CoreExpr.Let (_, e1, e2) | CoreExpr.LetTuple (_, e1, e2)
+  | CoreExpr.Take (_, e1, e2) | CoreExpr.Iter (_, e1, e2)
+  | CoreExpr.Eq (e1, e2) | CoreExpr.And (e1, e2) ->
+    collect_holes (collect_holes acc e1) e2
+  | CoreExpr.If (e1, e2, e3) ->
+    collect_holes (collect_holes (collect_holes acc e1) e2) e3
+  | CoreExpr.Tuple es -> List.fold_left collect_holes acc es
+  | CoreExpr.Inject (_, e1) | CoreExpr.App (_, e1) | CoreExpr.Call (_, e1)
+  | CoreExpr.Not e1 | CoreExpr.Return e1 | CoreExpr.Annot (e1, _) ->
+    collect_holes acc e1
+  | CoreExpr.Case (scrut, branches) ->
+    List.fold_left (fun a (_, _, body, _) -> collect_holes a body)
+      (collect_holes acc scrut) branches
+
+let hole_to_lsp_diagnostic (name, loc, sort, _ctx) : Lsp.Types.Diagnostic.t =
+  let start_line = max 0 (SourcePos.start_line loc - 1) in
+  let end_line = max 0 (SourcePos.end_line loc - 1) in
+  let range =
+    { Lsp.Types.Range.start =
+        { line = start_line; character = SourcePos.start_col loc };
+      end_ =
+        { line = end_line; character = SourcePos.end_col loc } }
+  in
+  let message = Format.asprintf "Hole $%s at %d:%d : %a"
+      name (SourcePos.start_line loc) (SourcePos.start_col loc) Sort.print sort in
+  Lsp.Types.Diagnostic.create
+    ~range
+    ~severity:Lsp.Types.DiagnosticSeverity.Information
+    ~source:"nanocn"
+    ~message:(`String message)
+    ()
+
+let holes_of_typed_decls decls =
+  List.fold_left (fun acc decl ->
+    match decl with
+    | Prog.CoreFunDecl { body; _ } -> collect_holes acc body
+    | Prog.CoreSortDecl _ | Prog.CoreTypeDecl _ -> acc
+  ) [] decls
+
 let error_to_lsp_diagnostic (e : Error.t) : Lsp.Types.Diagnostic.t =
   let range = match Error.loc e with
     | Some loc ->
@@ -125,7 +174,14 @@ let diagnostics_of_doc (doc : doc_state) : Lsp.Types.Diagnostic.t list =
       | Some r -> r.diagnostics
       | None -> []
   in
-  List.map error_to_lsp_diagnostic errors
+  let error_diags = List.map error_to_lsp_diagnostic errors in
+  let hole_diags = match doc.outcome with
+    | Some o ->
+      let holes = holes_of_typed_decls o.typed_decls in
+      List.map hole_to_lsp_diagnostic holes
+    | None -> []
+  in
+  error_diags @ hole_diags
 
 let publish_diagnostics oc (doc : doc_state) =
   let diags = diagnostics_of_doc doc in

@@ -31,7 +31,7 @@ fun sequence (p : Ptr(List(Int))) -> Pred Lst(Int) [spec] =
 // Refined length: walks the heap list, returns (len, proof, resource).
 // The proof threads ownership of p through Get and back into make-take
 // to reconstruct the sequence(p) resource for the caller.
-rfun length
+rfun len
     (p : Ptr(List(Int)),
      [res] r : (do xs : Lst(Int) = sequence(p)))
   -> (n : Int,
@@ -71,7 +71,7 @@ rfun length
                              return (Cons (x, xs_tl))) @ xs = rest;
         let (xs0, res rq, res rret) = open-take(rest_cons);
         let log prop2 = open-ret(rret);
-        let (m, log prop3, do xs_new = rq2) = length(q, res rq);
+        let (m, log prop3, do xs_new = rq2) = len(q, res rq);
         // Reconstruct the Cons-branch continuation
         let res branch_res : ((take xs_tl = (sequence(q) : Pred Lst(Int));
                                return (Cons (x, xs_tl))) : Pred Lst(Int))
@@ -88,6 +88,21 @@ rfun length
                         @ (Cons (x, xs0) : Lst(Int))
           = make-take((v0, res own2, res branch_res));
         (m + 1, log auto, res r_out)
+  }
+
+
+rfun len2
+    (p : Ptr(List(Int)),
+     [res] r : (do xs : Lst(Int) = sequence(p)))
+  -> (n : Int,
+      [log] (n == length(xs)),
+      [res] (do xs' : Lst(Int) = sequence(p)))
+  [impure] =
+  let res unfold; take(v, own); rest = r;
+  let (val, log pf, res own) = Get[List(Int)] (p, res own);
+  case[eq] val of {
+     Nil u -> $hole1
+   | Cons p -> $hole2
   }
 
   

@@ -447,6 +447,7 @@ export default grammar({
 
     _simple_expr: $ => choice(
       $.var_expr,
+      $.hole_expr,
       $.int_lit,
       $.bool_lit,
       $.unit_expr,
@@ -455,6 +456,7 @@ export default grammar({
     ),
 
     var_expr:   $ => $.lower_ident,
+    hole_expr:  _ => /\$[a-z][a-zA-Z0-9_']*/,
     int_lit:    _ => /\d+/,
     bool_lit:   _ => choice('true', 'false'),
     unit_expr:  _ => seq('(', ')'),
@@ -554,6 +556,7 @@ export default grammar({
       $.crt_if,
       $.crt_case,
       $.crt_exfalso,
+      $.hole_expr,
       $.crt_open_take,
       $.crt_spine,
       $.crt_call,
@@ -735,6 +738,7 @@ export default grammar({
       $.lpf_auto,
       $.lpf_unfold,
       $.lpf_open_ret,
+      $.hole_expr,
     ),
 
     lpf_var:  $ => $.lower_ident,
@@ -765,6 +769,7 @@ export default grammar({
       $.rpf_var,
       $.rpf_make_ret,
       $.rpf_make_take,
+      $.hole_expr,
     ),
 
     rpf_var: $ => $.lower_ident,

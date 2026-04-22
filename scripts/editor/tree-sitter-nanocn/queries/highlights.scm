@@ -78,6 +78,7 @@
 (fail_expr) @constant.builtin
 (crt_exfalso) @constant.builtin
 (lpf_auto) @constant.builtin
+(hole_expr) @variable.special
 
 ; === Function references (Level 3) ===
 

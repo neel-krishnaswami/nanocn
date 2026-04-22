@@ -45,6 +45,15 @@
                         )))
 
 ;; ---------------------------------------------------------------------------
+;; Faces
+;; ---------------------------------------------------------------------------
+
+(defface nanocn-hole-face
+  '((t :background "yellow" :foreground "black"))
+  "Face for typed holes ($name) in nanoCN."
+  :group 'nanocn)
+
+;; ---------------------------------------------------------------------------
 ;; Font-lock
 ;; ---------------------------------------------------------------------------
 
@@ -125,6 +134,10 @@
     :language nanocn
     :feature function
     ((lpf_unfold func: (lower_ident) @font-lock-function-call-face))
+
+    :language nanocn
+    :feature hole
+    ((hole_expr) @nanocn-hole-face)
 
     :language nanocn
     :feature builtin
@@ -546,7 +559,7 @@ Three cases, checked in order:
   (setq-local treesit-font-lock-feature-list
               '((comment definition)
                 (keyword type)
-                (constant number function builtin constructor)
+                (constant number function builtin constructor hole)
                 (operator delimiter bracket)))
 
   ;; Indentation
@@ -617,7 +630,27 @@ changes take effect without reloading."
     (setq-local markdown-fontify-code-blocks-natively t))
   ;; Start Eglot if available.
   (when (fboundp 'eglot-ensure)
-    (eglot-ensure)))
+    (eglot-ensure))
+  ;; Open the Flymake diagnostics buffer so holes and errors are
+  ;; always visible.
+  (when (fboundp 'flymake-show-diagnostics-buffer)
+    (add-hook 'eglot-managed-mode-hook
+              (lambda ()
+                (when (derived-mode-p 'nanocn-ts-mode)
+                  (flymake-show-diagnostics-buffer)))
+              nil t))
+  ;; Open the *eldoc* buffer for persistent hover info (context,
+  ;; sort, effect at point).
+  (when (fboundp 'eldoc-doc-buffer)
+    (add-hook 'eglot-managed-mode-hook
+              (lambda ()
+                (when (derived-mode-p 'nanocn-ts-mode)
+                  (let ((buf (eldoc-doc-buffer)))
+                    (display-buffer buf '(display-buffer-in-side-window
+                                          (side . bottom)
+                                          (slot . 1)
+                                          (window-height . 0.2))))))
+              nil t)))
 
 (add-hook 'nanocn-ts-mode-hook #'nanocn-ts--setup)
 

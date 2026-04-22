@@ -1,19 +1,20 @@
 (* ===== Shape functors ===== *)
 
 type ('crt, 'lpf, 'rpf, 'spine, 'e, 'b, 'var) crtF =
-  | CLet of ('var, 'b) RPat.t * 'crt * 'crt
-  | CLetLog of ('var, 'b) RPat.lpat * 'lpf * 'crt
-  | CLetRes of ('var, 'b) RPat.rpat * 'rpf * 'crt
-  | CLetCore of ('var, 'b) RPat.lpat * ('var, 'b) RPat.cpat * 'e * 'crt
+  | CLet of ('b, 'var) RPat.t * 'crt * 'crt
+  | CLetLog of ('b, 'var) RPat.lpat * 'lpf * 'crt
+  | CLetRes of ('b, 'var) RPat.rpat * 'rpf * 'crt
+  | CLetCore of ('b, 'var) RPat.lpat * ('b, 'var) RPat.cpat * 'e * 'crt
   | CAnnot of 'crt * ('e, 'b, 'var) ProofSort.t
   | CPrimApp of Prim.t * 'spine
   | CCall of string * 'spine
   | CTuple of 'spine
-  | CIter of 'e * ('var, 'b) RPat.t * 'crt * 'crt
+  | CIter of 'e * ('b, 'var) RPat.t * 'crt * 'crt
   | CIf of 'var * 'e * 'crt * 'crt
   | CCase of 'var * 'e * (Label.t * 'b * 'var * 'crt) list
   | CExfalso
   | COpenTake of 'rpf
+  | CHole of string
 
 type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) lpfF =
   | LVar of 'var
@@ -21,12 +22,14 @@ type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) lpfF =
   | LUnfold of string * 'e
   | LOpenRet of 'rpf
   | LAnnot of 'lpf * 'e
+  | LHole of string
 
 type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) rpfF =
   | RVar of 'var
   | RMakeRet of 'lpf
   | RMakeTake of 'crt
   | RAnnot of 'rpf * 'e * 'e
+  | RHole of string
 
 type ('crt, 'lpf, 'rpf, 'spine, 'e) spineF =
   | SNil
@@ -65,6 +68,7 @@ let map_crtF m = function
   | CCase (y, e, bs) -> CCase (m.var y, m.expr e, List.map (fun (l, b, x, c) -> (l, m.info b, m.var x, m.crt c)) bs)
   | CExfalso -> CExfalso
   | COpenTake r -> COpenTake (m.rpf r)
+  | CHole h -> CHole h
 
 let map_lpfF m = function
   | LVar x -> LVar (m.var x)
@@ -72,12 +76,14 @@ let map_lpfF m = function
   | LUnfold (f, e) -> LUnfold (f, m.expr e)
   | LOpenRet r -> LOpenRet (m.rpf r)
   | LAnnot (l, e) -> LAnnot (m.lpf l, m.expr e)
+  | LHole h -> LHole h
 
 let map_rpfF m = function
   | RVar x -> RVar (m.var x)
   | RMakeRet l -> RMakeRet (m.lpf l)
   | RMakeTake c -> RMakeTake (m.crt c)
   | RAnnot (r, e1, e2) -> RAnnot (m.rpf r, m.expr e1, m.expr e2)
+  | RHole h -> RHole h
 
 let map_spineF m = function
   | SNil -> SNil
@@ -189,6 +195,7 @@ let rec print_gen_crt pp_var pp_e fmt t =
   | CExfalso -> Format.fprintf fmt "exfalso"
   | COpenTake rpf ->
     Format.fprintf fmt "@[<hov 2>open-take@ %a@]" (print_gen_rpf pp_var pp_e) rpf
+  | CHole h -> Format.fprintf fmt "$%s" h
 
 and print_gen_lpf pp_var pp_e fmt t =
   match lpf_shape t with
@@ -200,6 +207,7 @@ and print_gen_lpf pp_var pp_e fmt t =
     Format.fprintf fmt "@[<hov 2>open-ret@ %a@]" (print_gen_rpf pp_var pp_e) rpf
   | LAnnot (lpf, ce) ->
     Format.fprintf fmt "@[<hov 2>%a :@ %a@]" (print_gen_lpf pp_var pp_e) lpf pp_e ce
+  | LHole h -> Format.fprintf fmt "$%s" h
 
 and print_gen_rpf pp_var pp_e fmt t =
   match rpf_shape t with
@@ -210,6 +218,7 @@ and print_gen_rpf pp_var pp_e fmt t =
     Format.fprintf fmt "@[<hov 2>make-take@ %a@]" (print_gen_crt pp_var pp_e) crt
   | RAnnot (rpf, e1, e2) ->
     Format.fprintf fmt "@[<hov 2>%a :@ %a @@@ %a@]" (print_gen_rpf pp_var pp_e) rpf pp_e e1 pp_e e2
+  | RHole h -> Format.fprintf fmt "$%s" h
 
 and print_gen_spine pp_var pp_e fmt t =
   match spine_shape t with
