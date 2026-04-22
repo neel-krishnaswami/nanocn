@@ -3496,7 +3496,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TYPE
 ## LET RES
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let res`: expected a resource pattern — a variable name, or one of `return[...]`, `take(...)`, `fail[...]`, `let[...]`, `case[...]`, `iftrue`, `iffalse`, `unfold`, or `annot`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES UNFOLD UNFOLD
 ##
@@ -3508,7 +3508,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES UNFOL
 ## UNFOLD
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `unfold` in a resource pattern: expected `;` followed by the continuation resource pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES UNFOLD SEMICOLON TYPE
 ##
@@ -3520,7 +3520,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES UNFOL
 ## UNFOLD SEMICOLON
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `unfold;` in a resource pattern: expected the continuation resource pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE UNFOLD
 ##
@@ -3532,7 +3532,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE 
 ## TAKE
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `take` in a resource pattern: expected `(` — the shape is `take(cpat, rpat); rpat`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE LPAREN UNFOLD
 ##
@@ -3544,7 +3544,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE 
 ## TAKE LPAREN
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `take(`: expected a core pattern (a variable or `(x1, ..., xn)` tuple) for the witness binding.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE LPAREN LPAREN UNFOLD
 ##
@@ -3557,7 +3557,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE 
 ## LPAREN
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+Inside a core pattern `(`: expected `)` for a unit pattern, or a comma-separated list of variable names (e.g. `(x, y, z)`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN IDENT UNFOLD
 ##
@@ -3594,7 +3594,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE 
 ## TAKE LPAREN cpat_inner
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `take(<cpat>`: expected `,` followed by the resource pattern for the predicate.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE LPAREN IDENT COMMA TYPE
 ##
@@ -3606,7 +3606,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE 
 ## TAKE LPAREN cpat_inner COMMA
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `take(<cpat>,`: expected a resource pattern for the predicate (the first resource in the take).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES RETURN UNFOLD
 ##
@@ -3618,7 +3618,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES RETUR
 ## RETURN
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `return` in a resource pattern: expected `[` to begin the logical pattern — the shape is `return[x]` or `return[auto]`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES RETURN LBRACKET UNFOLD
 ##
@@ -3630,7 +3630,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES RETUR
 ## RETURN LBRACKET
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `return[`: expected a variable name or `auto` — the shape is `return[x]` or `return[auto]`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES RETURN LBRACKET AUTO UNFOLD
 ##
@@ -3642,7 +3642,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES RETUR
 ## RETURN LBRACKET lpat_inner
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `return[<lpat>`: expected `]` to close the logical pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET UNFOLD
 ##
@@ -3654,7 +3654,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET U
 ## LET
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let` in a resource pattern: expected `[` — the shape is `let[<lpat>] <cpat>; <rpat>`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET LBRACKET UNFOLD
 ##
@@ -3666,7 +3666,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET L
 ## LET LBRACKET
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let[` in a resource pattern: expected a variable name or `auto` for the logical fact.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET LBRACKET AUTO UNFOLD
 ##
@@ -3678,7 +3678,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET L
 ## LET LBRACKET lpat_inner
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let[<lpat>` in a resource pattern: expected `]` to close the logical pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET LBRACKET AUTO RBRACKET UNFOLD
 ##
@@ -3690,7 +3690,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET L
 ## LET LBRACKET lpat_inner RBRACKET
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let[<lpat>]` in a resource pattern: expected a core pattern (variable or tuple) for the value binding.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET LBRACKET AUTO RBRACKET IDENT UNFOLD
 ##
@@ -3702,7 +3702,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET L
 ## LET LBRACKET lpat_inner RBRACKET cpat_inner
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let[<lpat>] <cpat>` in a resource pattern: expected `;` followed by the continuation.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET LBRACKET AUTO RBRACKET IDENT SEMICOLON TYPE
 ##
@@ -3714,7 +3714,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET L
 ## LET LBRACKET lpat_inner RBRACKET cpat_inner SEMICOLON
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let[<lpat>] <cpat>;` in a resource pattern: expected the continuation resource pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFTRUE UNFOLD
 ##
@@ -3726,7 +3726,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFTRU
 ## IFTRUE
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `iftrue` in a resource pattern: expected `;` followed by the true-branch resource pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFTRUE SEMICOLON TYPE
 ##
@@ -3738,7 +3738,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFTRU
 ## IFTRUE SEMICOLON
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `iftrue;` in a resource pattern: expected the true-branch resource pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFFALSE UNFOLD
 ##
@@ -3750,7 +3750,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFFAL
 ## IFFALSE
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `iffalse` in a resource pattern: expected `;` followed by the false-branch resource pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFFALSE SEMICOLON TYPE
 ##
@@ -3762,7 +3762,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFFAL
 ## IFFALSE SEMICOLON
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `iffalse;` in a resource pattern: expected the false-branch resource pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES FAIL UNFOLD
 ##
@@ -3774,7 +3774,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES FAIL 
 ## FAIL
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `fail` in a resource pattern: expected `[` to begin the logical pattern — the shape is `fail[x]` or `fail[auto]`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES FAIL LBRACKET UNFOLD
 ##
@@ -3786,7 +3786,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES FAIL 
 ## FAIL LBRACKET
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `fail[`: expected a variable name or `auto` — the shape is `fail[x]` or `fail[auto]`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES FAIL LBRACKET AUTO UNFOLD
 ##
@@ -3798,7 +3798,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES FAIL 
 ## FAIL LBRACKET lpat_inner
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `fail[<lpat>`: expected `]` to close the logical pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE UNFOLD
 ##
@@ -3810,7 +3810,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE 
 ## CASE
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `case` in a resource pattern: expected `[` — the shape is `case[<lpat>] Label <cpat>; <rpat>`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE LBRACKET UNFOLD
 ##
@@ -3822,7 +3822,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE 
 ## CASE LBRACKET
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `case[` in a resource pattern: expected a variable name or `auto` for the equality fact.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE LBRACKET AUTO UNFOLD
 ##
@@ -3834,7 +3834,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE 
 ## CASE LBRACKET lpat_inner
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `case[<lpat>` in a resource pattern: expected `]` to close the logical pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE LBRACKET AUTO RBRACKET UNFOLD
 ##
@@ -3846,7 +3846,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE 
 ## CASE LBRACKET lpat_inner RBRACKET
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `case[<lpat>]` in a resource pattern: expected a constructor name (e.g. `Nil`, `Cons`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE LBRACKET AUTO RBRACKET LABEL UNFOLD
 ##
@@ -3858,7 +3858,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE 
 ## CASE LBRACKET lpat_inner RBRACKET LABEL
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `case[<lpat>] Label` in a resource pattern: expected a core pattern for the constructor payload (e.g. `()`, `x`, or `(x, y)`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE LBRACKET AUTO RBRACKET LABEL IDENT UNFOLD
 ##
@@ -3870,7 +3870,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE 
 ## CASE LBRACKET lpat_inner RBRACKET LABEL cpat_inner
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `case[<lpat>] Label <cpat>` in a resource pattern: expected `;` followed by the continuation.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE LBRACKET AUTO RBRACKET LABEL IDENT SEMICOLON TYPE
 ##
@@ -3882,7 +3882,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE 
 ## CASE LBRACKET lpat_inner RBRACKET LABEL cpat_inner SEMICOLON
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `case[<lpat>] Label <cpat>;` in a resource pattern: expected the continuation resource pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES ANNOT UNFOLD
 ##
@@ -3894,7 +3894,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES ANNOT
 ## ANNOT
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `annot` in a resource pattern: expected `;` followed by the continuation resource pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES ANNOT SEMICOLON TYPE
 ##
@@ -3906,7 +3906,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES ANNOT
 ## ANNOT SEMICOLON
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `annot;` in a resource pattern: expected the continuation resource pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE LPAREN IDENT COMMA IDENT UNFOLD
 ##
@@ -3918,7 +3918,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE 
 ## TAKE LPAREN cpat_inner COMMA rpat_res
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `take(<cpat>, <rpat>`: expected `)` to close the take arguments.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE LPAREN IDENT COMMA IDENT RPAREN UNFOLD
 ##
@@ -3930,7 +3930,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE 
 ## TAKE LPAREN cpat_inner COMMA rpat_res RPAREN
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `take(<cpat>, <rpat>)`: expected `;` followed by the continuation resource pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE LPAREN IDENT COMMA IDENT RPAREN SEMICOLON TYPE
 ##
@@ -3942,7 +3942,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE 
 ## TAKE LPAREN cpat_inner COMMA rpat_res RPAREN SEMICOLON
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `take(<cpat>, <rpat>);`: expected the continuation resource pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT UNFOLD
 ##
@@ -3955,7 +3955,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES rpat_res
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let res <rpat>`: expected `=` followed by the resource proof, or `:` for a type annotation (e.g. `let res x : pred @ val = rpf; ...`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL UNFOLD
 ##
@@ -3967,7 +3967,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES rpat_res EQUAL
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let log`: expected a variable name or `auto` — the shape is `let log x = lpf; ...` or `let log auto = lpf; ...`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL IDENT RPAREN
 ##
@@ -3985,7 +3985,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## In state 380, spurious reduction of production rpf_expr -> rpf_atom_expr
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let log <lpat>`: expected `=` followed by the logical proof, or `:` for a type annotation.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL IDENT SEMICOLON UNFOLD
 ##
@@ -3997,7 +3997,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 ## LET RES rpat_res EQUAL rpf_expr SEMICOLON
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let log <lpat> =`: expected a logical proof expression.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER UNFOLD
 ##
@@ -4082,7 +4082,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN UN
 ## LPAREN
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let core`: expected `[` — the shape is `let core[<lpat>] <cpat> = <expr>; ...`.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES TYPE
 ##
@@ -4094,7 +4094,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RE
 ## RES
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let core[`: expected a variable name or `auto` for the equality fact.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN UNFOLD
 ##
@@ -4106,7 +4106,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LP
 ## LPAREN
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let core[<lpat>`: expected `]` to close the logical pattern.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LOG UNFOLD
 ##
@@ -4119,7 +4119,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LO
 ## LOG
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let core[<lpat>]`: expected a core pattern (variable or tuple) for the value binding.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN DO UNFOLD
 ##
@@ -4131,7 +4131,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN DO
 ## DO
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let core[<lpat>] <cpat>`: expected `=` followed by the core expression.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN DO IDENT UNFOLD
 ##
@@ -4143,7 +4143,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN DO
 ## DO IDENT
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let core[<lpat>] <cpat> =`: expected the right-hand side core expression.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN DO IDENT EQUAL TYPE
 ##
@@ -4155,7 +4155,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN DO
 ## DO IDENT EQUAL
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let core[<lpat>] <cpat> = <expr>`: expected `;` followed by the body.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN IDENT UNFOLD
 ##
@@ -4168,7 +4168,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN ID
 ## rpat_elem
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let core[<lpat>] <cpat> = <expr>;`: expected the body expression.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN IDENT COMMA UNFOLD
 ##
@@ -4180,7 +4180,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN ID
 ## rpat_elem COMMA
 ##
 
-<YOUR SYNTAX ERROR MESSAGE HERE>
+After `let core[<lpat>] <cpat> = <expr>; <body>`: expression complete.
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT UNFOLD
 ##
