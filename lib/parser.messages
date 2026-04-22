@@ -3612,7 +3612,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES RETUR
 ##
 ## Ends in an error in state: 418.
 ##
-## rpat_res -> RETURN . lpat_inner [ RPAREN EQUAL COMMA COLON ]
+## rpat_res -> RETURN . LBRACKET lpat_inner RBRACKET [ RPAREN EQUAL COMMA COLON ]
 ##
 ## The known suffix of the stack is as follows:
 ## RETURN
@@ -3620,9 +3620,33 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES RETUR
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
-rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET UNFOLD
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES RETURN LBRACKET UNFOLD
+##
+## Ends in an error in state: 419.
+##
+## rpat_res -> RETURN LBRACKET . lpat_inner RBRACKET [ RPAREN EQUAL COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## RETURN LBRACKET
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES RETURN LBRACKET AUTO UNFOLD
 ##
 ## Ends in an error in state: 422.
+##
+## rpat_res -> RETURN LBRACKET lpat_inner . RBRACKET [ RPAREN EQUAL COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## RETURN LBRACKET lpat_inner
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET UNFOLD
+##
+## Ends in an error in state: 424.
 ##
 ## rpat_res -> LET . LBRACKET lpat_inner RBRACKET cpat_inner SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3634,7 +3658,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET U
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET LBRACKET UNFOLD
 ##
-## Ends in an error in state: 423.
+## Ends in an error in state: 425.
 ##
 ## rpat_res -> LET LBRACKET . lpat_inner RBRACKET cpat_inner SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3646,7 +3670,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET L
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET LBRACKET AUTO UNFOLD
 ##
-## Ends in an error in state: 424.
+## Ends in an error in state: 426.
 ##
 ## rpat_res -> LET LBRACKET lpat_inner . RBRACKET cpat_inner SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3658,7 +3682,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET L
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET LBRACKET AUTO RBRACKET UNFOLD
 ##
-## Ends in an error in state: 425.
+## Ends in an error in state: 427.
 ##
 ## rpat_res -> LET LBRACKET lpat_inner RBRACKET . cpat_inner SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3670,7 +3694,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET L
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET LBRACKET AUTO RBRACKET IDENT UNFOLD
 ##
-## Ends in an error in state: 426.
+## Ends in an error in state: 428.
 ##
 ## rpat_res -> LET LBRACKET lpat_inner RBRACKET cpat_inner . SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3682,7 +3706,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET L
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET LBRACKET AUTO RBRACKET IDENT SEMICOLON TYPE
 ##
-## Ends in an error in state: 427.
+## Ends in an error in state: 429.
 ##
 ## rpat_res -> LET LBRACKET lpat_inner RBRACKET cpat_inner SEMICOLON . rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3694,7 +3718,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES LET L
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFTRUE UNFOLD
 ##
-## Ends in an error in state: 428.
+## Ends in an error in state: 430.
 ##
 ## rpat_res -> IFTRUE . SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3706,7 +3730,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFTRU
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFTRUE SEMICOLON TYPE
 ##
-## Ends in an error in state: 429.
+## Ends in an error in state: 431.
 ##
 ## rpat_res -> IFTRUE SEMICOLON . rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3718,7 +3742,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFTRU
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFFALSE UNFOLD
 ##
-## Ends in an error in state: 430.
+## Ends in an error in state: 432.
 ##
 ## rpat_res -> IFFALSE . SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3730,7 +3754,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFFAL
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFFALSE SEMICOLON TYPE
 ##
-## Ends in an error in state: 431.
+## Ends in an error in state: 433.
 ##
 ## rpat_res -> IFFALSE SEMICOLON . rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3742,7 +3766,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IFFAL
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES FAIL UNFOLD
 ##
-## Ends in an error in state: 433.
+## Ends in an error in state: 435.
 ##
 ## rpat_res -> FAIL . LBRACKET lpat_inner RBRACKET [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3754,7 +3778,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES FAIL 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES FAIL LBRACKET UNFOLD
 ##
-## Ends in an error in state: 434.
+## Ends in an error in state: 436.
 ##
 ## rpat_res -> FAIL LBRACKET . lpat_inner RBRACKET [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3766,7 +3790,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES FAIL 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES FAIL LBRACKET AUTO UNFOLD
 ##
-## Ends in an error in state: 435.
+## Ends in an error in state: 437.
 ##
 ## rpat_res -> FAIL LBRACKET lpat_inner . RBRACKET [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3778,7 +3802,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES FAIL 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE UNFOLD
 ##
-## Ends in an error in state: 437.
+## Ends in an error in state: 439.
 ##
 ## rpat_res -> CASE . LBRACKET lpat_inner RBRACKET LABEL cpat_inner SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3790,7 +3814,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE LBRACKET UNFOLD
 ##
-## Ends in an error in state: 438.
+## Ends in an error in state: 440.
 ##
 ## rpat_res -> CASE LBRACKET . lpat_inner RBRACKET LABEL cpat_inner SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3802,7 +3826,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE LBRACKET AUTO UNFOLD
 ##
-## Ends in an error in state: 439.
+## Ends in an error in state: 441.
 ##
 ## rpat_res -> CASE LBRACKET lpat_inner . RBRACKET LABEL cpat_inner SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3814,7 +3838,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE LBRACKET AUTO RBRACKET UNFOLD
 ##
-## Ends in an error in state: 440.
+## Ends in an error in state: 442.
 ##
 ## rpat_res -> CASE LBRACKET lpat_inner RBRACKET . LABEL cpat_inner SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3826,7 +3850,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE LBRACKET AUTO RBRACKET LABEL UNFOLD
 ##
-## Ends in an error in state: 441.
+## Ends in an error in state: 443.
 ##
 ## rpat_res -> CASE LBRACKET lpat_inner RBRACKET LABEL . cpat_inner SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3838,7 +3862,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE LBRACKET AUTO RBRACKET LABEL IDENT UNFOLD
 ##
-## Ends in an error in state: 442.
+## Ends in an error in state: 444.
 ##
 ## rpat_res -> CASE LBRACKET lpat_inner RBRACKET LABEL cpat_inner . SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3850,7 +3874,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE LBRACKET AUTO RBRACKET LABEL IDENT SEMICOLON TYPE
 ##
-## Ends in an error in state: 443.
+## Ends in an error in state: 445.
 ##
 ## rpat_res -> CASE LBRACKET lpat_inner RBRACKET LABEL cpat_inner SEMICOLON . rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3862,7 +3886,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES CASE 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES ANNOT UNFOLD
 ##
-## Ends in an error in state: 444.
+## Ends in an error in state: 446.
 ##
 ## rpat_res -> ANNOT . SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3874,7 +3898,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES ANNOT
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES ANNOT SEMICOLON TYPE
 ##
-## Ends in an error in state: 445.
+## Ends in an error in state: 447.
 ##
 ## rpat_res -> ANNOT SEMICOLON . rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3886,7 +3910,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES ANNOT
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE LPAREN IDENT COMMA IDENT UNFOLD
 ##
-## Ends in an error in state: 451.
+## Ends in an error in state: 453.
 ##
 ## rpat_res -> TAKE LPAREN cpat_inner COMMA rpat_res . RPAREN SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3898,7 +3922,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE LPAREN IDENT COMMA IDENT RPAREN UNFOLD
 ##
-## Ends in an error in state: 452.
+## Ends in an error in state: 454.
 ##
 ## rpat_res -> TAKE LPAREN cpat_inner COMMA rpat_res RPAREN . SEMICOLON rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3910,7 +3934,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE LPAREN IDENT COMMA IDENT RPAREN SEMICOLON TYPE
 ##
-## Ends in an error in state: 453.
+## Ends in an error in state: 455.
 ##
 ## rpat_res -> TAKE LPAREN cpat_inner COMMA rpat_res RPAREN SEMICOLON . rpat_res [ RPAREN EQUAL COMMA COLON ]
 ##
@@ -3922,7 +3946,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES TAKE 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT UNFOLD
 ##
-## Ends in an error in state: 456.
+## Ends in an error in state: 458.
 ##
 ## crt_seq_expr -> LET RES rpat_res . EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ## crt_seq_expr -> LET RES rpat_res . COLON app_expr AT app_expr EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
@@ -3935,7 +3959,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL UNFOLD
 ##
-## Ends in an error in state: 457.
+## Ends in an error in state: 459.
 ##
 ## crt_seq_expr -> LET RES rpat_res EQUAL . rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3947,7 +3971,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL IDENT RPAREN
 ##
-## Ends in an error in state: 458.
+## Ends in an error in state: 460.
 ##
 ## crt_seq_expr -> LET RES rpat_res EQUAL rpf_expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3965,7 +3989,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT EQUAL IDENT SEMICOLON UNFOLD
 ##
-## Ends in an error in state: 459.
+## Ends in an error in state: 461.
 ##
 ## crt_seq_expr -> LET RES rpat_res EQUAL rpf_expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3977,7 +4001,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER UNFOLD
 ##
-## Ends in an error in state: 460.
+## Ends in an error in state: 462.
 ##
 ## crt_seq_expr -> ITER . LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -3989,7 +4013,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER UNFOLD
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET UNFOLD
 ##
-## Ends in an error in state: 461.
+## Ends in an error in state: 463.
 ##
 ## crt_seq_expr -> ITER LBRACKET . expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4001,7 +4025,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE TYPE
 ##
-## Ends in an error in state: 462.
+## Ends in an error in state: 464.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr . RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4025,7 +4049,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET UNFOLD
 ##
-## Ends in an error in state: 463.
+## Ends in an error in state: 465.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET . LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4037,7 +4061,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN UNFOLD
 ##
-## Ends in an error in state: 464.
+## Ends in an error in state: 466.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN . rpat EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4049,7 +4073,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN UNFOLD
 ##
-## Ends in an error in state: 465.
+## Ends in an error in state: 467.
 ##
 ## rpat -> LPAREN . RPAREN [ EQUAL ]
 ## rpat -> LPAREN . separated_nonempty_list(COMMA,rpat_elem) RPAREN [ EQUAL ]
@@ -4062,7 +4086,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN UN
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RES TYPE
 ##
-## Ends in an error in state: 467.
+## Ends in an error in state: 469.
 ##
 ## rpat_elem -> RES . rpat_res [ RPAREN COMMA ]
 ##
@@ -4074,7 +4098,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN RE
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LPAREN UNFOLD
 ##
-## Ends in an error in state: 469.
+## Ends in an error in state: 471.
 ##
 ## rpat_elem -> LPAREN . separated_nonempty_list(COMMA,ident_var) RPAREN [ RPAREN COMMA ]
 ##
@@ -4086,7 +4110,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LP
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LOG UNFOLD
 ##
-## Ends in an error in state: 472.
+## Ends in an error in state: 474.
 ##
 ## rpat_elem -> LOG . IDENT [ RPAREN COMMA ]
 ## rpat_elem -> LOG . AUTO [ RPAREN COMMA ]
@@ -4099,7 +4123,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN LO
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN DO UNFOLD
 ##
-## Ends in an error in state: 476.
+## Ends in an error in state: 478.
 ##
 ## rpat_elem -> DO . IDENT EQUAL rpat_res [ RPAREN COMMA ]
 ##
@@ -4111,7 +4135,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN DO
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN DO IDENT UNFOLD
 ##
-## Ends in an error in state: 477.
+## Ends in an error in state: 479.
 ##
 ## rpat_elem -> DO IDENT . EQUAL rpat_res [ RPAREN COMMA ]
 ##
@@ -4123,7 +4147,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN DO
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN DO IDENT EQUAL TYPE
 ##
-## Ends in an error in state: 478.
+## Ends in an error in state: 480.
 ##
 ## rpat_elem -> DO IDENT EQUAL . rpat_res [ RPAREN COMMA ]
 ##
@@ -4135,7 +4159,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN DO
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN IDENT UNFOLD
 ##
-## Ends in an error in state: 482.
+## Ends in an error in state: 484.
 ##
 ## separated_nonempty_list(COMMA,rpat_elem) -> rpat_elem . [ RPAREN ]
 ## separated_nonempty_list(COMMA,rpat_elem) -> rpat_elem . COMMA separated_nonempty_list(COMMA,rpat_elem) [ RPAREN ]
@@ -4148,7 +4172,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN ID
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN IDENT COMMA UNFOLD
 ##
-## Ends in an error in state: 483.
+## Ends in an error in state: 485.
 ##
 ## separated_nonempty_list(COMMA,rpat_elem) -> rpat_elem COMMA . separated_nonempty_list(COMMA,rpat_elem) [ RPAREN ]
 ##
@@ -4160,7 +4184,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LPAREN ID
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT UNFOLD
 ##
-## Ends in an error in state: 486.
+## Ends in an error in state: 488.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat . EQUAL crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4172,7 +4196,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL UNFOLD
 ##
-## Ends in an error in state: 487.
+## Ends in an error in state: 489.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL . crt_expr RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4184,7 +4208,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF UNFOLD
 ##
-## Ends in an error in state: 488.
+## Ends in an error in state: 490.
 ##
 ## crt_seq_expr -> IF . LBRACKET IDENT RBRACKET expr THEN crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4196,7 +4220,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF UNFOLD
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET UNFOLD
 ##
-## Ends in an error in state: 489.
+## Ends in an error in state: 491.
 ##
 ## crt_seq_expr -> IF LBRACKET . IDENT RBRACKET expr THEN crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4208,7 +4232,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET U
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT UNFOLD
 ##
-## Ends in an error in state: 490.
+## Ends in an error in state: 492.
 ##
 ## crt_seq_expr -> IF LBRACKET IDENT . RBRACKET expr THEN crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4220,7 +4244,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET UNFOLD
 ##
-## Ends in an error in state: 491.
+## Ends in an error in state: 493.
 ##
 ## crt_seq_expr -> IF LBRACKET IDENT RBRACKET . expr THEN crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4232,7 +4256,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE TYPE
 ##
-## Ends in an error in state: 492.
+## Ends in an error in state: 494.
 ##
 ## crt_seq_expr -> IF LBRACKET IDENT RBRACKET expr . THEN crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4256,7 +4280,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE THEN UNFOLD
 ##
-## Ends in an error in state: 493.
+## Ends in an error in state: 495.
 ##
 ## crt_seq_expr -> IF LBRACKET IDENT RBRACKET expr THEN . crt_expr ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4268,7 +4292,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IDENT UNFOLD
 ##
-## Ends in an error in state: 494.
+## Ends in an error in state: 496.
 ##
 ## crt_app_expr -> IDENT . spine_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4280,7 +4304,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IDENT UNFOLD
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IDENT LPAREN UNFOLD
 ##
-## Ends in an error in state: 495.
+## Ends in an error in state: 497.
 ##
 ## spine_expr -> LPAREN . loption(separated_nonempty_list(COMMA,spine_arg)) RPAREN [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4292,7 +4316,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IDENT LPAREN 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE UNFOLD
 ##
-## Ends in an error in state: 500.
+## Ends in an error in state: 502.
 ##
 ## crt_seq_expr -> CASE . LBRACKET IDENT RBRACKET expr OF LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4304,7 +4328,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE UNFOLD
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET UNFOLD
 ##
-## Ends in an error in state: 501.
+## Ends in an error in state: 503.
 ##
 ## crt_seq_expr -> CASE LBRACKET . IDENT RBRACKET expr OF LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4316,7 +4340,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT UNFOLD
 ##
-## Ends in an error in state: 502.
+## Ends in an error in state: 504.
 ##
 ## crt_seq_expr -> CASE LBRACKET IDENT . RBRACKET expr OF LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4328,7 +4352,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET UNFOLD
 ##
-## Ends in an error in state: 503.
+## Ends in an error in state: 505.
 ##
 ## crt_seq_expr -> CASE LBRACKET IDENT RBRACKET . expr OF LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4340,7 +4364,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE TYPE
 ##
-## Ends in an error in state: 504.
+## Ends in an error in state: 506.
 ##
 ## crt_seq_expr -> CASE LBRACKET IDENT RBRACKET expr . OF LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4364,7 +4388,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF UNFOLD
 ##
-## Ends in an error in state: 505.
+## Ends in an error in state: 507.
 ##
 ## crt_seq_expr -> CASE LBRACKET IDENT RBRACKET expr OF . LBRACE separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4376,7 +4400,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE UNFOLD
 ##
-## Ends in an error in state: 506.
+## Ends in an error in state: 508.
 ##
 ## crt_seq_expr -> CASE LBRACKET IDENT RBRACKET expr OF LBRACE . separated_nonempty_list(BAR,crt_case_branch) RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4388,7 +4412,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL UNFOLD
 ##
-## Ends in an error in state: 507.
+## Ends in an error in state: 509.
 ##
 ## crt_case_branch -> LABEL . IDENT ARROW crt_expr [ RBRACE BAR ]
 ##
@@ -4400,7 +4424,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT UNFOLD
 ##
-## Ends in an error in state: 508.
+## Ends in an error in state: 510.
 ##
 ## crt_case_branch -> LABEL IDENT . ARROW crt_expr [ RBRACE BAR ]
 ##
@@ -4412,7 +4436,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT ARROW UNFOLD
 ##
-## Ends in an error in state: 509.
+## Ends in an error in state: 511.
 ##
 ## crt_case_branch -> LABEL IDENT ARROW . crt_expr [ RBRACE BAR ]
 ##
@@ -4424,7 +4448,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL UNFOLD
 ##
-## Ends in an error in state: 510.
+## Ends in an error in state: 512.
 ##
 ## crt_app_expr -> state_prim . LBRACKET sort RBRACKET spine_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4436,7 +4460,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL UNFOLD
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET UNFOLD
 ##
-## Ends in an error in state: 511.
+## Ends in an error in state: 513.
 ##
 ## crt_app_expr -> state_prim LBRACKET . sort RBRACKET spine_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4448,7 +4472,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET BOOL_KW TYPE
 ##
-## Ends in an error in state: 512.
+## Ends in an error in state: 514.
 ##
 ## crt_app_expr -> state_prim LBRACKET sort . RBRACKET spine_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4460,7 +4484,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET BOOL_KW RBRACKET UNFOLD
 ##
-## Ends in an error in state: 513.
+## Ends in an error in state: 515.
 ##
 ## crt_app_expr -> state_prim LBRACKET sort RBRACKET . spine_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4472,7 +4496,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL DEL LBRACKET 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO UNFOLD
 ##
-## Ends in an error in state: 516.
+## Ends in an error in state: 518.
 ##
 ## crt_expr -> crt_seq_expr . COLON pf_sort [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE BAR ]
 ## crt_expr -> crt_seq_expr . [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE BAR ]
@@ -4485,7 +4509,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO UNFOL
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO COLON UNFOLD
 ##
-## Ends in an error in state: 517.
+## Ends in an error in state: 519.
 ##
 ## crt_expr -> crt_seq_expr COLON . pf_sort [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE BAR ]
 ##
@@ -4497,7 +4521,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO COLON
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT ARROW EXFALSO TYPE
 ##
-## Ends in an error in state: 523.
+## Ends in an error in state: 525.
 ##
 ## separated_nonempty_list(BAR,crt_case_branch) -> crt_case_branch . [ RBRACE ]
 ## separated_nonempty_list(BAR,crt_case_branch) -> crt_case_branch . BAR separated_nonempty_list(BAR,crt_case_branch) [ RBRACE ]
@@ -4509,15 +4533,15 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 516, spurious reduction of production crt_expr -> crt_seq_expr
-## In state 519, spurious reduction of production crt_case_branch -> LABEL IDENT ARROW crt_expr
+## In state 518, spurious reduction of production crt_expr -> crt_seq_expr
+## In state 521, spurious reduction of production crt_case_branch -> LABEL IDENT ARROW crt_expr
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET IDENT RBRACKET FALSE OF LBRACE LABEL IDENT ARROW EXFALSO BAR UNFOLD
 ##
-## Ends in an error in state: 524.
+## Ends in an error in state: 526.
 ##
 ## separated_nonempty_list(BAR,crt_case_branch) -> crt_case_branch BAR . separated_nonempty_list(BAR,crt_case_branch) [ RBRACE ]
 ##
@@ -4529,7 +4553,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL CASE LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE THEN EXFALSO TYPE
 ##
-## Ends in an error in state: 526.
+## Ends in an error in state: 528.
 ##
 ## crt_seq_expr -> IF LBRACKET IDENT RBRACKET expr THEN crt_expr . ELSE crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4540,14 +4564,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 516, spurious reduction of production crt_expr -> crt_seq_expr
+## In state 518, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET IDENT RBRACKET FALSE THEN EXFALSO ELSE UNFOLD
 ##
-## Ends in an error in state: 527.
+## Ends in an error in state: 529.
 ##
 ## crt_seq_expr -> IF LBRACKET IDENT RBRACKET expr THEN crt_expr ELSE . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4559,7 +4583,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL IF LBRACKET I
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO TYPE
 ##
-## Ends in an error in state: 529.
+## Ends in an error in state: 531.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr . RPAREN LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4570,14 +4594,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 516, spurious reduction of production crt_expr -> crt_seq_expr
+## In state 518, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO RPAREN UNFOLD
 ##
-## Ends in an error in state: 530.
+## Ends in an error in state: 532.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN . LBRACE crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4589,7 +4613,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO RPAREN LBRACE UNFOLD
 ##
-## Ends in an error in state: 531.
+## Ends in an error in state: 533.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE . crt_expr RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4601,7 +4625,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET FALSE RBRACKET LPAREN IDENT EQUAL EXFALSO RPAREN LBRACE EXFALSO TYPE
 ##
-## Ends in an error in state: 532.
+## Ends in an error in state: 534.
 ##
 ## crt_seq_expr -> ITER LBRACKET expr RBRACKET LPAREN rpat EQUAL crt_expr RPAREN LBRACE crt_expr . RBRACE [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4612,14 +4636,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL ITER LBRACKET
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 516, spurious reduction of production crt_expr -> crt_seq_expr
+## In state 518, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON UNFOLD
 ##
-## Ends in an error in state: 535.
+## Ends in an error in state: 537.
 ##
 ## crt_seq_expr -> LET RES rpat_res COLON . app_expr AT app_expr EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4631,7 +4655,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE UNFOLD
 ##
-## Ends in an error in state: 536.
+## Ends in an error in state: 538.
 ##
 ## crt_seq_expr -> LET RES rpat_res COLON app_expr . AT app_expr EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4643,7 +4667,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT UNFOLD
 ##
-## Ends in an error in state: 537.
+## Ends in an error in state: 539.
 ##
 ## crt_seq_expr -> LET RES rpat_res COLON app_expr AT . app_expr EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4655,7 +4679,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE UNFOLD
 ##
-## Ends in an error in state: 538.
+## Ends in an error in state: 540.
 ##
 ## crt_seq_expr -> LET RES rpat_res COLON app_expr AT app_expr . EQUAL rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4667,7 +4691,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE EQUAL UNFOLD
 ##
-## Ends in an error in state: 539.
+## Ends in an error in state: 541.
 ##
 ## crt_seq_expr -> LET RES rpat_res COLON app_expr AT app_expr EQUAL . rpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4679,7 +4703,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE EQUAL IDENT RPAREN
 ##
-## Ends in an error in state: 540.
+## Ends in an error in state: 542.
 ##
 ## crt_seq_expr -> LET RES rpat_res COLON app_expr AT app_expr EQUAL rpf_expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4697,7 +4721,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT COLON FALSE AT FALSE EQUAL IDENT SEMICOLON UNFOLD
 ##
-## Ends in an error in state: 541.
+## Ends in an error in state: 543.
 ##
 ## crt_seq_expr -> LET RES rpat_res COLON app_expr AT app_expr EQUAL rpf_expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4709,7 +4733,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET RES IDENT
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG UNFOLD
 ##
-## Ends in an error in state: 543.
+## Ends in an error in state: 545.
 ##
 ## crt_seq_expr -> LET LOG . lpat_inner EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ## crt_seq_expr -> LET LOG . lpat_inner COLON app_expr EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
@@ -4722,7 +4746,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG UNFOL
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO UNFOLD
 ##
-## Ends in an error in state: 544.
+## Ends in an error in state: 546.
 ##
 ## crt_seq_expr -> LET LOG lpat_inner . EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ## crt_seq_expr -> LET LOG lpat_inner . COLON app_expr EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
@@ -4735,7 +4759,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO EQUAL TYPE
 ##
-## Ends in an error in state: 545.
+## Ends in an error in state: 547.
 ##
 ## crt_seq_expr -> LET LOG lpat_inner EQUAL . lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4747,7 +4771,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO EQUAL AUTO RPAREN
 ##
-## Ends in an error in state: 546.
+## Ends in an error in state: 548.
 ##
 ## crt_seq_expr -> LET LOG lpat_inner EQUAL lpf_expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4765,7 +4789,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO EQUAL AUTO SEMICOLON UNFOLD
 ##
-## Ends in an error in state: 547.
+## Ends in an error in state: 549.
 ##
 ## crt_seq_expr -> LET LOG lpat_inner EQUAL lpf_expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4777,7 +4801,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO COLON UNFOLD
 ##
-## Ends in an error in state: 549.
+## Ends in an error in state: 551.
 ##
 ## crt_seq_expr -> LET LOG lpat_inner COLON . app_expr EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4789,7 +4813,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO COLON FALSE UNFOLD
 ##
-## Ends in an error in state: 550.
+## Ends in an error in state: 552.
 ##
 ## crt_seq_expr -> LET LOG lpat_inner COLON app_expr . EQUAL lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4801,7 +4825,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO COLON FALSE EQUAL TYPE
 ##
-## Ends in an error in state: 551.
+## Ends in an error in state: 553.
 ##
 ## crt_seq_expr -> LET LOG lpat_inner COLON app_expr EQUAL . lpf_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4813,7 +4837,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO COLON FALSE EQUAL AUTO RPAREN
 ##
-## Ends in an error in state: 552.
+## Ends in an error in state: 554.
 ##
 ## crt_seq_expr -> LET LOG lpat_inner COLON app_expr EQUAL lpf_expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4831,7 +4855,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO COLON FALSE EQUAL AUTO SEMICOLON UNFOLD
 ##
-## Ends in an error in state: 553.
+## Ends in an error in state: 555.
 ##
 ## crt_seq_expr -> LET LOG lpat_inner COLON app_expr EQUAL lpf_expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4843,7 +4867,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET LOG AUTO 
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE UNFOLD
 ##
-## Ends in an error in state: 555.
+## Ends in an error in state: 557.
 ##
 ## crt_seq_expr -> LET CORE . LBRACKET lpat_inner RBRACKET cpat_inner EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4855,7 +4879,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE UNFO
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET UNFOLD
 ##
-## Ends in an error in state: 556.
+## Ends in an error in state: 558.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET . lpat_inner RBRACKET cpat_inner EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4867,7 +4891,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET AUTO UNFOLD
 ##
-## Ends in an error in state: 557.
+## Ends in an error in state: 559.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET lpat_inner . RBRACKET cpat_inner EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4879,7 +4903,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET AUTO RBRACKET UNFOLD
 ##
-## Ends in an error in state: 558.
+## Ends in an error in state: 560.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET lpat_inner RBRACKET . cpat_inner EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4891,7 +4915,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET AUTO RBRACKET IDENT UNFOLD
 ##
-## Ends in an error in state: 559.
+## Ends in an error in state: 561.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET lpat_inner RBRACKET cpat_inner . EQUAL expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4903,7 +4927,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET AUTO RBRACKET IDENT EQUAL UNFOLD
 ##
-## Ends in an error in state: 560.
+## Ends in an error in state: 562.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET lpat_inner RBRACKET cpat_inner EQUAL . expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4915,7 +4939,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET AUTO RBRACKET IDENT EQUAL FALSE TYPE
 ##
-## Ends in an error in state: 561.
+## Ends in an error in state: 563.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET lpat_inner RBRACKET cpat_inner EQUAL expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4939,7 +4963,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET AUTO RBRACKET IDENT EQUAL FALSE SEMICOLON UNFOLD
 ##
-## Ends in an error in state: 562.
+## Ends in an error in state: 564.
 ##
 ## crt_seq_expr -> LET CORE LBRACKET lpat_inner RBRACKET cpat_inner EQUAL expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4951,7 +4975,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT UNFOLD
 ##
-## Ends in an error in state: 564.
+## Ends in an error in state: 566.
 ##
 ## crt_seq_expr -> LET rpat . EQUAL crt_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4963,7 +4987,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT UNF
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQUAL UNFOLD
 ##
-## Ends in an error in state: 565.
+## Ends in an error in state: 567.
 ##
 ## crt_seq_expr -> LET rpat EQUAL . crt_expr SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4975,7 +4999,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQU
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQUAL EXFALSO TYPE
 ##
-## Ends in an error in state: 566.
+## Ends in an error in state: 568.
 ##
 ## crt_seq_expr -> LET rpat EQUAL crt_expr . SEMICOLON crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -4986,14 +5010,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQU
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 516, spurious reduction of production crt_expr -> crt_seq_expr
+## In state 518, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQUAL EXFALSO SEMICOLON UNFOLD
 ##
-## Ends in an error in state: 567.
+## Ends in an error in state: 569.
 ##
 ## crt_seq_expr -> LET rpat EQUAL crt_expr SEMICOLON . crt_seq_expr [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -5005,7 +5029,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET IDENT EQU
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MAKE_TAKE LPAREN EXFALSO TYPE
 ##
-## Ends in an error in state: 569.
+## Ends in an error in state: 571.
 ##
 ## rpf_atom_expr -> MAKE_TAKE LPAREN crt_expr . RPAREN [ SEMICOLON RPAREN COMMA COLON ]
 ##
@@ -5016,14 +5040,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LPAREN RES MA
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 516, spurious reduction of production crt_expr -> crt_seq_expr
+## In state 518, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE LPAREN IDENT SEMICOLON
 ##
-## Ends in an error in state: 571.
+## Ends in an error in state: 573.
 ##
 ## crt_seq_expr -> OPEN_TAKE LPAREN rpf_expr . RPAREN [ TYPE SORT SEMICOLON RPAREN RFUN RBRACE MAIN FUN EOF ELSE COLON BAR ]
 ##
@@ -5041,7 +5065,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL OPEN_TAKE LPA
 
 rprog_eof: FUN UNFOLD
 ##
-## Ends in an error in state: 574.
+## Ends in an error in state: 576.
 ##
 ## rdecl -> FUN . IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
@@ -5053,7 +5077,7 @@ rprog_eof: FUN UNFOLD
 
 rprog_eof: FUN IDENT UNFOLD
 ##
-## Ends in an error in state: 575.
+## Ends in an error in state: 577.
 ##
 ## rdecl -> FUN IDENT . LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
@@ -5065,7 +5089,7 @@ rprog_eof: FUN IDENT UNFOLD
 
 rprog_eof: FUN IDENT LPAREN UNFOLD
 ##
-## Ends in an error in state: 576.
+## Ends in an error in state: 578.
 ##
 ## rdecl -> FUN IDENT LPAREN . IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
@@ -5077,7 +5101,7 @@ rprog_eof: FUN IDENT LPAREN UNFOLD
 
 rprog_eof: FUN IDENT LPAREN IDENT UNFOLD
 ##
-## Ends in an error in state: 577.
+## Ends in an error in state: 579.
 ##
 ## rdecl -> FUN IDENT LPAREN IDENT . COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
@@ -5089,7 +5113,7 @@ rprog_eof: FUN IDENT LPAREN IDENT UNFOLD
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON UNFOLD
 ##
-## Ends in an error in state: 578.
+## Ends in an error in state: 580.
 ##
 ## rdecl -> FUN IDENT LPAREN IDENT COLON . sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
@@ -5101,7 +5125,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON UNFOLD
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW TYPE
 ##
-## Ends in an error in state: 579.
+## Ends in an error in state: 581.
 ##
 ## rdecl -> FUN IDENT LPAREN IDENT COLON sort . RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
@@ -5113,7 +5137,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW TYPE
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN UNFOLD
 ##
-## Ends in an error in state: 580.
+## Ends in an error in state: 582.
 ##
 ## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN . ARROW sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
@@ -5125,7 +5149,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN UNFOLD
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW UNFOLD
 ##
-## Ends in an error in state: 581.
+## Ends in an error in state: 583.
 ##
 ## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW . sort LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
@@ -5137,7 +5161,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW UNFOLD
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW TYPE
 ##
-## Ends in an error in state: 582.
+## Ends in an error in state: 584.
 ##
 ## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort . LBRACKET eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
@@ -5149,7 +5173,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW TYPE
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET UNFOLD
 ##
-## Ends in an error in state: 583.
+## Ends in an error in state: 585.
 ##
 ## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET . eff_level RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
@@ -5161,7 +5185,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET UN
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IMPURE UNFOLD
 ##
-## Ends in an error in state: 584.
+## Ends in an error in state: 586.
 ##
 ## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level . RBRACKET EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
@@ -5173,7 +5197,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IM
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IMPURE RBRACKET UNFOLD
 ##
-## Ends in an error in state: 585.
+## Ends in an error in state: 587.
 ##
 ## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET . EQUAL expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
@@ -5185,7 +5209,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IM
 
 rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ##
-## Ends in an error in state: 586.
+## Ends in an error in state: 588.
 ##
 ## rdecl -> FUN IDENT LPAREN IDENT COLON sort RPAREN ARROW sort LBRACKET eff_level RBRACKET EQUAL . expr [ TYPE SORT RFUN MAIN FUN EOF ]
 ##
@@ -5197,7 +5221,7 @@ rprog_eof: FUN IDENT LPAREN IDENT COLON BOOL_KW RPAREN ARROW BOOL_KW LBRACKET IM
 
 repl_rdecl: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE TYPE
 ##
-## Ends in an error in state: 589.
+## Ends in an error in state: 591.
 ##
 ## repl_rdecl -> rdecl . EOF [ # ]
 ##
@@ -5209,7 +5233,7 @@ repl_rdecl: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE TYPE
 
 rprog_eof: UNFOLD
 ##
-## Ends in an error in state: 591.
+## Ends in an error in state: 593.
 ##
 ## rprog_eof' -> . rprog_eof [ # ]
 ##
@@ -5221,7 +5245,7 @@ rprog_eof: UNFOLD
 
 rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE SEMICOLON
 ##
-## Ends in an error in state: 593.
+## Ends in an error in state: 595.
 ##
 ## list(rdecl) -> rdecl . list(rdecl) [ MAIN ]
 ##
@@ -5233,7 +5257,7 @@ rprog_eof: SORT LABEL EQUAL LBRACE LABEL COLON BOOL_KW RBRACE SEMICOLON
 
 rprog_eof: MAIN UNFOLD
 ##
-## Ends in an error in state: 596.
+## Ends in an error in state: 598.
 ##
 ## rprog_eof -> list(rdecl) MAIN . COLON pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr EOF [ # ]
 ##
@@ -5245,7 +5269,7 @@ rprog_eof: MAIN UNFOLD
 
 rprog_eof: MAIN COLON UNFOLD
 ##
-## Ends in an error in state: 597.
+## Ends in an error in state: 599.
 ##
 ## rprog_eof -> list(rdecl) MAIN COLON . pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr EOF [ # ]
 ##
@@ -5257,7 +5281,7 @@ rprog_eof: MAIN COLON UNFOLD
 
 rprog_eof: MAIN COLON LPAREN RPAREN UNFOLD
 ##
-## Ends in an error in state: 598.
+## Ends in an error in state: 600.
 ##
 ## rprog_eof -> list(rdecl) MAIN COLON pf_sort . LBRACKET eff_level RBRACKET EQUAL crt_expr EOF [ # ]
 ##
@@ -5269,7 +5293,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN UNFOLD
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET UNFOLD
 ##
-## Ends in an error in state: 599.
+## Ends in an error in state: 601.
 ##
 ## rprog_eof -> list(rdecl) MAIN COLON pf_sort LBRACKET . eff_level RBRACKET EQUAL crt_expr EOF [ # ]
 ##
@@ -5281,7 +5305,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET UNFOLD
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE UNFOLD
 ##
-## Ends in an error in state: 600.
+## Ends in an error in state: 602.
 ##
 ## rprog_eof -> list(rdecl) MAIN COLON pf_sort LBRACKET eff_level . RBRACKET EQUAL crt_expr EOF [ # ]
 ##
@@ -5293,7 +5317,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE UNFOLD
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET UNFOLD
 ##
-## Ends in an error in state: 601.
+## Ends in an error in state: 603.
 ##
 ## rprog_eof -> list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET . EQUAL crt_expr EOF [ # ]
 ##
@@ -5305,7 +5329,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET UNFOLD
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 ##
-## Ends in an error in state: 602.
+## Ends in an error in state: 604.
 ##
 ## rprog_eof -> list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET EQUAL . crt_expr EOF [ # ]
 ##
@@ -5317,7 +5341,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL UNFOLD
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO TYPE
 ##
-## Ends in an error in state: 603.
+## Ends in an error in state: 605.
 ##
 ## rprog_eof -> list(rdecl) MAIN COLON pf_sort LBRACKET eff_level RBRACKET EQUAL crt_expr . EOF [ # ]
 ##
@@ -5328,14 +5352,14 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL EXFALSO TYPE
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 516, spurious reduction of production crt_expr -> crt_seq_expr
+## In state 518, spurious reduction of production crt_expr -> crt_seq_expr
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 sort_eof: UNFOLD
 ##
-## Ends in an error in state: 605.
+## Ends in an error in state: 607.
 ##
 ## sort_eof' -> . sort_eof [ # ]
 ##
@@ -5347,7 +5371,7 @@ sort_eof: UNFOLD
 
 sort_eof: BOOL_KW TYPE
 ##
-## Ends in an error in state: 607.
+## Ends in an error in state: 609.
 ##
 ## sort_eof -> sort . EOF [ # ]
 ##

@@ -504,7 +504,7 @@ rpat_elem:
 rpat_res:
   | x = ident_var
     { RPat.RVar (loc_obj $startpos $endpos, x) }
-  | RETURN; lp = lpat_inner
+  | RETURN; LBRACKET; lp = lpat_inner; RBRACKET
     { RPat.RReturn (loc_obj $startpos $endpos, lp) }
   | TAKE; LPAREN; cp = cpat_inner; COMMA; rp1 = rpat_res; RPAREN; SEMICOLON; rp2 = rpat_res
     { RPat.RTake (loc_obj $startpos $endpos, cp, rp1, rp2) }
