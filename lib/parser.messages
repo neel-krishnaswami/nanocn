@@ -4863,7 +4863,7 @@ rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRA
 ## LET CORE LBRACKET
 ##
 
-After `let core [`: expected a lowercase sort-parameter name (e.g. `let core[<lpat>] x = ...`).
+After `let core[`: expected a variable name or `auto` for the equality fact (e.g. `let core[a] x = ...` or `let core[auto] x = ...`).
 
 rprog_eof: MAIN COLON LPAREN RPAREN LBRACKET IMPURE RBRACKET EQUAL LET CORE LBRACKET IDENT UNFOLD
 ##

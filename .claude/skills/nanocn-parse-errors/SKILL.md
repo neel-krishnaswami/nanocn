@@ -90,29 +90,47 @@ Examples in `references/message-patterns.md`. Bad messages mention tokens from t
 
 When I was writing the `take` messages, I discovered that `take x : Int = incP n` was annotating the RHS with `Int` when the correct annotation should be the payload sort. The grammar was wrong. Fixing it in `parser.mly` (wrap the annotation in `Pred`) was the right move — the message then could say "the annotation is the payload type" without needing a workaround. Don't write messages that paper over a grammar bug; fix the grammar.
 
+## Recovery: restoring messages after a grammar change
+
+When a grammar change causes `parser.messages` to become stale (e.g., you installed fresh all-PLACEHOLDER messages to get the build working), use the restore script to recover old messages:
+
+```
+python3 scripts/restore_messages.py --from <git-ref-with-good-messages>
+```
+
+This extracts old messages, renumbers states via `menhir --update-errors`, deduplicates, merges with the current file (preserving any new hand-written messages), and installs the result. Use `--dry-run` to preview.
+
+After restoring, run the audit to check for stale references:
+
+```
+python3 scripts/audit_messages.py
+```
+
 ## Workflow checklist for Flow B
 
 1. `dune build` — ensure the tree is clean and Menhir regenerates.
-2. `scripts/classify_states.sh --form <form>` — list the states.
+2. `python3 scripts/placeholder_audit.py` — identify PLACEHOLDER states.
 3. For each PLACEHOLDER state:
    - Write baseline if missing (`examples/<form>.cn`).
    - Write mutant (`examples/errors/parsing/<form>-<defect>.cn`).
-   - `scripts/verify_mutants.sh <file>` — did it hit the right state?
-   - Craft message, splice into `parser.messages` anchored on the state item.
+   - `python3 scripts/verify_mutants.py <file>` — did it hit the right state?
+   - Craft message. For bulk insertion, write a mapping file and use `python3 scripts/splice_messages.py messages.map`.
 4. `dune build` — Menhir regenerates, `--compare-errors` succeeds.
-5. `scripts/verify_baselines.sh` — no baseline regressed.
-6. `scripts/verify_mutants.sh` — every mutant produces a non-PLACEHOLDER message.
-7. `scripts/placeholder_audit.sh` — report final PLACEHOLDER count.
+5. `python3 scripts/verify_baselines.py` — no baseline regressed.
+6. `python3 scripts/verify_mutants.py` — every mutant produces a non-PLACEHOLDER message.
+7. `python3 scripts/audit_messages.py` — comprehensive prose audit, 0 issues.
 
 ## Bundled scripts
 
-All scripts are in `scripts/` and are runnable from the repo root. Run `scripts/<name>.sh --help` for details, or see inline docs.
+All scripts are Python (in `scripts/`) and run from the repo root.
 
-- `classify_states.sh` — walk `parser.messages`, print `(state, form, LHS, suffix, has_placeholder)`. Filter by `--form <name>`, `--state <N>`, or `--placeholders-only`.
-- `verify_mutants.sh [file...]` — run each mutant through the parser, print `(file, position, state-if-known, message-excerpt)`. Flags `[PH]` for PLACEHOLDER, `[OK]` for parses (stale mutant).
-- `verify_baselines.sh` — same for baselines; flags any that stopped parsing or typechecking.
-- `diff_states.sh` — snapshot vs current state set; categorise new/removed/renumbered.
-- `placeholder_audit.sh` — PLACEHOLDER count, surface-vs-refined split, by form.
+- `restore_messages.py [--from REF]` — recover old messages after a grammar change. Extracts from git, renumbers, deduplicates, merges, installs.
+- `audit_messages.py [--fix-stale]` — comprehensive audit: checks every message against its grammar items for stale references and form mismatches.
+- `splice_messages.py <mapfile>` — bulk-insert messages from a `STATE: message` mapping file.
+- `placeholder_audit.py` — PLACEHOLDER count, per-form breakdown.
+- `diff_states.py` — compare current messages vs fresh grammar; report new/removed states.
+- `verify_baselines.py [--typecheck]` — verify all example files still parse.
+- `verify_mutants.py [files...]` — run mutants, report [PH]/[OK]/[ERR] status.
 
 ## References
 
