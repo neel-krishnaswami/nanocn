@@ -512,7 +512,7 @@ rpat_res:
     { RPat.RFail (loc_obj $startpos $endpos, lp) }
   | LET; LBRACKET; lp = lpat_inner; RBRACKET; cp = cpat_inner; SEMICOLON; rp = rpat_res
     { RPat.RLet (loc_obj $startpos $endpos, lp, cp, rp) }
-  | CASE; LBRACKET; lp = lpat_inner; RBRACKET; l = LABEL; LPAREN; cp = cpat_inner; RPAREN; SEMICOLON; rp = rpat_res
+  | CASE; LBRACKET; lp = lpat_inner; RBRACKET; l = LABEL; cp = cpat_inner; SEMICOLON; rp = rpat_res
     { RPat.RCase (loc_obj $startpos $endpos, lp, label l, cp, rp) }
   | IFTRUE; SEMICOLON; rp = rpat_res
     { RPat.RIfTrue (loc_obj $startpos $endpos, rp) }
@@ -532,6 +532,8 @@ lpat_inner:
 cpat_inner:
   | x = ident_var
     { RPat.CVar (loc_obj $startpos $endpos, x) }
+  | LPAREN; RPAREN
+    { RPat.CTuple (loc_obj $startpos $endpos, []) }
   | LPAREN; xs = separated_nonempty_list(COMMA, ident_var); RPAREN
     { let b = loc_obj $startpos $endpos in
       RPat.CTuple (b, List.map (fun x -> RPat.CVar (b, x)) xs) }
