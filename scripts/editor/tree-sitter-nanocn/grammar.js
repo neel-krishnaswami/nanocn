@@ -514,6 +514,8 @@ export default grammar({
           ':', field('sort', $._sort)),
       seq('[', 'log', ']', field('var', $.lower_ident),
           ':', field('prop', $._app_expr)),
+      seq('[', 'log', ']', 'auto',
+          ':', field('prop', $._app_expr)),
       seq('[', 'res', ']', field('var', $.lower_ident), ':',
           field('pred', $._app_expr), '@',
           field('value', $._app_expr)),
@@ -565,26 +567,26 @@ export default grammar({
     ),
 
     crt_let_log: $ => seq(
-      'let', 'log', field('var', $.lower_ident),
+      'let', 'log', field('pat', $.lpat_inner),
       '=', field('value', $.lpf_expr),
       ';', field('body', $._crt_seq_expr),
     ),
 
     crt_let_log_annot: $ => seq(
-      'let', 'log', field('var', $.lower_ident),
+      'let', 'log', field('pat', $.lpat_inner),
       ':', field('prop', $._app_expr),
       '=', field('value', $.lpf_expr),
       ';', field('body', $._crt_seq_expr),
     ),
 
     crt_let_res: $ => seq(
-      'let', 'res', field('var', $.lower_ident),
+      'let', 'res', field('pat', $.rpat_res),
       '=', field('value', $.rpf_expr),
       ';', field('body', $._crt_seq_expr),
     ),
 
     crt_let_res_annot: $ => seq(
-      'let', 'res', field('var', $.lower_ident),
+      'let', 'res', field('pat', $.rpat_res),
       ':',
       field('pred', $._app_expr), '@',
       field('value_expr', $._app_expr),
@@ -594,11 +596,8 @@ export default grammar({
 
     crt_let_core: $ => seq(
       'let', 'core',
-      '[', field('proof', $.lower_ident), ']',
-      choice(
-        field('pat', $.lower_ident),
-        seq('(', field('pats', sepBy1(',', $.lower_ident)), ')'),
-      ),
+      '[', field('proof', $.lpat_inner), ']',
+      field('pat', $.cpat_inner),
       '=', field('value', $._expr),
       ';', field('body', $._crt_seq_expr),
     ),
@@ -669,15 +668,48 @@ export default grammar({
     ),
 
     // ======================================================================
-    // Refined: rpat
+    // Refined: rpat (Phase 1 pattern matching)
     // ======================================================================
+
+    cpat_inner: $ => choice(
+      $.lower_ident,
+      seq('(', ')'),
+      seq('(', sepBy1(',', $.lower_ident), ')'),
+    ),
+
+    lpat_inner: $ => choice(
+      $.lower_ident,
+      'auto',
+    ),
+
+    rpat_res: $ => choice(
+      $.lower_ident,
+      seq('return', '[', field('lpat', $.lpat_inner), ']'),
+      seq('take', '(', field('cpat', $.cpat_inner), ',',
+          field('rpat1', $.rpat_res), ')', ';',
+          field('rpat2', $.rpat_res)),
+      seq('fail', '[', field('lpat', $.lpat_inner), ']'),
+      seq('let', '[', field('lpat', $.lpat_inner), ']',
+          field('cpat', $.cpat_inner), ';',
+          field('rpat', $.rpat_res)),
+      seq('case', '[', field('lpat', $.lpat_inner), ']',
+          field('label', $.upper_label),
+          field('cpat', $.cpat_inner), ';',
+          field('rpat', $.rpat_res)),
+      seq('iftrue', ';', field('rpat', $.rpat_res)),
+      seq('iffalse', ';', field('rpat', $.rpat_res)),
+      seq('unfold', ';', field('rpat', $.rpat_res)),
+      seq('annot', ';', field('rpat', $.rpat_res)),
+    ),
 
     rpat_elem: $ => choice(
       $.lower_ident,
-      seq('(',
-          field('x', $.lower_ident), ',',
-          field('y', $.lower_ident),
-          ')'),
+      seq('(', sepBy1(',', $.lower_ident), ')'),
+      seq('(', ')'),
+      seq('log', field('lpat', $.lpat_inner)),
+      seq('res', field('rpat', $.rpat_res)),
+      seq('do', field('var', $.lower_ident), '=',
+          field('rpat', $.rpat_res)),
     ),
 
     rpat: $ => choice(
