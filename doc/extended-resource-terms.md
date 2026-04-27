@@ -1,6 +1,8 @@
-# Adding pattern matching to nanocn refinement types 
+# Improving the Resource Term Syntax. 
 
-## Phase 1: Infallible patterns only 
+## Richer Resource 
+
+## Rich (infallible) resource patterns [IMPLEMENTED]
 
 In the simple refinement system, the grammar of patterns looks like this: 
 q ::= (qbase1, ..., qbasen) 
@@ -244,40 +246,3 @@ cpat ::=  x | (cpat1, ..., cpatn) | L cpat
 
 The only addition is L cpat, but this changes a LOT, because now we have to work with sets of 
 clauses. 
-
-
-
-
- 
-
-
-
-
-
-
-
-
-
-
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

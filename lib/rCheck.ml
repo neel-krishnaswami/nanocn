@@ -876,7 +876,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       return (checked, delta_out, Constraint.conj pos ct ct_closed)
 
   | RefinedExpr.CLetLog (lp, lpf, body) ->
-    (* Per [doc/surface-refinement-types.md] let-log rule:
+    (* Per [doc/extended-resource-terms.md] let-log rule:
        Synthesize lpf to get ce, pattern-match lpat against ce[log],
        check body, close (Δ'' ⇒ (C_pat ∧ C_body)). *)
     let* (checked_lpf, ce, delta1, ct) = synth_lpf rs delta lpf in
@@ -894,7 +894,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     return (checked, delta_out, Constraint.conj pos ct ct_closed)
 
   | RefinedExpr.CLetRes (rp, rpf, body) ->
-    (* Per [doc/surface-refinement-types.md] let-res rule:
+    (* Per [doc/extended-resource-terms.md] let-res rule:
        Synthesize rpf to get ce@ce', pattern-match rpat against ce@ce'[res],
        check body, verify resource consumption, close constraints. *)
     let* (checked_rpf, ce_pred, ce_val, delta1, ct) = synth_rpf rs delta rpf in
@@ -1002,7 +1002,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     return (checked, delta', Constraint.top pos)
 
   | RefinedExpr.CLetCore (lp, cp, se_ce, body) ->
-    (* Per [doc/surface-refinement-types.md] let-core rule:
+    (* Per [doc/extended-resource-terms.md] let-core rule:
        Elaborate ce, build proof sort (y:τ[⌊eff⌋], y=ce[log]),
        pattern-match (cpat, lpat) against it, check body, close. *)
     let eff_pure = Effect.purify eff in
@@ -1264,7 +1264,7 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ty
   go pf1 pf2
 
 (* Refined pattern matching: RS; Delta |- [eff] q : Pf -| Delta' ~~> Ct
-   Per [doc/surface-refinement-types.md]: the judgement takes a refined
+   Per [doc/extended-resource-terms.md]: the judgement takes a refined
    context Delta (not erased Gamma), an effect, and returns both an
    extended context and a constraint.
 

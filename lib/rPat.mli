@@ -1,6 +1,6 @@
 (** Refined patterns (q): structured patterns for matching proof sorts.
 
-    The pattern hierarchy follows the spec in [doc/surface-refinement-types.md]:
+    The pattern hierarchy follows the spec in [doc/extended-resource-terms.md]:
     - [cpat]: core patterns — variable or tuple destructuring
     - [lpat]: logical patterns — variable binding or [auto]
     - [rpat]: resource patterns — destructuring resource predicates
