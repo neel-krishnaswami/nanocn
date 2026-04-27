@@ -29,6 +29,7 @@ type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) rpfF =
   | RMakeRet of 'lpf
   | RMakeTake of 'crt
   | RAnnot of 'rpf * 'e * 'e
+  | RUnfold of 'rpf
   | RHole of string
 
 type ('crt, 'lpf, 'rpf, 'spine, 'e) spineF =
@@ -83,6 +84,7 @@ let map_rpfF m = function
   | RMakeRet l -> RMakeRet (m.lpf l)
   | RMakeTake c -> RMakeTake (m.crt c)
   | RAnnot (r, e1, e2) -> RAnnot (m.rpf r, m.expr e1, m.expr e2)
+  | RUnfold r -> RUnfold (m.rpf r)
   | RHole h -> RHole h
 
 let map_spineF m = function
@@ -218,6 +220,8 @@ and print_gen_rpf pp_var pp_e fmt t =
     Format.fprintf fmt "@[<hov 2>make-take@ %a@]" (print_gen_crt pp_var pp_e) crt
   | RAnnot (rpf, e1, e2) ->
     Format.fprintf fmt "@[<hov 2>%a :@ %a @@@ %a@]" (print_gen_rpf pp_var pp_e) rpf pp_e e1 pp_e e2
+  | RUnfold rpf ->
+    Format.fprintf fmt "@[<hov 2>unfold@ %a@]" (print_gen_rpf pp_var pp_e) rpf
   | RHole h -> Format.fprintf fmt "$%s" h
 
 and print_gen_spine pp_var pp_e fmt t =

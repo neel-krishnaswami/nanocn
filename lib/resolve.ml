@@ -527,6 +527,9 @@ and resolve_rpf env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string) Ref
     let* ce1' = resolve_expr env ce1 in
     let* ce2' = resolve_expr env ce2 in
     return (RefinedExpr.mk_rpf b (RefinedExpr.RAnnot (rpf', ce1', ce2')))
+  | RefinedExpr.RUnfold rpf ->
+    let* rpf' = resolve_rpf env rpf in
+    return (RefinedExpr.mk_rpf b (RefinedExpr.RUnfold rpf'))
   | RefinedExpr.RHole h ->
     return (RefinedExpr.mk_rpf b (RefinedExpr.RHole h))
 

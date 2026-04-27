@@ -1124,7 +1124,7 @@ let () =
         let ce = CoreExpr.mk (mk_info bool_sort) (CoreExpr.IntLit 0) in
         let ri : RProg.typed_rinfo =
           (object method loc = SourcePos.dummy method ctx = Context.empty
-                  method rctx = RCtx.empty method sort = int_sort method eff = Effect.Spec method pf = [] end) in
+                  method rctx = RCtx.empty method sort = int_sort method eff = Effect.Spec method goal = RProg.NoGoal end) in
         let pf1 = [
           ProofSort.Comp { info = ri; var = x; sort = int_sort; eff = Effect.Pure };
           ProofSort.Log { info = ri; prop = ce };
@@ -1166,5 +1166,69 @@ let () =
         ) with
         | Error msg -> Alcotest.fail ("check: " ^ Error.to_string msg)
           | Ok _ -> ());
+
+      (* unfold rpf: positive — building a folded resource via unfold/make-ret *)
+      Alcotest.test_case "unfold rpf typechecks" `Quick (fun () ->
+        let src = {|
+          fun box (x : Int) -> Pred Int [spec] = return x
+          rfun test (x : Int) -> ([res] box(x) @ x) [pure] =
+            let res r : box(x) @ x = unfold make-ret(auto);
+            (res r)
+          main : () [impure] = ()
+        |} in
+        match run_m (
+          let open ElabM in
+          let* prog = Parse.parse_rprog src ~file:"test" in
+          RCheck.check_rprog prog
+        ) with
+        | Error msg -> Alcotest.fail ("check: " ^ Error.to_string msg)
+        | Ok _ -> ());
+
+      (* unfold rpf: negative — synthesis form with no annotation *)
+      Alcotest.test_case "unfold rpf rejects synthesis" `Quick (fun () ->
+        let contains s sub =
+          let n = String.length sub and m = String.length s in
+          let rec loop i = i + n <= m && (String.sub s i n = sub || loop (i + 1)) in
+          loop 0 in
+        let src = {|
+          fun box (x : Int) -> Pred Int [spec] = return x
+          rfun test (x : Int) -> ([res] box(x) @ x) [pure] =
+            let res r = unfold make-ret(auto); (res r)
+          main : () [impure] = ()
+        |} in
+        match run_m (
+          let open ElabM in
+          let* prog = Parse.parse_rprog src ~file:"test" in
+          RCheck.check_rprog prog
+        ) with
+        | Error msg ->
+          let s = Error.to_string msg in
+          if not (contains s "synthesize") then
+            Alcotest.fail ("expected cannot_synthesize, got: " ^ s)
+        | Ok _ -> Alcotest.fail "expected cannot_synthesize error");
+
+      (* unfold rpf: negative — predicate is not a function call *)
+      Alcotest.test_case "unfold rpf rejects non-call predicate" `Quick (fun () ->
+        let contains s sub =
+          let n = String.length sub and m = String.length s in
+          let rec loop i = i + n <= m && (String.sub s i n = sub || loop (i + 1)) in
+          loop 0 in
+        let src = {|
+          rfun test (p : Ptr Int, [res] r : Own[Int] p @ 0)
+            -> ([res] Own[Int] p @ 0) [impure] =
+            let res r2 : Own[Int] p @ 0 = unfold r;
+            (res r2)
+          main : () [impure] = ()
+        |} in
+        match run_m (
+          let open ElabM in
+          let* prog = Parse.parse_rprog src ~file:"test" in
+          RCheck.check_rprog prog
+        ) with
+        | Error msg ->
+          let s = Error.to_string msg in
+          if not (contains s "unfold") then
+            Alcotest.fail ("expected unfold-shape error, got: " ^ s)
+        | Ok _ -> Alcotest.fail "expected wrong_pred_shape error");
     ]);
   ]

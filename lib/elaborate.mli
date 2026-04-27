@@ -10,6 +10,11 @@
 type typed_info = < loc : SourcePos.t; ctx : Context.t; sort : Sort.sort; eff : Effect.t >
 type typed_ce = typed_info CoreExpr.t
 
+val lift_sort : Sort.sort -> typed_info Sort.t
+(** Upgrade a plain [Sort.sort] to a [typed_info Sort.t] suitable for use in
+    [CoreExpr.Annot]. The lifted sort carries empty context, [Effect.Pure],
+    and uses each node's existing location. *)
+
 (** {1 Coverage types} *)
 
 (** A single binding: pattern with its sort. *)

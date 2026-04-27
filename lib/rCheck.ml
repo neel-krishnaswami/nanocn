@@ -64,7 +64,7 @@ let elab_pf_entry (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (entry : (S
       method rctx = RCtx.empty
       method sort = sort
       method eff = eff
-      method pf = []
+      method goal = RProg.NoGoal
     end)
   in
   let ri = mk_ri bool_sort eff in
@@ -183,7 +183,7 @@ let rinfo_dummy : RProg.typed_rinfo =
     method rctx = RCtx.empty
     method sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Bool
     method eff = Effect.Spec
-    method pf = []
+    method goal = RProg.NoGoal
   end)
 
 (* Helper constructors for building proof sorts *)
@@ -400,14 +400,14 @@ type checked_spine = (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.s
    [delta] = refined context (carries both core and refined info)
    [sort] = computational sort at this node
    [eff] = effect under which the node is checked *)
-let mk_rinfo ?(pf=[]) loc delta sort eff : RProg.typed_rinfo =
+let mk_rinfo ?(goal=RProg.NoGoal) loc delta sort eff : RProg.typed_rinfo =
   (object
     method loc = loc
     method ctx = RCtx.erase delta
     method rctx = delta
     method sort = sort
     method eff = eff
-    method pf = pf
+    method goal = goal
   end)
 
 (* ---------- typing judgements ---------- *)
@@ -436,7 +436,7 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
   | RefinedExpr.LVar x ->
     (match RCtx.lookup_log x delta with
      | Some ce ->
-       let rinfo = mk_rinfo pos delta bool_sort Effect.Spec in
+       let rinfo = mk_rinfo ~goal:(RProg.LpfGoal ce) pos delta bool_sort Effect.Spec in
        let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LVar x) in
        return (checked, ce, delta, Constraint.top pos)
      | None ->
@@ -452,14 +452,17 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
     let* (ce_arg, _sort) = elab_and_synth rs delta Effect.Spec se_arg in
     let cs = RSig.comp rs in
     (match Sig.lookup_fundef f cs with
-     | Some (param, _arg_sort, ret_sort, eff, body) ->
+     | Some (param, arg_sort, ret_sort, eff, body) ->
        if not (Effect.sub eff Effect.Spec) then
          ElabM.fail (Error.unfold_not_spec ~loc:pos ~name:f)
        else
          let call_result = CoreExpr.mk (mk_info ret_sort) (CoreExpr.Call (f, ce_arg)) in
-         let subst_body = Subst.apply_ce (Subst.extend_var param ce_arg Subst.empty) body in
+         let arg_typed_sort = Elaborate.lift_sort arg_sort in
+         let ce_arg_annot =
+           CoreExpr.mk (mk_info arg_sort) (CoreExpr.Annot (ce_arg, arg_typed_sort)) in
+         let subst_body = Subst.apply_ce (Subst.extend_var param ce_arg_annot Subst.empty) body in
          let prop = mk_eq call_result subst_body in
-         let rinfo = mk_rinfo pos delta bool_sort Effect.Spec in
+         let rinfo = mk_rinfo ~goal:(RProg.LpfGoal prop) pos delta bool_sort Effect.Spec in
          let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LUnfold (f, ce_arg)) in
          return (checked, prop, delta, Constraint.top pos)
      | None ->
@@ -469,7 +472,7 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
     let gamma = RCtx.erase delta in
     let* ce = elab_se_check rs gamma se bool_sort Effect.Spec in
     let* (checked_lpf', delta', ct) = check_lpf rs delta lpf' ce in
-    let rinfo = mk_rinfo pos delta bool_sort Effect.Spec in
+    let rinfo = mk_rinfo ~goal:(RProg.LpfGoal ce) pos delta bool_sort Effect.Spec in
     let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LAnnot (checked_lpf', ce)) in
     return (checked, ce, delta', ct)
 
@@ -477,9 +480,10 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
     let* (checked_rpf, ce_pred, ce_val, delta', ct) = synth_rpf rs delta rpf in
     (match CoreExpr.shape (strip_annots ce_pred) with
      | CoreExpr.Return ce1 ->
-       let rinfo = mk_rinfo pos delta bool_sort Effect.Spec in
+       let prop = mk_eq ce1 ce_val in
+       let rinfo = mk_rinfo ~goal:(RProg.LpfGoal prop) pos delta bool_sort Effect.Spec in
        let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LOpenRet checked_rpf) in
-       return (checked, mk_eq ce1 ce_val, delta', ct)
+       return (checked, prop, delta', ct)
      | _ ->
        ElabM.fail
          (Error.wrong_pred_shape ~loc:pos
@@ -492,12 +496,12 @@ and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce 
   let pos = binfo#loc in
   match RefinedExpr.lpf_shape lpf with
   | RefinedExpr.LAuto ->
-    let rinfo = mk_rinfo pos delta bool_sort Effect.Spec in
+    let rinfo = mk_rinfo ~goal:(RProg.LpfGoal ce) pos delta bool_sort Effect.Spec in
     let checked = RefinedExpr.mk_lpf rinfo RefinedExpr.LAuto in
     return (checked, delta, Constraint.atom pos ce)
 
   | RefinedExpr.LHole h ->
-    let rinfo = mk_rinfo pos delta bool_sort Effect.Spec in
+    let rinfo = mk_rinfo ~goal:(RProg.LpfGoal ce) pos delta bool_sort Effect.Spec in
     let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LHole h) in
     return (checked, delta, Constraint.top pos)
 
@@ -512,7 +516,7 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (c
   match RefinedExpr.rpf_shape rpf with
   | RefinedExpr.RVar x ->
     let* (pred, value, delta') = lift_at pos (RCtx.use_resource x delta) in
-    let rinfo = mk_rinfo pos delta bool_sort Effect.Spec in
+    let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (pred, value)) pos delta bool_sort Effect.Spec in
     let checked = RefinedExpr.mk_rpf rinfo (RefinedExpr.RVar x) in
     return (checked, pred, value, delta', Constraint.top pos)
 
@@ -529,7 +533,7 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (c
     in
     let* ce1 = elab_se_check rs gamma se1 pred_sort Effect.Spec in
     let* (checked_rpf', delta', ct) = check_rpf rs delta rpf' ce1 ce2 in
-    let rinfo = mk_rinfo pos delta bool_sort Effect.Spec in
+    let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2)) pos delta bool_sort Effect.Spec in
     let checked = RefinedExpr.mk_rpf rinfo (RefinedExpr.RAnnot (checked_rpf', ce1, ce2)) in
     return (checked, ce1, ce2, delta', ct)
 
@@ -537,6 +541,8 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (c
     ElabM.fail (Error.cannot_synthesize ~loc:pos ~construct:"make-ret (add a : pred @ value annotation)")
   | RefinedExpr.RMakeTake _ ->
     ElabM.fail (Error.cannot_synthesize ~loc:pos ~construct:"make-take (add a : pred @ value annotation)")
+  | RefinedExpr.RUnfold _ ->
+    ElabM.fail (Error.cannot_synthesize ~loc:pos ~construct:"unfold (add a : f(ce) @ value annotation)")
   | RefinedExpr.RHole _ ->
     ElabM.fail (Error.cannot_synthesize ~loc:pos ~construct:"hole (add a : pred @ value annotation)")
 
@@ -549,7 +555,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
     (match CoreExpr.shape (strip_annots ce1) with
      | CoreExpr.Return ce_a ->
        let* (checked_lpf', delta', ct) = check_lpf rs delta lpf' (mk_eq ce_a ce2) in
-       let rinfo = mk_rinfo pos delta bool_sort Effect.Spec in
+       let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2)) pos delta bool_sort Effect.Spec in
        let checked = RefinedExpr.mk_rpf rinfo (RefinedExpr.RMakeRet checked_lpf') in
        return (checked, delta', ct)
      | _ ->
@@ -571,7 +577,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
           ] in
           let eff = Effect.Spec in
           let* (checked_crt, delta', ct) = check_crt rs delta eff crt pf in
-          let rinfo = mk_rinfo pos delta bool_sort Effect.Spec in
+          let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2)) pos delta bool_sort Effect.Spec in
           let checked = RefinedExpr.mk_rpf rinfo (RefinedExpr.RMakeTake checked_crt) in
           return (checked, delta', ct)
         | _ ->
@@ -587,9 +593,41 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
 
   | RefinedExpr.RHole h ->
     let delta' = RCtx.affinize delta in
-    let rinfo = mk_rinfo pos delta bool_sort Effect.Spec in
+    let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2)) pos delta (CoreExpr.info ce1)#sort Effect.Spec in
     let checked = RefinedExpr.mk_rpf rinfo (RefinedExpr.RHole h) in
     return (checked, delta', Constraint.top pos)
+
+  | RefinedExpr.RUnfold rpf' ->
+    (match CoreExpr.shape (strip_annots ce1) with
+     | CoreExpr.Call (f, ce_arg) ->
+       let cs = RSig.comp rs in
+       (match Sig.lookup_fundef f cs with
+        | Some (param, arg_sort, _ret_sort, eff, body) ->
+          if not (Effect.sub eff Effect.Spec) then
+            ElabM.fail (Error.unfold_not_spec ~loc:pos ~name:f)
+          else
+            let arg_typed_sort = Elaborate.lift_sort arg_sort in
+            let ce_arg_annot =
+              CoreExpr.mk (mk_info arg_sort)
+                (CoreExpr.Annot (ce_arg, arg_typed_sort)) in
+            let subst_body =
+              Subst.apply_ce
+                (Subst.extend_var param ce_arg_annot Subst.empty) body in
+            let* (checked_rpf', delta', ct) =
+              check_rpf rs delta rpf' subst_body ce2 in
+            let rinfo =
+              mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2))
+                pos delta bool_sort Effect.Spec in
+            let checked =
+              RefinedExpr.mk_rpf rinfo (RefinedExpr.RUnfold checked_rpf') in
+            return (checked, delta', ct)
+        | None ->
+          ElabM.fail (Error.unfold_not_fundef ~loc:pos ~name:f))
+     | _ ->
+       ElabM.fail
+         (Error.wrong_pred_shape ~loc:pos ~construct:"unfold"
+            ~expected_shape:"f(ce)"
+            ~got:(Format.asprintf "%a" CoreExpr.print ce1)))
 
   | _ ->
     let* (checked_rpf, ce1_synth, ce2_synth, delta', ct) = synth_rpf rs delta rpf in
@@ -611,7 +649,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let gamma = RCtx.erase delta in
     let* pf = elab_pf rs gamma eff se_pf in
     let* (checked_crt', delta', ct) = check_crt rs delta eff crt' pf in
-    let rinfo = mk_rinfo ~pf pos delta (ProofSort.comp pf) eff in
+    let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
     let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CAnnot (checked_crt', pf)) in
     return (checked, pf, delta', ct)
 
@@ -626,7 +664,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
        else
          let eff'' = Effect.purify eff in
          let* (checked_spine, pf, delta', ct) = check_spine rs delta eff'' spine rf in
-         let rinfo = mk_rinfo ~pf pos delta (ProofSort.comp pf) eff in
+         let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
          let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CCall (f, checked_spine)) in
          return (checked, pf, delta', ct)
      | None ->
@@ -642,7 +680,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     else
       let eff'' = Effect.purify eff in
       let* (checked_spine, pf, delta', ct) = check_spine rs delta eff'' spine rf in
-      let rinfo = mk_rinfo ~pf pos delta (ProofSort.comp pf) eff in
+      let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CPrimApp (prim, checked_spine)) in
       return (checked, pf, delta', ct)
 
@@ -658,7 +696,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
             ProofSort.Res { info = rinfo_dummy; pred = ce1; value = ce_of_var x inner_sort };
             ProofSort.Res { info = rinfo_dummy; pred = ce2; value = ce_val };
           ] in
-          let rinfo = mk_rinfo ~pf pos delta (ProofSort.comp pf) eff in
+          let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
           let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.COpenTake checked_rpf) in
           return (checked, pf, delta', ct)
         | _ ->
@@ -751,7 +789,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
                 (match RPat.cpat_shape cp with
                  | RPat.CVar x_pat ->
                    let result_ct = Constraint.conj pos ct (Constraint.forall_ pos x_pat a_sort ct') in
-                   let rinfo = mk_rinfo ~pf:result_pf pos delta (ProofSort.comp result_pf) eff in
+                   let rinfo = mk_rinfo ~goal:(RProg.CrtGoal result_pf) pos delta (ProofSort.comp result_pf) eff in
                    let typed_pat = RPat.map_info (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp init_pf) eff) pat in
                    let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CIter (ce_pred, typed_pat, checked_crt1, checked_crt2)) in
                    return (checked, result_pf, delta', result_ct)
@@ -832,7 +870,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
         (Error.let_pattern_resource_leak ~loc:pos ~leftovers)
     else
       let ct_closed = close_ctx pos delta_pat_out (Constraint.conj pos ct_pat ct2) in
-      let rinfo = mk_rinfo ~pf pos delta (ProofSort.comp pf) eff in
+      let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
       let typed_pat = RPat.map_info (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp pf') eff) pat in
       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLet (typed_pat, checked_crt1, checked_crt2)) in
       return (checked, delta_out, Constraint.conj pos ct ct_closed)
@@ -850,7 +888,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let n = RCtx.length delta1 in
     let (delta_out, delta_close) = RCtx.split n delta3 in
     let ct_closed = close_ctx pos delta_close (Constraint.conj pos ct_pat ct_body) in
-    let rinfo = mk_rinfo ~pf pos delta (ProofSort.comp pf) eff in
+    let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
     let typed_lp = RPat.map_info_lpat (fun b -> mk_rinfo b#loc RCtx.empty bool_sort eff) lp in
     let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLetLog (typed_lp, checked_lpf, checked_body)) in
     return (checked, delta_out, Constraint.conj pos ct ct_closed)
@@ -879,7 +917,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       ElabM.fail (Error.let_pattern_resource_leak ~loc:pos ~leftovers)
     else
       let ct_closed = close_ctx pos delta_close (Constraint.conj pos ct_pat ct_body) in
-      let rinfo = mk_rinfo ~pf pos delta (ProofSort.comp pf) eff in
+      let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
       let typed_rp = RPat.map_info_rpat (fun b -> mk_rinfo b#loc RCtx.empty bool_sort eff) rp in
       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLetRes (typed_rp, checked_rpf, checked_body)) in
       return (checked, delta_out, Constraint.conj pos ct ct_closed)
@@ -899,7 +937,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let ct = Constraint.conj pos
       (Constraint.impl pos (mk_eq ce mk_true) ct1)
       (Constraint.impl pos (mk_eq ce mk_false) ct2) in
-    let rinfo = mk_rinfo ~pf pos delta (ProofSort.comp pf) eff in
+    let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
     let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CIf (eq_var, ce, checked_crt1, checked_crt2)) in
     return (checked, delta_merged, ct)
 
@@ -931,13 +969,13 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
         | Some decl, _ ->
           let* ctors = instantiate_ctors decl.DsortDecl.params decl.DsortDecl.ctors in
           let* (checked_branches, delta', ct) = check_case_branches pos rs delta eff _y ce ce_sort ctors branches pf in
-          let rinfo = mk_rinfo ~pf pos delta (ProofSort.comp pf) eff in
+          let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
           let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CCase (_y, ce, checked_branches)) in
           return (checked, delta', ct)
         | _, Some decl ->
           let* ctors = instantiate_ctors decl.DtypeDecl.params decl.DtypeDecl.ctors in
           let* (checked_branches, delta', ct) = check_case_branches pos rs delta eff _y ce ce_sort ctors branches pf in
-          let rinfo = mk_rinfo ~pf pos delta (ProofSort.comp pf) eff in
+          let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
           let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CCase (_y, ce, checked_branches)) in
           return (checked, delta', ct)
         | None, None ->
@@ -947,19 +985,19 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
 
   | RefinedExpr.CTuple spine ->
     let* (checked_spine, delta', ct) = _check_tuple rs delta eff spine pf in
-    let rinfo = mk_rinfo ~pf pos delta (ProofSort.comp pf) eff in
+    let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
     let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CTuple checked_spine) in
     return (checked, delta', ct)
 
   | RefinedExpr.CExfalso ->
     let delta' = RCtx.affinize delta in
-    let rinfo = mk_rinfo ~pf pos delta (ProofSort.comp pf) eff in
+    let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
     let checked = RefinedExpr.mk_crt rinfo RefinedExpr.CExfalso in
     return (checked, delta', Constraint.bot pos)
 
   | RefinedExpr.CHole h ->
     let delta' = RCtx.affinize delta in
-    let rinfo = mk_rinfo ~pf pos delta (ProofSort.comp pf) eff in
+    let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
     let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CHole h) in
     return (checked, delta', Constraint.top pos)
 
@@ -984,7 +1022,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let n = RCtx.length delta in
     let (delta_out, delta_close) = RCtx.split n delta2 in
     let ct_closed = close_ctx pos delta_close (Constraint.conj pos ct_pat ct_body) in
-    let rinfo = mk_rinfo ~pf pos delta (ProofSort.comp pf) eff in
+    let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
     let checked =
       RefinedExpr.mk_crt rinfo
         (RefinedExpr.CLetCore (
@@ -1006,7 +1044,7 @@ and check_spine (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (spine : Refined
 and check_spine_inner rs delta eff spine domain codomain =
   let binfo = RefinedExpr.spine_info spine in
   let pos = binfo#loc in
-  let spine_rinfo = mk_rinfo ~pf:codomain pos delta (ProofSort.comp codomain) eff in
+  let spine_rinfo = mk_rinfo ~goal:(RProg.CrtGoal codomain) pos delta (ProofSort.comp codomain) eff in
   match RefinedExpr.spine_shape spine, domain with
   | RefinedExpr.SNil, [] ->
     let checked = RefinedExpr.mk_spine spine_rinfo RefinedExpr.SNil in
@@ -1075,7 +1113,7 @@ and check_spine_inner rs delta eff spine domain codomain =
 and _check_tuple rs delta eff spine pf =
   let binfo = RefinedExpr.spine_info spine in
   let pos = binfo#loc in
-  let tuple_rinfo = mk_rinfo ~pf pos delta (ProofSort.comp pf) eff in
+  let tuple_rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
   match RefinedExpr.spine_shape spine, pf with
   | RefinedExpr.SNil, [] ->
     let checked = RefinedExpr.mk_spine tuple_rinfo RefinedExpr.SNil in

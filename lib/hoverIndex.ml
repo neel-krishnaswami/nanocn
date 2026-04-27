@@ -7,7 +7,7 @@ type node = {
   rctx : RCtx.t option;
   sort : Sort.sort;
   eff  : Effect.t;
-  pf   : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t;
+  goal : RProg.goal;
 }
 
 (** The index is a flat list of nodes.  Lookup scans for the tightest
@@ -20,7 +20,7 @@ let empty = []
 
 (** Extract a node from a typed_ce info object (core — no refined context). *)
 let node_of_info (b : Typecheck.typed_info) : node =
-  { loc = b#loc; ctx = b#ctx; rctx = None; sort = b#sort; eff = b#eff; pf = [] }
+  { loc = b#loc; ctx = b#ctx; rctx = None; sort = b#sort; eff = b#eff; goal = RProg.NoGoal }
 
 (** Collect all nodes from a typed_ce tree by structural recursion. *)
 let rec collect (acc : node list) (e : Typecheck.typed_ce) : node list =
@@ -66,7 +66,7 @@ let of_typed_decls decls =
 
 (** Extract a hover node from a refined expression's typed_rinfo annotation. *)
 let node_of_rinfo (b : RProg.typed_rinfo) : node =
-  { loc = b#loc; ctx = b#ctx; rctx = Some b#rctx; sort = b#sort; eff = b#eff; pf = b#pf }
+  { loc = b#loc; ctx = b#ctx; rctx = Some b#rctx; sort = b#sort; eff = b#eff; goal = b#goal }
 
 (** Collect typed nodes from refined pattern elements. *)
 let collect_rpat acc pat =
@@ -85,12 +85,47 @@ let collect_pf acc pf =
     | ProofSort.DepRes { info = _; pred; _ } -> collect acc pred
   ) acc pf
 
+(** Collect nodes from a core expression inside a refined term,
+    enriching each node with the enclosing refined context and goal.
+    This ensures hovering on core subterms shows the refined context
+    (resources, logical facts) rather than the erased core context. *)
+let rec collect_enriched (rinfo : RProg.typed_rinfo) (acc : node list) (e : Typecheck.typed_ce) : node list =
+  let b = CoreExpr.info e in
+  let n = { loc = b#loc; ctx = b#ctx; rctx = Some rinfo#rctx;
+            sort = b#sort; eff = b#eff; goal = rinfo#goal } in
+  let acc = n :: acc in
+  match CoreExpr.shape e with
+  | CoreExpr.Var _ | CoreExpr.IntLit _ | CoreExpr.BoolLit _
+  | CoreExpr.Fail | CoreExpr.Hole _ ->
+    acc
+  | CoreExpr.Let (_, e1, e2) | CoreExpr.LetTuple (_, e1, e2)
+  | CoreExpr.Take (_, e1, e2) | CoreExpr.Iter (_, e1, e2)
+  | CoreExpr.Eq (e1, e2) | CoreExpr.And (e1, e2) ->
+    let acc = collect_enriched rinfo acc e1 in
+    collect_enriched rinfo acc e2
+  | CoreExpr.If (e1, e2, e3) ->
+    let acc = collect_enriched rinfo acc e1 in
+    let acc = collect_enriched rinfo acc e2 in
+    collect_enriched rinfo acc e3
+  | CoreExpr.Tuple es ->
+    List.fold_left (collect_enriched rinfo) acc es
+  | CoreExpr.Inject (_, e1) | CoreExpr.App (_, e1)
+  | CoreExpr.Call (_, e1) | CoreExpr.Not e1
+  | CoreExpr.Return e1 ->
+    collect_enriched rinfo acc e1
+  | CoreExpr.Annot (e1, _) ->
+    collect_enriched rinfo acc e1
+  | CoreExpr.Case (scrut, branches) ->
+    let acc = collect_enriched rinfo acc scrut in
+    List.fold_left (fun acc (_, _, body, _) -> collect_enriched rinfo acc body) acc branches
+
 (** Walk refined expression trees, collecting hover nodes from both
     the refined node annotations (typed_info) and embedded typed_ce
     expressions. Four mutually recursive functions mirror the four
     refined expression sorts. *)
 let rec collect_crt acc crt =
-  let acc = node_of_rinfo (RefinedExpr.crt_info crt) :: acc in
+  let ri = RefinedExpr.crt_info crt in
+  let acc = node_of_rinfo ri :: acc in
   match RefinedExpr.crt_shape crt with
   | RefinedExpr.CLet (pat, crt1, crt2) ->
     collect_crt (collect_crt (collect_rpat acc pat) crt1) crt2
@@ -99,7 +134,7 @@ let rec collect_crt acc crt =
   | RefinedExpr.CLetRes (_, rpf, crt') ->
     collect_crt (collect_rpf acc rpf) crt'
   | RefinedExpr.CLetCore (_, _, e, crt') ->
-    collect_crt (collect acc e) crt'
+    collect_crt (collect_enriched ri acc e) crt'
   | RefinedExpr.CAnnot (crt', pf) ->
     collect_pf (collect_crt acc crt') pf
   | RefinedExpr.CPrimApp (_, spine) ->
@@ -109,41 +144,45 @@ let rec collect_crt acc crt =
   | RefinedExpr.CTuple spine ->
     collect_spine acc spine
   | RefinedExpr.CIter (e, pat, crt1, crt2) ->
-    collect_crt (collect_crt (collect_rpat (collect acc e) pat) crt1) crt2
+    collect_crt (collect_crt (collect_rpat (collect_enriched ri acc e) pat) crt1) crt2
   | RefinedExpr.CIf (_, e, crt1, crt2) ->
-    collect_crt (collect_crt (collect acc e) crt1) crt2
+    collect_crt (collect_crt (collect_enriched ri acc e) crt1) crt2
   | RefinedExpr.CCase (_, e, branches) ->
     List.fold_left (fun acc (_, b, _, body) ->
       collect_crt (node_of_rinfo b :: acc) body)
-      (collect acc e) branches
+      (collect_enriched ri acc e) branches
   | RefinedExpr.CExfalso | RefinedExpr.CHole _ -> acc
   | RefinedExpr.COpenTake rpf ->
     collect_rpf acc rpf
 
 and collect_lpf acc lpf =
-  let acc = node_of_rinfo (RefinedExpr.lpf_info lpf) :: acc in
+  let ri = RefinedExpr.lpf_info lpf in
+  let acc = node_of_rinfo ri :: acc in
   match RefinedExpr.lpf_shape lpf with
   | RefinedExpr.LVar _ | RefinedExpr.LAuto | RefinedExpr.LHole _ -> acc
-  | RefinedExpr.LUnfold (_, e) -> collect acc e
+  | RefinedExpr.LUnfold (_, e) -> collect_enriched ri acc e
   | RefinedExpr.LOpenRet rpf -> collect_rpf acc rpf
   | RefinedExpr.LAnnot (lpf', e) ->
-    collect_lpf (collect acc e) lpf'
+    collect_lpf (collect_enriched ri acc e) lpf'
 
 and collect_rpf acc rpf =
-  let acc = node_of_rinfo (RefinedExpr.rpf_info rpf) :: acc in
+  let ri = RefinedExpr.rpf_info rpf in
+  let acc = node_of_rinfo ri :: acc in
   match RefinedExpr.rpf_shape rpf with
   | RefinedExpr.RVar _ | RefinedExpr.RHole _ -> acc
   | RefinedExpr.RMakeRet lpf -> collect_lpf acc lpf
   | RefinedExpr.RMakeTake crt -> collect_crt acc crt
   | RefinedExpr.RAnnot (rpf', e1, e2) ->
-    collect_rpf (collect (collect acc e1) e2) rpf'
+    collect_rpf (collect_enriched ri (collect_enriched ri acc e1) e2) rpf'
+  | RefinedExpr.RUnfold rpf' -> collect_rpf acc rpf'
 
 and collect_spine acc spine =
-  let acc = node_of_rinfo (RefinedExpr.spine_info spine) :: acc in
+  let ri = RefinedExpr.spine_info spine in
+  let acc = node_of_rinfo ri :: acc in
   match RefinedExpr.spine_shape spine with
   | RefinedExpr.SNil -> acc
   | RefinedExpr.SCore (e, rest) ->
-    collect_spine (collect acc e) rest
+    collect_spine (collect_enriched ri acc e) rest
   | RefinedExpr.SLog (lpf, rest) ->
     collect_spine (collect_lpf acc lpf) rest
   | RefinedExpr.SRes (rpf, rest) ->
@@ -199,7 +238,7 @@ let lookup idx ~line ~col =
         if tighter_span n.loc prev.loc then Some n else best
     else best
   ) None idx
-  |> Option.map (fun n -> (n.loc, n.ctx, n.rctx, n.sort, n.eff, n.pf))
+  |> Option.map (fun n -> (n.loc, n.ctx, n.rctx, n.sort, n.eff, n.goal))
 
 module Test = struct
   let test = []

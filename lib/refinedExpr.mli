@@ -48,6 +48,7 @@ type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) rpfF =
   | RMakeRet of 'lpf
   | RMakeTake of 'crt
   | RAnnot of 'rpf * 'e * 'e
+  | RUnfold of 'rpf
   | RHole of string
 
 type ('crt, 'lpf, 'rpf, 'spine, 'e) spineF =

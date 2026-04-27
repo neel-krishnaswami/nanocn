@@ -769,6 +769,7 @@ export default grammar({
       $.rpf_var,
       $.rpf_make_ret,
       $.rpf_make_take,
+      $.rpf_unfold,
       $.hole_expr,
     ),
 
@@ -778,6 +779,9 @@ export default grammar({
     ),
     rpf_make_take: $ => seq(
       'make-take', '(', field('arg', $._crt_expr), ')',
+    ),
+    rpf_unfold: $ => seq(
+      'unfold', field('inner', $._rpf_atom),
     ),
 
     // ======================================================================
