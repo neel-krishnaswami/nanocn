@@ -384,6 +384,7 @@ rpf :: 'RPf_' ::=                                    {{ com resource proof facts
   | make-ret lpf                    :: :: MakeRet      {{ tex \mathsf{make\text{-}ret}\;[[lpf]] }}
   | make-take crt                   :: :: MakeTake     {{ tex \mathsf{make\text{-}take}\;[[crt]] }}
   | rpf : ce @ ce'                :: :: Annot        {{ tex [[rpf]] : [[ce]] @ [[ce']] }}
+  | unfold rpf                      :: :: Unfold       {{ tex \mathsf{unfold}\;[[rpf]] }}
 
 
 
@@ -1514,7 +1515,7 @@ defns Jrefine :: '' ::=
     CS = comp RS    f : tau -> tau' [ eff ] = ce' in CS    eff <= spec
     G = erase Delta    CS ; G |- [ spec ] ce <== tau
     ------------------------------------------------------------------ :: unfold
-    RS ; Delta |- unfold f ( ce ) l==> ( f ce ) == app_s id G , ce / x ce' -| Delta ~~> Top
+    RS ; Delta |- unfold f ( ce ) l==> ( f ce ) == app_s id G , ( ce : tau ) / x ce' -| Delta ~~> Top
 
     RS ; Delta |- lpf l<== ce -| Delta' ~~> Ct
     ------------------------------------------------ :: annot
@@ -1594,6 +1595,12 @@ defns Jrefine :: '' ::=
     RS ; Delta |- [ eff ] crt r<== x : tau [ spec ] , ce1 @ x [ res ] , ce2 @ ce3 [ res ] , pfnil -| Delta' ~~> Ct
     ---------------------------------------------------------------- :: maketake
     RS ; Delta |- make-take crt r<== take x = ce1 ; ce2 @ ce3 -| Delta' ~~> Ct
+
+    CS = comp RS    f : tau -> tau' [ eff ] = ce'' in CS    eff <= spec
+    G = erase Delta    CS ; G |- [ spec ] ce <== tau
+    RS ; Delta |- rpf r<== app_s id G , ( ce : tau ) / x ce'' @ ce' -| Delta' ~~> Ct
+    ---------------------------------------------------------------- :: unfold
+    RS ; Delta |- unfold rpf r<== f ce @ ce' -| Delta' ~~> Ct
 
     RS ; Delta |- rpf r==> ce1 @ ce1' -| Delta' ~~> Ct
     ---------------------------------------------------------------------- :: sub

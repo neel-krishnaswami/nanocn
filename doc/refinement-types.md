@@ -298,7 +298,7 @@ spine ::= ce, spine | rpf, spine | lpf, spine | ·
 
 lpf ::= x | auto | unfold f(ce) | open-ret rpf | lpf : ϕ
 
-rpf ::= x | make-ret lpf | make-take crt | rpf : ce@ce'
+rpf ::= x | make-ret lpf | make-take crt | rpf : ce@ce' | unfold rpf 
 
 
 There are 12 typechecking judgements, organized as follows: 
@@ -391,7 +391,7 @@ x:ce [log] ∈ Δ
 eff ≤ spec 
 Σ; |Δ| ⊢[spec] ce <== τ 
 ——————————————————————————————————————————————————————
-Σ; Δ ⊢ unfold f(ce) ==> (f(ce) = [ce/x]ce_body) ↝ ⊤
+Σ; Δ ⊢ unfold f(ce) ==> (f(ce) = [ce:τ/x]ce_body) ↝ ⊤
 
 
 Σ; Δ ⊢ lpf ==> ϕ ⊣ Δ' ↝ C 
@@ -441,6 +441,16 @@ succeeds if the usage is 1 or ?, and accessing it sets the usage to 0.
 Σ; Δ ⊢ make-take crt <== (take x = ce1; ce2)@ce3 ⊣ Δ' ↝ C 
 
 
+Σ ⊢ f (x : τ) → τ' [eff] = ce_body
+eff ≤ spec 
+Σ; |Δ| ⊢[spec] ce <== τ 
+Σ; Δ ⊢ rpf <== ([ce:τ/x]ce_body)@ce' ⊣ Δ' ↝ C 
+—————————————————————————————————————————————————
+Σ; Δ ⊢ unfold rpf <== (f(ce))@ce' ⊣ Δ' ↝ C 
+
+
+Σ; |Δ| ⊢[spec] ce' ==> τ
+Σ; |Δ| ⊢[spec] ce <== Pred τ 
 Σ; Δ ⊢ rpf <== ce@ce' ⊣ Δ' ↝ C
 ————————————————————————————————————————————
 Σ; Δ ⊢ (rpf : ce@ce') ==> ce@ce' ⊣ Δ' ↝ C
