@@ -385,6 +385,7 @@ rpf :: 'RPf_' ::=                                    {{ com resource proof facts
   | make-take crt                   :: :: MakeTake     {{ tex \mathsf{make\text{-}take}\;[[crt]] }}
   | rpf : ce @ ce'                :: :: Annot        {{ tex [[rpf]] : [[ce]] @ [[ce']] }}
   | unfold rpf                      :: :: Unfold       {{ tex \mathsf{unfold}\;[[rpf]] }}
+  | ( rpf )                         :: M :: Paren        {{ tex ([[rpf]]) }}
 
 
 

@@ -298,7 +298,7 @@ spine ::= ce, spine | rpf, spine | lpf, spine | ·
 
 lpf ::= x | auto | unfold f(ce) | open-ret rpf | lpf : ϕ
 
-rpf ::= x | make-ret lpf | make-take crt | rpf : ce@ce' | unfold rpf 
+rpf ::= x | make-ret lpf | make-take crt | rpf : ce@ce' | unfold rpf | (rpf) 
 
 
 There are 12 typechecking judgements, organized as follows: 

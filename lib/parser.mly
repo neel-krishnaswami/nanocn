@@ -617,5 +617,7 @@ rpf_atom_expr:
     { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RMakeTake e) }
   | UNFOLD; r = rpf_atom_expr
     { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RUnfold r) }
+  | LPAREN; r = rpf_expr; RPAREN
+    { r }
   | h = HOLE
     { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RHole h) }

@@ -770,8 +770,11 @@ export default grammar({
       $.rpf_make_ret,
       $.rpf_make_take,
       $.rpf_unfold,
+      $.rpf_paren,
       $.hole_expr,
     ),
+
+    rpf_paren: $ => seq('(', field('inner', $.rpf_expr), ')'),
 
     rpf_var: $ => $.lower_ident,
     rpf_make_ret: $ => seq(
