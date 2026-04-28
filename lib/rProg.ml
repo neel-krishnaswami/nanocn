@@ -32,7 +32,18 @@ type raw_parsed = (SurfExpr.parsed_se, < loc : SourcePos.t >, string) t
 type raw_parsed_decl = (SurfExpr.parsed_se, < loc : SourcePos.t >, string) decl
 type parsed = (SurfExpr.se, < loc : SourcePos.t >, Var.t) t
 type checked = (CoreExpr.ce, < loc : SourcePos.t >, Var.t) t
-type typed_rinfo = < loc : SourcePos.t; ctx : Context.t; rctx : RCtx.t; sort : Sort.sort; eff : Effect.t; pf : (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t >
+type goal =
+  | CrtGoal of (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t
+  | LpfGoal of CoreExpr.typed_ce
+  | RpfGoal of CoreExpr.typed_ce * CoreExpr.typed_ce
+  | PatGoal of (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t
+  | SpineGoal of {
+      original : (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t;
+      current  : (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t;
+      position : int;
+    }
+  | NoGoal
+and typed_rinfo = < loc : SourcePos.t; ctx : Context.t; rctx : RCtx.t; sort : Sort.sort; eff : Effect.t; goal : goal >
 type typed = (CoreExpr.typed_ce, typed_rinfo, Var.t) t
 
 let print_gen pp_var pp_e fmt prog =

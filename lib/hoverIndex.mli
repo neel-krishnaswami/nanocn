@@ -24,7 +24,7 @@ val add_typed_expr : Typecheck.typed_ce -> t -> t
 
 val lookup :
   t -> line:int -> col:int ->
-  (SourcePos.t * Context.t * RCtx.t option * Sort.sort * Effect.t * (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t) option
+  (SourcePos.t * Context.t * RCtx.t option * Sort.sort * Effect.t * RProg.goal) option
 (** [lookup idx ~line ~col] finds the smallest typed node whose
     source span covers the given 1-based line and 0-based column.
     Returns [None] if no node covers the position.  The [RCtx.t option]

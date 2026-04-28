@@ -48,9 +48,22 @@ type parsed = (SurfExpr.se, < loc : SourcePos.t >, Var.t) t
 (** Checked type (core expressions). *)
 type checked = (CoreExpr.ce, < loc : SourcePos.t >, Var.t) t
 
+(** Goal: what a refined subterm is working towards. *)
+type goal =
+  | CrtGoal of (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t
+  | LpfGoal of CoreExpr.typed_ce
+  | RpfGoal of CoreExpr.typed_ce * CoreExpr.typed_ce
+  | PatGoal of (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t
+  | SpineGoal of {
+      original : (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t;
+      current  : (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t;
+      position : int;
+    }
+  | NoGoal
+
 (** Info annotation for typed refined expression nodes.
-    Extends [CoreExpr.typed_info] with the refined context. *)
-type typed_rinfo = < loc : SourcePos.t; ctx : Context.t; rctx : RCtx.t; sort : Sort.sort; eff : Effect.t; pf : (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t >
+    Extends [CoreExpr.typed_info] with the refined context and goal. *)
+and typed_rinfo = < loc : SourcePos.t; ctx : Context.t; rctx : RCtx.t; sort : Sort.sort; eff : Effect.t; goal : goal >
 
 (** Fully annotated type (typed core expressions with refined context/sort/effect). *)
 type typed = (CoreExpr.typed_ce, typed_rinfo, Var.t) t

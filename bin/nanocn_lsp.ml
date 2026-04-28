@@ -216,10 +216,18 @@ let handle_hover (doc : doc_state) (params : Lsp.Types.HoverParams.t) : Lsp.Type
   let col = pos.character in
   match HoverIndex.lookup doc.hover ~line ~col with
   | None -> None
-  | Some (_loc, ctx, rctx, sort, eff, pf) ->
-    let sort_str = match pf with
-      | [] -> Format.asprintf "%a" Sort.print sort
-      | _ -> Format.asprintf "%a" ProofSort.print_ce pf
+  | Some (_loc, ctx, rctx, sort, eff, goal) ->
+    let sort_str = match goal with
+      | RProg.CrtGoal pf -> Format.asprintf "%a" ProofSort.print_ce pf
+      | RProg.LpfGoal ce -> Format.asprintf "[log] %a" CoreExpr.print ce
+      | RProg.RpfGoal (pred, value) ->
+        Format.asprintf "[res] %a @@ %a" CoreExpr.print pred CoreExpr.print value
+      | RProg.PatGoal pf -> Format.asprintf "pat: %a" ProofSort.print_ce pf
+      | RProg.SpineGoal { current; position; _ } ->
+        (match List.nth_opt current position with
+         | Some entry -> Format.asprintf "%a" ProofSort.print_ce [entry]
+         | None -> Format.asprintf "%a" Sort.print sort)
+      | RProg.NoGoal -> Format.asprintf "%a" Sort.print sort
     in
     let eff_str = Format.asprintf "%a" Effect.print eff in
     (* Format context: prefer refined context (with logical facts and
