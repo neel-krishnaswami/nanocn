@@ -75,22 +75,17 @@ let elab_pf_entry (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (entry : (S
     return (ProofSort.Log { info = ri; prop = ce })
   | ProofSort.Res { info = _; pred; value } ->
     let* (ce_pred, pred_sort) = elab_se rs gamma Effect.Spec pred in
-    (match Sort.shape pred_sort with
-     | Sort.Pred inner_sort ->
-       let* ce_value = elab_se_check rs gamma value inner_sort Effect.Spec in
-       return (ProofSort.Res { info = ri; pred = ce_pred; value = ce_value })
-     | _ ->
-       invariant ~rule:"elab_pf_entry:Res"
-         (Format.asprintf "resource predicate must have pred sort, got %a"
-            Sort.print pred_sort))
+    let* inner_sort =
+      ElabM.lift_at loc
+        (SortGet.get_pred ~construct:"resource predicate" pred_sort) in
+    let* ce_value = elab_se_check rs gamma value inner_sort Effect.Spec in
+    return (ProofSort.Res { info = ri; pred = ce_pred; value = ce_value })
   | ProofSort.DepRes { info = _; bound_var; pred } ->
     let* (ce_pred, pred_sort) = elab_se rs gamma Effect.Spec pred in
-    (match Sort.shape pred_sort with
-     | Sort.Pred _inner_sort ->
-       return (ProofSort.DepRes { info = ri; bound_var; pred = ce_pred })
-     | _ ->
-       invariant ~rule:"elab_pf_entry:DepRes"
-         "dep-res binder's predicate must have pred sort")
+    let* _inner_sort =
+      ElabM.lift_at loc
+        (SortGet.get_pred ~construct:"dep-res predicate" pred_sort) in
+    return (ProofSort.DepRes { info = ri; bound_var; pred = ce_pred })
 
 let elab_pf (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (pf : (SurfExpr.se, < loc : SourcePos.t >, Var.t) ProofSort.t) : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t ElabM.t =
   let rec go gamma = function
@@ -102,12 +97,11 @@ let elab_pf (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (pf : (SurfExpr.s
         | ProofSort.Log _ | ProofSort.Res _ -> return gamma
         | ProofSort.DepRes { info = _; pred; bound_var } ->
           let pred_sort = (CoreExpr.info pred)#sort in
-          (match Sort.shape pred_sort with
-           | Sort.Pred inner -> return (Context.extend bound_var inner Effect.Spec gamma)
-           | _ ->
-             invariant ~rule:"elab_pf:DepRes"
-               "DepRes binder's predicate must have pred sort \
-                (should have been guaranteed by elab_pf_entry)")
+          let pred_loc = (CoreExpr.info pred)#loc in
+          let* inner =
+            ElabM.lift_at pred_loc
+              (SortGet.get_pred ~construct:"dep-res predicate" pred_sort) in
+          return (Context.extend bound_var inner Effect.Spec gamma)
       in
       let* rest' = go gamma' rest in
       return (entry' :: rest')
