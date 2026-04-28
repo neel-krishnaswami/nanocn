@@ -14,6 +14,8 @@ let lift r supply =
   | Ok x -> Ok (x, supply)
   | Error e -> Error e
 
+let lift_at pos r = lift (Error.at ~loc:pos r)
+
 let from_supply f = f
 
 let fresh pos supply =

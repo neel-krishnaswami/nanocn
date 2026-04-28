@@ -203,6 +203,13 @@ type kind =
     (** Two proof sort Comp entries agree on sort but disagree on effect. *)
   | K_iter_pattern_shape of { got : string }
     (** Iter pattern is not a single variable binder. *)
+  | K_rcase_label_not_in_branches of
+      { label : Label.t
+      ; case_labels : Label.t list }
+    (** A refined resource pattern's [case L (...)] names a label [L]
+        that is not a branch of the enclosing [case] expression's
+        scrutinee. [case_labels] are the actually-present branch
+        labels. *)
 
   (* Last-resort escape hatches *)
   | K_internal_invariant of { rule : string; invariant : string }
@@ -363,6 +370,12 @@ val pf_effect_mismatch :
 
 val iter_pattern_shape :
   loc:SourcePos.t -> got:string -> t
+
+val rcase_label_not_in_branches :
+  loc:SourcePos.t -> label:Label.t -> case_labels:Label.t list -> t
+(** [rcase_label_not_in_branches ~loc ~label ~case_labels] is raised
+    when a refined [case L (...)] resource pattern's label [L] does
+    not appear in the enclosing case expression's branches. *)
 
 val internal_invariant :
   loc:SourcePos.t -> rule:string -> invariant:string -> t

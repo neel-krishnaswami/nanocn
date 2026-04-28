@@ -18,15 +18,56 @@ type 'a t
 val empty : 'a t
 val extend : string -> 'a entry -> 'a t -> 'a t
 
-val lookup_fun : string -> 'a t -> (Sort.sort * Sort.sort * Effect.t) option
-val lookup_fundef : string -> 'a t -> (Var.t * Sort.sort * Sort.sort * Effect.t * 'a) option
+(** {1 Lookups}
 
-val lookup_sort : Dsort.t -> 'a t -> DsortDecl.t option
-val lookup_ctor : Label.t -> 'a t -> (Dsort.t * DsortDecl.t) option
+    All lookups return [(_, Error.kind) result]. Failure produces the
+    canonical "not found" error for that kind of name; lift to the
+    elaboration monad with [ElabM.lift_at]. *)
+
+val lookup_fun :
+  string -> 'a t -> (Sort.sort * Sort.sort * Effect.t, Error.kind) result
+(** Returns [Error (K_unknown_function { name })] if [name] is not
+    bound. *)
+
+val lookup_fundef :
+  string -> 'a t ->
+  (Var.t * Sort.sort * Sort.sort * Effect.t * 'a, Error.kind) result
+(** Returns [Error (K_unfold_not_fundef { name })] if [name] is not
+    a [FunDef] entry. *)
+
+val lookup_sort :
+  Dsort.t -> 'a t -> (DsortDecl.t, Error.kind) result
+(** Returns [Error (K_unbound_sort dsort)] if [dsort] is not declared
+    as a datasort. *)
+
+val lookup_type :
+  Dsort.t -> 'a t -> (DtypeDecl.t, Error.kind) result
+(** Returns [Error (K_unbound_sort dsort)] if [dsort] is not declared
+    as a datatype. *)
+
+val lookup_ctor :
+  Label.t -> 'a t -> (Dsort.t * DsortDecl.t, Error.kind) result
+(** Returns [Error (K_unbound_ctor label)] if [label] is not a
+    constructor of any datasort. *)
+
+val lookup_type_ctor :
+  Label.t -> 'a t -> (Dsort.t * DtypeDecl.t, Error.kind) result
+(** Returns [Error (K_unbound_ctor label)] if [label] is not a
+    constructor of any datatype. *)
+
+(** Result of looking up a name that may be either a datasort or a
+    datatype. *)
+type sort_or_type =
+  | LSortDecl of DsortDecl.t
+  | LTypeDecl of DtypeDecl.t
+
+val lookup_dsort_or_type :
+  Dsort.t -> 'a t -> (sort_or_type, Error.kind) result
+(** Combined lookup: returns [Ok (LSortDecl _)] if [dsort] is declared
+    as a datasort, [Ok (LTypeDecl _)] if as a datatype, and
+    [Error (K_unbound_sort dsort)] otherwise. *)
+
 val extend_sort : 'a t -> DsortDecl.t -> 'a t
-
-val lookup_type : Dsort.t -> 'a t -> DtypeDecl.t option
-val lookup_type_ctor : Label.t -> 'a t -> (Dsort.t * DtypeDecl.t) option
 val extend_type : 'a t -> DtypeDecl.t -> 'a t
 
 val print_gen : (Format.formatter -> Var.t -> unit) -> (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit

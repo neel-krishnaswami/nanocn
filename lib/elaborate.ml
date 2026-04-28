@@ -326,18 +326,16 @@ let rec synth sig_ ctx eff0 se =
       ElabM.return (mk_typed ctx pos ret_sort eff0 (CoreExpr.App (p, ce_arg)), ret_sort)
 
   | SurfExpr.Call (name, arg) ->
-    (match Sig.lookup_fun name sig_ with
-     | Some (arg_sort, ret_sort, fun_eff) ->
-       if not (Effect.sub fun_eff eff0) then
-         ElabM.fail
-           (Error.fun_effect_mismatch
-              ~loc:pos ~name ~declared:fun_eff ~required:eff0)
-       else
-         let eff0' = Effect.purify eff0 in
-         let* ce_arg = check sig_ ctx arg arg_sort eff0' in
-         ElabM.return (mk_typed ctx pos ret_sort eff0 (CoreExpr.Call (name, ce_arg)), ret_sort)
-     | None ->
-       ElabM.fail (Error.unknown_function ~loc:pos ~name))
+    let* (arg_sort, ret_sort, fun_eff) =
+      ElabM.lift_at pos (Sig.lookup_fun name sig_) in
+    if not (Effect.sub fun_eff eff0) then
+      ElabM.fail
+        (Error.fun_effect_mismatch
+           ~loc:pos ~name ~declared:fun_eff ~required:eff0)
+    else
+      let eff0' = Effect.purify eff0 in
+      let* ce_arg = check sig_ ctx arg arg_sort eff0' in
+      ElabM.return (mk_typed ctx pos ret_sort eff0 (CoreExpr.Call (name, ce_arg)), ret_sort)
 
   | SurfExpr.Annot (se, s) ->
     let* ce = check sig_ ctx se s eff0 in
@@ -355,65 +353,41 @@ and check sig_ ctx se sort eff0 =
     if not (Effect.sub Effect.Spec eff0) then
       ElabM.fail (Error.spec_context_required ~loc:pos ~construct:"return")
     else
-    (match Sort.shape sort with
-     | Sort.Pred tau ->
-       let* ce = check sig_ ctx inner tau eff0 in
-       ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Return ce))
-     | _ ->
-       ElabM.fail
-         (Error.construct_sort_mismatch ~loc:pos
-            ~construct:"return" ~expected_shape:"Pred _"
-            ~got:sort))
+      let* tau = ElabM.lift_at pos (SortGet.get_pred ~construct:"return" sort) in
+      let* ce = check sig_ ctx inner tau eff0 in
+      ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Return ce))
 
   | SurfExpr.Fail ->
     if not (Effect.sub Effect.Spec eff0) then
       ElabM.fail (Error.spec_context_required ~loc:pos ~construct:"fail")
     else
-    (match Sort.shape sort with
-     | Sort.Pred _ ->
-       ElabM.return (mk_typed ctx pos sort eff0 CoreExpr.Fail)
-     | _ ->
-       ElabM.fail
-         (Error.construct_sort_mismatch ~loc:pos
-            ~construct:"fail" ~expected_shape:"Pred _"
-            ~got:sort))
+      let* _ = ElabM.lift_at pos (SortGet.get_pred ~construct:"fail" sort) in
+      ElabM.return (mk_typed ctx pos sort eff0 CoreExpr.Fail)
 
   | SurfExpr.Take (pat, se1, se2) ->
     if not (Effect.sub Effect.Spec eff0) then
       ElabM.fail (Error.spec_context_required ~loc:pos ~construct:"take")
     else
-    (match Sort.shape sort with
-     | Sort.Pred _ ->
-       let* (ce1, s1) = synth sig_ ctx eff0 se1 in
-       (match Sort.shape s1 with
-        | Sort.Pred tau ->
-          let eff_b = Effect.purify eff0 in
-          let* y = ElabM.fresh (Pat.info pat)#loc in
-          let ctx_y = Context.extend y tau eff_b ctx in
-          let branch = {
-            bindings = [(pat, tau)];
-            let_bindings = [];
-            body = se2;
-          } in
-          let rebuilder_init = function
-            | [w] -> w
-            | _ -> PatWitness.Wild
-          in
-          let* ce2 =
-            coverage_check sig_ ctx_y [y] [branch] eff_b sort eff0
-              ~cov_loc:pos rebuilder_init in
-          let yb = (y, mk_bind_info y tau eff_b ctx_y) in
-          ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Take (yb, ce1, ce2)))
-        | _ ->
-          ElabM.fail
-            (Error.construct_sort_mismatch ~loc:pos
-               ~construct:"take scrutinee"
-               ~expected_shape:"Pred _" ~got:s1))
-     | _ ->
-       ElabM.fail
-         (Error.construct_sort_mismatch ~loc:pos
-            ~construct:"take target"
-            ~expected_shape:"Pred _" ~got:sort))
+      let* _ = ElabM.lift_at pos (SortGet.get_pred ~construct:"take target" sort) in
+      let* (ce1, s1) = synth sig_ ctx eff0 se1 in
+      let* tau = ElabM.lift_at pos (SortGet.get_pred ~construct:"take scrutinee" s1) in
+      let eff_b = Effect.purify eff0 in
+      let* y = ElabM.fresh (Pat.info pat)#loc in
+      let ctx_y = Context.extend y tau eff_b ctx in
+      let branch = {
+        bindings = [(pat, tau)];
+        let_bindings = [];
+        body = se2;
+      } in
+      let rebuilder_init = function
+        | [w] -> w
+        | _ -> PatWitness.Wild
+      in
+      let* ce2 =
+        coverage_check sig_ ctx_y [y] [branch] eff_b sort eff0
+          ~cov_loc:pos rebuilder_init in
+      let yb = (y, mk_bind_info y tau eff_b ctx_y) in
+      ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Take (yb, ce1, ce2)))
 
   | SurfExpr.Let (pat, se1, se2) ->
     let* (ce1, tau) = synth sig_ ctx eff0 se1 in
@@ -436,39 +410,25 @@ and check sig_ ctx se sort eff0 =
     ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Let (yb, ce1, ce2)))
 
   | SurfExpr.Tuple ses ->
-    (match Sort.shape sort with
-     | Sort.Record sorts ->
-       if List.compare_lengths ses sorts <> 0 then
-         ElabM.fail
-           (Error.tuple_arity_mismatch ~loc:pos
-              ~construct:"tuple"
-              ~expected:(List.length sorts)
-              ~actual:(List.length ses))
-       else
-         let* ces = check_list sig_ ctx ses sorts eff0 in
-         ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Tuple ces))
-     | _ ->
-       ElabM.fail
-         (Error.construct_sort_mismatch ~loc:pos
-            ~construct:"tuple" ~expected_shape:"Record _"
-            ~got:sort))
+    let* sorts = ElabM.lift_at pos (SortGet.get_record ~construct:"tuple" sort) in
+    if List.compare_lengths ses sorts <> 0 then
+      ElabM.fail
+        (Error.tuple_arity_mismatch ~loc:pos
+           ~construct:"tuple"
+           ~expected:(List.length sorts)
+           ~actual:(List.length ses))
+    else
+      let* ces = check_list sig_ ctx ses sorts eff0 in
+      ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Tuple ces))
 
   | SurfExpr.Inject (l, inner) ->
-    (match Sort.shape sort with
-     | Sort.App (_d, args) ->
-       (match CtorLookup.lookup sig_ l args with
-        | Ok ctor_sort ->
-          let eff0' = Effect.purify eff0 in
-          let* ce = check sig_ ctx inner ctor_sort eff0' in
-          ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Inject (l, ce)))
-        | Error k ->
-          ElabM.fail (Error.structured ~loc:pos k))
-     | _ ->
-       ElabM.fail
-         (Error.construct_sort_mismatch ~loc:pos
-            ~construct:(Format.asprintf "constructor %a" Label.print l)
-            ~expected_shape:"datasort/datatype application"
-            ~got:sort))
+    let construct = Format.asprintf "constructor %a" Label.print l in
+    let* (_, args) =
+      ElabM.lift_at pos (SortGet.get_app ~construct sort) in
+    let* ctor_sort = ElabM.lift_at pos (CtorLookup.lookup sig_ l args) in
+    let eff0' = Effect.purify eff0 in
+    let* ce = check sig_ ctx inner ctor_sort eff0' in
+    ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Inject (l, ce)))
 
   | SurfExpr.Case (scrut, surf_branches) ->
     let eff0' = Effect.purify eff0 in
@@ -599,9 +559,11 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
     let lead_sort = find_lead_sort branches in
     (match Sort.shape lead_sort with
      | Sort.App (dsort_name, args) ->
-       (* Try datasort first, then datatype *)
-       (match Sig.lookup_sort dsort_name sig_ with
-        | Some decl ->
+       let* decl =
+         ElabM.lift_at (Var.binding_site y)
+           (Sig.lookup_dsort_or_type dsort_name sig_) in
+       (match decl with
+        | Sig.LSortDecl decl ->
           let labels = DsortDecl.ctor_labels decl in
           let* case_branches =
             build_sort_con_branches sig_ ctx y scrs branches eff_b sort eff0
@@ -609,19 +571,14 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
           let y_ce = mk_typed ctx (Var.binding_site y) lead_sort eff_b (CoreExpr.Var y) in
           ElabM.return (mk_typed ctx (Var.binding_site y) sort eff0
             (CoreExpr.Case (y_ce, case_branches)))
-        | None ->
-          match Sig.lookup_type dsort_name sig_ with
-          | Some decl ->
-            let labels = DtypeDecl.ctor_labels decl in
-            let* case_branches =
-              build_type_con_branches sig_ ctx y scrs branches eff_b sort eff0
-                labels args decl ~cov_loc rebuilder in
-            let y_ce = mk_typed ctx (Var.binding_site y) lead_sort eff_b (CoreExpr.Var y) in
-            ElabM.return (mk_typed ctx (Var.binding_site y) sort eff0
-              (CoreExpr.Case (y_ce, case_branches)))
-          | None ->
-            ElabM.fail
-              (Error.unbound_sort ~loc:(Var.binding_site y) dsort_name))
+        | Sig.LTypeDecl decl ->
+          let labels = DtypeDecl.ctor_labels decl in
+          let* case_branches =
+            build_type_con_branches sig_ ctx y scrs branches eff_b sort eff0
+              labels args decl ~cov_loc rebuilder in
+          let y_ce = mk_typed ctx (Var.binding_site y) lead_sort eff_b (CoreExpr.Var y) in
+          ElabM.return (mk_typed ctx (Var.binding_site y) sort eff0
+            (CoreExpr.Case (y_ce, case_branches))))
      | _ ->
        invariant_at (Sort.info lead_sort)#loc ~rule:"coverage_check:Cov_con"
          "a leading pattern is a constructor but its sort is not a \

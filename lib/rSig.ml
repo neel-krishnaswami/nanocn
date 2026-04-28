@@ -18,61 +18,69 @@ let extend_sort sig_ d = Sort d :: sig_
 let extend_type sig_ d = Type d :: sig_
 
 let rec lookup_rf name = function
-  | [] -> None
-  | Named (n, RFunSig rf) :: _ when String.equal name n -> Some rf
+  | [] -> Error (Error.K_unknown_function { name })
+  | Named (n, RFunSig rf) :: _ when String.equal name n -> Ok rf
   | _ :: rest -> lookup_rf name rest
 
 let rec lookup_fun name = function
-  | [] -> None
+  | [] -> Error (Error.K_unknown_function { name })
   | Named (n, FunSig { arg; ret; eff }) :: _ when String.equal name n ->
-    Some (arg, ret, eff)
+    Ok (arg, ret, eff)
   | Named (n, FunDef { arg; ret; eff; _ }) :: _ when String.equal name n ->
-    Some (arg, ret, eff)
+    Ok (arg, ret, eff)
   | Named (n, RFunSig rf) :: _ when String.equal name n ->
-    Some (ProofSort.comp rf.domain, ProofSort.comp rf.codomain, rf.eff)
+    Ok (ProofSort.comp rf.domain, ProofSort.comp rf.codomain, rf.eff)
   | _ :: rest -> lookup_fun name rest
 
 let rec lookup_fundef name = function
-  | [] -> None
+  | [] -> Error (Error.K_unfold_not_fundef { name })
   | Named (n, FunDef { param; arg; ret; eff; body }) :: _ when String.equal name n ->
-    Some (param, arg, ret, eff, body)
+    Ok (param, arg, ret, eff, body)
   | _ :: rest -> lookup_fundef name rest
 
 let rec lookup_sort dsort = function
-  | [] -> None
-  | Sort d :: _ when Dsort.compare dsort d.DsortDecl.name = 0 -> Some d
-  | Named (_, SortDecl d) :: _ when Dsort.compare dsort d.DsortDecl.name = 0 -> Some d
+  | [] -> Error (Error.K_unbound_sort dsort)
+  | Sort d :: _ when Dsort.compare dsort d.DsortDecl.name = 0 -> Ok d
+  | Named (_, SortDecl d) :: _ when Dsort.compare dsort d.DsortDecl.name = 0 -> Ok d
   | _ :: rest -> lookup_sort dsort rest
 
 let rec lookup_type dsort = function
-  | [] -> None
-  | Type d :: _ when Dsort.compare dsort d.DtypeDecl.name = 0 -> Some d
-  | Named (_, TypeDecl d) :: _ when Dsort.compare dsort d.DtypeDecl.name = 0 -> Some d
+  | [] -> Error (Error.K_unbound_sort dsort)
+  | Type d :: _ when Dsort.compare dsort d.DtypeDecl.name = 0 -> Ok d
+  | Named (_, TypeDecl d) :: _ when Dsort.compare dsort d.DtypeDecl.name = 0 -> Ok d
   | _ :: rest -> lookup_type dsort rest
 
 let rec lookup_ctor label = function
-  | [] -> None
+  | [] -> Error (Error.K_unbound_ctor label)
   | Sort d :: rest ->
     (match DsortDecl.lookup_ctor label d with
-     | Some _ -> Some (d.DsortDecl.name, d)
+     | Some _ -> Ok (d.DsortDecl.name, d)
      | None -> lookup_ctor label rest)
   | Named (_, SortDecl d) :: rest ->
     (match DsortDecl.lookup_ctor label d with
-     | Some _ -> Some (d.DsortDecl.name, d)
+     | Some _ -> Ok (d.DsortDecl.name, d)
      | None -> lookup_ctor label rest)
   | _ :: rest -> lookup_ctor label rest
 
 let rec lookup_type_ctor label = function
-  | [] -> None
+  | [] -> Error (Error.K_unbound_ctor label)
   | Type d :: rest ->
     (match DtypeDecl.lookup_ctor label d with
-     | Some _ -> Some (d.DtypeDecl.name, d)
+     | Some _ -> Ok (d.DtypeDecl.name, d)
      | None -> lookup_type_ctor label rest)
   | Named (_, TypeDecl d) :: rest ->
     (match DtypeDecl.lookup_ctor label d with
-     | Some _ -> Some (d.DtypeDecl.name, d)
+     | Some _ -> Ok (d.DtypeDecl.name, d)
      | None -> lookup_type_ctor label rest)
   | _ :: rest -> lookup_type_ctor label rest
+
+let lookup_dsort_or_type dsort sig_ =
+  match lookup_sort dsort sig_ with
+  | Ok d -> Ok (Sig.LSortDecl d)
+  | Error _ ->
+    (match lookup_type dsort sig_ with
+     | Ok d -> Ok (Sig.LTypeDecl d)
+     | Error e -> Error e)
 
 type listed_entry =
   | LFun  of string * entry

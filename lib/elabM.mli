@@ -14,6 +14,13 @@ val fail : Error.t -> 'a t
 val lift : ('a, Error.t) result -> 'a t
 (** [lift r] promotes a plain result into the monad. *)
 
+val lift_at : SourcePos.t -> ('a, Error.kind) result -> 'a t
+(** [lift_at pos r] forwards a submodule-structured
+    [(_, Error.kind) result] into the monad, attaching [pos] via
+    [Error.at]. Used at the boundary between elaboration/typechecking
+    and helper modules ([Sig], [RSig], [CtorLookup], [Subst], [RCtx],
+    [ProofSort], etc.). *)
+
 val from_supply : (Var.supply -> ('a * Var.supply, Error.t) result) -> 'a t
 (** [from_supply f] creates a monadic computation from a
     supply-threading function. *)

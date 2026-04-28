@@ -86,6 +86,9 @@ type kind =
       ; synthesized_eff : Effect.t
       ; expected_eff : Effect.t }
   | K_iter_pattern_shape of { got : string }
+  | K_rcase_label_not_in_branches of
+      { label : Label.t
+      ; case_labels : Label.t list }
   | K_internal_invariant of { rule : string; invariant : string }
 
 type t =
@@ -238,6 +241,9 @@ let pf_effect_mismatch ~loc ~sort ~synthesized_eff ~expected_eff =
 
 let iter_pattern_shape ~loc ~got =
   structured ~loc (K_iter_pattern_shape { got })
+
+let rcase_label_not_in_branches ~loc ~label ~case_labels =
+  structured ~loc (K_rcase_label_not_in_branches { label; case_labels })
 
 let internal_invariant ~loc ~rule ~invariant =
   structured ~loc (K_internal_invariant { rule; invariant })
@@ -553,6 +559,21 @@ let print_kind fmt = function
     Format.fprintf fmt "  but the pattern has shape: %a."
       (print_emph Format.pp_print_string) got;
     Format.fprintf fmt "@]"
+  | K_rcase_label_not_in_branches { label; case_labels } ->
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt "  label %a is not a branch of this case expression."
+      (print_emph Label.print) label;
+    Format.pp_print_cut fmt ();
+    (match case_labels with
+     | [] ->
+       Format.fprintf fmt "  the case has no branches."
+     | _ ->
+       Format.fprintf fmt "  branches: @[%a@]"
+         (Format.pp_print_list
+            ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ")
+            (print_emph Label.print))
+         case_labels);
+    Format.fprintf fmt "@]"
   | K_internal_invariant { rule; invariant } ->
     Format.fprintf fmt "@[<v>";
     Format.fprintf fmt "  internal invariant failed in rule %a:"
@@ -607,6 +628,8 @@ let kind_header = function
   | K_pf_structure_mismatch _ -> "Type error: proof sort structure mismatch"
   | K_pf_effect_mismatch _ -> "Type error: proof sort effect mismatch"
   | K_iter_pattern_shape _ -> "Type error: iter pattern shape"
+  | K_rcase_label_not_in_branches _ ->
+    "Type error: case-pattern label not in case expression"
   | K_internal_invariant _ -> "Internal error: invariant failed"
 
 let rec to_string e =

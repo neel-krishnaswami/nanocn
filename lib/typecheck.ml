@@ -139,18 +139,16 @@ let rec synth sig_ ctx eff0 ce =
       Ok (mk ctx pos ret_sort eff0 (CoreExpr.App (p, arg')))
 
   | CoreExpr.Call (name, arg) ->
-    (match Sig.lookup_fun name sig_ with
-     | Some (arg_sort, ret_sort, fun_eff) ->
-       if not (Effect.sub fun_eff eff0) then
-         Error (Error.fun_effect_mismatch
-                  ~loc:pos ~name
-                  ~declared:fun_eff ~required:eff0)
-       else
-         let eff0' = Effect.purify eff0 in
-         let* arg' = check sig_ ctx arg arg_sort eff0' in
-         Ok (mk ctx pos ret_sort eff0 (CoreExpr.Call (name, arg')))
-     | None ->
-       Error (Error.unknown_function ~loc:pos ~name))
+    let* (arg_sort, ret_sort, fun_eff) =
+      Error.at ~loc:pos (Sig.lookup_fun name sig_) in
+    if not (Effect.sub fun_eff eff0) then
+      Error (Error.fun_effect_mismatch
+               ~loc:pos ~name
+               ~declared:fun_eff ~required:eff0)
+    else
+      let eff0' = Effect.purify eff0 in
+      let* arg' = check sig_ ctx arg arg_sort eff0' in
+      Ok (mk ctx pos ret_sort eff0 (CoreExpr.Call (name, arg')))
 
   | CoreExpr.Annot (ce, s) ->
     let* ce' = check sig_ ctx ce s eff0 in
@@ -169,50 +167,30 @@ and check sig_ ctx ce sort eff0 =
     if not (Effect.sub Effect.Spec eff0) then
       Error (Error.spec_context_required ~loc:pos ~construct:"return")
     else
-    (match Sort.shape sort with
-     | Sort.Pred tau ->
-       let* inner' = check sig_ ctx inner tau eff0 in
-       Ok (mk ctx pos sort eff0 (CoreExpr.Return inner'))
-     | _ ->
-       Error (Error.construct_sort_mismatch ~loc:pos
-                ~construct:"return" ~expected_shape:"Pred _"
-                ~got:sort))
+      let* tau = Error.at ~loc:pos (SortGet.get_pred ~construct:"return" sort) in
+      let* inner' = check sig_ ctx inner tau eff0 in
+      Ok (mk ctx pos sort eff0 (CoreExpr.Return inner'))
 
   | CoreExpr.Fail ->
     if not (Effect.sub Effect.Spec eff0) then
       Error (Error.spec_context_required ~loc:pos ~construct:"fail")
     else
-    (match Sort.shape sort with
-     | Sort.Pred _ ->
-       Ok (mk ctx pos sort eff0 CoreExpr.Fail)
-     | _ ->
-       Error (Error.construct_sort_mismatch ~loc:pos
-                ~construct:"fail" ~expected_shape:"Pred _"
-                ~got:sort))
+      let* _ = Error.at ~loc:pos (SortGet.get_pred ~construct:"fail" sort) in
+      Ok (mk ctx pos sort eff0 CoreExpr.Fail)
 
   | CoreExpr.Take ((x, _), ce1, ce2) ->
     if not (Effect.sub Effect.Spec eff0) then
       Error (Error.spec_context_required ~loc:pos ~construct:"take")
     else
-    (match Sort.shape sort with
-     | Sort.Pred _ ->
-       let* ce1' = synth sig_ ctx eff0 ce1 in
-       let s1 = (CoreExpr.info ce1')#sort in
-       (match Sort.shape s1 with
-        | Sort.Pred tau ->
-          let bind_eff = Effect.purify eff0 in
-          let ctx' = Context.extend x tau bind_eff ctx in
-          let* ce2' = check sig_ ctx' ce2 sort eff0 in
-          let xb = (x, mk_bind_info x tau bind_eff ctx') in
-          Ok (mk ctx pos sort eff0 (CoreExpr.Take (xb, ce1', ce2')))
-        | _ ->
-          Error (Error.construct_sort_mismatch ~loc:pos
-                   ~construct:"take scrutinee"
-                   ~expected_shape:"Pred _" ~got:s1))
-     | _ ->
-       Error (Error.construct_sort_mismatch ~loc:pos
-                ~construct:"take target"
-                ~expected_shape:"Pred _" ~got:sort))
+      let* _ = Error.at ~loc:pos (SortGet.get_pred ~construct:"take target" sort) in
+      let* ce1' = synth sig_ ctx eff0 ce1 in
+      let s1 = (CoreExpr.info ce1')#sort in
+      let* tau = Error.at ~loc:pos (SortGet.get_pred ~construct:"take scrutinee" s1) in
+      let bind_eff = Effect.purify eff0 in
+      let ctx' = Context.extend x tau bind_eff ctx in
+      let* ce2' = check sig_ ctx' ce2 sort eff0 in
+      let xb = (x, mk_bind_info x tau bind_eff ctx') in
+      Ok (mk ctx pos sort eff0 (CoreExpr.Take (xb, ce1', ce2')))
 
   | CoreExpr.Let ((x, _), ce1, ce2) ->
     let* ce1' = synth sig_ ctx eff0 ce1 in
@@ -227,64 +205,45 @@ and check sig_ ctx ce sort eff0 =
     let eff0' = Effect.purify eff0 in
     let* ce1' = synth sig_ ctx eff0' ce1 in
     let s1 = (CoreExpr.info ce1')#sort in
-    (match Sort.shape s1 with
-     | Sort.Record ts ->
-       let vars = List.map fst xs in
-       if List.compare_lengths vars ts <> 0 then
-         Error (Error.tuple_arity_mismatch ~loc:pos
-                  ~construct:"let-tuple"
-                  ~expected:(List.length ts)
-                  ~actual:(List.length vars))
-       else
-         let bind_eff = Effect.purify eff0 in
-         let bindings = List.map (fun (x, s) -> (x, s, bind_eff)) (List.combine vars ts) in
-         let ctx' = Context.extend_list bindings ctx in
-         let* ce2' = check sig_ ctx' ce2 sort eff0 in
-         let typed_xs = List.map (fun ((x, _), s) ->
-           (x, (object
-             method loc = Var.binding_site x
-             method ctx = ctx'
-             method sort = s
-             method eff = bind_eff
-           end : typed_info))
-         ) (List.combine xs ts) in
-         Ok (mk ctx pos sort eff0 (CoreExpr.LetTuple (typed_xs, ce1', ce2')))
-     | _ ->
-       Error (Error.construct_sort_mismatch ~loc:pos
-                ~construct:"let-tuple scrutinee"
-                ~expected_shape:"Record _" ~got:s1))
+    let* ts = Error.at ~loc:pos (SortGet.get_record ~construct:"let-tuple scrutinee" s1) in
+    let vars = List.map fst xs in
+    if List.compare_lengths vars ts <> 0 then
+      Error (Error.tuple_arity_mismatch ~loc:pos
+               ~construct:"let-tuple"
+               ~expected:(List.length ts)
+               ~actual:(List.length vars))
+    else
+      let bind_eff = Effect.purify eff0 in
+      let bindings = List.map (fun (x, s) -> (x, s, bind_eff)) (List.combine vars ts) in
+      let ctx' = Context.extend_list bindings ctx in
+      let* ce2' = check sig_ ctx' ce2 sort eff0 in
+      let typed_xs = List.map (fun ((x, _), s) ->
+        (x, (object
+          method loc = Var.binding_site x
+          method ctx = ctx'
+          method sort = s
+          method eff = bind_eff
+        end : typed_info))
+      ) (List.combine xs ts) in
+      Ok (mk ctx pos sort eff0 (CoreExpr.LetTuple (typed_xs, ce1', ce2')))
 
   | CoreExpr.Tuple es ->
-    (match Sort.shape sort with
-     | Sort.Record ts ->
-       if List.compare_lengths es ts <> 0 then
-         Error (Error.tuple_arity_mismatch ~loc:pos
-                  ~construct:"tuple"
-                  ~expected:(List.length ts)
-                  ~actual:(List.length es))
-       else
-         let* es' = check_list sig_ ctx es ts eff0 in
-         Ok (mk ctx pos sort eff0 (CoreExpr.Tuple es'))
-     | _ ->
-       Error (Error.construct_sort_mismatch ~loc:pos
-                ~construct:"tuple"
-                ~expected_shape:"Record _" ~got:sort))
+    let* ts = Error.at ~loc:pos (SortGet.get_record ~construct:"tuple" sort) in
+    if List.compare_lengths es ts <> 0 then
+      Error (Error.tuple_arity_mismatch ~loc:pos
+               ~construct:"tuple"
+               ~expected:(List.length ts)
+               ~actual:(List.length es))
+    else
+      let* es' = check_list sig_ ctx es ts eff0 in
+      Ok (mk ctx pos sort eff0 (CoreExpr.Tuple es'))
 
   | CoreExpr.Inject (l, e_inner) ->
-    (match Sort.shape sort with
-     | Sort.App (_, args) ->
-       (match CtorLookup.lookup sig_ l args with
-        | Ok ctor_sort ->
-          let eff0' = Effect.purify eff0 in
-          let* e_inner' = check sig_ ctx e_inner ctor_sort eff0' in
-          Ok (mk ctx pos sort eff0 (CoreExpr.Inject (l, e_inner')))
-        | Error k ->
-          Error (Error.structured ~loc:pos k))
-     | _ ->
-       Error (Error.construct_sort_mismatch ~loc:pos
-                ~construct:"injection"
-                ~expected_shape:"datasort/datatype application"
-                ~got:sort))
+    let* (_, args) = Error.at ~loc:pos (SortGet.get_app ~construct:"injection" sort) in
+    let* ctor_sort = Error.at ~loc:pos (CtorLookup.lookup sig_ l args) in
+    let eff0' = Effect.purify eff0 in
+    let* e_inner' = check sig_ ctx e_inner ctor_sort eff0' in
+    Ok (mk ctx pos sort eff0 (CoreExpr.Inject (l, e_inner')))
 
   | CoreExpr.Case (scrut, branches) ->
     let eff0' = Effect.purify eff0 in
@@ -420,25 +379,22 @@ let rec kind_wf sig_ ctx s kind =
       kind_wf sig_ ctx t Kind.Sort
   | Sort.Record ts -> kind_wf_list sig_ ctx ts kind
   | Sort.App (d, args) ->
-    (match Sig.lookup_sort d sig_ with
-     | Some decl ->
+    let* decl = Error.at ~loc:pos (Sig.lookup_dsort_or_type d sig_) in
+    (match decl with
+     | Sig.LSortDecl decl ->
        if List.compare_lengths args decl.DsortDecl.params <> 0 then
          Error (Error.dsort_arity_mismatch ~loc:pos ~dsort:d
                   ~expected:(List.length decl.DsortDecl.params)
                   ~actual:(List.length args))
        else
          kind_wf_list sig_ ctx args Kind.Sort
-     | None ->
-       match Sig.lookup_type d sig_ with
-       | Some decl ->
-         if List.compare_lengths args decl.DtypeDecl.params <> 0 then
-           Error (Error.dsort_arity_mismatch ~loc:pos ~dsort:d
-                    ~expected:(List.length decl.DtypeDecl.params)
-                    ~actual:(List.length args))
-         else
-           kind_wf_list sig_ ctx args Kind.Type
-       | None ->
-         Error (Error.unbound_sort ~loc:pos d))
+     | Sig.LTypeDecl decl ->
+       if List.compare_lengths args decl.DtypeDecl.params <> 0 then
+         Error (Error.dsort_arity_mismatch ~loc:pos ~dsort:d
+                  ~expected:(List.length decl.DtypeDecl.params)
+                  ~actual:(List.length args))
+       else
+         kind_wf_list sig_ ctx args Kind.Type)
 
 and kind_wf_list sig_ ctx ss kind =
   match ss with
@@ -496,15 +452,13 @@ let rec type_guarded sig_ ctx (guard_name, guard_params) s =
     if Dsort.compare d guard_name = 0 then
       Error (Error.unguarded_recursion ~loc:pos ~dsort:d)
     else
-      (match Sig.lookup_type d sig_ with
-       | None -> Error (Error.unbound_sort ~loc:pos d)
-       | Some decl ->
-         if List.compare_lengths args decl.DtypeDecl.params <> 0 then
-           Error (Error.dsort_arity_mismatch ~loc:pos ~dsort:d
-                    ~expected:(List.length decl.DtypeDecl.params)
-                    ~actual:(List.length args))
-         else
-           kind_wf_list sig_ ctx args Kind.Type)
+      let* decl = Error.at ~loc:pos (Sig.lookup_type d sig_) in
+      if List.compare_lengths args decl.DtypeDecl.params <> 0 then
+        Error (Error.dsort_arity_mismatch ~loc:pos ~dsort:d
+                 ~expected:(List.length decl.DtypeDecl.params)
+                 ~actual:(List.length args))
+      else
+        kind_wf_list sig_ ctx args Kind.Type
 
 and type_guarded_list sig_ ctx guard = function
   | [] -> Ok ()
