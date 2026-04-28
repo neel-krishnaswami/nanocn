@@ -20,21 +20,24 @@ Instructions to Claude for writing OCaml code:
    5. Copy each design document to a file `doc/history/PLAN-NAME.md`, so the user can read it,
       and new sessions can understand the changes. 
 
+1. When you get stuck or make a mistake, output your current hypothesis before switching to a new
+   approach or making any changes. 
 
-1. Programs should be composed of small modules, each implementing a single concern or
+2. Programs should be composed of small modules, each implementing a single concern or
    data structure. However, mutual recursion between functions is a good reason to
    place them in the same module — prefer a single larger module with `and`-linked
    mutually recursive functions over separate modules connected by callbacks or
    recursive module declarations.
 
-2. Write .mli files first, before writing any part of a module.
+3. Write .mli files first, before writing any part of a module.
 
    - .mli files should emphasize the algebraic structure of the data structure. 
 
    - Name the primary type of an .mli file as `t`, so that clients can refer to it as 
      `Foo.t`, or `'a Foo.t`. 
 
-   - Unless otherwise necessary, hide the implementation type. 
+   - Unless required, hide the implementation type so client code is
+     programmed against abstract types.
 
    - Parameterized types of the form `'a t` should expose a `map : ('a -> 'b) -> 'a t -> 'b t`
      primitive in their interface. 
@@ -56,15 +59,14 @@ Instructions to Claude for writing OCaml code:
      properties or theorems, turn these into property-based tests. In a Test submodule, expose
      generators, properties, and a test field using the QCheck library. 
 
-
-3. Here are some bad language features to avoid: 
+4. Here are some bad language features to avoid: 
 
    - NEVER use Obj.magic, or any other feature which can break type safety. 
 
    - NEVER use generic equality, since this violates data abstraction. Always use a 
      type-specific `compare` operation.
 
-3. Unless explicitly instructed otherwise, DO NOT write code which uses effects.
+5. Unless explicitly instructed otherwise, DO NOT write code which uses effects.
 
    - Use a monad with a result type instead of exceptions. 
 
@@ -75,19 +77,19 @@ Instructions to Claude for writing OCaml code:
 
    - Do not perform IO operations, except in the top-level main function. 
 
-3. Write programs by pattern matching over data structures. Avoid
+6. Write programs by pattern matching over data structures. Avoid
    using partial accessors or incomplete patterns matches.
   
-4. Higher-order functions should be used sparingly, in idiomatic ways.
+7. Higher-order functions should be used sparingly, in idiomatic ways.
 
    - Introducing monadic code to eliminate repeated nested pattern matches is acceptable. 
    - Use of map, filter, and other algebraically well-behaved functions is acceptable. 
    - Avoid the use of folds, because they offer no reasoning advantages over explicit
      structural recursion.
 
-5. To write or edit a syntax tree, look in doc/instructions/syntax-trees.md for instructions. 
+8. When making any changes to the grammar, make sure to use the nanocn-parse-errors skill. 
 
-6. `invariant_at` / `K_internal_invariant` must only be used for conditions that are genuinely
+9. `invariant_at` / `K_internal_invariant` must only be used for conditions that are genuinely
    unreachable from any user program, no matter how ill-typed. If a user can write a program
    (even a nonsensical one) that triggers the error, it must use a proper error kind with a
    helpful message. The parser does not reject all ill-formed refined programs, so assume any
