@@ -4,15 +4,31 @@
     returning a fully annotated expression tree where each node carries
     its source location, typing context, sort, and effect. *)
 
-type typed_info = < loc : SourcePos.t; ctx : Context.t; sort : Sort.sort; eff : Effect.t >
+type typed_info = CoreExpr.typed_info
 type typed_ce = typed_info CoreExpr.t
 
-val synth : _ Sig.t -> Context.t -> Effect.t -> CoreExpr.ce -> (typed_ce, Error.t) result
+val synth : _ Sig.t -> Context.t -> Effect.t -> CoreExpr.ce -> typed_ce
 (** Synthesize a sort and effect for the given expression.
-    [eff] is the ambient effect. *)
+    [eff] is the ambient effect.
 
-val check : _ Sig.t -> Context.t -> CoreExpr.ce -> Sort.sort -> Effect.t -> (typed_ce, Error.t) result
-(** Check an expression against a given sort at ambient effect [eff0]. *)
+    Always returns a typed core expression — the multi-error
+    typechecker continues past errors and records them on the
+    offending nodes' [info#answer] field.  Use [collect_errors] to
+    extract the error list from the resulting tree. *)
+
+val check : _ Sig.t -> Context.t -> CoreExpr.ce ->
+  (Sort.sort, Error.kind) result -> Effect.t -> typed_ce
+(** Check an expression against an expected sort at ambient effect
+    [eff0].  The expected sort is itself a result so the caller can
+    pass [Error K_cannot_synthesize] (or any other [Error.kind]) when
+    no expected sort is available; the term still elaborates and any
+    failures land on [info#answer] of the offending nodes. *)
+
+val collect_errors : typed_ce -> Error.t list
+(** [collect_errors ce] returns every [Error e] recorded on
+    [info#answer] anywhere in [ce]'s tree, in source-position order
+    (left-to-right pre-order traversal).  An empty list means the
+    expression typechecked without errors. *)
 
 val prim_signature : Prim.t -> Sort.sort * Sort.sort * Effect.t
 (** [prim_signature p] returns [(arg_sort, ret_sort, effect)] for primitive [p]. *)

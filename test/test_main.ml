@@ -43,6 +43,7 @@ let smt_roundtrip_tests =
 
 let qcheck_tests =
   List.concat [
+    Util.Test.test;
     SourcePos.Test.test;
     Label.Test.test;
     Var.Test.test;
@@ -54,6 +55,7 @@ let qcheck_tests =
     Dsort.Test.test;
     Tvar.Test.test;
     Sort.Test.test;
+    SortView.Test.test;
     SortDiff.Test.test;
     SourceExcerpt.Test.test;
     PatWitness.Test.test;
@@ -86,7 +88,7 @@ let qcheck_tests =
   ]
 
 (** Helper to extract sort from a typed core expr *)
-let sort_of te = (CoreExpr.info te)#sort
+let sort_of te = (CoreExpr.sort_of_info (CoreExpr.info te))
 let eff_of te = (CoreExpr.info te)#eff
 let ctx_of te = (CoreExpr.info te)#ctx
 
@@ -436,8 +438,8 @@ let () =
             (* The root Annot node should have the empty context *)
             (let (x_probe, _) = Var.mk "x" SourcePos.dummy Var.empty_supply in
              match Context.lookup x_probe (ctx_of te) with
-             | Some _ -> Alcotest.fail "root context should not contain x"
-             | None -> ());
+             | Ok _ -> Alcotest.fail "root context should not contain x"
+             | Error _ -> ());
             (* After elaboration, let x = 1; x becomes let y = 1; let x = y; x
                so the structure is Annot(Let(y, _, Let(x, _, body))) *)
             match CoreExpr.shape te with
@@ -977,36 +979,38 @@ let () =
        let mk_sort s = Sort.mk (object method loc = SourcePos.dummy end) s in
        let int_sort = mk_sort Sort.Int in
        let _bool_sort = mk_sort Sort.Bool in
-       let sort_of_ tce = (CoreExpr.info tce)#sort in
+       let sort_of_ tce = (CoreExpr.sort_of_info (CoreExpr.info tce)) in
        let _ctx_of_ tce = (CoreExpr.info tce)#ctx in
        let sig_ = Typecheck.initial_sig in
 
        Alcotest.test_case "synth int literal carries int sort" `Quick (fun () ->
          let ce = mk (CoreExpr.IntLit 42) in
-         match Typecheck.synth sig_ Context.empty Effect.Spec ce with
-         | Error msg -> Alcotest.fail (Error.to_string msg)
-         | Ok tce ->
-           if Sort.compare (sort_of_ tce) int_sort <> 0 then
-             Alcotest.fail "expected int sort"));
+         let tce = Typecheck.synth sig_ Context.empty Effect.Spec ce in
+         (match Typecheck.collect_errors tce with
+          | e :: _ -> Alcotest.fail (Error.to_string e)
+          | [] -> ());
+         if Sort.compare (sort_of_ tce) int_sort <> 0 then
+           Alcotest.fail "expected int sort"));
 
       (let mk shape = CoreExpr.mk (object method loc = SourcePos.dummy end) shape in
        let mk_sort s = Sort.mk (object method loc = SourcePos.dummy end) s in
        let bool_sort = mk_sort Sort.Bool in
-       let sort_of_ tce = (CoreExpr.info tce)#sort in
+       let sort_of_ tce = (CoreExpr.sort_of_info (CoreExpr.info tce)) in
        let sig_ = Typecheck.initial_sig in
 
        Alcotest.test_case "synth bool literal carries bool sort" `Quick (fun () ->
          let ce = mk (CoreExpr.BoolLit true) in
-         match Typecheck.synth sig_ Context.empty Effect.Spec ce with
-         | Error msg -> Alcotest.fail (Error.to_string msg)
-         | Ok tce ->
-           if Sort.compare (sort_of_ tce) bool_sort <> 0 then
-             Alcotest.fail "expected bool sort"));
+         let tce = Typecheck.synth sig_ Context.empty Effect.Spec ce in
+         (match Typecheck.collect_errors tce with
+          | e :: _ -> Alcotest.fail (Error.to_string e)
+          | [] -> ());
+         if Sort.compare (sort_of_ tce) bool_sort <> 0 then
+           Alcotest.fail "expected bool sort"));
 
       (let mk shape = CoreExpr.mk (object method loc = SourcePos.dummy end) shape in
        let mk_sort s = Sort.mk (object method loc = SourcePos.dummy end) s in
        let int_sort = mk_sort Sort.Int in
-       let _sort_of_ tce = (CoreExpr.info tce)#sort in
+       let _sort_of_ tce = (CoreExpr.sort_of_info (CoreExpr.info tce)) in
        let ctx_of_ tce = (CoreExpr.info tce)#ctx in
        let sig_ = Typecheck.initial_sig in
 
@@ -1015,35 +1019,152 @@ let () =
          let xb = (x, object method loc = SourcePos.dummy end) in
          let ce = mk (CoreExpr.Let (xb, mk (CoreExpr.IntLit 1),
                                        mk (CoreExpr.Var x))) in
-         match Typecheck.check sig_ Context.empty ce int_sort Effect.Spec with
-         | Error msg -> Alcotest.fail (Error.to_string msg)
-         | Ok tce ->
-           (* The outer node has empty context *)
-           if Context.lookup x (ctx_of_ tce) <> None then
-             Alcotest.fail "outer ctx should not have x";
-           (* The body (Var x) should have x in context *)
-           match CoreExpr.shape tce with
-           | CoreExpr.Let (_, _, body) ->
-             (match Context.lookup x (ctx_of_ body) with
-              | Some (s, _eff) ->
-                if Sort.compare s int_sort <> 0 then
-                  Alcotest.fail "x should have int sort in body context"
-              | None -> Alcotest.fail "x should be in body context")
-           | _ -> Alcotest.fail "expected Let shape"));
+         let tce = Typecheck.check sig_ Context.empty ce (Ok int_sort) Effect.Spec in
+         (match Typecheck.collect_errors tce with
+          | e :: _ -> Alcotest.fail (Error.to_string e)
+          | [] -> ());
+         (* The outer node has empty context *)
+         (match Context.lookup x (ctx_of_ tce) with
+          | Ok _ -> Alcotest.fail "outer ctx should not have x"
+          | Error _ -> ());
+         (* The body (Var x) should have x in context *)
+         match CoreExpr.shape tce with
+         | CoreExpr.Let (_, _, body) ->
+           (match Context.lookup x (ctx_of_ body) with
+            | Ok (s, _eff) ->
+              if Sort.compare s int_sort <> 0 then
+                Alcotest.fail "x should have int sort in body context"
+            | Error _ -> Alcotest.fail "x should be in body context")
+         | _ -> Alcotest.fail "expected Let shape"));
 
       (let mk shape = CoreExpr.mk (object method loc = SourcePos.dummy end) shape in
        let mk_sort s = Sort.mk (object method loc = SourcePos.dummy end) s in
        let bool_sort = mk_sort Sort.Bool in
-       let sort_of_ tce = (CoreExpr.info tce)#sort in
+       let sort_of_ tce = (CoreExpr.sort_of_info (CoreExpr.info tce)) in
        let sig_ = Typecheck.initial_sig in
 
        Alcotest.test_case "synth equality carries bool sort" `Quick (fun () ->
          let ce = mk (CoreExpr.Eq (mk (CoreExpr.IntLit 1), mk (CoreExpr.IntLit 2))) in
-         match Typecheck.synth sig_ Context.empty Effect.Spec ce with
-         | Error msg -> Alcotest.fail (Error.to_string msg)
-         | Ok tce ->
-           if Sort.compare (sort_of_ tce) bool_sort <> 0 then
-             Alcotest.fail "expected bool sort for equality"));
+         let tce = Typecheck.synth sig_ Context.empty Effect.Spec ce in
+         (match Typecheck.collect_errors tce with
+          | e :: _ -> Alcotest.fail (Error.to_string e)
+          | [] -> ());
+         if Sort.compare (sort_of_ tce) bool_sort <> 0 then
+           Alcotest.fail "expected bool sort for equality"));
+
+      (let mk shape = CoreExpr.mk (object method loc = SourcePos.dummy end) shape in
+       let sig_ = Typecheck.initial_sig in
+
+       (* Two unbound vars in a single Eq: multi-error reporting must
+          surface both, not just the first. *)
+       Alcotest.test_case "multi-error: two unbound vars in Eq" `Quick (fun () ->
+         let (y, supply1) = Var.mk "y" SourcePos.dummy Var.empty_supply in
+         let (z, _) = Var.mk "z" SourcePos.dummy supply1 in
+         let ce = mk (CoreExpr.Eq (mk (CoreExpr.Var y), mk (CoreExpr.Var z))) in
+         let tce = Typecheck.synth sig_ Context.empty Effect.Spec ce in
+         let errs = Typecheck.collect_errors tce in
+         if List.length errs < 2 then
+           Alcotest.failf "expected ≥2 errors, got %d" (List.length errs)));
+
+      (* Case completeness: missing constructor produces
+         K_missing_ctor. *)
+      (let contains_substring s sub =
+         let n = String.length s and m = String.length sub in
+         let rec aux i = i + m <= n && (String.sub s i m = sub || aux (i+1)) in
+         m = 0 || (n >= m && aux 0) in
+       let mk shape = CoreExpr.mk (object method loc = SourcePos.dummy end) shape in
+       let mk_sort s = Sort.mk (object method loc = SourcePos.dummy end) s in
+       let mk_label name =
+         match Label.of_string name with
+         | Ok l -> l | _ -> failwith "label" in
+       let mk_dsort name =
+         match Dsort.of_string name with
+         | Ok d -> d | _ -> failwith "dsort" in
+       let unit_sort = mk_sort (Sort.Record []) in
+       let int_sort = mk_sort Sort.Int in
+       let color = mk_dsort "Color" in
+       let red = mk_label "Red" in
+       let green = mk_label "Green" in
+       let blue = mk_label "Blue" in
+       let color_decl = DsortDecl.{
+         name = color; params = [];
+         ctors = [(red, unit_sort); (green, unit_sort); (blue, unit_sort)];
+         loc = SourcePos.dummy;
+       } in
+       let sig_ = Sig.extend_sort Typecheck.initial_sig color_decl in
+       let color_sort = mk_sort (Sort.App (color, [])) in
+       Alcotest.test_case "case missing ctor produces K_missing_ctor" `Quick (fun () ->
+         let (c, supply1) = Var.mk "c" SourcePos.dummy Var.empty_supply in
+         let (rx, supply2) = Var.mk "rx" SourcePos.dummy supply1 in
+         let (gx, _) = Var.mk "gx" SourcePos.dummy supply2 in
+         let ctx = Context.extend c color_sort Effect.Spec Context.empty in
+         let ce = mk (CoreExpr.Case
+           (mk (CoreExpr.Var c),
+            [ (red, rx, mk (CoreExpr.IntLit 1), object method loc = SourcePos.dummy end);
+              (green, gx, mk (CoreExpr.IntLit 2), object method loc = SourcePos.dummy end);
+            ])) in
+         let tce = Typecheck.check sig_ ctx ce (Ok int_sort) Effect.Spec in
+         let errs = Typecheck.collect_errors tce in
+         let has_missing = List.exists (fun e ->
+           let s = Error.to_string e in
+           contains_substring s "missing"
+           || contains_substring s "non-exhaustive") errs in
+         if not has_missing then
+           Alcotest.failf
+             "expected a missing-ctor error, got: %s"
+             (String.concat "; " (List.map Error.to_string errs))));
+
+      (* Case completeness: redundant constructor produces
+         K_redundant_ctor. *)
+      (let contains_substring s sub =
+         let n = String.length s and m = String.length sub in
+         let rec aux i = i + m <= n && (String.sub s i m = sub || aux (i+1)) in
+         m = 0 || (n >= m && aux 0) in
+       let mk shape = CoreExpr.mk (object method loc = SourcePos.dummy end) shape in
+       let mk_sort s = Sort.mk (object method loc = SourcePos.dummy end) s in
+       let mk_label name =
+         match Label.of_string name with
+         | Ok l -> l | _ -> failwith "label" in
+       let mk_dsort name =
+         match Dsort.of_string name with
+         | Ok d -> d | _ -> failwith "dsort" in
+       let unit_sort = mk_sort (Sort.Record []) in
+       let int_sort = mk_sort Sort.Int in
+       let color = mk_dsort "Color" in
+       let red = mk_label "Red" in
+       let green = mk_label "Green" in
+       let blue = mk_label "Blue" in
+       let color_decl = DsortDecl.{
+         name = color; params = [];
+         ctors = [(red, unit_sort); (green, unit_sort); (blue, unit_sort)];
+         loc = SourcePos.dummy;
+       } in
+       let sig_ = Sig.extend_sort Typecheck.initial_sig color_decl in
+       let color_sort = mk_sort (Sort.App (color, [])) in
+       Alcotest.test_case "case redundant ctor produces K_redundant_ctor" `Quick (fun () ->
+         let (c, supply1) = Var.mk "c" SourcePos.dummy Var.empty_supply in
+         let (rx1, supply2) = Var.mk "rx1" SourcePos.dummy supply1 in
+         let (rx2, supply3) = Var.mk "rx2" SourcePos.dummy supply2 in
+         let (gx, supply4) = Var.mk "gx" SourcePos.dummy supply3 in
+         let (bx, _) = Var.mk "bx" SourcePos.dummy supply4 in
+         let ctx = Context.extend c color_sort Effect.Spec Context.empty in
+         let ce = mk (CoreExpr.Case
+           (mk (CoreExpr.Var c),
+            [ (red,   rx1, mk (CoreExpr.IntLit 1), object method loc = SourcePos.dummy end);
+              (red,   rx2, mk (CoreExpr.IntLit 1), object method loc = SourcePos.dummy end);
+              (green, gx,  mk (CoreExpr.IntLit 2), object method loc = SourcePos.dummy end);
+              (blue,  bx,  mk (CoreExpr.IntLit 3), object method loc = SourcePos.dummy end);
+            ])) in
+         let tce = Typecheck.check sig_ ctx ce (Ok int_sort) Effect.Spec in
+         let errs = Typecheck.collect_errors tce in
+         let has_redundant = List.exists (fun e ->
+           let s = Error.to_string e in
+           contains_substring s "redundant"
+           || contains_substring s "more than once") errs in
+         if not has_redundant then
+           Alcotest.failf
+             "expected a redundant-ctor error, got: %s"
+             (String.concat "; " (List.map Error.to_string errs))));
     ]);
 
     ("rcheck", [
@@ -1120,7 +1241,7 @@ let () =
         let bool_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Bool in
         let mk_info sort =
           (object method loc = SourcePos.dummy method ctx = Context.empty
-                  method sort = sort method eff = Effect.Spec end : CoreExpr.typed_info) in
+                  method answer = Ok sort method eff = Effect.Spec end : CoreExpr.typed_info) in
         let (x, _s0) = Var.mk "x" SourcePos.dummy Var.empty_supply in
         let ce = CoreExpr.mk (mk_info bool_sort) (CoreExpr.IntLit 0) in
         let ri : RProg.typed_rinfo =

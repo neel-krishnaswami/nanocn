@@ -42,9 +42,21 @@ val map : ('b -> 'c) -> 'b t -> 'c t
 (** Concrete located core expression. *)
 type ce = < loc : SourcePos.t > t
 
-(** Typed core expression, carrying context, sort, and effect at every node. *)
-type typed_info = < loc : SourcePos.t; ctx : Context.t; sort : Sort.sort; eff : Effect.t >
+(** Typed core expression, carrying context, sort-or-error answer,
+    and effect at every node.  The [answer] field is [Ok sort] for
+    successfully typed nodes and [Error e] for nodes whose sort could
+    not be determined; the multi-error typechecker continues past the
+    error so siblings still get full diagnostics.  [eff] is the
+    ambient effect at the node and is always known. *)
+type typed_info = < loc : SourcePos.t; ctx : Context.t; answer : (Sort.sort, Error.t) result; eff : Effect.t >
 type typed_ce = typed_info t
+
+val sort_of_info : typed_info -> Sort.sort
+(** [sort_of_info i] reads [i]'s sort, asserting [i#answer] is [Ok _].
+    A Phase A migration shim — Phase B/C will rewrite read sites in
+    View style so they thread the result without unwrapping.  Calling
+    this on a node whose typechecker chose to record an error will
+    raise [Invalid_argument] (a programming bug, not a user error). *)
 
 
 val print_gen : (Format.formatter -> Var.t -> unit) -> Format.formatter -> _ t -> unit

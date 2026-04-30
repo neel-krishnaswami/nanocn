@@ -35,7 +35,7 @@ let bool_sort = Sort.mk loc_dummy Sort.Bool
 (* Typed info constructor for manually-built expressions *)
 let mk_info sort =
   (object method loc = SourcePos.dummy method ctx = Context.empty
-          method sort = sort method eff = Effect.Spec end : CoreExpr.typed_info)
+          method answer = Ok sort method eff = Effect.Spec end : CoreExpr.typed_info)
 
 (* Elaborate a surface expression to typed core, synthesizing its sort *)
 let elab_se (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (se : SurfExpr.se) : (CoreExpr.typed_ce * Sort.sort) ElabM.t =
@@ -96,7 +96,7 @@ let elab_pf (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (pf : (SurfExpr.s
         | ProofSort.Comp { info = _; var; sort; eff } -> return (Context.extend var sort eff gamma)
         | ProofSort.Log _ | ProofSort.Res _ -> return gamma
         | ProofSort.DepRes { info = _; pred; bound_var } ->
-          let pred_sort = (CoreExpr.info pred)#sort in
+          let pred_sort = (CoreExpr.sort_of_info (CoreExpr.info pred)) in
           let pred_loc = (CoreExpr.info pred)#loc in
           let* inner =
             ElabM.lift_at pred_loc
@@ -553,7 +553,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
     let* (x, pred_expr, pred_body) =
       ElabM.lift_at pos
         (CoreExprGet.get_take ~construct:"make-take" (strip_annots ce1)) in
-    let pred_sort = (CoreExpr.info pred_expr)#sort in
+    let pred_sort = (CoreExpr.sort_of_info (CoreExpr.info pred_expr)) in
     let* inner_sort =
       ElabM.lift_at pos
         (SortGet.get_pred ~construct:"make-take bound expression" pred_sort) in
@@ -570,7 +570,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
 
   | RefinedExpr.RHole h ->
     let delta' = RCtx.affinize delta in
-    let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2)) pos delta (CoreExpr.info ce1)#sort Effect.Spec in
+    let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2)) pos delta (CoreExpr.sort_of_info (CoreExpr.info ce1)) Effect.Spec in
     let checked = RefinedExpr.mk_rpf rinfo (RefinedExpr.RHole h) in
     return (checked, delta', Constraint.top pos)
 
@@ -655,7 +655,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let* (x, ce1, ce2) =
       ElabM.lift_at binfo#loc
         (CoreExprGet.get_take ~construct:"open-take" (strip_annots ce_pred)) in
-    let pred_sort = (CoreExpr.info ce1)#sort in
+    let pred_sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
     let* inner_sort =
       ElabM.lift_at binfo#loc
         (SortGet.get_pred ~construct:"open-take" pred_sort) in
@@ -1123,7 +1123,7 @@ and check_branches_list pos rs delta eff eq_var ce _ce_sort ctors branches pf =
          ElabM.fail (Error.non_exhaustive ~loc:pos ~witness)
        | Some (_, _b, x, body) ->
          let ctor_sort' = ctor_sort in
-         let eq_prop = mk_eq ce (CoreExpr.mk (mk_info (CoreExpr.info ce)#sort) (CoreExpr.Inject (label, ce_of_var x ctor_sort'))) in
+         let eq_prop = mk_eq ce (CoreExpr.mk (mk_info (CoreExpr.sort_of_info (CoreExpr.info ce))) (CoreExpr.Inject (label, ce_of_var x ctor_sort'))) in
          let delta_ext = RCtx.extend_comp x ctor_sort' eff_binder
                            (RCtx.extend_log eq_var eq_prop delta) in
          let* (checked_body, delta_out, ct) = check_crt rs delta_ext eff body pf in
@@ -1172,7 +1172,7 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ty
 
     | ProofSort.DepRes { info = _; bound_var = y1; pred = ce1 } :: rest1,
       ProofSort.DepRes { info = _; bound_var = y2; pred = ce2 } :: rest2 ->
-      let pred_sort = (CoreExpr.info ce1)#sort in
+      let pred_sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
       let* inner_sort =
         ElabM.lift_at pos
           (SortGet.get_pred ~construct:"dependent resource" pred_sort) in
@@ -1296,7 +1296,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (_eff : Effect.t)
 
       (* ---- DepRes: expand (do cpat = rpat) against (y).ce[res] ---- *)
       | RPat.QDepRes (cpat, rpat), ProofSort.DepRes { info; bound_var = z; pred } ->
-        let pred_sort = (CoreExpr.info pred)#sort in
+        let pred_sort = (CoreExpr.sort_of_info (CoreExpr.info pred)) in
         (match Sort.shape pred_sort with
          | Sort.Pred inner_sort ->
            (* Expand: cpat matches x:τ[spec], rpat matches ce@x[res] *)
@@ -1347,7 +1347,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (_eff : Effect.t)
            let* (x, ce1, ce2) =
              ElabM.lift_at rp_loc
                (CoreExprGet.get_take ~construct:"take pattern" pred') in
-           let ce1_sort = (CoreExpr.info ce1)#sort in
+           let ce1_sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
            let* inner_sort =
              ElabM.lift_at rp_loc
                (SortGet.get_pred ~construct:"take pattern" ce1_sort) in
@@ -1384,7 +1384,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (_eff : Effect.t)
            let* (x, ce1, ce2) =
              ElabM.lift_at rp_loc
                (CoreExprGet.get_let ~construct:"let pattern" pred') in
-           let sort = (CoreExpr.info ce1)#sort in
+           let sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
            let ce_x = ce_of_var x sort in
            let eq_ce = CoreExpr.mk (CoreExpr.info pred) (CoreExpr.Eq (ce_x, ce1)) in
            let expanded_elems =
@@ -1441,7 +1441,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (_eff : Effect.t)
                | Some (_l, x_br, ce_br, _bi) ->
                  (* Look up the constructor's payload sort, qualified
                     by the scrutinee's head sort. *)
-                 let scrut_sort = (CoreExpr.info scrutinee)#sort in
+                 let scrut_sort = (CoreExpr.sort_of_info (CoreExpr.info scrutinee)) in
                  let* (d, args) =
                    ElabM.lift_at rp_loc
                      (SortGet.get_app ~construct:"case pattern scrutinee"

@@ -2,14 +2,14 @@ let ( let* ) = ElabM.( let* )
 
 (** {1 Typed node types} *)
 
-type typed_info = < loc : SourcePos.t; ctx : Context.t; sort : Sort.sort; eff : Effect.t >
+type typed_info = CoreExpr.typed_info
 type typed_ce = typed_info CoreExpr.t
 
 let mk_typed ctx pos sort eff shape : typed_ce =
   CoreExpr.mk (object
     method loc = pos
     method ctx = ctx
-    method sort = sort
+    method answer = Ok sort
     method eff = eff
   end) shape
 
@@ -17,7 +17,7 @@ let mk_bind_info x sort eff ctx : typed_info =
   object
     method loc = Var.binding_site x
     method ctx = ctx
-    method sort = sort
+    method answer = Ok sort
     method eff = eff
   end
 
@@ -26,7 +26,7 @@ let lift_sort (s : Sort.sort) : typed_info Sort.t =
     (object
       method loc = loc_info#loc
       method ctx = Context.empty
-      method sort = s
+      method answer = Ok s
       method eff = Effect.Pure
     end : typed_info)) s
 
@@ -266,7 +266,7 @@ let rec synth sig_ ctx eff0 se =
   match SurfExpr.shape se with
   | SurfExpr.Var x ->
     (match Context.lookup x ctx with
-     | Some (s, var_eff) ->
+     | Ok (s, var_eff) ->
        if Effect.sub var_eff eff0 then
          ElabM.return (mk_typed ctx pos s eff0 (CoreExpr.Var x), s)
        else
@@ -274,8 +274,8 @@ let rec synth sig_ ctx eff0 se =
            (Error.var_effect_mismatch
               ~loc:pos ~var:x
               ~declared:var_eff ~required:eff0)
-     | None ->
-       ElabM.fail (Error.unbound_var ~loc:pos x))
+     | Error kind ->
+       ElabM.fail (Error.structured ~loc:pos kind))
 
   | SurfExpr.IntLit n ->
     let s = mk_sort pos Sort.Int in

@@ -16,6 +16,20 @@ let lookup sig_ dsort label args =
       | Error k -> Error k
       | Ok sub -> Ok (Subst.apply sub raw_sort)
 
+let lookup_all sig_ dsort args =
+  match Sig.lookup_dsort_or_type dsort sig_ with
+  | Error e -> Error e
+  | Ok (Sig.LSortDecl decl) ->
+    (match Subst.of_lists decl.DsortDecl.params args with
+     | Error k -> Error k
+     | Ok sub ->
+       Ok (List.map (fun (l, raw) -> (l, Subst.apply sub raw)) decl.DsortDecl.ctors))
+  | Ok (Sig.LTypeDecl decl) ->
+    match Subst.of_lists decl.DtypeDecl.params args with
+    | Error k -> Error k
+    | Ok sub ->
+      Ok (List.map (fun (l, raw) -> (l, Subst.apply sub raw)) decl.DtypeDecl.ctors)
+
 module Test = struct
   let mk_dsort s = match Dsort.of_string s with
     | Ok d -> d | Error _ -> assert false

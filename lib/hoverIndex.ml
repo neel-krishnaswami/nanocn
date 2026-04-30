@@ -20,7 +20,8 @@ let empty = []
 
 (** Extract a node from a typed_ce info object (core — no refined context). *)
 let node_of_info (b : Typecheck.typed_info) : node =
-  { loc = b#loc; ctx = b#ctx; rctx = None; sort = b#sort; eff = b#eff; goal = RProg.NoGoal }
+  { loc = b#loc; ctx = b#ctx; rctx = None;
+    sort = CoreExpr.sort_of_info b; eff = b#eff; goal = RProg.NoGoal }
 
 (** Collect all nodes from a typed_ce tree by structural recursion. *)
 let rec collect (acc : node list) (e : Typecheck.typed_ce) : node list =
@@ -92,7 +93,7 @@ let collect_pf acc pf =
 let rec collect_enriched (rinfo : RProg.typed_rinfo) (acc : node list) (e : Typecheck.typed_ce) : node list =
   let b = CoreExpr.info e in
   let n = { loc = b#loc; ctx = b#ctx; rctx = Some rinfo#rctx;
-            sort = b#sort; eff = b#eff; goal = rinfo#goal } in
+            sort = CoreExpr.sort_of_info b; eff = b#eff; goal = rinfo#goal } in
   let acc = n :: acc in
   match CoreExpr.shape e with
   | CoreExpr.Var _ | CoreExpr.IntLit _ | CoreExpr.BoolLit _

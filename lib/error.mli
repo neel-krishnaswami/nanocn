@@ -45,6 +45,11 @@ type kind =
     (** A string-named reference that failed to resolve — used by
         the scope resolver, which sees variables before they gain
         their [Var.t] identity. *)
+  | K_unknown_var_type of { var : Var.t }
+    (** A variable is in scope but its sort is unknown — its binder
+        (a [let] / [take]) had an erroneous right-hand side and the
+        typechecker chose to continue past it.  Distinct from
+        [K_unbound_var] (where the name doesn't resolve at all). *)
   | K_unbound_ctor of Label.t
   | K_unbound_sort of Dsort.t
   | K_unbound_tvar of Tvar.t
@@ -123,6 +128,16 @@ type kind =
   | K_ctor_not_in_decl of { label : Label.t; decl : Dsort.t }
     (** [CtorLookup] resolved the head sort/type [decl] in the
         signature, but [label] is not one of its constructors. *)
+  | K_missing_ctor of { label : Label.t; decl : Dsort.t }
+    (** A [case] expression's branches do not cover constructor
+        [label] of [decl].  Multi-error case checking emits one
+        of these per missing ctor; the synthesized branch's body
+        is filled with [CoreExpr.Hole "missing-case-<label>"]. *)
+  | K_redundant_ctor of { label : Label.t }
+    (** A [case] expression has more than one branch for [label].
+        The duplicate is still typechecked against the known ctor
+        sort (so the body's diagnostics aren't cascading), but the
+        duplication itself is the error. *)
 
   (* Kind well-formedness (kind_wf / type_guarded) *)
   | K_tvar_kind_mismatch of
@@ -241,6 +256,12 @@ val annotation_disagrees :
 
 val unbound_var : loc:SourcePos.t -> Var.t -> t
 val unbound_name : loc:SourcePos.t -> string -> t
+val unknown_var_type : loc:SourcePos.t -> var:Var.t -> t
+(** [unknown_var_type ~loc ~var] reports that [var] is in scope but its
+    sort cannot be determined because its binding's right-hand side had
+    a typing error.  Used by [Context.lookup] when the binding is
+    [Context.Unknown _]. *)
+
 val unbound_ctor : loc:SourcePos.t -> Label.t -> t
 val unbound_sort : loc:SourcePos.t -> Dsort.t -> t
 val unbound_tvar : loc:SourcePos.t -> Tvar.t -> t
@@ -298,6 +319,10 @@ val branch_merge_failure :
 val dep_res_not_pred : loc:SourcePos.t -> got:Sort.sort -> t
 val ctor_not_in_decl :
   loc:SourcePos.t -> label:Label.t -> decl:Dsort.t -> t
+val missing_ctor :
+  loc:SourcePos.t -> label:Label.t -> decl:Dsort.t -> t
+val redundant_ctor :
+  loc:SourcePos.t -> label:Label.t -> t
 
 val at : loc:SourcePos.t -> ('a, kind) result -> ('a, t) result
 (** [at ~loc r] attaches [loc] to any [kind]-typed error in [r],

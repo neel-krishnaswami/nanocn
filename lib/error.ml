@@ -17,6 +17,7 @@ type kind =
       ; diff : SortDiff.shape_compare }
   | K_unbound_var of Var.t
   | K_unbound_name of string
+  | K_unknown_var_type of { var : Var.t }
   | K_unbound_ctor of Label.t
   | K_unbound_sort of Dsort.t
   | K_unbound_tvar of Tvar.t
@@ -54,6 +55,8 @@ type kind =
   | K_branch_merge_failure of { reason : branch_merge_failure }
   | K_dep_res_not_pred of { got : Sort.sort }
   | K_ctor_not_in_decl of { label : Label.t; decl : Dsort.t }
+  | K_missing_ctor of { label : Label.t; decl : Dsort.t }
+  | K_redundant_ctor of { label : Label.t }
   | K_tvar_kind_mismatch of
       { tvar : Tvar.t; got : Kind.t; expected : Kind.t }
   | K_dsort_arity_mismatch of
@@ -120,6 +123,7 @@ let annotation_disagrees ~loc ~inner ~annot =
 
 let unbound_var ~loc v = structured ~loc (K_unbound_var v)
 let unbound_name ~loc n = structured ~loc (K_unbound_name n)
+let unknown_var_type ~loc ~var = structured ~loc (K_unknown_var_type { var })
 let unbound_ctor ~loc l = structured ~loc (K_unbound_ctor l)
 let unbound_sort ~loc d = structured ~loc (K_unbound_sort d)
 let unbound_tvar ~loc t = structured ~loc (K_unbound_tvar t)
@@ -182,6 +186,12 @@ let dep_res_not_pred ~loc ~got =
 
 let ctor_not_in_decl ~loc ~label ~decl =
   structured ~loc (K_ctor_not_in_decl { label; decl })
+
+let missing_ctor ~loc ~label ~decl =
+  structured ~loc (K_missing_ctor { label; decl })
+
+let redundant_ctor ~loc ~label =
+  structured ~loc (K_redundant_ctor { label })
 
 let at ~loc r =
   Result.map_error (structured ~loc) r
@@ -306,6 +316,11 @@ let print_kind fmt = function
   | K_unbound_name s ->
     Format.fprintf fmt "  unbound variable %a"
       (print_emph Format.pp_print_string) s
+  | K_unknown_var_type { var } ->
+    Format.fprintf fmt
+      "  variable %a is in scope but its sort is unknown@,\
+      \  (it was bound by a previous let / take whose right-hand side has an error)"
+      (print_emph Var.print) var
   | K_unbound_ctor l ->
     Format.fprintf fmt "  unknown constructor %a" (print_emph Label.print) l
   | K_unbound_sort d ->
@@ -425,6 +440,14 @@ let print_kind fmt = function
     Format.fprintf fmt
       "  constructor %a is not declared in sort/type %a."
       (print_emph Label.print) label (print_emph Dsort.print) decl
+  | K_missing_ctor { label; decl } ->
+    Format.fprintf fmt
+      "  this case is missing a branch for constructor %a of %a."
+      (print_emph Label.print) label (print_emph Dsort.print) decl
+  | K_redundant_ctor { label } ->
+    Format.fprintf fmt
+      "  constructor %a appears more than once in this case."
+      (print_emph Label.print) label
   | K_tvar_kind_mismatch { tvar; got; expected } ->
     Format.fprintf fmt "@[<v>";
     Format.fprintf fmt "  type variable %a has kind %a,"
@@ -587,6 +610,7 @@ let kind_header = function
   | K_sort_mismatch _ -> "Type error: sort mismatch"
   | K_annotation_disagrees _ -> "Type error: annotation mismatch"
   | K_unbound_var _ | K_unbound_name _ -> "Type error: unbound variable"
+  | K_unknown_var_type _ -> "Type error: unknown variable sort"
   | K_unbound_ctor _ -> "Type error: unknown constructor"
   | K_unbound_sort _ -> "Type error: unknown sort/type"
   | K_unbound_tvar _ -> "Type error: unbound type variable"
@@ -609,6 +633,8 @@ let kind_header = function
   | K_branch_merge_failure _ -> "Type error: branch merge failure"
   | K_dep_res_not_pred _ -> "Type error: wrong sort shape"
   | K_ctor_not_in_decl _ -> "Type error: unknown constructor"
+  | K_missing_ctor _ -> "Type error: non-exhaustive case"
+  | K_redundant_ctor _ -> "Type error: redundant case branch"
   | K_tvar_kind_mismatch _ -> "Type error: kind mismatch"
   | K_dsort_arity_mismatch _ -> "Type error: sort arity mismatch"
   | K_pred_misuse _ -> "Type error: pred in wrong context"
@@ -687,9 +713,23 @@ module Test = struct
         contains_substring s "unbound variable"
         && contains_substring s "xyzzy")
 
+  let test_unknown_var_type_mentions_name =
+    QCheck.Test.make
+      ~name:"Error: unknown_var_type printer mentions the variable"
+      ~count:1
+      QCheck.unit
+      (fun () ->
+        let (v, _) = Var.mk "yzzyx" SourcePos.dummy Var.empty_supply in
+        let e = unknown_var_type ~loc:SourcePos.dummy ~var:v in
+        let s = to_string e in
+        contains_substring s "yzzyx"
+        && (contains_substring s "sort is unknown"
+            || contains_substring s "unknown variable sort"))
+
   let test = [
     test_parse_error_preserves_message;
     test_sort_mismatch_mentions_both;
     test_unbound_var_mentions_name;
+    test_unknown_var_type_mentions_name;
   ]
 end

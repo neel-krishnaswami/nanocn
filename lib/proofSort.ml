@@ -55,7 +55,7 @@ let comp pf =
   | ss -> Sort.mk loc (Sort.Record ss)
 
 let synth_bound_sort pred =
-  let sort = (CoreExpr.info pred)#sort in
+  let sort = (CoreExpr.sort_of_info (CoreExpr.info pred)) in
   match Sort.shape sort with
   | Sort.Pred inner -> Ok inner
   | _ -> Error (Error.K_dep_res_not_pred { got = sort })

@@ -19,6 +19,19 @@ val lookup :
     - [Error.K_subst_arity_mismatch] if [args] has a different
       arity than the decl's type parameters. *)
 
+val lookup_all :
+  'a Sig.t -> Dsort.t -> Sort.sort list ->
+  ((Label.t * Sort.sort) list, Error.kind) result
+(** [lookup_all sig d args] returns every [(label, payload_sort)]
+    pair declared at head [d], with [args] substituted into each
+    payload sort.  Used by case completeness checking to compare the
+    given branches against the full ctor set.
+
+    Fails the same way as [lookup] for unbound head sort and
+    arity mismatches; never fails for a missing/extra ctor (that
+    is the caller's responsibility — reported via
+    [K_missing_ctor] / [K_redundant_ctor]). *)
+
 module Test : sig
   val test : QCheck.Test.t list
 end

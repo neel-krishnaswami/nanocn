@@ -7,7 +7,7 @@
 
 (** {1 Typed node types} *)
 
-type typed_info = < loc : SourcePos.t; ctx : Context.t; sort : Sort.sort; eff : Effect.t >
+type typed_info = CoreExpr.typed_info
 type typed_ce = typed_info CoreExpr.t
 
 val lift_sort : Sort.sort -> typed_info Sort.t

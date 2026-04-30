@@ -51,7 +51,7 @@ let rec walk_ce ce acc =
   | CoreExpr.Fail | CoreExpr.Hole _ ->
     (match CoreExpr.shape ce with
      | CoreExpr.Fail ->
-       (match payload_of_pred (CoreExpr.info ce)#sort with
+       (match payload_of_pred (CoreExpr.sort_of_info (CoreExpr.info ce)) with
         | Some t -> add_sort acc t
         | None -> acc)
      | _ -> acc)
@@ -81,15 +81,15 @@ let rec walk_ce ce acc =
     walk_ce a acc
   | CoreExpr.Take (_, bound, body) ->
     let acc =
-      match payload_of_pred (CoreExpr.info bound)#sort,
-            payload_of_pred (CoreExpr.info body)#sort with
+      match payload_of_pred (CoreExpr.sort_of_info (CoreExpr.info bound)),
+            payload_of_pred (CoreExpr.sort_of_info (CoreExpr.info body)) with
       | Some tau, Some sigma -> add_pair acc tau sigma
       | _ -> acc
     in
     walk_ce body (walk_ce bound acc)
   | CoreExpr.Return child ->
     let acc =
-      add_sort acc (CoreExpr.info child)#sort
+      add_sort acc (CoreExpr.sort_of_info (CoreExpr.info child))
     in
     walk_ce child acc
 

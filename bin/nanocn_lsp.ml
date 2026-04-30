@@ -101,7 +101,7 @@ let compile_and_diagnose (doc : doc_state) : doc_state =
 let rec collect_holes acc (e : Typecheck.typed_ce) =
   let b = CoreExpr.info e in
   let acc = match CoreExpr.shape e with
-    | CoreExpr.Hole h -> (h, b#loc, b#sort, b#ctx) :: acc
+    | CoreExpr.Hole h -> (h, b#loc, (CoreExpr.sort_of_info b), b#ctx) :: acc
     | _ -> acc
   in
   match CoreExpr.shape e with

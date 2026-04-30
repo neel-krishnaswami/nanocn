@@ -8,40 +8,59 @@ let invariant_at pos ~rule msg =
 
 let ( let* ) = Result.bind
 
+(** [check_pred b err] turns a boolean test into a result-typed gate.
+    Used with [( &&& )] to linearize predicate checks (effect
+    subsumption, spec-context, arity) into the answer-builder
+    pipeline so clauses don't branch on the test. *)
+let[@warning "-32"] check_pred (b : bool) (err : Error.t)
+    : (unit, Error.t) result =
+  if b then Ok () else Error err
+
+(** [gate &&& x] threads an [Error] gate through a result-producing
+    expression: when [gate] is [Ok ()], pass [x] through unchanged;
+    when [gate] is [Error e], replace the result with [Error e].
+    Equivalent to [Result.bind gate (fun () -> x)] but reads more
+    naturally at builder sites where [x] is itself a [SortView.Build]
+    expression. *)
+let[@warning "-32"] ( &&& )
+    (gate : (unit, Error.t) result) (x : ('a, Error.t) result)
+    : ('a, Error.t) result =
+  match gate with Ok () -> x | Error e -> Error e
+
 let sort_equal (a : Sort.sort) (b : Sort.sort) = Sort.compare a b = 0
 
 let dummy_info = object method loc = SourcePos.dummy end
 
 let mk_sort s = Sort.mk dummy_info s
 
-type typed_info = < loc : SourcePos.t; ctx : Context.t; sort : Sort.sort; eff : Effect.t >
+type typed_info = < loc : SourcePos.t; ctx : Context.t; answer : (Sort.sort, Error.t) result; eff : Effect.t >
 type typed_ce = typed_info CoreExpr.t
 
-let mk ctx pos sort eff shape : typed_ce =
+let mk ctx pos answer eff shape : typed_ce =
   CoreExpr.mk (object
     method loc = pos
     method ctx = ctx
-    method sort = sort
+    method answer = answer
     method eff = eff
   end) shape
 
-let mk_bind_info x sort eff ctx : typed_info =
+let mk_bind_info x answer eff ctx : typed_info =
   object
     method loc = Var.binding_site x
     method ctx = ctx
-    method sort = sort
+    method answer = answer
     method eff = eff
   end
 
 (** Lift a [Sort.sort] into [typed_info Sort.t] so it can be embedded
-    in a typed core-expression shape.  The extra fields (ctx, sort, eff)
+    in a typed core-expression shape.  The extra fields (ctx, answer, eff)
     on each sort node are fillers — no client inspects them. *)
 let lift_sort (s : Sort.sort) : typed_info Sort.t =
   Sort.map (fun loc_info ->
     (object
       method loc = loc_info#loc
       method ctx = Context.empty
-      method sort = s
+      method answer = Ok s
       method eff = Effect.Pure
     end : typed_info)) s
 
@@ -77,263 +96,486 @@ let prim_signature (p : Prim.t) =
   | Own a ->
     (mk_sort (Sort.Ptr a), mk_sort (Sort.Pred a), Effect.Spec)
 
-(** Synthesize: S; G |- [eff0] ce ==> tau *)
-let rec synth sig_ ctx eff0 ce =
+(** [unsynth ~construct r] converts an [info#answer] (a result over
+    [Error.t]) into the [Error.kind] expected by [check]'s expected-sort
+    argument when the typechecker couldn't synthesize the prior subterm.
+    The original error stays attached to the prior node; this lets the
+    inner [check] continue without inventing a fictitious sort. *)
+let unsynth ~construct r =
+  Result.map_error (fun _ -> Error.K_cannot_synthesize { construct }) r
+
+(** Outcome of pairing each given case branch with the declared
+    constructor list — used by [merge_branches] / [check_case_branches]
+    to detect missing, redundant, and unknown ctors. *)
+type merged_branch =
+  | M_present of Label.t * Var.t * CoreExpr.ce * Sort.sort
+  | M_missing of Label.t * Sort.sort
+    (** A declared ctor that the user did not match.  The body is
+        synthesized as [CoreExpr.Hole "missing-case-<label>"]. *)
+  | M_redundant of Label.t * Var.t * CoreExpr.ce * Sort.sort
+    (** Second or later occurrence of [label].  The known ctor sort
+        is preserved so the body still typechecks. *)
+  | M_unknown_label of Label.t * Var.t * CoreExpr.ce
+    (** Either the label isn't declared at this dsort, or the
+        declared list itself errored — body still elaborates with
+        an unknown bound-var sort. *)
+
+(** [merge_branches given declared] pairs the user's case branches
+    with the full declared ctor list.  Returns merged entries in
+    declared order, with extra [M_unknown_label] entries appended for
+    given branches whose label isn't declared.  The caller constructs
+    per-branch [Error.t]s from the [M_*] tags using its location and
+    dsort context. *)
+let merge_branches branches declared =
+  match declared with
+  | Error _ ->
+    List.map (fun (l, x, body, _) -> M_unknown_label (l, x, body)) branches
+  | Ok lts ->
+    let label_eq l1 l2 = Label.compare l1 l2 = 0 in
+    let seen = Hashtbl.create 8 in
+    let classified =
+      List.map (fun (l, x, body, _) ->
+        match List.find_opt (fun (l', _) -> label_eq l l') lts with
+        | None -> M_unknown_label (l, x, body)
+        | Some (_, ctor_sort) ->
+          if Hashtbl.mem seen l then
+            M_redundant (l, x, body, ctor_sort)
+          else begin
+            Hashtbl.add seen l ();
+            M_present (l, x, body, ctor_sort)
+          end
+      ) branches
+    in
+    let missing =
+      List.filter_map (fun (l, ctor_sort) ->
+        if Hashtbl.mem seen l then None
+        else Some (M_missing (l, ctor_sort))
+      ) lts
+    in
+    classified @ missing
+
+(** [replace_answer ce answer] returns a copy of [ce] whose top-level
+    [answer] field has been replaced.  Used by synth's unsynthesizable
+    fallback to re-wrap a check-elaborated subterm with a synth-side
+    cannot_synthesize error while preserving the inner elaboration. *)
+let replace_answer (ce : typed_ce) answer : typed_ce =
+  let info = CoreExpr.info ce in
+  let new_info : typed_info =
+    object
+      method loc = info#loc
+      method ctx = info#ctx
+      method answer = answer
+      method eff = info#eff
+    end
+  in
+  CoreExpr.mk new_info (CoreExpr.shape ce)
+
+(** Synthesize: S; G |- [eff0] ce ==> tau
+
+    Returns a typed core expression whose [info#answer] is [Ok sort]
+    on success and [Error e] on failure.  Errors are recorded on the
+    offending node so siblings can still be elaborated. *)
+let rec synth sig_ ctx eff0 ce : typed_ce =
   let pos = (CoreExpr.info ce)#loc in
   match CoreExpr.shape ce with
   | CoreExpr.Var x ->
-    (match Context.lookup x ctx with
-     | Some (s, var_eff) ->
-       if Effect.sub var_eff eff0 then
-         Ok (mk ctx pos s eff0 (CoreExpr.Var x))
-       else
-         Error (Error.var_effect_mismatch
-                  ~loc:pos ~var:x
-                  ~declared:var_eff ~required:eff0)
-     | None ->
-       Error (Error.unbound_var ~loc:pos x))
+    let answer =
+      let* (s, var_eff) =
+        Context.lookup x ctx
+        |> Result.map_error (Error.structured ~loc:pos)
+      in
+      check_pred (Effect.sub var_eff eff0)
+        (Error.var_effect_mismatch ~loc:pos ~var:x
+           ~declared:var_eff ~required:eff0)
+      &&& Ok s
+    in
+    mk ctx pos answer eff0 (CoreExpr.Var x)
 
   | CoreExpr.IntLit n ->
-    Ok (mk ctx pos (mk_sort Sort.Int) eff0 (CoreExpr.IntLit n))
+    mk ctx pos (Ok (mk_sort Sort.Int)) eff0 (CoreExpr.IntLit n)
 
   | CoreExpr.BoolLit b ->
-    Ok (mk ctx pos (mk_sort Sort.Bool) eff0 (CoreExpr.BoolLit b))
+    mk ctx pos (Ok (mk_sort Sort.Bool)) eff0 (CoreExpr.BoolLit b)
 
   | CoreExpr.Eq (ce1, ce2) ->
     let eff0' = Effect.purify eff0 in
-    let* ce1' = synth sig_ ctx eff0' ce1 in
-    let s1 = (CoreExpr.info ce1')#sort in
-    if not (Sort.is_spec_type s1) then
-      Error (Error.not_spec_type ~loc:pos
-               ~construct:"equality" ~got:s1)
-    else
-      let* ce2' = check sig_ ctx ce2 s1 eff0' in
-      let bool_sort = mk_sort Sort.Bool in
-      Ok (mk ctx pos bool_sort eff0 (CoreExpr.Eq (ce1', ce2')))
+    let ce1' = synth sig_ ctx eff0' ce1 in
+    let ce1_answer = (CoreExpr.info ce1')#answer in
+    let ce2' =
+      check sig_ ctx ce2 (unsynth ~construct:"equality" ce1_answer) eff0' in
+    let answer =
+      let* s1 = ce1_answer in
+      check_pred (Sort.is_spec_type s1)
+        (Error.not_spec_type ~loc:pos ~construct:"equality" ~got:s1)
+      &&& Ok (mk_sort Sort.Bool)
+    in
+    mk ctx pos answer eff0 (CoreExpr.Eq (ce1', ce2'))
 
   | CoreExpr.And (ce1, ce2) ->
     let bool_sort = mk_sort Sort.Bool in
-    let* ce1' = check sig_ ctx ce1 bool_sort eff0 in
-    let* ce2' = check sig_ ctx ce2 bool_sort eff0 in
-    Ok (mk ctx pos bool_sort eff0 (CoreExpr.And (ce1', ce2')))
+    let ce1' = check sig_ ctx ce1 (Ok bool_sort) eff0 in
+    let ce2' = check sig_ ctx ce2 (Ok bool_sort) eff0 in
+    mk ctx pos (Ok bool_sort) eff0 (CoreExpr.And (ce1', ce2'))
 
-  | CoreExpr.Not ce ->
+  | CoreExpr.Not ce_inner ->
     let bool_sort = mk_sort Sort.Bool in
-    let* ce' = check sig_ ctx ce bool_sort eff0 in
-    Ok (mk ctx pos bool_sort eff0 (CoreExpr.Not ce'))
+    let ce' = check sig_ ctx ce_inner (Ok bool_sort) eff0 in
+    mk ctx pos (Ok bool_sort) eff0 (CoreExpr.Not ce')
 
   | CoreExpr.App (p, arg) ->
-    let* () = match p with
+    let eq_check = match p with
       | Prim.Eq a ->
-        if Sort.is_eqtype a then Ok ()
-        else Error (Error.eq_not_equality_type ~loc:pos ~got:a)
+        check_pred (Sort.is_eqtype a)
+          (Error.eq_not_equality_type ~loc:pos ~got:a)
       | _ -> Ok ()
     in
     let (arg_sort, ret_sort, prim_eff) = prim_signature p in
-    if not (Effect.sub prim_eff eff0) then
-      Error (Error.prim_effect_mismatch
-               ~loc:pos ~prim:p ~declared:prim_eff ~required:eff0)
-    else
-      let eff0' = Effect.purify eff0 in
-      let* arg' = check sig_ ctx arg arg_sort eff0' in
-      Ok (mk ctx pos ret_sort eff0 (CoreExpr.App (p, arg')))
+    let eff_check = check_pred (Effect.sub prim_eff eff0)
+      (Error.prim_effect_mismatch
+         ~loc:pos ~prim:p ~declared:prim_eff ~required:eff0) in
+    let eff0' = Effect.purify eff0 in
+    let arg' = check sig_ ctx arg (Ok arg_sort) eff0' in
+    let answer = eq_check &&& eff_check &&& Ok ret_sort in
+    mk ctx pos answer eff0 (CoreExpr.App (p, arg'))
 
   | CoreExpr.Call (name, arg) ->
-    let* (arg_sort, ret_sort, fun_eff) =
-      Error.at ~loc:pos (Sig.lookup_fun name sig_) in
-    if not (Effect.sub fun_eff eff0) then
-      Error (Error.fun_effect_mismatch
-               ~loc:pos ~name
-               ~declared:fun_eff ~required:eff0)
-    else
-      let eff0' = Effect.purify eff0 in
-      let* arg' = check sig_ ctx arg arg_sort eff0' in
-      Ok (mk ctx pos ret_sort eff0 (CoreExpr.Call (name, arg')))
+    let lookup_result =
+      Sig.lookup_fun name sig_
+      |> Result.map_error (Error.structured ~loc:pos) in
+    (* Pass the argument's expected sort to check.  When lookup
+       fails, the construct wasn't synthesizable as a function call —
+       represent that with K_cannot_synthesize so check still
+       elaborates [arg] with no expected type. *)
+    let arg_expected =
+      Result.map (fun (a, _, _) -> a) lookup_result
+      |> unsynth ~construct:"function call"
+    in
+    let eff0' = Effect.purify eff0 in
+    let arg' = check sig_ ctx arg arg_expected eff0' in
+    let answer =
+      let* (_, ret_sort, fun_eff) = lookup_result in
+      check_pred (Effect.sub fun_eff eff0)
+        (Error.fun_effect_mismatch
+           ~loc:pos ~name ~declared:fun_eff ~required:eff0)
+      &&& Ok ret_sort
+    in
+    mk ctx pos answer eff0 (CoreExpr.Call (name, arg'))
 
-  | CoreExpr.Annot (ce, s) ->
-    let* ce' = check sig_ ctx ce s eff0 in
-    Ok (mk ctx pos s eff0 (CoreExpr.Annot (ce', lift_sort s)))
+  | CoreExpr.Annot (ce_inner, s) ->
+    let ce' = check sig_ ctx ce_inner (Ok s) eff0 in
+    mk ctx pos (Ok s) eff0 (CoreExpr.Annot (ce', lift_sort s))
 
   | CoreExpr.Return _ | CoreExpr.Take _ | CoreExpr.Fail | CoreExpr.Hole _
   | CoreExpr.Let _ | CoreExpr.Inject _ | CoreExpr.Case _ | CoreExpr.Tuple _
   | CoreExpr.LetTuple _ | CoreExpr.If _ | CoreExpr.Iter _ ->
-    Error (Error.cannot_synthesize ~loc:pos ~construct:"sort")
+    let unsynth_kind = Error.K_cannot_synthesize { construct = "sort" } in
+    let inner = check sig_ ctx ce (Error unsynth_kind) eff0 in
+    let answer = Error (Error.cannot_synthesize ~loc:pos ~construct:"sort") in
+    replace_answer inner answer
 
-(** Check: S; G |- [eff0] ce <== tau *)
-and check sig_ ctx ce sort eff0 =
+(** Check: S; G |- [eff0] ce <== tau
+
+    The expected-sort argument is itself a result so callers don't
+    have to branch when the parent's synth produced no sort.  An
+    [Error] expected sort still elaborates the term (recursion is
+    unconditional) — the term's own [answer] inherits the failure
+    reason from the View calls that consume [sort]. *)
+and check sig_ ctx ce sort eff0 : typed_ce =
   let pos = (CoreExpr.info ce)#loc in
   match CoreExpr.shape ce with
   | CoreExpr.Return inner ->
-    if not (Effect.sub Effect.Spec eff0) then
-      Error (Error.spec_context_required ~loc:pos ~construct:"return")
-    else
-      let* tau = Error.at ~loc:pos (SortGet.get_pred ~construct:"return" sort) in
-      let* inner' = check sig_ ctx inner tau eff0 in
-      Ok (mk ctx pos sort eff0 (CoreExpr.Return inner'))
+    let eff_check = check_pred (Effect.sub Effect.Spec eff0)
+      (Error.spec_context_required ~loc:pos ~construct:"return") in
+    let inner_expected =
+      SortView.Get.pred ~construct:"return" sort in
+    let inner' = check sig_ ctx inner inner_expected eff0 in
+    let answer =
+      eff_check &&& Error.at ~loc:pos sort
+    in
+    mk ctx pos answer eff0 (CoreExpr.Return inner')
 
   | CoreExpr.Fail ->
-    if not (Effect.sub Effect.Spec eff0) then
-      Error (Error.spec_context_required ~loc:pos ~construct:"fail")
-    else
-      let* _ = Error.at ~loc:pos (SortGet.get_pred ~construct:"fail" sort) in
-      Ok (mk ctx pos sort eff0 CoreExpr.Fail)
+    let eff_check = check_pred (Effect.sub Effect.Spec eff0)
+      (Error.spec_context_required ~loc:pos ~construct:"fail") in
+    let _ = SortView.Get.pred ~construct:"fail" sort in
+    let answer = eff_check &&& Error.at ~loc:pos sort in
+    mk ctx pos answer eff0 CoreExpr.Fail
 
   | CoreExpr.Take ((x, _), ce1, ce2) ->
-    if not (Effect.sub Effect.Spec eff0) then
-      Error (Error.spec_context_required ~loc:pos ~construct:"take")
-    else
-      let* _ = Error.at ~loc:pos (SortGet.get_pred ~construct:"take target" sort) in
-      let* ce1' = synth sig_ ctx eff0 ce1 in
-      let s1 = (CoreExpr.info ce1')#sort in
-      let* tau = Error.at ~loc:pos (SortGet.get_pred ~construct:"take scrutinee" s1) in
-      let bind_eff = Effect.purify eff0 in
-      let ctx' = Context.extend x tau bind_eff ctx in
-      let* ce2' = check sig_ ctx' ce2 sort eff0 in
-      let xb = (x, mk_bind_info x tau bind_eff ctx') in
-      Ok (mk ctx pos sort eff0 (CoreExpr.Take (xb, ce1', ce2')))
+    let eff_check = check_pred (Effect.sub Effect.Spec eff0)
+      (Error.spec_context_required ~loc:pos ~construct:"take") in
+    let _target_check = SortView.Get.pred ~construct:"take target" sort in
+    let ce1' = synth sig_ ctx eff0 ce1 in
+    let ce1_answer = (CoreExpr.info ce1')#answer in
+    let bound_kind =
+      ce1_answer
+      |> unsynth ~construct:"take scrutinee"
+      |> SortView.Get.pred ~construct:"take scrutinee"
+    in
+    let bind_eff = Effect.purify eff0 in
+    let ctx' = Context.extend_or_unknown x bound_kind bind_eff ctx in
+    let bound_answer = Error.at ~loc:pos bound_kind in
+    let ce2' = check sig_ ctx' ce2 sort eff0 in
+    let xb = (x, mk_bind_info x bound_answer bind_eff ctx') in
+    let answer = eff_check &&& Error.at ~loc:pos sort in
+    mk ctx pos answer eff0 (CoreExpr.Take (xb, ce1', ce2'))
 
   | CoreExpr.Let ((x, _), ce1, ce2) ->
-    let* ce1' = synth sig_ ctx eff0 ce1 in
-    let tau = (CoreExpr.info ce1')#sort in
+    let ce1' = synth sig_ ctx eff0 ce1 in
+    let ce1_answer = (CoreExpr.info ce1')#answer in
     let bind_eff = Effect.purify eff0 in
-    let ctx' = Context.extend x tau bind_eff ctx in
-    let* ce2' = check sig_ ctx' ce2 sort eff0 in
-    let xb = (x, mk_bind_info x tau bind_eff ctx') in
-    Ok (mk ctx pos sort eff0 (CoreExpr.Let (xb, ce1', ce2')))
+    let bound_kind = unsynth ~construct:"let binding" ce1_answer in
+    let ctx' = Context.extend_or_unknown x bound_kind bind_eff ctx in
+    let ce2' = check sig_ ctx' ce2 sort eff0 in
+    let xb = (x, mk_bind_info x ce1_answer bind_eff ctx') in
+    let answer = Error.at ~loc:pos sort in
+    mk ctx pos answer eff0 (CoreExpr.Let (xb, ce1', ce2'))
 
   | CoreExpr.LetTuple (xs, ce1, ce2) ->
     let eff0' = Effect.purify eff0 in
-    let* ce1' = synth sig_ ctx eff0' ce1 in
-    let s1 = (CoreExpr.info ce1')#sort in
-    let* ts = Error.at ~loc:pos (SortGet.get_record ~construct:"let-tuple scrutinee" s1) in
-    let vars = List.map fst xs in
-    if List.compare_lengths vars ts <> 0 then
-      Error (Error.tuple_arity_mismatch ~loc:pos
-               ~construct:"let-tuple"
-               ~expected:(List.length ts)
-               ~actual:(List.length vars))
-    else
-      let bind_eff = Effect.purify eff0 in
-      let bindings = List.map (fun (x, s) -> (x, s, bind_eff)) (List.combine vars ts) in
-      let ctx' = Context.extend_list bindings ctx in
-      let* ce2' = check sig_ ctx' ce2 sort eff0 in
-      let typed_xs = List.map (fun ((x, _), s) ->
-        (x, (object
-          method loc = Var.binding_site x
-          method ctx = ctx'
-          method sort = s
-          method eff = bind_eff
-        end : typed_info))
-      ) (List.combine xs ts) in
-      Ok (mk ctx pos sort eff0 (CoreExpr.LetTuple (typed_xs, ce1', ce2')))
+    let ce1' = synth sig_ ctx eff0' ce1 in
+    let ce1_answer = (CoreExpr.info ce1')#answer in
+    let n = List.length xs in
+    let scrut_record = unsynth ~construct:"let-tuple scrutinee" ce1_answer in
+    let ts =
+      SortView.Get.record ~construct:"let-tuple scrutinee" n scrut_record in
+    let bind_eff = Effect.purify eff0 in
+    let ctx' =
+      List.fold_left
+        (fun acc ((x, _), s_result) ->
+           Context.extend_or_unknown x s_result bind_eff acc)
+        ctx (List.combine xs ts) in
+    let ce2' = check sig_ ctx' ce2 sort eff0 in
+    let typed_xs = List.map (fun ((x, _), s_result) ->
+      let s_answer = Error.at ~loc:pos s_result in
+      (x, (object
+        method loc = Var.binding_site x
+        method ctx = ctx'
+        method answer = s_answer
+        method eff = bind_eff
+      end : typed_info))
+    ) (List.combine xs ts) in
+    let answer = Error.at ~loc:pos sort in
+    mk ctx pos answer eff0 (CoreExpr.LetTuple (typed_xs, ce1', ce2'))
 
   | CoreExpr.Tuple es ->
-    let* ts = Error.at ~loc:pos (SortGet.get_record ~construct:"tuple" sort) in
-    if List.compare_lengths es ts <> 0 then
-      Error (Error.tuple_arity_mismatch ~loc:pos
-               ~construct:"tuple"
-               ~expected:(List.length ts)
-               ~actual:(List.length es))
-    else
-      let* es' = check_list sig_ ctx es ts eff0 in
-      Ok (mk ctx pos sort eff0 (CoreExpr.Tuple es'))
+    let n = List.length es in
+    let ts = SortView.Get.record ~construct:"tuple" n sort in
+    let es' =
+      List.map (fun (e, s_result) -> check sig_ ctx e s_result eff0)
+        (List.combine es ts) in
+    let answer = Error.at ~loc:pos sort in
+    mk ctx pos answer eff0 (CoreExpr.Tuple es')
 
   | CoreExpr.Inject (l, e_inner) ->
-    let* (d, args) = Error.at ~loc:pos (SortGet.get_app ~construct:"injection" sort) in
-    let* ctor_sort = Error.at ~loc:pos (CtorLookup.lookup sig_ d l args) in
+    let (d_result, args_results) =
+      SortView.Get.app ~construct:"injection" sort in
+    let ctor_kind =
+      let* d = d_result in
+      let* args = Util.result_list args_results in
+      CtorLookup.lookup sig_ d l args
+    in
     let eff0' = Effect.purify eff0 in
-    let* e_inner' = check sig_ ctx e_inner ctor_sort eff0' in
-    Ok (mk ctx pos sort eff0 (CoreExpr.Inject (l, e_inner')))
+    let e_inner' = check sig_ ctx e_inner ctor_kind eff0' in
+    let answer = Error.at ~loc:pos sort in
+    mk ctx pos answer eff0 (CoreExpr.Inject (l, e_inner'))
 
   | CoreExpr.Case (scrut, branches) ->
     let eff0' = Effect.purify eff0 in
-    let* scrut' = synth sig_ ctx eff0' scrut in
-    let scrut_sort = (CoreExpr.info scrut')#sort in
-    let* branches' =
-      check_case_branches sig_ ctx branches scrut_sort sort eff0 eff0' pos in
-    Ok (mk ctx pos sort eff0 (CoreExpr.Case (scrut', branches')))
+    let scrut' = synth sig_ ctx eff0' scrut in
+    let scrut_answer = (CoreExpr.info scrut')#answer in
+    let bind_eff = eff0' in
+    let branches' =
+      check_case_branches sig_ ctx branches scrut_answer sort eff0 bind_eff pos in
+    let answer = Error.at ~loc:pos sort in
+    mk ctx pos answer eff0 (CoreExpr.Case (scrut', branches'))
 
   | CoreExpr.Iter (x, e1, body) ->
-    if not (Effect.sub Effect.Impure eff0) then
-      Error (Error.iter_requires_impure ~loc:pos ~actual:eff0)
-    else
-      let* e1' = synth sig_ ctx Effect.Pure e1 in
-      let a = (CoreExpr.info e1')#sort in
-      let step_dsort = match Dsort.of_string "Step" with Ok d -> d | Error _ -> failwith "impossible" in
-      let iter_sort = mk_sort (Sort.App (step_dsort, [a; sort])) in
-      let bind_eff = Effect.purify Effect.Impure in
-      let ctx' = Context.extend x a bind_eff ctx in
-      let* body' = check sig_ ctx' body iter_sort Effect.Impure in
-      Ok (mk ctx pos sort eff0 (CoreExpr.Iter (x, e1', body')))
+    let eff_check = check_pred (Effect.sub Effect.Impure eff0)
+      (Error.iter_requires_impure ~loc:pos ~actual:eff0) in
+    let e1' = synth sig_ ctx Effect.Pure e1 in
+    let e1_answer = (CoreExpr.info e1')#answer in
+    let bind_eff = Effect.purify Effect.Impure in
+    let bound_kind = unsynth ~construct:"iter step source" e1_answer in
+    let ctx' = Context.extend_or_unknown x bound_kind bind_eff ctx in
+    let step_dsort =
+      match Dsort.of_string "Step" with
+      | Ok d -> d
+      | Error _ -> failwith "impossible" in
+    let iter_sort_kind =
+      let* a = bound_kind in
+      let* result = sort in
+      Ok (mk_sort (Sort.App (step_dsort, [a; result]))) in
+    let body' = check sig_ ctx' body iter_sort_kind Effect.Impure in
+    let answer = eff_check &&& Error.at ~loc:pos sort in
+    mk ctx pos answer eff0 (CoreExpr.Iter (x, e1', body'))
 
   | CoreExpr.If (cond, e_then, e_else) ->
     let bool_sort = mk_sort Sort.Bool in
     let eff0' = Effect.purify eff0 in
-    let* cond' = check sig_ ctx cond bool_sort eff0' in
-    let* then' = check sig_ ctx e_then sort eff0 in
-    let* else' = check sig_ ctx e_else sort eff0 in
-    Ok (mk ctx pos sort eff0 (CoreExpr.If (cond', then', else')))
+    let cond' = check sig_ ctx cond (Ok bool_sort) eff0' in
+    let then' = check sig_ ctx e_then sort eff0 in
+    let else' = check sig_ ctx e_else sort eff0 in
+    let answer = Error.at ~loc:pos sort in
+    mk ctx pos answer eff0 (CoreExpr.If (cond', then', else'))
 
   | CoreExpr.Annot (inner, ann_sort) ->
-    let* inner' = check sig_ ctx inner ann_sort eff0 in
-    if not (sort_equal ann_sort sort) then
-      Error (Error.annotation_disagrees
-               ~loc:pos ~inner:sort ~annot:ann_sort)
-    else
-      Ok (mk ctx pos sort eff0 (CoreExpr.Annot (inner', lift_sort ann_sort)))
+    let inner' = check sig_ ctx inner (Ok ann_sort) eff0 in
+    let agree =
+      let* expected = Error.at ~loc:pos sort in
+      check_pred (sort_equal ann_sort expected)
+        (Error.annotation_disagrees
+           ~loc:pos ~inner:expected ~annot:ann_sort)
+      &&& Ok ann_sort
+    in
+    mk ctx pos agree eff0 (CoreExpr.Annot (inner', lift_sort ann_sort))
 
   | CoreExpr.Hole h ->
-    Ok (mk ctx pos sort eff0 (CoreExpr.Hole h))
+    let answer = Error.at ~loc:pos sort in
+    mk ctx pos answer eff0 (CoreExpr.Hole h)
 
   | _ ->
-    let* e' = synth sig_ ctx eff0 ce in
-    let syn_sort = (CoreExpr.info e')#sort in
-    if not (sort_equal syn_sort sort) then
-      Error (Error.sort_mismatch
-               ~loc:pos ~expected:sort ~actual:syn_sort)
-    else
-      Ok e'
-
-and check_list sig_ ctx es sorts eff0 =
-  match es, sorts with
-  | [], [] -> Ok []
-  | e :: es', s :: ss' ->
-    let* e' = check sig_ ctx e s eff0 in
-    let* rest = check_list sig_ ctx es' ss' eff0 in
-    Ok (e' :: rest)
-  | es, sorts ->
-    let pos = match es, sorts with
-      | e :: _, _ -> (CoreExpr.info e)#loc
-      | [], s :: _ -> (Sort.info s)#loc
-      | [], [] -> SourcePos.dummy
+    let e' = synth sig_ ctx eff0 ce in
+    let syn_answer = (CoreExpr.info e')#answer in
+    let answer =
+      let* expected = Error.at ~loc:pos sort in
+      let* syn_sort = syn_answer in
+      check_pred (sort_equal syn_sort expected)
+        (Error.sort_mismatch
+           ~loc:pos ~expected ~actual:syn_sort)
+      &&& Ok syn_sort
     in
-    invariant_at pos ~rule:"check_list"
-      "tuple expression and record sort have different arities \
-       (should have been caught earlier)"
+    replace_answer e' answer
 
-and check_case_branches sig_ ctx branches scrut_sort result_sort eff0 bind_eff pos =
-  match Sort.shape scrut_sort with
-  | Sort.App (d, args) ->
-    let rec go = function
-      | [] -> Ok []
-      | (l, x, body, _) :: rest ->
-        (match CtorLookup.lookup sig_ d l args with
-         | Ok ctor_sort ->
-           let ctx' = Context.extend x ctor_sort bind_eff ctx in
-           let* body' = check sig_ ctx' body result_sort eff0 in
-           let branch_info = (object
-             method loc = pos
-             method ctx = ctx'
-             method sort = ctor_sort
-             method eff = bind_eff
-           end : typed_info) in
-           let* rest' = go rest in
-           Ok ((l, x, body', branch_info) :: rest')
-         | Error k ->
-           Error (Error.structured ~loc:pos k))
-    in
-    go branches
-  | _ -> Error (Error.scrutinee_not_data ~loc:pos ~got:scrut_sort)
+and check_case_branches sig_ ctx branches scrut_answer result_sort eff0 bind_eff pos =
+  let scrut_kind = unsynth ~construct:"case scrutinee" scrut_answer in
+  let (d_result, args_results) =
+    SortView.Get.app ~construct:"case scrutinee" scrut_kind in
+  let declared : ((Label.t * Sort.sort) list, Error.kind) result =
+    let* d = d_result in
+    let* args = Util.result_list args_results in
+    CtorLookup.lookup_all sig_ d args
+  in
+  let merged = merge_branches branches declared in
+  List.map (fun mb ->
+    match mb with
+    | M_present (l, x, body, ctor_sort) ->
+      let ctx' = Context.extend x ctor_sort bind_eff ctx in
+      let body' = check sig_ ctx' body result_sort eff0 in
+      let branch_info = (object
+        method loc = pos
+        method ctx = ctx'
+        method answer = Ok ctor_sort
+        method eff = bind_eff
+      end : typed_info) in
+      (l, x, body', branch_info)
+
+    | M_redundant (l, x, body, ctor_sort) ->
+      (* Body still typechecks against the known ctor sort so its
+         own diagnostics aren't cascading; the redundancy itself
+         is recorded on the branch's [answer]. *)
+      let ctx' = Context.extend x ctor_sort bind_eff ctx in
+      let body' = check sig_ ctx' body result_sort eff0 in
+      let branch_info = (object
+        method loc = pos
+        method ctx = ctx'
+        method answer =
+          Error (Error.redundant_ctor ~loc:pos ~label:l)
+        method eff = bind_eff
+      end : typed_info) in
+      (l, x, body', branch_info)
+
+    | M_unknown_label (l, x, body) ->
+      (* Label isn't in the declaration, or the declaration itself
+         couldn't be looked up.  Bind [x] as Unknown so the body can
+         still be elaborated, and attribute the error appropriately. *)
+      let ctx' = Context.extend_unknown x ctx in
+      let body_expected : (Sort.sort, Error.kind) result =
+        Error (Error.K_cannot_synthesize { construct = "case branch payload" }) in
+      let body' = check sig_ ctx' body body_expected eff0 in
+      let ans : (Sort.sort, Error.t) result =
+        match d_result with
+        | Ok d -> Error (Error.ctor_not_in_decl ~loc:pos ~label:l ~decl:d)
+        | Error k -> Error (Error.structured ~loc:pos k)
+      in
+      let branch_info = (object
+        method loc = pos
+        method ctx = ctx'
+        method answer = ans
+        method eff = bind_eff
+      end : typed_info) in
+      (l, x, body', branch_info)
+
+    | M_missing (l, ctor_sort) ->
+      (* Synthesize a branch with a Hole body and a fresh dummy var. *)
+      let (x, _) = Var.mk "<missing>" pos Var.empty_supply in
+      let ctx' = Context.extend x ctor_sort bind_eff ctx in
+      let hole_info : typed_info = object
+        method loc = pos
+        method ctx = ctx'
+        method answer = Ok ctor_sort
+        method eff = eff0
+      end in
+      let label_str = Format.asprintf "%a" Label.print l in
+      let body' =
+        CoreExpr.mk hole_info
+          (CoreExpr.Hole ("missing-case-" ^ label_str))
+      in
+      let ans : (Sort.sort, Error.t) result =
+        match d_result with
+        | Ok d -> Error (Error.missing_ctor ~loc:pos ~label:l ~decl:d)
+        | Error k -> Error (Error.structured ~loc:pos k)
+      in
+      let branch_info = (object
+        method loc = pos
+        method ctx = ctx'
+        method answer = ans
+        method eff = bind_eff
+      end : typed_info) in
+      (l, x, body', branch_info)
+  ) merged
+
+(** Collect every [Error _] recorded on [info#answer] anywhere in the
+    typed tree.  Used by drivers to check whether the multi-error
+    typechecker produced a clean tree.  Pre-order traversal so the
+    first error is the leftmost / shallowest. *)
+let rec collect_errors (ce : typed_ce) : Error.t list =
+  let info = CoreExpr.info ce in
+  let here = match info#answer with Ok _ -> [] | Error e -> [e] in
+  let children =
+    match CoreExpr.shape ce with
+    | CoreExpr.Var _ | CoreExpr.IntLit _ | CoreExpr.BoolLit _
+    | CoreExpr.Fail | CoreExpr.Hole _ -> []
+    | CoreExpr.Let (_, e1, e2)
+    | CoreExpr.LetTuple (_, e1, e2)
+    | CoreExpr.Take (_, e1, e2)
+    | CoreExpr.Iter (_, e1, e2)
+    | CoreExpr.Eq (e1, e2)
+    | CoreExpr.And (e1, e2) ->
+      collect_errors e1 @ collect_errors e2
+    | CoreExpr.If (e1, e2, e3) ->
+      collect_errors e1 @ collect_errors e2 @ collect_errors e3
+    | CoreExpr.Tuple es ->
+      List.concat_map collect_errors es
+    | CoreExpr.Inject (_, e1)
+    | CoreExpr.App (_, e1)
+    | CoreExpr.Call (_, e1)
+    | CoreExpr.Not e1
+    | CoreExpr.Return e1 -> collect_errors e1
+    | CoreExpr.Annot (e1, _) -> collect_errors e1
+    | CoreExpr.Case (scrut, branches) ->
+      collect_errors scrut
+      @ List.concat_map
+          (fun (_, _, body, branch_info) ->
+             let here =
+               match branch_info#answer with
+               | Ok _ -> []
+               | Error e -> [e]
+             in
+             here @ collect_errors body)
+          branches
+  in
+  here @ children
 
 (** Built-in step datatype: step(a, b) = { Next : a | Done : b } *)
 let step_decl =

@@ -31,7 +31,7 @@ main : () [impure] = ()|} in
     | Prog.CoreFunDecl { body; _ } ->
       let rec dump e =
         let b = CoreExpr.info e in
-        Format.printf "  %a : %a@." SourcePos.print b#loc Sort.print b#sort;
+        Format.printf "  %a : %a@." SourcePos.print b#loc Sort.print (CoreExpr.sort_of_info b);
         match CoreExpr.shape e with
         | CoreExpr.Var _ | CoreExpr.IntLit _ | CoreExpr.BoolLit _
         | CoreExpr.Fail | CoreExpr.Hole _ -> ()

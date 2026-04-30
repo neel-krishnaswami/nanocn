@@ -157,7 +157,10 @@ let json_file filename =
       let jb b = Json.Object [
         "loc", SourcePos.json b#loc;
         "ctx", Json.String "<ctx>";
-        "sort", Sort.json (fun b' -> SourcePos.json b'#loc) b#sort;
+        "answer",
+          (match b#answer with
+           | Ok s -> Sort.json (fun b' -> SourcePos.json b'#loc) s
+           | Error e -> Json.Object ["error", Json.String (Error.to_string e)]);
         "eff", Effect.json b#eff;
       ] in
       let j = Prog.json_core_prog (CoreExpr.json jb) cprog in

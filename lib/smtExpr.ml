@@ -168,10 +168,10 @@ let rec of_ce ce =
        per [doc/smt-encoding.md] §Datatype declarations. We recover
        [D] from the enclosing expression's sort, which the
        typechecker has already determined to be [App(D, _)]. *)
-    (match Sort.shape (CoreExpr.info ce)#sort with
+    (match Sort.shape (CoreExpr.sort_of_info (CoreExpr.info ce)) with
      | Sort.App (dsort, _) ->
        let label_sym = sym_at loc (SmtSym.ctor_name dsort l) in
-       (match Sort.shape (CoreExpr.info payload)#sort with
+       (match Sort.shape (CoreExpr.sort_of_info (CoreExpr.info payload)) with
         | Sort.Record [] ->
           (* Nullary constructor: emit bare label per plan decision Q3. *)
           Ok label_sym
@@ -186,7 +186,7 @@ let rec of_ce ce =
   | CoreExpr.Case (scrut, branches) ->
     (* The scrutinee's sort [App(D, _)] gives us the datatype whose
        constructor names must be used in the match patterns. *)
-    (match Sort.shape (CoreExpr.info scrut)#sort with
+    (match Sort.shape (CoreExpr.sort_of_info (CoreExpr.info scrut)) with
      | Sort.App (dsort, _) ->
        let* s = of_ce scrut in
        let* cases =
@@ -201,7 +201,7 @@ let rec of_ce ce =
               body is rewritten to the unit constructor [tuple-0].
               Otherwise the pattern is [(D-L x)] binding the payload
               to [x]. *)
-           match Sort.shape info#sort with
+           match Sort.shape (CoreExpr.sort_of_info info) with
            | Sort.Record [] ->
              let unit_ce =
                CoreExpr.mk info (CoreExpr.Tuple [])
@@ -224,9 +224,9 @@ let rec of_ce ce =
        Error (Format.asprintf
                 "case at %a: scrutinee sort must be a datatype application, got `%a` (scrutinee: `%a`; outer case sort: `%a`)"
                 SourcePos.print (CoreExpr.info scrut)#loc
-                Sort.print (CoreExpr.info scrut)#sort
+                Sort.print (CoreExpr.sort_of_info (CoreExpr.info scrut))
                 CoreExpr.print scrut
-                Sort.print (CoreExpr.info ce)#sort))
+                Sort.print (CoreExpr.sort_of_info (CoreExpr.info ce))))
 
   | CoreExpr.Iter _ ->
     Error "iter is not expressible in SMT"
@@ -298,8 +298,8 @@ let rec of_ce ce =
     Ok (list_at loc [sym_at loc "not"; a'])
 
   | CoreExpr.Take ((x, _), bound, body) ->
-    let* tau = payload_of_pred (CoreExpr.info bound)#sort in
-    let* sigma = payload_of_pred (CoreExpr.info body)#sort in
+    let* tau = payload_of_pred (CoreExpr.sort_of_info (CoreExpr.info bound)) in
+    let* sigma = payload_of_pred (CoreExpr.sort_of_info (CoreExpr.info body)) in
     let* b = of_ce bound in
     let* body' = of_ce body in
     let lambda =
@@ -315,12 +315,12 @@ let rec of_ce ce =
     Ok (list_at loc [sym_at loc (SmtSym.bind_sym tau sigma); b; lambda])
 
   | CoreExpr.Return e ->
-    let tau = (CoreExpr.info e)#sort in
+    let tau = (CoreExpr.sort_of_info (CoreExpr.info e)) in
     let* e' = of_ce e in
     Ok (list_at loc [sym_at loc (SmtSym.return_sym tau); e'])
 
   | CoreExpr.Fail ->
-    let* tau = payload_of_pred (CoreExpr.info ce)#sort in
+    let* tau = payload_of_pred (CoreExpr.sort_of_info (CoreExpr.info ce)) in
     Ok (sym_at loc (SmtSym.fail_sym tau))
 
   | CoreExpr.Hole _ ->
@@ -340,7 +340,7 @@ module Test = struct
     object
       method loc = SourcePos.dummy
       method ctx = Context.empty
-      method sort = sort
+      method answer = Ok sort
       method eff = Effect.Pure
     end
 

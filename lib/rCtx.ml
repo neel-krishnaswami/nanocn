@@ -162,7 +162,7 @@ let to_string ctx = Format.asprintf "%a" (print_gen Var.print_unique) ctx
 module Test = struct
   let mk_info sort =
     (object method loc = SourcePos.dummy method ctx = Context.empty
-            method sort = sort method eff = Effect.Spec end : CoreExpr.typed_info)
+            method answer = Ok sort method eff = Effect.Spec end : CoreExpr.typed_info)
 
   let bool_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Bool
 
@@ -175,8 +175,8 @@ module Test = struct
            let p = CoreExpr.mk (mk_info bool_sort) (CoreExpr.BoolLit true) in
            let ctx = extend_log x p empty in
            match Context.lookup x (erase ctx) with
-           | None -> true
-           | Some _ -> false);
+           | Error _ -> true
+           | Ok _ -> false);
 
       QCheck.Test.make ~name:"rctx erase keeps comp entries"
         ~count:1
@@ -186,7 +186,7 @@ module Test = struct
            let s = Sort.mk (object method loc = SourcePos.dummy end) Sort.Int in
            let ctx = extend_comp x s Effect.Pure empty in
            match Context.lookup x (erase ctx) with
-           | Some _ -> true
-           | None -> false);
+           | Ok _ -> true
+           | Error _ -> false);
     ]
 end

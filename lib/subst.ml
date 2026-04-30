@@ -109,7 +109,7 @@ let of_lists tvars sorts =
 let id ctx =
   let mk_ce_info sort =
     (object method loc = SourcePos.dummy method ctx = Context.empty
-            method sort = sort method eff = Effect.Spec end
+            method answer = Ok sort method eff = Effect.Spec end
      : CoreExpr.typed_info) in
   let mk_sort_info =
     (object method loc = SourcePos.dummy end) in
@@ -119,6 +119,8 @@ let id ctx =
       TM (x, CoreExpr.mk (mk_ce_info sort) (CoreExpr.Var x)) :: go rest
     | Context.TVar (a, _kind) :: rest ->
       TV (a, Sort.mk mk_sort_info (Sort.TVar a)) :: go rest
+    | Context.Unknown _ :: rest ->
+      go rest
   in
   go (Context.to_list ctx)
 
