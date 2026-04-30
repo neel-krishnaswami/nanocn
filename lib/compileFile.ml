@@ -28,15 +28,17 @@ let resolve_and_check_decl acc raw_decl =
     | Error e ->
       { acc with supply; diags_rev = e :: acc.diags_rev }
     | Ok sig1 ->
-      (* Body *)
-      match Typecheck.check_decl supply sig1 resolved with
+      (* Body — use the multi-error variant so every diagnostic
+         recorded on the typed body's tree reaches LSP, not just
+         the first. *)
+      match Typecheck.check_decl_multi supply sig1 resolved with
       | Error e ->
         (* sig1 keeps the header extension *)
         { acc with supply; sig_ = sig1; diags_rev = e :: acc.diags_rev }
-      | Ok (supply', core_decl) ->
+      | Ok (supply', core_decl, body_errs) ->
         { supply = supply'; sig_ = sig1;
           decls_rev = core_decl :: acc.decls_rev;
-          diags_rev = acc.diags_rev }
+          diags_rev = List.rev_append body_errs acc.diags_rev }
 
 let compile_file source ~file =
   let parsed = ParseResilient.parse_prog_resilient source ~file in

@@ -38,7 +38,18 @@ val check_prog : Var.supply -> (SurfExpr.se, _, Var.t) Prog.t -> (typed_ce Sig.t
     Returns both the final core signature and the typed core program. *)
 
 val check_decl : Var.supply -> _ Sig.t -> (SurfExpr.se, _, Var.t) Prog.decl -> (Var.supply * typed_ce Prog.core_decl, Error.t) result
-(** Typecheck a single declaration against a signature. *)
+(** Typecheck a single declaration against a signature.  Fail-fast
+    contract — surfaces the first collected error. *)
+
+val check_decl_multi : Var.supply -> _ Sig.t ->
+  (SurfExpr.se, _, Var.t) Prog.decl ->
+  (Var.supply * typed_ce Prog.core_decl * Error.t list, Error.t) result
+(** Multi-error variant of [check_decl]: returns the typed
+    declaration alongside every error recorded on its body's tree
+    (via [collect_errors]).  The outer [Error _] is reserved for
+    structural failures (e.g. sig validation, internal invariants
+    that fire through [ElabM.fail] and short-circuit elaboration
+    before any tree is produced). *)
 
 val initial_sig : typed_ce Sig.t
 (** The initial signature with built-in types (step). *)

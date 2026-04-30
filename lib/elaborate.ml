@@ -636,8 +636,24 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
           scrutinees have been dispatched")
 
   | [], [] ->
+    (* Non-exhaustive: synthesize a [Hole] node with the
+       non-exhaustive error attached to its [info#answer].  Coverage
+       compilation continues — its caller still gets a well-formed
+       typed_ce, and [collect_errors] surfaces the diagnostic for
+       LSP / drivers.  The witness preserves the missing-case shape
+       so the error message stays informative. *)
     let witness = rebuilder [] in
-    ElabM.fail (Error.non_exhaustive ~loc:cov_loc ~witness)
+    let err = Error.non_exhaustive ~loc:cov_loc ~witness in
+    let info : typed_info =
+      object
+        method loc = cov_loc
+        method ctx = ctx
+        method answer = Error err
+        method eff = eff0
+      end
+    in
+    ElabM.return
+      (CoreExpr.mk info (CoreExpr.Hole "non-exhaustive-coverage"))
 
   (* Cov_var: all leading patterns are variables — consume the
      scrutinee, its witness slot becomes [Wild]. *)

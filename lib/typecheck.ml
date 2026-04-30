@@ -799,6 +799,57 @@ let check_decl supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
     let* () = validate_type_decl sig_ dd in
     Ok (supply, Prog.CoreTypeDecl dd)
 
+(** Multi-error counterpart of [check_decl] for resilient drivers
+    (LSP, [CompileFile.compile_file]).  Re-runs [elaborate_fun]'s
+    work but skips the [collect_errors] short-circuit so the caller
+    can iterate every error attached to the typed body. *)
+let check_decl_multi supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
+  match d with
+  | Prog.FunDecl d ->
+    let entry = Sig.FunSig { arg = d.arg_sort; ret = d.ret_sort; eff = d.eff } in
+    let sig_for_body = match d.eff with
+      | Effect.Pure -> sig_
+      | Effect.Impure | Effect.Spec -> Sig.extend d.name entry sig_
+    in
+    let result = ElabM.run supply (
+      let open ElabM in
+      let param_pos = match d.branches with
+        | (pat, _, _) :: _ -> (Pat.info pat)#loc
+        | [] -> d.loc
+      in
+      let* y = fresh param_pos in
+      let bind_eff = Effect.purify d.eff in
+      let ctx = Context.extend y d.arg_sort bind_eff Context.empty in
+      let branches = List.map (fun (pat, body, _) ->
+        Elaborate.({ bindings = [(pat, d.arg_sort)];
+                     let_bindings = [];
+                     body })
+      ) d.branches in
+      let param_eff_b = Effect.purify d.eff in
+      let rebuilder = function
+        | [w] -> w
+        | _ -> PatWitness.Wild
+      in
+      let* typed_body =
+        Elaborate.coverage_check sig_for_body ctx
+          [y] branches param_eff_b d.ret_sort d.eff
+          ~cov_loc:d.loc rebuilder in
+      return (y, typed_body)
+    ) in
+    let* ((y, typed_body), supply') = result in
+    let errs = collect_errors typed_body in
+    Ok (supply',
+        Prog.CoreFunDecl { name = d.name; param = y;
+                           arg_sort = d.arg_sort; ret_sort = d.ret_sort;
+                           eff = d.eff; body = typed_body; loc = d.loc },
+        errs)
+  | Prog.SortDecl dd ->
+    let* () = validate_sort_decl sig_ dd in
+    Ok (supply, Prog.CoreSortDecl dd, [])
+  | Prog.TypeDecl dd ->
+    let* () = validate_type_decl sig_ dd in
+    Ok (supply, Prog.CoreTypeDecl dd, [])
+
 let check_spec_decl supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
   let* (supply', d') = check_decl supply sig_ d in
   match d, d' with
