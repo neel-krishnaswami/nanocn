@@ -58,10 +58,13 @@ let compile_file source ~file =
         let open ElabM in
         let* resolved = Resolve.resolve_prog [] prog in
         Elaborate.check acc.sig_ Context.empty resolved.Prog.main
-          resolved.Prog.main_sort resolved.Prog.main_eff
+          (Ok resolved.Prog.main_sort) resolved.Prog.main_eff
       ) with
       | Error e -> e :: acc.diags_rev
-      | Ok _ -> acc.diags_rev
+      | Ok (typed_e, _supply) ->
+        (* Multi-error: prepend every error recorded on the typed
+           tree so LSP shows them all. *)
+        List.rev_append (Typecheck.collect_errors typed_e) acc.diags_rev
       end
     | Some (Error _) | None -> acc.diags_rev
   in

@@ -47,7 +47,7 @@ let elab_se (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (se : SurfExpr.se
 (* Elaborate a surface expression to typed core, checking against a sort *)
 let elab_se_check (rs : RSig.t) (gamma : Context.t) (se : SurfExpr.se) (sort : Sort.sort) (eff : Effect.t) : CoreExpr.typed_ce ElabM.t =
   let cs = RSig.comp rs in
-  Elaborate.check cs gamma se sort eff
+  Elaborate.check cs gamma se (Ok sort) eff
 
 (* Elaborate a surface expression to typed core using a refined context *)
 let elab_and_synth rs delta eff se =
@@ -1509,7 +1509,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (_eff : Effect.t)
 let elab_fundecl_body rs param arg_sort ret_sort eff body_se =
   let cs = RSig.comp rs in
   let gamma = Context.extend param arg_sort (Effect.purify eff) Context.empty in
-  Elaborate.check cs gamma body_se ret_sort eff
+  Elaborate.check cs gamma body_se (Ok ret_sort) eff
 
 let check_rdecl rs ct_acc = function
   | RProg.SortDecl d ->

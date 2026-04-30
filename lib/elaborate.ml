@@ -13,6 +13,17 @@ let mk_typed ctx pos sort eff shape : typed_ce =
     method eff = eff
   end) shape
 
+(** [mk ctx pos answer eff shape]: like [mk_typed] but takes the
+    [answer] field directly so a clause can attach an [Error _] result
+    when the typechecker chose to continue past an error. *)
+let mk ctx pos answer eff shape : typed_ce =
+  CoreExpr.mk (object
+    method loc = pos
+    method ctx = ctx
+    method answer = answer
+    method eff = eff
+  end) shape
+
 let mk_bind_info x sort eff ctx : typed_info =
   object
     method loc = Var.binding_site x
@@ -40,6 +51,54 @@ let invariant_at pos ~rule msg =
   ElabM.fail (Error.internal_invariant ~loc:pos ~rule ~invariant:msg)
 
 let sort_equal a b = Sort.compare a b = 0
+
+(** [check_pred] and [( &&& )]: linearization helpers — same shape as
+    [Typecheck]'s.  Turn a boolean predicate into a result-typed gate
+    that threads through [SortView.Build]-style answer construction
+    without branching. *)
+let check_pred (b : bool) (err : Error.t) : (unit, Error.t) result =
+  if b then Ok () else Error err
+
+let ( &&& ) (gate : (unit, Error.t) result) (x : ('a, Error.t) result)
+    : ('a, Error.t) result =
+  match gate with Ok () -> x | Error e -> Error e
+
+(** [unsynth ~construct r] — same as [Typecheck.unsynth].  Converts a
+    typed-info answer ([(Sort.sort, Error.t) result]) into the
+    [Error.kind] expected by [check]'s expected-sort argument when the
+    typechecker can't synthesize a prior subterm.  Reserved for the
+    upcoming clause-by-clause migration of synth's user-error
+    [ElabM.fail] sites. *)
+let[@warning "-32"] unsynth ~construct r =
+  Result.map_error (fun _ -> Error.K_cannot_synthesize { construct }) r
+
+(** [replace_answer ce a] re-wraps [ce]'s outer info with answer [a],
+    preserving every other field and the inner shape.  Used by synth
+    to attach a synth-side cannot_synthesize answer over a [check]-
+    elaborated subterm. *)
+let replace_answer (ce : typed_ce) answer : typed_ce =
+  let info = CoreExpr.info ce in
+  let new_info : typed_info =
+    object
+      method loc = info#loc
+      method ctx = info#ctx
+      method answer = answer
+      method eff = info#eff
+    end
+  in
+  CoreExpr.mk new_info (CoreExpr.shape ce)
+
+(** Pattern-driven check clauses that delegate to [coverage_check]
+    require a concrete [Sort.sort], not a result.  When the expected
+    sort is [Error], we fail through the monad — pattern compilation
+    can't proceed without a target sort, and continuing would just
+    cascade nonsense.  Future work (B.3 / coverage_check Hole
+    emission) will let pattern compilation continue with [Hole]
+    placeholders even when the target sort is unknown. *)
+let unwrap_sort_for_coverage pos sort =
+  match sort with
+  | Ok s -> ElabM.return s
+  | Error k -> ElabM.fail (Error.structured ~loc:pos k)
 
 (** Take the first [n] elements and the remaining tail. If the list
     is shorter than [n], the second component is empty and the first
@@ -293,19 +352,19 @@ let rec synth sig_ ctx eff0 se =
       ElabM.fail (Error.not_spec_type
                     ~loc:pos ~construct:"equality" ~got:s)
     else
-      let* ce2 = check sig_ ctx se2 s eff0' in
+      let* ce2 = check sig_ ctx se2 (Ok s) eff0' in
       let bool_sort = mk_sort pos Sort.Bool in
       ElabM.return (mk_typed ctx pos bool_sort eff0 (CoreExpr.Eq (ce1, ce2)))
 
   | SurfExpr.And (se1, se2) ->
     let bool_sort = mk_sort pos Sort.Bool in
-    let* ce1 = check sig_ ctx se1 bool_sort eff0 in
-    let* ce2 = check sig_ ctx se2 bool_sort eff0 in
+    let* ce1 = check sig_ ctx se1 (Ok bool_sort) eff0 in
+    let* ce2 = check sig_ ctx se2 (Ok bool_sort) eff0 in
     ElabM.return (mk_typed ctx pos bool_sort eff0 (CoreExpr.And (ce1, ce2)))
 
   | SurfExpr.Not se ->
     let bool_sort = mk_sort pos Sort.Bool in
-    let* ce = check sig_ ctx se bool_sort eff0 in
+    let* ce = check sig_ ctx se (Ok bool_sort) eff0 in
     ElabM.return (mk_typed ctx pos bool_sort eff0 (CoreExpr.Not ce))
 
   | SurfExpr.App (p, arg) ->
@@ -323,7 +382,7 @@ let rec synth sig_ ctx eff0 se =
            ~loc:pos ~prim:p ~declared:prim_eff ~required:eff0)
     else
       let eff0' = Effect.purify eff0 in
-      let* ce_arg = check sig_ ctx arg arg_sort eff0' in
+      let* ce_arg = check sig_ ctx arg (Ok arg_sort) eff0' in
       ElabM.return (mk_typed ctx pos ret_sort eff0 (CoreExpr.App (p, ce_arg)))
 
   | SurfExpr.Call (name, arg) ->
@@ -335,41 +394,54 @@ let rec synth sig_ ctx eff0 se =
            ~loc:pos ~name ~declared:fun_eff ~required:eff0)
     else
       let eff0' = Effect.purify eff0 in
-      let* ce_arg = check sig_ ctx arg arg_sort eff0' in
+      let* ce_arg = check sig_ ctx arg (Ok arg_sort) eff0' in
       ElabM.return (mk_typed ctx pos ret_sort eff0 (CoreExpr.Call (name, ce_arg)))
 
   | SurfExpr.Annot (se, s) ->
-    let* ce = check sig_ ctx se s eff0 in
+    let* ce = check sig_ ctx se (Ok s) eff0 in
     ElabM.return (mk_typed ctx pos s eff0 (CoreExpr.Annot (ce, lift_sort s)))
 
   | SurfExpr.Return _ | SurfExpr.Take _ | SurfExpr.Fail | SurfExpr.Hole _
   | SurfExpr.Let _ | SurfExpr.Tuple _ | SurfExpr.Inject _ | SurfExpr.Case _
   | SurfExpr.Iter _ | SurfExpr.If _ ->
-    ElabM.fail (Error.cannot_synthesize ~loc:pos ~construct:"sort")
+    let unsynth_kind = Error.K_cannot_synthesize { construct = "sort" } in
+    let* inner = check sig_ ctx se (Error unsynth_kind) eff0 in
+    let answer = Error (Error.cannot_synthesize ~loc:pos ~construct:"sort") in
+    ElabM.return (replace_answer inner answer)
 
+(** Check: S ; G |- [eff0] se <== sort
+
+    The expected-sort argument is itself a result.  Pattern-driven
+    clauses (Take / Let / Case / Iter) currently bail when the
+    expected sort is [Error _], because [coverage_check] needs a
+    concrete [Sort.sort].  Phase B.3 will lift this restriction by
+    teaching coverage to emit Holes when the target sort is unknown.
+    Other clauses thread the result through [SortView] and continue
+    elaborating their subterms regardless. *)
 and check sig_ ctx se sort eff0 =
   let pos = (SurfExpr.info se)#loc in
   match SurfExpr.shape se with
   | SurfExpr.Return inner ->
-    if not (Effect.sub Effect.Spec eff0) then
-      ElabM.fail (Error.spec_context_required ~loc:pos ~construct:"return")
-    else
-      let* tau = ElabM.lift_at pos (SortGet.get_pred ~construct:"return" sort) in
-      let* ce = check sig_ ctx inner tau eff0 in
-      ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Return ce))
+    let eff_check = check_pred (Effect.sub Effect.Spec eff0)
+      (Error.spec_context_required ~loc:pos ~construct:"return") in
+    let inner_expected = SortView.Get.pred ~construct:"return" sort in
+    let* ce = check sig_ ctx inner inner_expected eff0 in
+    let answer = eff_check &&& Error.at ~loc:pos sort in
+    ElabM.return (mk ctx pos answer eff0 (CoreExpr.Return ce))
 
   | SurfExpr.Fail ->
-    if not (Effect.sub Effect.Spec eff0) then
-      ElabM.fail (Error.spec_context_required ~loc:pos ~construct:"fail")
-    else
-      let* _ = ElabM.lift_at pos (SortGet.get_pred ~construct:"fail" sort) in
-      ElabM.return (mk_typed ctx pos sort eff0 CoreExpr.Fail)
+    let eff_check = check_pred (Effect.sub Effect.Spec eff0)
+      (Error.spec_context_required ~loc:pos ~construct:"fail") in
+    let _ = SortView.Get.pred ~construct:"fail" sort in
+    let answer = eff_check &&& Error.at ~loc:pos sort in
+    ElabM.return (mk ctx pos answer eff0 CoreExpr.Fail)
 
   | SurfExpr.Take (pat, se1, se2) ->
+    let* sort_concrete = unwrap_sort_for_coverage pos sort in
     if not (Effect.sub Effect.Spec eff0) then
       ElabM.fail (Error.spec_context_required ~loc:pos ~construct:"take")
     else
-      let* _ = ElabM.lift_at pos (SortGet.get_pred ~construct:"take target" sort) in
+      let* _ = ElabM.lift_at pos (SortGet.get_pred ~construct:"take target" sort_concrete) in
       let* ce1 = synth sig_ ctx eff0 se1 in
       let s1 = CoreExpr.sort_of_info (CoreExpr.info ce1) in
       let* tau = ElabM.lift_at pos (SortGet.get_pred ~construct:"take scrutinee" s1) in
@@ -386,12 +458,13 @@ and check sig_ ctx se sort eff0 =
         | _ -> PatWitness.Wild
       in
       let* ce2 =
-        coverage_check sig_ ctx_y [y] [branch] eff_b sort eff0
+        coverage_check sig_ ctx_y [y] [branch] eff_b sort_concrete eff0
           ~cov_loc:pos rebuilder_init in
       let yb = (y, mk_bind_info y tau eff_b ctx_y) in
-      ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Take (yb, ce1, ce2)))
+      ElabM.return (mk_typed ctx pos sort_concrete eff0 (CoreExpr.Take (yb, ce1, ce2)))
 
   | SurfExpr.Let (pat, se1, se2) ->
+    let* sort_concrete = unwrap_sort_for_coverage pos sort in
     let* ce1 = synth sig_ ctx eff0 se1 in
     let tau = CoreExpr.sort_of_info (CoreExpr.info ce1) in
     let eff_b = Effect.purify eff0 in
@@ -407,33 +480,38 @@ and check sig_ ctx se sort eff0 =
       | _ -> PatWitness.Wild
     in
     let* ce2 =
-      coverage_check sig_ ctx_y [y] [branch] eff_b sort eff0
+      coverage_check sig_ ctx_y [y] [branch] eff_b sort_concrete eff0
         ~cov_loc:pos rebuilder_init in
     let yb = (y, mk_bind_info y tau eff_b ctx_y) in
-    ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Let (yb, ce1, ce2)))
+    ElabM.return (mk_typed ctx pos sort_concrete eff0 (CoreExpr.Let (yb, ce1, ce2)))
 
   | SurfExpr.Tuple ses ->
-    let* sorts = ElabM.lift_at pos (SortGet.get_record ~construct:"tuple" sort) in
-    if List.compare_lengths ses sorts <> 0 then
-      ElabM.fail
-        (Error.tuple_arity_mismatch ~loc:pos
-           ~construct:"tuple"
-           ~expected:(List.length sorts)
-           ~actual:(List.length ses))
-    else
-      let* ces = check_list sig_ ctx ses sorts eff0 in
-      ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Tuple ces))
+    let n = List.length ses in
+    let ts = SortView.Get.record ~construct:"tuple" n sort in
+    let* ces =
+      ElabM.sequence
+        (List.map (fun (e, s_result) -> check sig_ ctx e s_result eff0)
+           (List.combine ses ts))
+    in
+    let answer = Error.at ~loc:pos sort in
+    ElabM.return (mk ctx pos answer eff0 (CoreExpr.Tuple ces))
 
   | SurfExpr.Inject (l, inner) ->
     let construct = Format.asprintf "constructor %a" Label.print l in
-    let* (d, args) =
-      ElabM.lift_at pos (SortGet.get_app ~construct sort) in
-    let* ctor_sort = ElabM.lift_at pos (CtorLookup.lookup sig_ d l args) in
+    let (d_result, args_results) =
+      SortView.Get.app ~construct sort in
+    let ctor_kind =
+      Result.bind d_result (fun d ->
+        Result.bind (Util.result_list args_results) (fun args ->
+          CtorLookup.lookup sig_ d l args))
+    in
     let eff0' = Effect.purify eff0 in
-    let* ce = check sig_ ctx inner ctor_sort eff0' in
-    ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Inject (l, ce)))
+    let* ce = check sig_ ctx inner ctor_kind eff0' in
+    let answer = Error.at ~loc:pos sort in
+    ElabM.return (mk ctx pos answer eff0 (CoreExpr.Inject (l, ce)))
 
   | SurfExpr.Case (scrut, surf_branches) ->
+    let* sort_concrete = unwrap_sort_for_coverage pos sort in
     let eff0' = Effect.purify eff0 in
     let* ce_scrut = synth sig_ ctx eff0' scrut in
     let scrut_sort = CoreExpr.sort_of_info (CoreExpr.info ce_scrut) in
@@ -449,12 +527,13 @@ and check sig_ ctx se sort eff0 =
       | _ -> PatWitness.Wild
     in
     let* ce_body =
-      coverage_check sig_ ctx_y [y] branches eff0' sort eff0
+      coverage_check sig_ ctx_y [y] branches eff0' sort_concrete eff0
         ~cov_loc:pos rebuilder_init in
     let yb = (y, mk_bind_info y scrut_sort eff0' ctx_y) in
-    ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Let (yb, ce_scrut, ce_body)))
+    ElabM.return (mk_typed ctx pos sort_concrete eff0 (CoreExpr.Let (yb, ce_scrut, ce_body)))
 
   | SurfExpr.Iter (pat, se1, se2) ->
+    let* sort_concrete = unwrap_sort_for_coverage pos sort in
     if not (Effect.sub Effect.Impure eff0) then
       ElabM.fail (Error.iter_requires_impure ~loc:pos ~actual:eff0)
     else
@@ -467,7 +546,7 @@ and check sig_ ctx se sort eff0 =
           "Dsort.of_string \"Step\" failed — \"Step\" must always parse as a \
            well-formed sort name"
     in
-    let iter_sort = mk_sort pos (Sort.App (step_dsort, [init_sort; sort])) in
+    let iter_sort = mk_sort pos (Sort.App (step_dsort, [init_sort; sort_concrete])) in
     let* y = ElabM.fresh (Pat.info pat)#loc in
     let bind_eff = Effect.purify Effect.Impure in
     let ctx_y = Context.extend y init_sort bind_eff ctx in
@@ -483,43 +562,32 @@ and check sig_ ctx se sort eff0 =
     let* ce_body =
       coverage_check sig_ ctx_y [y] [branch] bind_eff iter_sort Effect.Impure
         ~cov_loc:pos rebuilder_init in
-    ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Iter (y, ce1, ce_body)))
+    ElabM.return (mk_typed ctx pos sort_concrete eff0 (CoreExpr.Iter (y, ce1, ce_body)))
 
   | SurfExpr.If (se1, se2, se3) ->
     let bool_sort = mk_sort pos Sort.Bool in
     let eff0' = Effect.purify eff0 in
-    let* ce1 = check sig_ ctx se1 bool_sort eff0' in
+    let* ce1 = check sig_ ctx se1 (Ok bool_sort) eff0' in
     let* ce2 = check sig_ ctx se2 sort eff0 in
     let* ce3 = check sig_ ctx se3 sort eff0 in
-    ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.If (ce1, ce2, ce3)))
+    let answer = Error.at ~loc:pos sort in
+    ElabM.return (mk ctx pos answer eff0 (CoreExpr.If (ce1, ce2, ce3)))
 
   | SurfExpr.Hole h ->
-    ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Hole h))
+    let answer = Error.at ~loc:pos sort in
+    ElabM.return (mk ctx pos answer eff0 (CoreExpr.Hole h))
 
   | _ ->
     let* ce = synth sig_ ctx eff0 se in
-    let syn_sort = CoreExpr.sort_of_info (CoreExpr.info ce) in
-    if not (sort_equal syn_sort sort) then
-      ElabM.fail
-        (Error.sort_mismatch ~loc:pos ~expected:sort ~actual:syn_sort)
-    else ElabM.return ce
-
-and check_list sig_ ctx ses sorts eff0 =
-  match ses, sorts with
-  | [], [] -> ElabM.return []
-  | se :: ses', s :: ss' ->
-    let* ce = check sig_ ctx se s eff0 in
-    let* rest = check_list sig_ ctx ses' ss' eff0 in
-    ElabM.return (ce :: rest)
-  | ses, sorts ->
-    let pos = match ses, sorts with
-      | se :: _, _ -> (SurfExpr.info se)#loc
-      | [], s :: _ -> (Sort.info s)#loc
-      | [], [] -> SourcePos.dummy
+    let syn_answer = (CoreExpr.info ce)#answer in
+    let answer =
+      Result.bind (Error.at ~loc:pos sort) (fun expected ->
+      Result.bind syn_answer (fun syn_sort ->
+        check_pred (sort_equal syn_sort expected)
+          (Error.sort_mismatch ~loc:pos ~expected ~actual:syn_sort)
+        &&& Ok syn_sort))
     in
-    invariant_at pos ~rule:"check_list"
-      "tuple expression and record sort have different arities \
-       (should have been caught by the Tuple case in check)"
+    ElabM.return (replace_answer ce answer)
 
 (** {1 Coverage}
 
@@ -542,7 +610,7 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
     (match br.bindings with
      | [] ->
        let ctx' = Context.extend_list (ctx_of_let_bindings br.let_bindings) ctx in
-       let* ce' = check sig_ ctx' br.body sort eff0 in
+       let* ce' = check sig_ ctx' br.body (Ok sort) eff0 in
        ElabM.return (wrap_lets br.let_bindings ctx sort eff0 ce')
      | (p, _) :: _ ->
        invariant_at (Pat.info p)#loc ~rule:"coverage_check:Cov_done"

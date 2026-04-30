@@ -861,7 +861,7 @@ let check_prog supply (p : (SurfExpr.se, _, Var.t) Prog.t) : (typed_ce Sig.t * t
   let* (supply', final_sig, decls') = check_decls supply initial_sig p.decls in
   (* Elaborate main — produces typed_ce directly *)
   let result = ElabM.run supply' (
-    Elaborate.check final_sig Context.empty p.main p.main_sort p.main_eff
+    Elaborate.check final_sig Context.empty p.main (Ok p.main_sort) p.main_eff
   ) in
   let* (main', _supply'') = result in
   Ok (final_sig,

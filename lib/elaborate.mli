@@ -47,10 +47,14 @@ val synth : _ Sig.t -> Context.t -> Effect.t -> SurfExpr.se ->
     effect.  The synthesized sort lives on the result's
     [info#answer] and can be read with [CoreExpr.sort_of_info]. *)
 
-val check : _ Sig.t -> Context.t -> SurfExpr.se -> Sort.sort -> Effect.t ->
-  typed_ce ElabM.t
+val check : _ Sig.t -> Context.t -> SurfExpr.se ->
+  (Sort.sort, Error.kind) result -> Effect.t -> typed_ce ElabM.t
 (** [check sig ctx se sort eff0] checks [se] against [sort] at ambient
-    effect [eff0] and elaborates it to a typed core expression. *)
+    effect [eff0] and elaborates it to a typed core expression.  The
+    expected sort is itself a result so callers can pass
+    [Error K_cannot_synthesize] (or any other reason) when no expected
+    sort is available; the term still elaborates and any failures
+    land on [info#answer] of the offending nodes. *)
 
 (** {1 Coverage} *)
 
