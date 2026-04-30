@@ -37,10 +37,12 @@ let mk_info sort =
   (object method loc = SourcePos.dummy method ctx = Context.empty
           method answer = Ok sort method eff = Effect.Spec end : CoreExpr.typed_info)
 
-(* Elaborate a surface expression to typed core, synthesizing its sort *)
+(* Elaborate a surface expression to typed core, synthesizing its sort. *)
 let elab_se (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (se : SurfExpr.se) : (CoreExpr.typed_ce * Sort.sort) ElabM.t =
   let cs = RSig.comp rs in
-  Elaborate.synth cs gamma eff se
+  let* ce = Elaborate.synth cs gamma eff se in
+  let sort = CoreExpr.sort_of_info (CoreExpr.info ce) in
+  return (ce, sort)
 
 (* Elaborate a surface expression to typed core, checking against a sort *)
 let elab_se_check (rs : RSig.t) (gamma : Context.t) (se : SurfExpr.se) (sort : Sort.sort) (eff : Effect.t) : CoreExpr.typed_ce ElabM.t =

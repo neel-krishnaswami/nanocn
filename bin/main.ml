@@ -114,7 +114,8 @@ let toplevel () =
     match ElabM.run supply (
       let open ElabM in
       let* (x, se) = Parse.parse_let line ~file:"<toplevel>" in
-      let* (_typed_e, sort) = Elaborate.synth sig_ ctx Effect.Impure se in
+      let* typed_e = Elaborate.synth sig_ ctx Effect.Impure se in
+      let sort = CoreExpr.sort_of_info (CoreExpr.info typed_e) in
       return (x, sort)
     ) with
     | Error err -> print_err err; loop supply sig_ ctx
@@ -130,7 +131,8 @@ let toplevel () =
       Elaborate.synth sig_ ctx Effect.Impure se
     ) with
     | Error err -> print_err err; loop supply sig_ ctx
-    | Ok ((_core_e, sort), supply') ->
+    | Ok (core_e, supply') ->
+      let sort = CoreExpr.sort_of_info (CoreExpr.info core_e) in
       Format.printf "_ : %a [impure]@." Sort.print sort;
       loop supply' sig_ ctx
   in

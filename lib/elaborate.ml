@@ -268,7 +268,7 @@ let rec synth sig_ ctx eff0 se =
     (match Context.lookup x ctx with
      | Ok (s, var_eff) ->
        if Effect.sub var_eff eff0 then
-         ElabM.return (mk_typed ctx pos s eff0 (CoreExpr.Var x), s)
+         ElabM.return (mk_typed ctx pos s eff0 (CoreExpr.Var x))
        else
          ElabM.fail
            (Error.var_effect_mismatch
@@ -279,33 +279,34 @@ let rec synth sig_ ctx eff0 se =
 
   | SurfExpr.IntLit n ->
     let s = mk_sort pos Sort.Int in
-    ElabM.return (mk_typed ctx pos s eff0 (CoreExpr.IntLit n), s)
+    ElabM.return (mk_typed ctx pos s eff0 (CoreExpr.IntLit n))
 
   | SurfExpr.BoolLit b ->
     let s = mk_sort pos Sort.Bool in
-    ElabM.return (mk_typed ctx pos s eff0 (CoreExpr.BoolLit b), s)
+    ElabM.return (mk_typed ctx pos s eff0 (CoreExpr.BoolLit b))
 
   | SurfExpr.Eq (se1, se2) ->
     let eff0' = Effect.purify eff0 in
-    let* (ce1, s) = synth sig_ ctx eff0' se1 in
+    let* ce1 = synth sig_ ctx eff0' se1 in
+    let s = CoreExpr.sort_of_info (CoreExpr.info ce1) in
     if not (Sort.is_spec_type s) then
       ElabM.fail (Error.not_spec_type
                     ~loc:pos ~construct:"equality" ~got:s)
     else
       let* ce2 = check sig_ ctx se2 s eff0' in
       let bool_sort = mk_sort pos Sort.Bool in
-      ElabM.return (mk_typed ctx pos bool_sort eff0 (CoreExpr.Eq (ce1, ce2)), bool_sort)
+      ElabM.return (mk_typed ctx pos bool_sort eff0 (CoreExpr.Eq (ce1, ce2)))
 
   | SurfExpr.And (se1, se2) ->
     let bool_sort = mk_sort pos Sort.Bool in
     let* ce1 = check sig_ ctx se1 bool_sort eff0 in
     let* ce2 = check sig_ ctx se2 bool_sort eff0 in
-    ElabM.return (mk_typed ctx pos bool_sort eff0 (CoreExpr.And (ce1, ce2)), bool_sort)
+    ElabM.return (mk_typed ctx pos bool_sort eff0 (CoreExpr.And (ce1, ce2)))
 
   | SurfExpr.Not se ->
     let bool_sort = mk_sort pos Sort.Bool in
     let* ce = check sig_ ctx se bool_sort eff0 in
-    ElabM.return (mk_typed ctx pos bool_sort eff0 (CoreExpr.Not ce), bool_sort)
+    ElabM.return (mk_typed ctx pos bool_sort eff0 (CoreExpr.Not ce))
 
   | SurfExpr.App (p, arg) ->
     let* () = match p with
@@ -323,7 +324,7 @@ let rec synth sig_ ctx eff0 se =
     else
       let eff0' = Effect.purify eff0 in
       let* ce_arg = check sig_ ctx arg arg_sort eff0' in
-      ElabM.return (mk_typed ctx pos ret_sort eff0 (CoreExpr.App (p, ce_arg)), ret_sort)
+      ElabM.return (mk_typed ctx pos ret_sort eff0 (CoreExpr.App (p, ce_arg)))
 
   | SurfExpr.Call (name, arg) ->
     let* (arg_sort, ret_sort, fun_eff) =
@@ -335,11 +336,11 @@ let rec synth sig_ ctx eff0 se =
     else
       let eff0' = Effect.purify eff0 in
       let* ce_arg = check sig_ ctx arg arg_sort eff0' in
-      ElabM.return (mk_typed ctx pos ret_sort eff0 (CoreExpr.Call (name, ce_arg)), ret_sort)
+      ElabM.return (mk_typed ctx pos ret_sort eff0 (CoreExpr.Call (name, ce_arg)))
 
   | SurfExpr.Annot (se, s) ->
     let* ce = check sig_ ctx se s eff0 in
-    ElabM.return (mk_typed ctx pos s eff0 (CoreExpr.Annot (ce, lift_sort s)), s)
+    ElabM.return (mk_typed ctx pos s eff0 (CoreExpr.Annot (ce, lift_sort s)))
 
   | SurfExpr.Return _ | SurfExpr.Take _ | SurfExpr.Fail | SurfExpr.Hole _
   | SurfExpr.Let _ | SurfExpr.Tuple _ | SurfExpr.Inject _ | SurfExpr.Case _
@@ -369,7 +370,8 @@ and check sig_ ctx se sort eff0 =
       ElabM.fail (Error.spec_context_required ~loc:pos ~construct:"take")
     else
       let* _ = ElabM.lift_at pos (SortGet.get_pred ~construct:"take target" sort) in
-      let* (ce1, s1) = synth sig_ ctx eff0 se1 in
+      let* ce1 = synth sig_ ctx eff0 se1 in
+      let s1 = CoreExpr.sort_of_info (CoreExpr.info ce1) in
       let* tau = ElabM.lift_at pos (SortGet.get_pred ~construct:"take scrutinee" s1) in
       let eff_b = Effect.purify eff0 in
       let* y = ElabM.fresh (Pat.info pat)#loc in
@@ -390,7 +392,8 @@ and check sig_ ctx se sort eff0 =
       ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Take (yb, ce1, ce2)))
 
   | SurfExpr.Let (pat, se1, se2) ->
-    let* (ce1, tau) = synth sig_ ctx eff0 se1 in
+    let* ce1 = synth sig_ ctx eff0 se1 in
+    let tau = CoreExpr.sort_of_info (CoreExpr.info ce1) in
     let eff_b = Effect.purify eff0 in
     let* y = ElabM.fresh (Pat.info pat)#loc in
     let ctx_y = Context.extend y tau eff_b ctx in
@@ -432,7 +435,8 @@ and check sig_ ctx se sort eff0 =
 
   | SurfExpr.Case (scrut, surf_branches) ->
     let eff0' = Effect.purify eff0 in
-    let* (ce_scrut, scrut_sort) = synth sig_ ctx eff0' scrut in
+    let* ce_scrut = synth sig_ ctx eff0' scrut in
+    let scrut_sort = CoreExpr.sort_of_info (CoreExpr.info ce_scrut) in
     let* y = ElabM.fresh (SurfExpr.info scrut)#loc in
     let ctx_y = Context.extend y scrut_sort eff0' ctx in
     let branches = List.map (fun (pat, body, _) ->
@@ -454,7 +458,8 @@ and check sig_ ctx se sort eff0 =
     if not (Effect.sub Effect.Impure eff0) then
       ElabM.fail (Error.iter_requires_impure ~loc:pos ~actual:eff0)
     else
-    let* (ce1, init_sort) = synth sig_ ctx Effect.Pure se1 in
+    let* ce1 = synth sig_ ctx Effect.Pure se1 in
+    let init_sort = CoreExpr.sort_of_info (CoreExpr.info ce1) in
     let* step_dsort = match Dsort.of_string "Step" with
       | Ok d -> ElabM.return d
       | Error _ ->
@@ -492,7 +497,8 @@ and check sig_ ctx se sort eff0 =
     ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Hole h))
 
   | _ ->
-    let* (ce, syn_sort) = synth sig_ ctx eff0 se in
+    let* ce = synth sig_ ctx eff0 se in
+    let syn_sort = CoreExpr.sort_of_info (CoreExpr.info ce) in
     if not (sort_equal syn_sort sort) then
       ElabM.fail
         (Error.sort_mismatch ~loc:pos ~expected:sort ~actual:syn_sort)

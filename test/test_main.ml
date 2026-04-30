@@ -102,7 +102,7 @@ let run_m m =
 let elab_synth ?(supply = Var.empty_supply) sig_ ctx eff se =
   match ElabM.run supply (Elaborate.synth sig_ ctx eff se) with
   | Error msg -> Error msg
-  | Ok ((typed_e, _sort), _supply) -> Ok typed_e
+  | Ok (typed_e, _supply) -> Ok typed_e
 
 (** Helper: elaborate a surface expr then check (for pre-parsed exprs) *)
 let elab_check ?(supply = Var.empty_supply) sig_ ctx se sort eff =
