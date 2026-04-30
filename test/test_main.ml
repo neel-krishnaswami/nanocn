@@ -61,6 +61,7 @@ let qcheck_tests =
     DsortDecl.Test.test;
     DtypeDecl.Test.test;
     Subst.Test.test;
+    CtorLookup.Test.test;
     Kind.Test.test;
     Pat.Test.test;
     CoreExpr.Test.test;

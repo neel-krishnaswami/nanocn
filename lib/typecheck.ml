@@ -239,8 +239,8 @@ and check sig_ ctx ce sort eff0 =
       Ok (mk ctx pos sort eff0 (CoreExpr.Tuple es'))
 
   | CoreExpr.Inject (l, e_inner) ->
-    let* (_, args) = Error.at ~loc:pos (SortGet.get_app ~construct:"injection" sort) in
-    let* ctor_sort = Error.at ~loc:pos (CtorLookup.lookup sig_ l args) in
+    let* (d, args) = Error.at ~loc:pos (SortGet.get_app ~construct:"injection" sort) in
+    let* ctor_sort = Error.at ~loc:pos (CtorLookup.lookup sig_ d l args) in
     let eff0' = Effect.purify eff0 in
     let* e_inner' = check sig_ ctx e_inner ctor_sort eff0' in
     Ok (mk ctx pos sort eff0 (CoreExpr.Inject (l, e_inner')))
@@ -313,11 +313,11 @@ and check_list sig_ ctx es sorts eff0 =
 
 and check_case_branches sig_ ctx branches scrut_sort result_sort eff0 bind_eff pos =
   match Sort.shape scrut_sort with
-  | Sort.App (_d, args) ->
+  | Sort.App (d, args) ->
     let rec go = function
       | [] -> Ok []
       | (l, x, body, _) :: rest ->
-        (match CtorLookup.lookup sig_ l args with
+        (match CtorLookup.lookup sig_ d l args with
          | Ok ctor_sort ->
            let ctx' = Context.extend x ctor_sort bind_eff ctx in
            let* body' = check sig_ ctx' body result_sort eff0 in

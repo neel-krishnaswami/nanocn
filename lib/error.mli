@@ -120,11 +120,9 @@ type kind =
   | K_dep_res_not_pred of { got : Sort.sort }
     (** [ProofSort.bind] or [rpat_match] encountered a [DepRes]
         whose predicate doesn't have [Pred _] sort. *)
-  | K_ctor_sig_inconsistent of { label : Label.t; where : string }
-    (** [CtorLookup] found [label] via [Sig]'s constructor index but
-        the decl's own constructor table disagreed — signature
-        invariant broken. [where] names the decl flavor
-        ("datasort", "datatype"). *)
+  | K_ctor_not_in_decl of { label : Label.t; decl : Dsort.t }
+    (** [CtorLookup] resolved the head sort/type [decl] in the
+        signature, but [label] is not one of its constructors. *)
 
   (* Kind well-formedness (kind_wf / type_guarded) *)
   | K_tvar_kind_mismatch of
@@ -298,8 +296,8 @@ val resource_already_used : loc:SourcePos.t -> name:Var.t -> t
 val branch_merge_failure :
   loc:SourcePos.t -> reason:branch_merge_failure -> t
 val dep_res_not_pred : loc:SourcePos.t -> got:Sort.sort -> t
-val ctor_sig_inconsistent :
-  loc:SourcePos.t -> label:Label.t -> where:string -> t
+val ctor_not_in_decl :
+  loc:SourcePos.t -> label:Label.t -> decl:Dsort.t -> t
 
 val at : loc:SourcePos.t -> ('a, kind) result -> ('a, t) result
 (** [at ~loc r] attaches [loc] to any [kind]-typed error in [r],

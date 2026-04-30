@@ -53,7 +53,7 @@ type kind =
   | K_resource_already_used of { name : Var.t }
   | K_branch_merge_failure of { reason : branch_merge_failure }
   | K_dep_res_not_pred of { got : Sort.sort }
-  | K_ctor_sig_inconsistent of { label : Label.t; where : string }
+  | K_ctor_not_in_decl of { label : Label.t; decl : Dsort.t }
   | K_tvar_kind_mismatch of
       { tvar : Tvar.t; got : Kind.t; expected : Kind.t }
   | K_dsort_arity_mismatch of
@@ -180,8 +180,8 @@ let branch_merge_failure ~loc ~reason =
 let dep_res_not_pred ~loc ~got =
   structured ~loc (K_dep_res_not_pred { got })
 
-let ctor_sig_inconsistent ~loc ~label ~where =
-  structured ~loc (K_ctor_sig_inconsistent { label; where })
+let ctor_not_in_decl ~loc ~label ~decl =
+  structured ~loc (K_ctor_not_in_decl { label; decl })
 
 let at ~loc r =
   Result.map_error (structured ~loc) r
@@ -421,11 +421,10 @@ let print_kind fmt = function
     Format.pp_print_cut fmt ();
     Format.fprintf fmt "  but got sort %a." (print_emph Sort.print) got;
     Format.fprintf fmt "@]"
-  | K_ctor_sig_inconsistent { label; where } ->
+  | K_ctor_not_in_decl { label; decl } ->
     Format.fprintf fmt
-      "  constructor %a is indexed in the signature but missing from \
-       its %s declaration (internal inconsistency)."
-      (print_emph Label.print) label where
+      "  constructor %a is not declared in sort/type %a."
+      (print_emph Label.print) label (print_emph Dsort.print) decl
   | K_tvar_kind_mismatch { tvar; got; expected } ->
     Format.fprintf fmt "@[<v>";
     Format.fprintf fmt "  type variable %a has kind %a,"
@@ -609,7 +608,7 @@ let kind_header = function
   | K_resource_already_used _ -> "Type error: resource reuse"
   | K_branch_merge_failure _ -> "Type error: branch merge failure"
   | K_dep_res_not_pred _ -> "Type error: wrong sort shape"
-  | K_ctor_sig_inconsistent _ -> "Internal error: signature inconsistency"
+  | K_ctor_not_in_decl _ -> "Type error: unknown constructor"
   | K_tvar_kind_mismatch _ -> "Type error: kind mismatch"
   | K_dsort_arity_mismatch _ -> "Type error: sort arity mismatch"
   | K_pred_misuse _ -> "Type error: pred in wrong context"

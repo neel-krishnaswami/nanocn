@@ -37,17 +37,13 @@ let rec lookup_sort dsort = function
     Ok d
   | _ :: rest -> lookup_sort dsort rest
 
-let rec lookup_ctor label = function
-  | [] -> Error (Error.K_unbound_ctor label)
-  | Sort d :: rest ->
-    (match DsortDecl.lookup_ctor label d with
-     | Some _ -> Ok (d.DsortDecl.name, d)
-     | None -> lookup_ctor label rest)
-  | Named (_, SortDecl d) :: rest ->
-    (match DsortDecl.lookup_ctor label d with
-     | Some _ -> Ok (d.DsortDecl.name, d)
-     | None -> lookup_ctor label rest)
-  | _ :: rest -> lookup_ctor label rest
+let lookup_ctor dsort label sig_ =
+  match lookup_sort dsort sig_ with
+  | Error e -> Error e
+  | Ok decl ->
+    match DsortDecl.lookup_ctor label decl with
+    | Some _ -> Ok decl
+    | None -> Error (Error.K_ctor_not_in_decl { label; decl = dsort })
 
 let extend_sort sig_ (d : DsortDecl.t) = Sort d :: sig_
 
@@ -59,17 +55,13 @@ let rec lookup_type dsort = function
     Ok d
   | _ :: rest -> lookup_type dsort rest
 
-let rec lookup_type_ctor label = function
-  | [] -> Error (Error.K_unbound_ctor label)
-  | Type d :: rest ->
-    (match DtypeDecl.lookup_ctor label d with
-     | Some _ -> Ok (d.DtypeDecl.name, d)
-     | None -> lookup_type_ctor label rest)
-  | Named (_, TypeDecl d) :: rest ->
-    (match DtypeDecl.lookup_ctor label d with
-     | Some _ -> Ok (d.DtypeDecl.name, d)
-     | None -> lookup_type_ctor label rest)
-  | _ :: rest -> lookup_type_ctor label rest
+let lookup_type_ctor dsort label sig_ =
+  match lookup_type dsort sig_ with
+  | Error e -> Error e
+  | Ok decl ->
+    match DtypeDecl.lookup_ctor label decl with
+    | Some _ -> Ok decl
+    | None -> Error (Error.K_ctor_not_in_decl { label; decl = dsort })
 
 let extend_type sig_ (d : DtypeDecl.t) = Type d :: sig_
 
@@ -163,5 +155,76 @@ module Test = struct
            match lookup_fundef name s with
            | Error _ -> true
            | Ok _ -> false);
+
+      (* Qualified ctor lookup: shared labels across two datasorts must
+         resolve to the right decl. Regression test for the bug where
+         lookup ignored the head sort name. *)
+      QCheck.Test.make ~name:"sig lookup_ctor disambiguates by head sort"
+        ~count:1
+        QCheck.unit
+        (fun () ->
+           let mk_dsort s = match Dsort.of_string s with
+             | Ok d -> d | Error _ -> assert false in
+           let mk_label s = match Label.of_string s with
+             | Ok l -> l | Error _ -> assert false in
+           let mk_sort s =
+             Sort.mk
+               (object method loc = SourcePos.dummy end)
+               s in
+           let l = mk_label "La" in
+           let d1 = mk_dsort "D1" in
+           let d2 = mk_dsort "D2" in
+           let decl1 = DsortDecl.{
+             name = d1; params = [];
+             ctors = [(l, mk_sort Sort.Int)];
+             loc = SourcePos.dummy } in
+           let decl2 = DsortDecl.{
+             name = d2; params = [];
+             ctors = [(l, mk_sort Sort.Bool)];
+             loc = SourcePos.dummy } in
+           let s = extend_sort (extend_sort empty decl1) decl2 in
+           let ok_d1 = match lookup_ctor d1 l s with
+             | Ok d -> Dsort.compare d.DsortDecl.name d1 = 0
+             | Error _ -> false in
+           let ok_d2 = match lookup_ctor d2 l s with
+             | Ok d -> Dsort.compare d.DsortDecl.name d2 = 0
+             | Error _ -> false in
+           ok_d1 && ok_d2);
+
+      QCheck.Test.make ~name:"sig lookup_ctor: ctor not in decl"
+        ~count:1
+        QCheck.unit
+        (fun () ->
+           let mk_dsort s = match Dsort.of_string s with
+             | Ok d -> d | Error _ -> assert false in
+           let mk_label s = match Label.of_string s with
+             | Ok l -> l | Error _ -> assert false in
+           let mk_sort s =
+             Sort.mk
+               (object method loc = SourcePos.dummy end)
+               s in
+           let d = mk_dsort "D" in
+           let l_in = mk_label "Lin" in
+           let l_out = mk_label "Mout" in
+           let decl = DsortDecl.{
+             name = d; params = [];
+             ctors = [(l_in, mk_sort Sort.Int)];
+             loc = SourcePos.dummy } in
+           let s = extend_sort empty decl in
+           match lookup_ctor d l_out s with
+           | Error (Error.K_ctor_not_in_decl _) -> true
+           | _ -> false);
+
+      QCheck.Test.make ~name:"sig lookup_ctor: unbound sort"
+        ~count:1
+        QCheck.unit
+        (fun () ->
+           let mk_dsort s = match Dsort.of_string s with
+             | Ok d -> d | Error _ -> assert false in
+           let mk_label s = match Label.of_string s with
+             | Ok l -> l | Error _ -> assert false in
+           match lookup_ctor (mk_dsort "Nope") (mk_label "La") empty with
+           | Error (Error.K_unbound_sort _) -> true
+           | _ -> false);
     ]
 end

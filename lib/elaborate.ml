@@ -423,9 +423,9 @@ and check sig_ ctx se sort eff0 =
 
   | SurfExpr.Inject (l, inner) ->
     let construct = Format.asprintf "constructor %a" Label.print l in
-    let* (_, args) =
+    let* (d, args) =
       ElabM.lift_at pos (SortGet.get_app ~construct sort) in
-    let* ctor_sort = ElabM.lift_at pos (CtorLookup.lookup sig_ l args) in
+    let* ctor_sort = ElabM.lift_at pos (CtorLookup.lookup sig_ d l args) in
     let eff0' = Effect.purify eff0 in
     let* ce = check sig_ ctx inner ctor_sort eff0' in
     ElabM.return (mk_typed ctx pos sort eff0 (CoreExpr.Inject (l, ce)))

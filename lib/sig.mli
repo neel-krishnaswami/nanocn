@@ -46,14 +46,20 @@ val lookup_type :
     as a datatype. *)
 
 val lookup_ctor :
-  Label.t -> 'a t -> (Dsort.t * DsortDecl.t, Error.kind) result
-(** Returns [Error (K_unbound_ctor label)] if [label] is not a
-    constructor of any datasort. *)
+  Dsort.t -> Label.t -> 'a t -> (DsortDecl.t, Error.kind) result
+(** [lookup_ctor d l sig] resolves [l] as a constructor of datasort
+    [d] in [sig]. Returns:
+    - [Error (K_unbound_sort d)] if [d] is not declared as a datasort;
+    - [Error (K_ctor_not_in_decl { label = l; decl = d })] if [d] is
+      declared but [l] is not one of its constructors. *)
 
 val lookup_type_ctor :
-  Label.t -> 'a t -> (Dsort.t * DtypeDecl.t, Error.kind) result
-(** Returns [Error (K_unbound_ctor label)] if [label] is not a
-    constructor of any datatype. *)
+  Dsort.t -> Label.t -> 'a t -> (DtypeDecl.t, Error.kind) result
+(** [lookup_type_ctor d l sig] resolves [l] as a constructor of
+    datatype [d] in [sig]. Returns:
+    - [Error (K_unbound_sort d)] if [d] is not declared as a datatype;
+    - [Error (K_ctor_not_in_decl { label = l; decl = d })] if [d] is
+      declared but [l] is not one of its constructors. *)
 
 (** Result of looking up a name that may be either a datasort or a
     datatype. *)

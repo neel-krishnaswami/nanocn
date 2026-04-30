@@ -678,7 +678,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let* (ce_pred, pred_sort) = elab_and_synth rs delta Effect.Spec se_pred in
     let* inner_sort =
       ElabM.lift_at binfo#loc (SortGet.get_pred ~construct:"iter" pred_sort) in
-    let* (_dsort_name, args) =
+    let* (dsort_name, args) =
       ElabM.lift_at binfo#loc (SortGet.get_app ~construct:"iter" inner_sort) in
     let cs = RSig.comp rs in
     let* next_label =
@@ -698,8 +698,8 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
            is always a valid constructor name"
     in
     (* Look up constructor sorts with type parameter substitution *)
-    let* a_sort = lift_at binfo#loc (CtorLookup.lookup cs next_label args) in
-    let* b_sort = lift_at binfo#loc (CtorLookup.lookup cs done_label args) in
+    let* a_sort = lift_at binfo#loc (CtorLookup.lookup cs dsort_name next_label args) in
+    let* b_sort = lift_at binfo#loc (CtorLookup.lookup cs dsort_name done_label args) in
     let step_sort = inner_sort in
     (* Build init proof sort: x:A [pure], y:ce @ Next(x) [res], pfnil *)
     let* x_var = fresh SourcePos.dummy in
@@ -1439,21 +1439,16 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (_eff : Effect.t)
                    (Error.rcase_label_not_in_branches
                       ~loc:rp_loc ~label ~case_labels)
                | Some (_l, x_br, ce_br, _bi) ->
-                 (* Look up the constructor's payload sort. The user
-                    chose [L]; if it isn't a constructor known to the
-                    signature, that's [K_unbound_ctor]. *)
-                 let* (_dsort, decl) =
-                   ElabM.lift_at rp_loc (Sig.lookup_ctor label cs) in
+                 (* Look up the constructor's payload sort, qualified
+                    by the scrutinee's head sort. *)
+                 let scrut_sort = (CoreExpr.info scrutinee)#sort in
+                 let* (d, args) =
+                   ElabM.lift_at rp_loc
+                     (SortGet.get_app ~construct:"case pattern scrutinee"
+                        scrut_sort) in
                  let* payload_sort =
-                   match DsortDecl.lookup_ctor label decl with
-                   | Some ctor_sort -> return ctor_sort
-                   | None ->
-                     invariant_at rp_loc ~rule:"rpat_match:case"
-                       (Format.asprintf
-                          "Sig.lookup_ctor returned a decl for %a but \
-                           DsortDecl.lookup_ctor did not"
-                          Label.print label)
-                 in
+                   ElabM.lift_at rp_loc
+                     (CtorLookup.lookup cs d label args) in
                  let ce_x = ce_of_var x_br payload_sort in
                  let inject_ce = CoreExpr.mk (CoreExpr.info scrutinee)
                    (CoreExpr.Inject (label, ce_x)) in
