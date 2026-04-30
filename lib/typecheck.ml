@@ -768,9 +768,16 @@ let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
       return (y, typed_body)
     ) in
     let* ((y, typed_body), supply') = result in
-    Ok (supply', Prog.CoreFunDecl { name = d.name; param = y;
-                            arg_sort = d.arg_sort; ret_sort = d.ret_sort;
-                            eff = d.eff; body = typed_body; loc = d.loc })
+    (* Multi-error: surface the first error recorded on the typed
+       body's tree as a structured failure, preserving the
+       fail-fast contract for legacy callers.  Resilient drivers
+       can call [collect_errors] directly to get every error. *)
+    (match collect_errors typed_body with
+     | e :: _ -> Error e
+     | [] ->
+       Ok (supply', Prog.CoreFunDecl { name = d.name; param = y;
+                                       arg_sort = d.arg_sort; ret_sort = d.ret_sort;
+                                       eff = d.eff; body = typed_body; loc = d.loc }))
   | d ->
     (* Caller (check_decl) only dispatches FunDecl here; the other
        arms are handled directly. Reaching this would be a caller bug. *)
@@ -864,7 +871,11 @@ let check_prog supply (p : (SurfExpr.se, _, Var.t) Prog.t) : (typed_ce Sig.t * t
     Elaborate.check final_sig Context.empty p.main (Ok p.main_sort) p.main_eff
   ) in
   let* (main', _supply'') = result in
-  Ok (final_sig,
-      { Prog.core_decls = decls'; core_main = main';
-        core_main_sort = p.main_sort; core_main_eff = p.main_eff;
-        core_loc = p.loc })
+  (* Multi-error: same fail-fast surface as elaborate_fun. *)
+  match collect_errors main' with
+  | e :: _ -> Error e
+  | [] ->
+    Ok (final_sig,
+        { Prog.core_decls = decls'; core_main = main';
+          core_main_sort = p.main_sort; core_main_eff = p.main_eff;
+          core_loc = p.loc })

@@ -324,17 +324,17 @@ let rec synth sig_ ctx eff0 se =
   let pos = (SurfExpr.info se)#loc in
   match SurfExpr.shape se with
   | SurfExpr.Var x ->
-    (match Context.lookup x ctx with
-     | Ok (s, var_eff) ->
-       if Effect.sub var_eff eff0 then
-         ElabM.return (mk_typed ctx pos s eff0 (CoreExpr.Var x))
-       else
-         ElabM.fail
-           (Error.var_effect_mismatch
-              ~loc:pos ~var:x
-              ~declared:var_eff ~required:eff0)
-     | Error kind ->
-       ElabM.fail (Error.structured ~loc:pos kind))
+    let answer =
+      Result.bind
+        (Context.lookup x ctx
+         |> Result.map_error (Error.structured ~loc:pos))
+        (fun (s, var_eff) ->
+          check_pred (Effect.sub var_eff eff0)
+            (Error.var_effect_mismatch
+               ~loc:pos ~var:x ~declared:var_eff ~required:eff0)
+          &&& Ok s)
+    in
+    ElabM.return (mk ctx pos answer eff0 (CoreExpr.Var x))
 
   | SurfExpr.IntLit n ->
     let s = mk_sort pos Sort.Int in
@@ -347,14 +347,16 @@ let rec synth sig_ ctx eff0 se =
   | SurfExpr.Eq (se1, se2) ->
     let eff0' = Effect.purify eff0 in
     let* ce1 = synth sig_ ctx eff0' se1 in
-    let s = CoreExpr.sort_of_info (CoreExpr.info ce1) in
-    if not (Sort.is_spec_type s) then
-      ElabM.fail (Error.not_spec_type
-                    ~loc:pos ~construct:"equality" ~got:s)
-    else
-      let* ce2 = check sig_ ctx se2 (Ok s) eff0' in
-      let bool_sort = mk_sort pos Sort.Bool in
-      ElabM.return (mk_typed ctx pos bool_sort eff0 (CoreExpr.Eq (ce1, ce2)))
+    let ce1_answer = (CoreExpr.info ce1)#answer in
+    let ce2_expected = unsynth ~construct:"equality" ce1_answer in
+    let* ce2 = check sig_ ctx se2 ce2_expected eff0' in
+    let answer =
+      Result.bind ce1_answer (fun s ->
+        check_pred (Sort.is_spec_type s)
+          (Error.not_spec_type ~loc:pos ~construct:"equality" ~got:s)
+        &&& Ok (mk_sort pos Sort.Bool))
+    in
+    ElabM.return (mk ctx pos answer eff0 (CoreExpr.Eq (ce1, ce2)))
 
   | SurfExpr.And (se1, se2) ->
     let bool_sort = mk_sort pos Sort.Bool in
@@ -368,34 +370,38 @@ let rec synth sig_ ctx eff0 se =
     ElabM.return (mk_typed ctx pos bool_sort eff0 (CoreExpr.Not ce))
 
   | SurfExpr.App (p, arg) ->
-    let* () = match p with
+    let eq_check = match p with
       | Prim.Eq a ->
-        if Sort.is_eqtype a then ElabM.return ()
-        else
-          ElabM.fail (Error.eq_not_equality_type ~loc:pos ~got:a)
-      | _ -> ElabM.return ()
+        check_pred (Sort.is_eqtype a)
+          (Error.eq_not_equality_type ~loc:pos ~got:a)
+      | _ -> Ok ()
     in
     let (arg_sort, ret_sort, prim_eff) = prim_signature p in
-    if not (Effect.sub prim_eff eff0) then
-      ElabM.fail
-        (Error.prim_effect_mismatch
-           ~loc:pos ~prim:p ~declared:prim_eff ~required:eff0)
-    else
-      let eff0' = Effect.purify eff0 in
-      let* ce_arg = check sig_ ctx arg (Ok arg_sort) eff0' in
-      ElabM.return (mk_typed ctx pos ret_sort eff0 (CoreExpr.App (p, ce_arg)))
+    let eff_check = check_pred (Effect.sub prim_eff eff0)
+      (Error.prim_effect_mismatch
+         ~loc:pos ~prim:p ~declared:prim_eff ~required:eff0) in
+    let eff0' = Effect.purify eff0 in
+    let* ce_arg = check sig_ ctx arg (Ok arg_sort) eff0' in
+    let answer = eq_check &&& eff_check &&& Ok ret_sort in
+    ElabM.return (mk ctx pos answer eff0 (CoreExpr.App (p, ce_arg)))
 
   | SurfExpr.Call (name, arg) ->
-    let* (arg_sort, ret_sort, fun_eff) =
-      ElabM.lift_at pos (Sig.lookup_fun name sig_) in
-    if not (Effect.sub fun_eff eff0) then
-      ElabM.fail
-        (Error.fun_effect_mismatch
-           ~loc:pos ~name ~declared:fun_eff ~required:eff0)
-    else
-      let eff0' = Effect.purify eff0 in
-      let* ce_arg = check sig_ ctx arg (Ok arg_sort) eff0' in
-      ElabM.return (mk_typed ctx pos ret_sort eff0 (CoreExpr.Call (name, ce_arg)))
+    let lookup_result =
+      Sig.lookup_fun name sig_
+      |> Result.map_error (Error.structured ~loc:pos) in
+    let arg_expected =
+      Result.map (fun (a, _, _) -> a) lookup_result
+      |> unsynth ~construct:"function call" in
+    let eff0' = Effect.purify eff0 in
+    let* ce_arg = check sig_ ctx arg arg_expected eff0' in
+    let answer =
+      Result.bind lookup_result (fun (_, ret_sort, fun_eff) ->
+        check_pred (Effect.sub fun_eff eff0)
+          (Error.fun_effect_mismatch
+             ~loc:pos ~name ~declared:fun_eff ~required:eff0)
+        &&& Ok ret_sort)
+    in
+    ElabM.return (mk ctx pos answer eff0 (CoreExpr.Call (name, ce_arg)))
 
   | SurfExpr.Annot (se, s) ->
     let* ce = check sig_ ctx se (Ok s) eff0 in
