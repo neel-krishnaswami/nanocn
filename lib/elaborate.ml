@@ -100,6 +100,18 @@ let unwrap_sort_for_coverage pos sort =
   | Ok s -> ElabM.return s
   | Error k -> ElabM.fail (Error.structured ~loc:pos k)
 
+(** [unwrap_synth_sort ce]: extract the synth-output sort of [ce] for
+    use as the bound-var sort in pattern-driven clauses (Take, Let,
+    Case, Iter).  When [ce]'s [info#answer] is [Error e] (meaning the
+    RHS errored under multi-error elaboration), fail through the
+    monad with [e] — coverage compilation needs a real sort to
+    proceed.  Phase B.3 will let coverage_check fall back to a
+    [Hole] placeholder so this can continue past errors too. *)
+let unwrap_synth_sort (ce : typed_ce) : Sort.sort ElabM.t =
+  match (CoreExpr.info ce)#answer with
+  | Ok s -> ElabM.return s
+  | Error e -> ElabM.fail e
+
 (** Take the first [n] elements and the remaining tail. If the list
     is shorter than [n], the second component is empty and the first
     is the whole list. *)
@@ -449,7 +461,7 @@ and check sig_ ctx se sort eff0 =
     else
       let* _ = ElabM.lift_at pos (SortGet.get_pred ~construct:"take target" sort_concrete) in
       let* ce1 = synth sig_ ctx eff0 se1 in
-      let s1 = CoreExpr.sort_of_info (CoreExpr.info ce1) in
+      let* s1 = unwrap_synth_sort ce1 in
       let* tau = ElabM.lift_at pos (SortGet.get_pred ~construct:"take scrutinee" s1) in
       let eff_b = Effect.purify eff0 in
       let* y = ElabM.fresh (Pat.info pat)#loc in
@@ -472,7 +484,7 @@ and check sig_ ctx se sort eff0 =
   | SurfExpr.Let (pat, se1, se2) ->
     let* sort_concrete = unwrap_sort_for_coverage pos sort in
     let* ce1 = synth sig_ ctx eff0 se1 in
-    let tau = CoreExpr.sort_of_info (CoreExpr.info ce1) in
+    let* tau = unwrap_synth_sort ce1 in
     let eff_b = Effect.purify eff0 in
     let* y = ElabM.fresh (Pat.info pat)#loc in
     let ctx_y = Context.extend y tau eff_b ctx in
@@ -520,7 +532,7 @@ and check sig_ ctx se sort eff0 =
     let* sort_concrete = unwrap_sort_for_coverage pos sort in
     let eff0' = Effect.purify eff0 in
     let* ce_scrut = synth sig_ ctx eff0' scrut in
-    let scrut_sort = CoreExpr.sort_of_info (CoreExpr.info ce_scrut) in
+    let* scrut_sort = unwrap_synth_sort ce_scrut in
     let* y = ElabM.fresh (SurfExpr.info scrut)#loc in
     let ctx_y = Context.extend y scrut_sort eff0' ctx in
     let branches = List.map (fun (pat, body, _) ->
@@ -544,7 +556,7 @@ and check sig_ ctx se sort eff0 =
       ElabM.fail (Error.iter_requires_impure ~loc:pos ~actual:eff0)
     else
     let* ce1 = synth sig_ ctx Effect.Pure se1 in
-    let init_sort = CoreExpr.sort_of_info (CoreExpr.info ce1) in
+    let* init_sort = unwrap_synth_sort ce1 in
     let* step_dsort = match Dsort.of_string "Step" with
       | Ok d -> ElabM.return d
       | Error _ ->
