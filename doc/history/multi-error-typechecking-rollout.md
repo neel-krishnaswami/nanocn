@@ -356,3 +356,107 @@ After each phase:
 5. Manual LSP smoke test: open a multi-error fixture in an LSP-capable editor; confirm multiple diagnostics appear simultaneously and Hover/Goto-Def still work.
 6. `git diff doc/syntax.ott` — empty (no Ott changes expected; if any, those landed in a separate commit per CLAUDE.md rule 0).
 7. Each phase's design captured in `doc/history/` per CLAUDE.md rule 0.5 before implementation begins.
+
+---
+
+## Appendix — As-shipped progress (2026-04-30)
+
+The plan above is the design.  This appendix records what was actually
+committed so future sessions can resume cleanly.  Run `git log --oneline`
+to confirm the hashes are present.
+
+### Committed
+
+| Commit | Phase | What landed |
+| --- | --- | --- |
+| `f2b11ff` | **A — full** | `Typecheck.synth`/`check` continue past errors; `(typed_ce, Error.t) result` returns dropped; `check`'s expected-sort takes `(Sort.sort, Error.kind) result`; `mk` takes a result-typed answer; `&&&` and `check_pred` linearization helpers; `unsynth` and `replace_answer` synth-side helpers; `extend_or_unknown` in Context; SortView (Get/Build, polymorphic in info); Util.result_list; new error kinds `K_unknown_var_type`, `K_missing_ctor`, `K_redundant_ctor`; CtorLookup.lookup_all; merge_branches with M_present / M_missing / M_redundant / M_unknown_label.  193→212 tests. |
+| `e4186ac` | B.6 (light) | Drop `* Sort.sort` from `Elaborate.synth`'s return; callers extract via `CoreExpr.sort_of_info`. |
+| `3a18bcc` | B.6 (full) | `Elaborate.check`'s expected sort becomes `(Sort.sort, Error.kind) result`.  Non-pattern check clauses (Return, Fail, Tuple, Inject, If, Annot, Hole, fallback) thread through SortView and `&&&`.  Pattern-driven clauses (Take, Let, Case, Iter) bail via `unwrap_sort_for_coverage` when expected is `Error _`.  213 tests. |
+| `1ca41bf` | B.2 | Migrate `Elaborate.synth`'s user-error fail sites: Var, Eq, App, Call now attach errors to `info#answer` instead of `ElabM.fail`.  Drivers (`elaborate_fun`, `check_prog`) keep fail-fast contract by surfacing the first collected error. |
+| `7413f59` | B.2 (fix) | Add `unwrap_synth_sort` to guard downstream `sort_of_info` reads in coverage-using clauses.  Without it, the migrated synth's `Error` answers crashed `Result.get_ok`. |
+| `b16043d` | **B.3** | `coverage_check` `[], []` non-exhaustive case emits `CoreExpr.Hole "non-exhaustive-coverage"` with `K_non_exhaustive` on `info#answer` instead of `ElabM.fail`.  `Typecheck.check_decl_multi` returns the typed body + every error.  `CompileFile.compile_file` aggregates per-decl errors into LSP diagnostics. |
+
+### Verified end-to-end
+
+```cn
+type Color = { Red : () | Green : () | Blue : () }
+fun colorToInt : Color -> Int [pure] = {
+    Red u -> unknown 1
+  | Green u -> 2
+}
+main : Bool [pure] = Eq[Int] (true, false)
+```
+→ 5 diagnostics in one compile pass: unknown function, cannot synthesize
+function call (cascaded from the unknown lookup), non-exhaustive
+pattern (missing `Blue _`), and two sort mismatches on
+`(true, false) : (Int * Int)`.
+
+### What's still ahead
+
+#### Top priority — three halt-on-first-error bugs
+
+The Phase B work cleared multi-error from non-pattern clauses, but
+three discrete halts remain inside the pattern-driven path.  Any one
+of them turns a multi-error compile back into a single-error compile
+the moment a user file hits it.  **Fixing all three is the next
+priority, before Phase C and before B.1.**
+
+1. **`unwrap_sort_for_coverage` (`elaborate.ml:97`)** — `Take` /
+   `Let` / `Case` / `Iter` check clauses bail with `ElabM.fail` when
+   their expected sort is `Error _`.  Lift this restriction by
+   teaching `coverage_check` to take a result-typed sort and emit
+   `CoreExpr.Hole` placeholders when it's `Error _`.
+
+2. **`unwrap_synth_sort` (`elaborate.ml:104`)** — same four clauses
+   bail when the synth'd RHS produced an `Error` answer.  Bind the
+   pattern variable as `Context.Unknown` and continue with a
+   placeholder bound-sort; coverage's downstream pattern logic needs
+   to tolerate Unknown.
+
+3. **`coverage_check`'s `lookup_dsort_or_type` lift_at
+   (`elaborate.ml:655`)** — when the scrutinee's head sort isn't
+   declared in the signature, coverage fails immediately.  Convert
+   to attach `K_unbound_sort` on the case node's `answer` and emit
+   a `Hole` for the case body.
+
+The fix for (1) and (2) is largely the same change to
+`coverage_check` (make its sort argument and bound-var sort
+optional, with Hole fallback when missing).  Fix (3) is a smaller
+follow-up.  Together they finish the Phase B multi-error story for
+elaborate.ml.
+
+#### Lower priority
+
+- **B.7 finish** — persist multi-error fixtures into `examples/errors/typing/`
+  + extend `test/resilient/test_resilient.ml` to assert error counts.
+  Currently the only persistent multi-error tests are the in-OCaml
+  cases in `test_main.ml` (`spec-typecheck-core` 4-7, "elaborate
+  multi-error: tuple component mismatches").
+- **Remaining `ElabM.fail` sites in coverage clauses** — Take's
+  `spec_context_required`, Iter's `iter_requires_impure`, the
+  unsynthesizable-fallback when expected sort is `Error _`.  Small
+  once the three halt bugs are fixed.
+- **B.1 ElabM non-failing** — large, controversial; defer past Phase C.
+- **Phase C** entire — `lib/rCheck.ml`, 1671 lines.
+
+### Decisions deferred
+
+- **D6 (constraint-tree-on-error in rCheck)** — still open.  Decide at the
+  start of Phase C whether to skip SMT on errors or add a `Constraint.Hole`
+  variant.  Recommendation in the plan: skip-SMT for the first cut.
+
+### Decisions made along the way (not in original plan)
+
+- `coverage_check` keeps its concrete `Sort.sort` argument; its
+  callers extract from a result via `unwrap_sort_for_coverage` and
+  bail if `Error _`.  Phase B shim — full B.3 (let coverage take a
+  result-typed sort) is deferred.
+- `unwrap_synth_sort` guards downstream `CoreExpr.sort_of_info` reads
+  in pattern-driven clauses.  When the synth'd RHS has an `Error`
+  answer, fail through the monad.  Without this guard,
+  `Result.get_ok` crashed when synth produced typed nodes with
+  errors.  Same fail-on-Error semantic as `unwrap_sort_for_coverage`.
+- `Typecheck.check_decl_multi` is a new public entry point alongside
+  `check_decl` so resilient drivers (`CompileFile.compile_file`, LSP)
+  can collect every error per decl.  `check_decl` keeps its
+  fail-fast contract for legacy callers (tests, `check_prog`).
