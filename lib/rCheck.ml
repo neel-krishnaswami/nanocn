@@ -974,26 +974,34 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let* (checked_crt2, delta3, ct2) = check_crt rs delta2 eff crt2 pf in
     let n = RCtx.length delta1 in
     let (delta_out, delta_pat_out) = RCtx.split n delta3 in
-    if not (RCtx.zero delta_pat_out) then
-      let leftovers =
-        List.filter_map (function
-          | RCtx.Res { var; pred; value; usage } when not (Usage.is_zero usage) ->
-            Some (Format.asprintf "@[<hov 2>%a : %a @@ %a [%a]@]"
-                    Var.print var
-                    CoreExpr.print pred
-                    CoreExpr.print value
-                    Usage.print usage)
-          | _ -> None)
-          (RCtx.entries delta_pat_out)
-      in
-      ElabM.fail
-        (Error.let_pattern_resource_leak ~loc:pos ~leftovers)
-    else
-      let ct_closed = close_ctx pos delta_pat_out (Constraint.conj pos ct_pat ct2) in
-      let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
-      let typed_pat = RPat.map_info (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp pf') eff) pat in
-      let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLet (typed_pat, checked_crt1, checked_crt2)) in
-      return (checked, delta_out, Constraint.conj pos ct ct_closed)
+    let leak =
+      if not (RCtx.zero delta_pat_out) then
+        let leftovers =
+          List.filter_map (function
+            | RCtx.Res { var; pred; value; usage } when not (Usage.is_zero usage) ->
+              Some (Format.asprintf "@[<hov 2>%a : %a @@ %a [%a]@]"
+                      Var.print var
+                      CoreExpr.print pred
+                      CoreExpr.print value
+                      Usage.print usage)
+            | _ -> None)
+            (RCtx.entries delta_pat_out)
+        in
+        Some (Error.let_pattern_resource_leak ~loc:pos ~leftovers)
+      else None
+    in
+    let ct_closed = close_ctx pos delta_pat_out (Constraint.conj pos ct_pat ct2) in
+    let rinfo = match leak with
+      | None -> mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff
+      | Some err -> mk_rinfo_err ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff err
+    in
+    let typed_pat = RPat.map_info (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp pf') eff) pat in
+    let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLet (typed_pat, checked_crt1, checked_crt2)) in
+    let final_ct = match leak with
+      | None -> Constraint.conj pos ct ct_closed
+      | Some _ -> Constraint.top pos
+    in
+    return (checked, delta_out, final_ct)
 
   | RefinedExpr.CLetLog (lp, lpf, body) ->
     (* Per [doc/extended-resource-terms.md] let-log rule:
@@ -1025,22 +1033,31 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let* (checked_body, delta3, ct_body) = check_crt rs delta2 eff body pf in
     let n = RCtx.length delta1 in
     let (delta_out, delta_close) = RCtx.split n delta3 in
-    if not (RCtx.zero delta_close) then
-      let leftovers =
-        List.filter_map (function
-          | RCtx.Res { var; pred; value; usage } when not (Usage.is_zero usage) ->
-            Some (Format.asprintf "@[<hov 2>%a : %a @@ %a [%a]@]"
-                    Var.print var CoreExpr.print pred
-                    CoreExpr.print value Usage.print usage)
-          | _ -> None) (RCtx.entries delta_close)
-      in
-      ElabM.fail (Error.let_pattern_resource_leak ~loc:pos ~leftovers)
-    else
-      let ct_closed = close_ctx pos delta_close (Constraint.conj pos ct_pat ct_body) in
-      let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
-      let typed_rp = RPat.map_info_rpat (fun b -> mk_rinfo b#loc RCtx.empty bool_sort eff) rp in
-      let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLetRes (typed_rp, checked_rpf, checked_body)) in
-      return (checked, delta_out, Constraint.conj pos ct ct_closed)
+    let leak =
+      if not (RCtx.zero delta_close) then
+        let leftovers =
+          List.filter_map (function
+            | RCtx.Res { var; pred; value; usage } when not (Usage.is_zero usage) ->
+              Some (Format.asprintf "@[<hov 2>%a : %a @@ %a [%a]@]"
+                      Var.print var CoreExpr.print pred
+                      CoreExpr.print value Usage.print usage)
+            | _ -> None) (RCtx.entries delta_close)
+        in
+        Some (Error.let_pattern_resource_leak ~loc:pos ~leftovers)
+      else None
+    in
+    let ct_closed = close_ctx pos delta_close (Constraint.conj pos ct_pat ct_body) in
+    let rinfo = match leak with
+      | None -> mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff
+      | Some err -> mk_rinfo_err ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff err
+    in
+    let typed_rp = RPat.map_info_rpat (fun b -> mk_rinfo b#loc RCtx.empty bool_sort eff) rp in
+    let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLetRes (typed_rp, checked_rpf, checked_body)) in
+    let final_ct = match leak with
+      | None -> Constraint.conj pos ct ct_closed
+      | Some _ -> Constraint.top pos
+    in
+    return (checked, delta_out, final_ct)
 
   | RefinedExpr.CIf (eq_var, se, crt1, crt2) ->
     let eff' = Effect.purify eff in
