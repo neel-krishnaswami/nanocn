@@ -43,7 +43,25 @@ type goal =
       position : int;
     }
   | NoGoal
-and typed_rinfo = < loc : SourcePos.t; ctx : Context.t; rctx : RCtx.t; sort : Sort.sort; eff : Effect.t; goal : goal >
+and typed_rinfo = <
+  loc : SourcePos.t;
+  ctx : Context.t;
+  rctx : RCtx.t;
+  sort : Sort.sort;
+  eff : Effect.t;
+  goal : goal;
+  answer : (Sort.sort, Error.t) result;
+    (* Mirrors CoreExpr.typed_info: [Ok sort] for successful nodes,
+       [Error e] when the rCheck judgement chose to attach an error
+       and continue.  The legacy [sort] field is kept in lockstep
+       with [answer] for hover/inspector consumers; [sort] equals
+       [Result.value answer ~default:<some-placeholder>]. *)
+  subterm_errors : Error.t list;
+    (* Errors recorded on [info#answer] anywhere in the subtree
+       rooted at this node.  Populated by an annotation pass after
+       rCheck completes; before that pass, the field is the empty
+       list at every node. *)
+>
 type typed = (CoreExpr.typed_ce, typed_rinfo, Var.t) t
 
 let print_gen pp_var pp_e fmt prog =

@@ -63,7 +63,25 @@ type goal =
 
 (** Info annotation for typed refined expression nodes.
     Extends [CoreExpr.typed_info] with the refined context and goal. *)
-and typed_rinfo = < loc : SourcePos.t; ctx : Context.t; rctx : RCtx.t; sort : Sort.sort; eff : Effect.t; goal : goal >
+and typed_rinfo = <
+  loc : SourcePos.t;
+  ctx : Context.t;
+  rctx : RCtx.t;
+  sort : Sort.sort;
+  eff : Effect.t;
+  goal : goal;
+  answer : (Sort.sort, Error.t) result;
+    (** [Ok sort] for successful nodes, [Error e] when the rCheck
+        judgement chose to attach an error and continue.  The
+        legacy [sort] field is kept in lockstep for hover /
+        inspector consumers; it equals the [Ok] payload of
+        [answer] when [answer = Ok _], and a placeholder otherwise. *)
+  subterm_errors : Error.t list;
+    (** Errors recorded on [info#answer] anywhere in the subtree
+        rooted at this node, populated by an annotation pass run
+        once rCheck completes.  Before that pass, the field is the
+        empty list at every node. *)
+>
 
 (** Fully annotated type (typed core expressions with refined context/sort/effect). *)
 type typed = (CoreExpr.typed_ce, typed_rinfo, Var.t) t

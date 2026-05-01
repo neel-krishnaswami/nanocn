@@ -80,6 +80,8 @@ let elab_pf_entry (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (entry : (S
       method sort = sort
       method eff = eff
       method goal = RProg.NoGoal
+      method answer = Ok sort
+      method subterm_errors = []
     end)
   in
   let ri = mk_ri bool_sort eff in
@@ -192,13 +194,17 @@ let rec strip_annots ce =
 (* Dummy rinfo for manually-built proof sorts (e.g. rprim_signature)
    where no meaningful context exists. *)
 let rinfo_dummy : RProg.typed_rinfo =
+  let bool_dummy =
+    Sort.mk (object method loc = SourcePos.dummy end) Sort.Bool in
   (object
     method loc = SourcePos.dummy
     method ctx = Context.empty
     method rctx = RCtx.empty
-    method sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Bool
+    method sort = bool_dummy
     method eff = Effect.Spec
     method goal = RProg.NoGoal
+    method answer = Ok bool_dummy
+    method subterm_errors = []
   end)
 
 (* Helper constructors for building proof sorts *)
@@ -425,6 +431,25 @@ let mk_rinfo ?(goal=RProg.NoGoal) loc delta sort eff : RProg.typed_rinfo =
     method sort = sort
     method eff = eff
     method goal = goal
+    method answer = Ok sort
+    method subterm_errors = []
+  end)
+
+(** [mk_rinfo_err ?goal loc delta sort eff err] is like [mk_rinfo]
+    but with [info#answer = Error err] for clauses that detected a
+    user error and are continuing.  [sort] is kept as the
+    "would-have-been" sort so hover / inspector consumers still see
+    a placeholder; the truth-of-record lives on [answer]. *)
+let[@warning "-32"] mk_rinfo_err ?(goal=RProg.NoGoal) loc delta sort eff err : RProg.typed_rinfo =
+  (object
+    method loc = loc
+    method ctx = RCtx.erase delta
+    method rctx = delta
+    method sort = sort
+    method eff = eff
+    method goal = goal
+    method answer = Error err
+    method subterm_errors = []
   end)
 
 (* ---------- typing judgements ---------- *)

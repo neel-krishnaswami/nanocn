@@ -1528,7 +1528,8 @@ main : Int [pure] = example(Both (1, 2) : Pair)
         let ce = CoreExpr.mk (mk_info bool_sort) (CoreExpr.IntLit 0) in
         let ri : RProg.typed_rinfo =
           (object method loc = SourcePos.dummy method ctx = Context.empty
-                  method rctx = RCtx.empty method sort = int_sort method eff = Effect.Spec method goal = RProg.NoGoal end) in
+                  method rctx = RCtx.empty method sort = int_sort method eff = Effect.Spec method goal = RProg.NoGoal
+                  method answer = Ok int_sort method subterm_errors = [] end) in
         let pf1 = [
           ProofSort.Comp { info = ri; var = x; sort = int_sort; eff = Effect.Pure };
           ProofSort.Log { info = ri; prop = ce };
