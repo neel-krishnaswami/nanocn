@@ -7,6 +7,17 @@ type entry =
   | Comp of { var : Var.t; sort : Sort.sort; eff : Effect.t }
   | Log of { var : Var.t; prop : CoreExpr.typed_ce }
   | Res of { var : Var.t; pred : CoreExpr.typed_ce; value : CoreExpr.typed_ce; usage : Usage.t }
+  | Unknown of { var : Var.t }
+    (** A refined-context binding whose kind / sort could not be
+        determined because the rCheck judgement that introduced it
+        had errors recorded on its typed AST.  The multi-error
+        rCheck binds the var so downstream uses still resolve, but
+        any [lookup_comp] / [lookup_log] / [use_resource] for an
+        [Unknown] entry returns a structured error.  [Unknown]
+        entries do NOT carry a usage flag, so [use_resource] on
+        them does not affect linearity tracking — otherwise an
+        upstream error would silently cascade as a linear-resource
+        leak. *)
 
 type t
 
@@ -14,13 +25,26 @@ val empty : t
 val extend_comp : Var.t -> Sort.sort -> Effect.t -> t -> t
 val extend_log : Var.t -> CoreExpr.typed_ce -> t -> t
 val extend_res : Var.t -> CoreExpr.typed_ce -> CoreExpr.typed_ce -> Usage.t -> t -> t
+val extend_unknown : Var.t -> t -> t
+(** [extend_unknown x ctx] adds an [Unknown] binding for [x].  Used
+    by the multi-error rCheck when an introduction-form errored and
+    no concrete kind / sort is available. *)
+
 val concat : t -> t -> t
 
-val lookup_comp : Var.t -> t -> (Sort.sort * Effect.t) option
-(** [lookup_comp x ctx] returns sort and effect for computational binding [x]. *)
+val lookup_comp :
+  Var.t -> t -> (Sort.sort * Effect.t, Error.kind) result
+(** [lookup_comp x ctx] returns sort and effect for computational
+    binding [x].  Errors:
+    - [K_unbound_var x] when [x] is not bound at all.
+    - [K_unknown_var_type {var=x}] when [x] is bound as [Unknown].
+    - [K_internal_invariant] when [x] is bound as [Log] or [Res]
+      (caller should have used the appropriate lookup variant). *)
 
-val lookup_log : Var.t -> t -> CoreExpr.typed_ce option
-(** [lookup_log x ctx] returns the proposition for logical binding [x]. *)
+val lookup_log :
+  Var.t -> t -> (CoreExpr.typed_ce, Error.kind) result
+(** [lookup_log x ctx] returns the proposition for logical binding
+    [x].  Errors as for [lookup_comp]. *)
 
 val use_resource :
   Var.t -> t ->

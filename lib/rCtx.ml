@@ -2,6 +2,7 @@ type entry =
   | Comp of { var : Var.t; sort : Sort.sort; eff : Effect.t }
   | Log of { var : Var.t; prop : CoreExpr.typed_ce }
   | Res of { var : Var.t; pred : CoreExpr.typed_ce; value : CoreExpr.typed_ce; usage : Usage.t }
+  | Unknown of { var : Var.t }
 
 type t = entry list
 
@@ -10,20 +11,34 @@ let empty = []
 let extend_comp x sort eff ctx = ctx @ [Comp { var = x; sort; eff }]
 let extend_log x prop ctx = ctx @ [Log { var = x; prop }]
 let extend_res x pred value usage ctx = ctx @ [Res { var = x; pred; value; usage }]
+let extend_unknown x ctx = ctx @ [Unknown { var = x }]
 let concat ctx1 ctx2 = ctx1 @ ctx2
 
 let lookup_comp x ctx =
   let rec go = function
-    | [] -> None
-    | Comp { var; sort; eff } :: _ when Var.compare x var = 0 -> Some (sort, eff)
+    | [] -> Error (Error.K_unbound_var x)
+    | Comp { var; sort; eff } :: _ when Var.compare x var = 0 ->
+      Ok (sort, eff)
+    | Unknown { var } :: _ when Var.compare x var = 0 ->
+      Error (Error.K_unknown_var_type { var = x })
+    | (Log { var; _ } | Res { var; _ }) :: _ when Var.compare x var = 0 ->
+      (* The variable is bound at a different kind.  Treat as
+         unbound at the comp kind — the caller asked for the wrong
+         lookup, which is either a compiler bug or recovers cleanly
+         by reporting K_unbound_var. *)
+      Error (Error.K_unbound_var x)
     | _ :: rest -> go rest
   in
   go ctx
 
 let lookup_log x ctx =
   let rec go = function
-    | [] -> None
-    | Log { var; prop } :: _ when Var.compare x var = 0 -> Some prop
+    | [] -> Error (Error.K_unbound_var x)
+    | Log { var; prop } :: _ when Var.compare x var = 0 -> Ok prop
+    | Unknown { var } :: _ when Var.compare x var = 0 ->
+      Error (Error.K_unknown_var_type { var = x })
+    | (Comp { var; _ } | Res { var; _ }) :: _ when Var.compare x var = 0 ->
+      Error (Error.K_unbound_var x)
     | _ :: rest -> go rest
   in
   go ctx
@@ -36,6 +51,14 @@ let use_resource x ctx =
         Ok (pred, value, List.rev acc @ [Res { var; pred; value; usage = Usage.Used }] @ rest)
       else
         Error (Error.K_resource_already_used { name = x })
+    | Unknown { var } :: _ when Var.compare x var = 0 ->
+      (* Unknown entry: the upstream rCheck judgement that would
+         have introduced this resource binding errored.  Report
+         K_unknown_var_type but DO NOT advance the usage flag (the
+         entry has no usage; trying to "use" it leaves the context
+         unchanged so linearity is not corrupted by cascading
+         from an earlier error). *)
+      Error (Error.K_unknown_var_type { var = x })
     | entry :: rest -> go (entry :: acc) rest
   in
   go [] ctx
@@ -44,20 +67,21 @@ let erase ctx =
   List.fold_left (fun acc entry ->
     match entry with
     | Comp { var; sort; eff } -> Context.extend var sort eff acc
+    | Unknown { var } -> Context.extend_unknown var acc
     | Log _ | Res _ -> acc)
     Context.empty ctx
 
 let affinize ctx =
   List.map (fun entry ->
     match entry with
-    | Comp _ | Log _ -> entry
+    | Comp _ | Log _ | Unknown _ -> entry
     | Res r -> Res { r with usage = Usage.affinize r.usage })
     ctx
 
 let zero ctx =
   List.for_all (fun entry ->
     match entry with
-    | Comp _ | Log _ -> true
+    | Comp _ | Log _ | Unknown _ -> true
     | Res { usage; _ } -> Usage.is_zero usage)
     ctx
 
@@ -74,6 +98,8 @@ let merge ctx1 ctx2 =
         go (Comp c1 :: acc) r1 r2
       | Log l :: r1, Log _ :: r2 ->
         go (Log l :: acc) r1 r2
+      | Unknown u1 :: r1, Unknown _ :: r2 ->
+        go (Unknown u1 :: acc) r1 r2
       | Res r1 :: rest1, Res r2 :: rest2 ->
         (match Usage.meet r1.usage r2.usage with
          | Some u ->
@@ -100,6 +126,8 @@ let lattice_merge ctx1 ctx2 =
         go (Comp c1 :: acc) r1 r2
       | Log l :: r1, Log _ :: r2 ->
         go (Log l :: acc) r1 r2
+      | Unknown u1 :: r1, Unknown _ :: r2 ->
+        go (Unknown u1 :: acc) r1 r2
       | Res r1 :: rest1, Res r2 :: rest2 ->
         let u = Usage.lattice_meet r1.usage r2.usage in
         go (Res { r1 with usage = u } :: acc) rest1 rest2
@@ -115,6 +143,7 @@ let usage_equal ctx1 ctx2 =
     match e1, e2 with
     | Comp _, Comp _ -> true
     | Log _, Log _ -> true
+    | Unknown _, Unknown _ -> true
     | Res r1, Res r2 -> Usage.compare r1.usage r2.usage = 0
     | _ -> false)
     ctx1 ctx2
@@ -151,6 +180,8 @@ let print_gen pp_var fmt ctx =
     | Res { var; pred; value; usage } ->
       Format.fprintf fmt "@[%a : %a @ %a [res(%a)]@]"
         pp_var var pp_ce pred pp_ce value Usage.print usage
+    | Unknown { var } ->
+      Format.fprintf fmt "@[%a : ? [unknown]@]" pp_var var
   in
   Format.fprintf fmt "@[<v>%a@]"
     (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") pp_entry)

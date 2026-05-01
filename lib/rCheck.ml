@@ -22,10 +22,9 @@ open ElabM
      and its helper modules ([CtorLookup], [Subst], [RCtx],
      [ProofSort], [rpat_match]). *)
 let invariant_at pos ~rule msg =
-  ElabM.fail (Error.internal_invariant ~loc:pos ~rule ~invariant:msg)
+  Util.raise_invariant ~loc:pos ~rule msg
 let invariant ~rule msg =
-  ElabM.fail
-    (Error.internal_invariant ~loc:SourcePos.dummy ~rule ~invariant:msg)
+  Util.raise_invariant ~loc:SourcePos.dummy ~rule msg
 
 let loc_dummy = object method loc = SourcePos.dummy end
 
@@ -153,7 +152,13 @@ let close_ctx pos delta_close ct =
       Constraint.forall_ pos var sort acc
     | RCtx.Log { var = _; prop } ->
       Constraint.impl pos prop acc
-    | RCtx.Res _ -> acc)
+    | RCtx.Res _ -> acc
+    | RCtx.Unknown _ ->
+      (* Unknown entries don't contribute a quantifier — there's no
+         sort to bind, and any constraint that depended on the
+         erroneous binder has been replaced by Top per the
+         atom-guard. *)
+      acc)
     (RCtx.entries delta_close) ct
 
 (* Unwrap layers that obscure the monadic skeleton of a predicate
@@ -447,11 +452,11 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
   match RefinedExpr.lpf_shape lpf with
   | RefinedExpr.LVar x ->
     (match RCtx.lookup_log x delta with
-     | Some ce ->
+     | Ok ce ->
        let rinfo = mk_rinfo ~goal:(RProg.LpfGoal ce) pos delta bool_sort Effect.Spec in
        let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LVar x) in
        return (checked, ce, delta, Constraint.top pos)
-     | None ->
+     | Error _ ->
        ElabM.fail (Error.log_var_not_found ~loc:pos ~name:x))
 
   | RefinedExpr.LAuto ->
