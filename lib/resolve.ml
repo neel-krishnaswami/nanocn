@@ -12,14 +12,21 @@ let lookup_env (name : string) (env : env) : Var.t option =
   in
   go env
 
+(** [resolve_use pos env name]: look up [name] in [env] and return the
+    bound [Var.t].  When the name isn't in scope, generate a fresh
+    [Var.t] anyway — the typechecker's [Context.lookup] will see this
+    var as out-of-scope and report [K_unbound_var] at the use site,
+    keeping the multi-error story alive (resolve no longer halts the
+    file on a single typo). *)
 let resolve_use pos env name =
   match lookup_env name env with
   | Some v -> return v
   | None ->
-    ElabM.fail (Error.unbound_name ~loc:pos name)
+    let* v = mk_var name pos in
+    return v
 
 let invariant_at pos ~rule msg =
-  ElabM.fail (Error.internal_invariant ~loc:pos ~rule ~invariant:msg)
+  Util.raise_invariant ~loc:pos ~rule msg
 
 (* Best-effort location for a ProofSort.entry: any embedded expression
    or sort carries a [SourcePos.t] via its info object. *)
@@ -49,19 +56,53 @@ and resolve_pat_list env = function
     let* (ps', env'') = resolve_pat_list env' ps in
     return (p' :: ps', env'')
 
-(* Check that no string name appears more than once in the parsed pattern *)
-let check_parsed_linearity (p : Pat.parsed_pat) : unit ElabM.t =
-  let names = Pat.parsed_vars p in
-  let rec check = function
+(** [collect_pat_var_occurrences p] returns each [Pat.Var]
+    occurrence in [p] paired with its source position, in
+    left-to-right pattern order. *)
+let rec collect_pat_var_occurrences (p : Pat.parsed_pat)
+    : (string * SourcePos.t) list =
+  let pos = (Pat.info p)#loc in
+  match Pat.shape p with
+  | Pat.Var name -> [(name, pos)]
+  | Pat.Con (_, sub) -> collect_pat_var_occurrences sub
+  | Pat.Tuple ps -> List.concat_map collect_pat_var_occurrences ps
+
+(** [record_shadow_warnings p] emits a [Warning.pat_var_shadowed]
+    for each [Pat.Var] occurrence in [p] that is followed by another
+    binding of the same name later in the same pattern.  The warning
+    is attached to the EARLIER (shadowed) occurrence — its binding
+    is unreachable because the later one wins.
+
+    Replaces the previous duplicate-pattern-var error: the user's
+    program is well-defined, just non-obvious, so we surface it as a
+    diagnostic without halting compilation. *)
+let record_shadow_warnings (p : Pat.parsed_pat) : unit ElabM.t =
+  let occurrences = collect_pat_var_occurrences p in
+  let total_count = Hashtbl.create 8 in
+  List.iter (fun (n, _) ->
+    let current =
+      try Hashtbl.find total_count n with Not_found -> 0
+    in
+    Hashtbl.replace total_count n (current + 1)
+  ) occurrences;
+  let seen_count = Hashtbl.create 8 in
+  let rec go = function
     | [] -> return ()
-    | n :: rest ->
-      if List.exists (String.equal n) rest then
-        ElabM.fail
-          (Error.duplicate_pat_var
-             ~loc:(Pat.info p)#loc ~name:n)
-      else check rest
+    | (name, pos) :: rest ->
+      let total = Hashtbl.find total_count name in
+      let seen =
+        try Hashtbl.find seen_count name with Not_found -> 0
+      in
+      Hashtbl.replace seen_count name (seen + 1);
+      if seen + 1 < total then
+        let* () =
+          ElabM.record_warning
+            (Warning.pat_var_shadowed ~loc:pos ~name) in
+        go rest
+      else
+        go rest
   in
-  check names
+  go occurrences
 
 (* ===== Expressions ===== *)
 
@@ -75,7 +116,7 @@ let rec resolve_expr env (e : SurfExpr.parsed_se) : SurfExpr.se ElabM.t =
   | SurfExpr.IntLit n -> mk (SurfExpr.IntLit n)
   | SurfExpr.BoolLit b -> mk (SurfExpr.BoolLit b)
   | SurfExpr.Let (p, e1, e2) ->
-    let* () = check_parsed_linearity p in
+    let* () = record_shadow_warnings p in
     let* e1' = resolve_expr env e1 in
     let* (p', env') = resolve_pat env p in
     let* e2' = resolve_expr env' e2 in
@@ -91,7 +132,7 @@ let rec resolve_expr env (e : SurfExpr.parsed_se) : SurfExpr.se ElabM.t =
     let* branches' = resolve_case_branches env branches in
     mk (SurfExpr.Case (scrut', branches'))
   | SurfExpr.Iter (p, e1, e2) ->
-    let* () = check_parsed_linearity p in
+    let* () = record_shadow_warnings p in
     let* e1' = resolve_expr env e1 in
     let* (p', env') = resolve_pat env p in
     let* e2' = resolve_expr env' e2 in
@@ -123,7 +164,7 @@ let rec resolve_expr env (e : SurfExpr.parsed_se) : SurfExpr.se ElabM.t =
     let* e1' = resolve_expr env e1 in
     mk (SurfExpr.Not e1')
   | SurfExpr.Take (p, e1, e2) ->
-    let* () = check_parsed_linearity p in
+    let* () = record_shadow_warnings p in
     let* e1' = resolve_expr env e1 in
     let* (p', env') = resolve_pat env p in
     let* e2' = resolve_expr env' e2 in
@@ -146,7 +187,7 @@ and resolve_expr_list env = function
 and resolve_case_branches env = function
   | [] -> return []
   | (p, body, info) :: rest ->
-    let* () = check_parsed_linearity p in
+    let* () = record_shadow_warnings p in
     let* (p', env') = resolve_pat env p in
     let* body' = resolve_expr env' body in
     let* rest' = resolve_case_branches env rest in
@@ -160,7 +201,7 @@ let resolve_decl env (d : (SurfExpr.parsed_se, SourcePos.t, string) Prog.decl)
   | Prog.FunDecl { name; arg_sort; ret_sort; eff; branches; loc } ->
     let* branches' =
       sequence (List.map (fun (p, body, binfo) ->
-        let* () = check_parsed_linearity p in
+        let* () = record_shadow_warnings p in
         let* (p', env') = resolve_pat env p in
         let* body' = resolve_expr env' body in
         return (p', body', binfo)

@@ -335,10 +335,29 @@ let () =
              | _ -> Alcotest.fail "expected int sort on output")
           | Error msg -> Alcotest.fail (Error.to_string msg));
 
-      Alcotest.test_case "unbound variable fails" `Quick (fun () ->
+      Alcotest.test_case "unbound variable surfaces at typecheck" `Quick (fun () ->
+        (* Multi-error: resolve no longer halts on an unbound name —
+           it generates a fresh [Var.t] so the rest of the file can
+           still elaborate.  The unbound diagnostic now comes from
+           [Context.lookup] at typecheck time as [K_unbound_var]. *)
         match run_m (Parse.parse_expr "x" ~file:"test") with
-        | Error _ -> () (* scope resolution rejects unbound variable *)
-        | Ok _ -> Alcotest.fail "should fail on unbound variable");
+        | Error msg ->
+          Alcotest.fail
+            ("expected resolve to succeed (returning a fresh Var.t \
+              for the unbound name), but got: " ^ Error.to_string msg)
+        | Ok e ->
+          (match elab_synth Sig.empty Context.empty Effect.Pure e with
+           | Ok _ -> Alcotest.fail "expected an unbound-var error at typecheck"
+           | Error msg ->
+             let s = Error.to_string msg in
+             let n = String.length s in
+             let m = String.length "unbound variable" in
+             let rec contains i =
+               i + m <= n && (String.sub s i m = "unbound variable" || contains (i+1))
+             in
+             if not (contains 0) then
+               Alcotest.failf
+                 "expected an 'unbound variable' diagnostic, got: %s" s));
 
       Alcotest.test_case "check inject into declared type" `Quick (fun () ->
         let src = "type Option = { Some : Int | None : () }" in
@@ -1387,6 +1406,44 @@ main : Int [pure] = useNested(1)
                "expected an 'unknown function' diagnostic in: %s"
                (String.concat "; "
                   (List.map Error.to_string outcome.diagnostics))));
+
+      (let contains_substring s sub =
+         let n = String.length s and m = String.length sub in
+         let rec aux i =
+           i + m <= n && (String.sub s i m = sub || aux (i+1)) in
+         m = 0 || (n >= m && aux 0)
+       in
+       let any_warn_contains warns sub =
+         List.exists (fun w ->
+           contains_substring (Warning.to_string w) sub) warns
+       in
+       let src = {|
+type Pair = { Both : (Int * Int) }
+fun example : Pair -> Int [pure] = {
+    Both (x, x) -> x
+}
+main : Int [pure] = example(Both (1, 2) : Pair)
+|} in
+       Alcotest.test_case
+         "duplicate pattern var becomes a shadowed-var warning, not an error"
+         `Quick (fun () ->
+           let outcome =
+             CompileFile.compile_file src
+               ~file:"shadow_warn.cn" in
+           if outcome.diagnostics <> [] then
+             Alcotest.failf
+               "expected no diagnostics, got: %s"
+               (String.concat "; "
+                  (List.map Error.to_string outcome.diagnostics));
+           if List.length outcome.warnings < 1 then
+             Alcotest.failf
+               "expected >= 1 warning for shadowed pattern var, got %d"
+               (List.length outcome.warnings);
+           if not (any_warn_contains outcome.warnings "shadowed") then
+             Alcotest.failf
+               "expected a 'shadowed' warning, got: %s"
+               (String.concat "; "
+                  (List.map Warning.to_string outcome.warnings))));
     ]);
 
     ("rcheck", [

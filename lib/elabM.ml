@@ -1,30 +1,40 @@
-type 'a t = Var.supply -> ('a * Var.supply, Error.t) result
+(** Internal state threaded through elaboration: a fresh-variable
+    supply and a reverse-order list of accumulated warnings.  The
+    list is reversed only at [run_full] / boundary readout so the
+    monadic plumbing can prepend in O(1). *)
+type state = {
+  supply : Var.supply;
+  warnings_rev : Warning.t list;
+}
 
-let return x supply = Ok (x, supply)
+type 'a t = state -> ('a * state, Error.t) result
 
-let ( let* ) m f supply =
-  match m supply with
+let return x s = Ok (x, s)
+
+let ( let* ) m f s =
+  match m s with
   | Error e -> Error e
-  | Ok (a, supply') -> f a supply'
+  | Ok (a, s') -> f a s'
 
-let fail err _supply = Error err
+let fail err _s = Error err
 
-let lift r supply =
+let lift r s =
   match r with
-  | Ok x -> Ok (x, supply)
+  | Ok x -> Ok (x, s)
   | Error e -> Error e
 
 let lift_at pos r = lift (Error.at ~loc:pos r)
 
-let from_supply f = f
+let fresh pos s =
+  let (v, supply') = Var.fresh pos s.supply in
+  Ok (v, { s with supply = supply' })
 
-let fresh pos supply =
-  let (v, supply') = Var.fresh pos supply in
-  Ok (v, supply')
+let mk_var name pos s =
+  let (v, supply') = Var.mk name pos s.supply in
+  Ok (v, { s with supply = supply' })
 
-let mk_var name pos supply =
-  let (v, supply') = Var.mk name pos supply in
-  Ok (v, supply')
+let record_warning w s =
+  Ok ((), { s with warnings_rev = w :: s.warnings_rev })
 
 let rec sequence = function
   | [] -> return []
@@ -34,8 +44,15 @@ let rec sequence = function
     return (x :: xs)
 
 let run supply m =
-  match m supply with
-  | Ok (a, supply') -> Ok (a, supply')
+  let s0 = { supply; warnings_rev = [] } in
+  match m s0 with
+  | Ok (a, s') -> Ok (a, s'.supply)
+  | Error e -> Error e
+
+let run_full supply m =
+  let s0 = { supply; warnings_rev = [] } in
+  match m s0 with
+  | Ok (a, s') -> Ok (a, s'.supply, List.rev s'.warnings_rev)
   | Error e -> Error e
 
 module Test = struct
@@ -65,5 +82,24 @@ module Test = struct
            ) with
            | Ok _ -> false
            | Error _ -> true);
+
+      QCheck.Test.make
+        ~name:"elabM record_warning surfaces in run_full output"
+        ~count:1
+        QCheck.unit
+        (fun () ->
+           let w1 =
+             Warning.pat_var_shadowed ~loc:SourcePos.dummy ~name:"a" in
+           let w2 =
+             Warning.pat_var_shadowed ~loc:SourcePos.dummy ~name:"b" in
+           match run_full Var.empty_supply (
+             let* () = record_warning w1 in
+             let* () = record_warning w2 in
+             return ()
+           ) with
+           | Ok ((), _, [w1'; w2']) ->
+             Warning.to_string w1 = Warning.to_string w1'
+             && Warning.to_string w2 = Warning.to_string w2'
+           | _ -> false);
     ]
 end

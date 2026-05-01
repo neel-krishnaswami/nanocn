@@ -166,6 +166,23 @@ let error_to_lsp_diagnostic (e : Error.t) : Lsp.Types.Diagnostic.t =
     ~message:(`String (Error.to_string e))
     ()
 
+let warning_to_lsp_diagnostic (w : Warning.t) : Lsp.Types.Diagnostic.t =
+  let loc = Warning.loc w in
+  let start_line = max 0 (SourcePos.start_line loc - 1) in
+  let end_line = max 0 (SourcePos.end_line loc - 1) in
+  let range =
+    { Lsp.Types.Range.start =
+        { line = start_line; character = SourcePos.start_col loc };
+      end_ =
+        { line = end_line; character = SourcePos.end_col loc } }
+  in
+  Lsp.Types.Diagnostic.create
+    ~range
+    ~severity:Lsp.Types.DiagnosticSeverity.Warning
+    ~source:"nanocn"
+    ~message:(`String (Warning.to_string w))
+    ()
+
 let diagnostics_of_doc (doc : doc_state) : Lsp.Types.Diagnostic.t list =
   let errors = match doc.outcome with
     | Some o -> o.diagnostics
@@ -174,14 +191,19 @@ let diagnostics_of_doc (doc : doc_state) : Lsp.Types.Diagnostic.t list =
       | Some r -> r.diagnostics
       | None -> []
   in
+  let warnings = match doc.outcome with
+    | Some o -> o.warnings
+    | None -> []
+  in
   let error_diags = List.map error_to_lsp_diagnostic errors in
+  let warning_diags = List.map warning_to_lsp_diagnostic warnings in
   let hole_diags = match doc.outcome with
     | Some o ->
       let holes = holes_of_typed_decls o.typed_decls in
       List.map hole_to_lsp_diagnostic holes
     | None -> []
   in
-  error_diags @ hole_diags
+  error_diags @ warning_diags @ hole_diags
 
 let publish_diagnostics oc (doc : doc_state) =
   let diags = diagnostics_of_doc doc in

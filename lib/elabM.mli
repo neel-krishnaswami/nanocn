@@ -1,7 +1,7 @@
 (** State+error monad for elaboration.
 
-    Threads a fresh variable supply and may fail with a structured
-    [Error.t]. *)
+    Threads a fresh variable supply and an accumulating list of
+    [Warning.t]s, and may fail with a structured [Error.t]. *)
 
 type 'a t
 
@@ -21,10 +21,6 @@ val lift_at : SourcePos.t -> ('a, Error.kind) result -> 'a t
     and helper modules ([Sig], [RSig], [CtorLookup], [Subst], [RCtx],
     [ProofSort], etc.). *)
 
-val from_supply : (Var.supply -> ('a * Var.supply, Error.t) result) -> 'a t
-(** [from_supply f] creates a monadic computation from a
-    supply-threading function. *)
-
 val fresh : SourcePos.t -> Var.t t
 (** [fresh pos] generates a fresh variable with binding site [pos]. *)
 
@@ -32,12 +28,25 @@ val mk_var : string -> SourcePos.t -> Var.t t
 (** [mk_var name pos] creates a user variable with a unique id from
     the supply. *)
 
+val record_warning : Warning.t -> unit t
+(** [record_warning w] appends [w] to the monad's warning list.
+    Use [run_full] to retrieve the accumulated warnings; [run]
+    discards them. *)
+
 val sequence : 'a t list -> 'a list t
 (** [sequence ms] runs each computation in order, collecting results. *)
 
 val run : Var.supply -> 'a t -> ('a * Var.supply, Error.t) result
 (** [run supply m] executes [m] starting from [supply], returning the
-    result and the final supply. *)
+    result and the final supply.  Discards any accumulated warnings;
+    use [run_full] when warnings should be surfaced. *)
+
+val run_full :
+  Var.supply -> 'a t ->
+  ('a * Var.supply * Warning.t list, Error.t) result
+(** [run_full supply m] is like [run] but also returns the warnings
+    accumulated by [record_warning] during the run, in source order
+    (first recorded → first in the list). *)
 
 module Test : sig
   val test : QCheck.Test.t list

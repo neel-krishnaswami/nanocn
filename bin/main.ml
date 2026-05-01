@@ -38,9 +38,13 @@ let read_file filename =
 let print_err err =
   Format.eprintf "%a@." (Error.print source_registry) err
 
+let print_warn w =
+  Format.eprintf "%a@." (Warning.print source_registry) w
+
 let check_file filename =
   let input = read_file filename in
   let result = CompileFile.compile_file input ~file:filename in
+  List.iter print_warn result.warnings;
   if result.diagnostics = [] then
     Format.printf "OK@."
   else begin
