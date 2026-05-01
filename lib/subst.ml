@@ -109,7 +109,8 @@ let of_lists tvars sorts =
 let id ctx =
   let mk_ce_info sort =
     (object method loc = SourcePos.dummy method ctx = Context.empty
-            method answer = Ok sort method eff = Effect.Spec end
+            method answer = Ok sort method eff = Effect.Spec
+            method subterm_errors = [] end
      : CoreExpr.typed_info) in
   let mk_sort_info =
     (object method loc = SourcePos.dummy end) in

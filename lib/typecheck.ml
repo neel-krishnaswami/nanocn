@@ -34,7 +34,7 @@ let dummy_info = object method loc = SourcePos.dummy end
 
 let mk_sort s = Sort.mk dummy_info s
 
-type typed_info = < loc : SourcePos.t; ctx : Context.t; answer : (Sort.sort, Error.t) result; eff : Effect.t >
+type typed_info = CoreExpr.typed_info
 type typed_ce = typed_info CoreExpr.t
 
 let mk ctx pos answer eff shape : typed_ce =
@@ -43,6 +43,7 @@ let mk ctx pos answer eff shape : typed_ce =
     method ctx = ctx
     method answer = answer
     method eff = eff
+    method subterm_errors = []
   end) shape
 
 let mk_bind_info x answer eff ctx : typed_info =
@@ -51,6 +52,7 @@ let mk_bind_info x answer eff ctx : typed_info =
     method ctx = ctx
     method answer = answer
     method eff = eff
+    method subterm_errors = []
   end
 
 (** Lift a [Sort.sort] into [typed_info Sort.t] so it can be embedded
@@ -63,6 +65,7 @@ let lift_sort (s : Sort.sort) : typed_info Sort.t =
       method ctx = Context.empty
       method answer = Ok s
       method eff = Effect.Pure
+      method subterm_errors = []
     end : typed_info)) s
 
 (** Signature of a primitive (sort-level). *)
@@ -234,6 +237,7 @@ let replace_answer (ce : typed_ce) answer : typed_ce =
       method ctx = info#ctx
       method answer = answer
       method eff = info#eff
+      method subterm_errors = info#subterm_errors
     end
   in
   CoreExpr.mk new_info (CoreExpr.shape ce)
@@ -421,6 +425,7 @@ and check sig_ ctx ce sort eff0 : typed_ce =
         method ctx = ctx'
         method answer = s_answer
         method eff = bind_eff
+        method subterm_errors = []
       end : typed_info))
     ) (List.combine xs ts) in
     let answer = Error.at ~loc:pos sort in
@@ -528,6 +533,7 @@ and check_case_branches sig_ ctx branches scrut_answer result_sort eff0 bind_eff
         method ctx = ctx'
         method answer = Ok ctor_sort
         method eff = bind_eff
+        method subterm_errors = []
       end : typed_info) in
       (l, x, body', branch_info)
 
@@ -542,6 +548,7 @@ and check_case_branches sig_ ctx branches scrut_answer result_sort eff0 bind_eff
         method ctx = ctx'
         method answer = Error err
         method eff = bind_eff
+        method subterm_errors = []
       end : typed_info) in
       (l, x, body', branch_info)
 
@@ -558,6 +565,7 @@ and check_case_branches sig_ ctx branches scrut_answer result_sort eff0 bind_eff
         method ctx = ctx'
         method answer = Error err
         method eff = bind_eff
+        method subterm_errors = []
       end : typed_info) in
       (l, x, body', branch_info)
 
@@ -570,6 +578,7 @@ and check_case_branches sig_ ctx branches scrut_answer result_sort eff0 bind_eff
         method ctx = ctx'
         method answer = Ok ctor_sort
         method eff = eff0
+        method subterm_errors = []
       end in
       let label_str = Format.asprintf "%a" Label.print l in
       let body' =
@@ -581,51 +590,146 @@ and check_case_branches sig_ ctx branches scrut_answer result_sort eff0 bind_eff
         method ctx = ctx'
         method answer = Error err
         method eff = bind_eff
+        method subterm_errors = []
       end : typed_info) in
       (l, x, body', branch_info)
   ) merged
 
-(** Collect every [Error _] recorded on [info#answer] anywhere in the
-    typed tree.  Used by drivers to check whether the multi-error
-    typechecker produced a clean tree.  Pre-order traversal so the
-    first error is the leftmost / shallowest. *)
-let rec collect_errors (ce : typed_ce) : Error.t list =
+(** [annotate_subterm_errors ce] walks [ce] bottom-up and returns a
+    new tree whose every node's [info#subterm_errors] equals every
+    error recorded on [info#answer] anywhere in that node's subtree
+    (including the node itself, in pre-order).
+
+    A single O(n) pass; the per-node concatenation is currently a
+    plain [List.append] (TODO: replace with an O(1)-concat sequence
+    type once the project picks one).  Atom-guards and the file
+    driver consume the precomputed field in O(1). *)
+let rec annotate_subterm_errors (ce : typed_ce) : typed_ce =
   let info = CoreExpr.info ce in
-  let here = match info#answer with Ok _ -> [] | Error e -> [e] in
-  let children =
+  let here_err = match info#answer with Ok _ -> [] | Error e -> [e] in
+  let (new_shape, child_errs) =
     match CoreExpr.shape ce with
-    | CoreExpr.Var _ | CoreExpr.IntLit _ | CoreExpr.BoolLit _
-    | CoreExpr.Fail | CoreExpr.Hole _ -> []
-    | CoreExpr.Let (_, e1, e2)
-    | CoreExpr.LetTuple (_, e1, e2)
-    | CoreExpr.Take (_, e1, e2)
-    | CoreExpr.Iter (_, e1, e2)
-    | CoreExpr.Eq (e1, e2)
+    | CoreExpr.Var _ as s -> (s, [])
+    | CoreExpr.IntLit _ as s -> (s, [])
+    | CoreExpr.BoolLit _ as s -> (s, [])
+    | CoreExpr.Fail as s -> (s, [])
+    | CoreExpr.Hole _ as s -> (s, [])
+    | CoreExpr.Let (xb, e1, e2) ->
+      let e1' = annotate_subterm_errors e1 in
+      let e2' = annotate_subterm_errors e2 in
+      (CoreExpr.Let (xb, e1', e2'),
+       (CoreExpr.info e1')#subterm_errors @
+       (CoreExpr.info e2')#subterm_errors)
+    | CoreExpr.LetTuple (xs, e1, e2) ->
+      let e1' = annotate_subterm_errors e1 in
+      let e2' = annotate_subterm_errors e2 in
+      (CoreExpr.LetTuple (xs, e1', e2'),
+       (CoreExpr.info e1')#subterm_errors @
+       (CoreExpr.info e2')#subterm_errors)
+    | CoreExpr.Take (xb, e1, e2) ->
+      let e1' = annotate_subterm_errors e1 in
+      let e2' = annotate_subterm_errors e2 in
+      (CoreExpr.Take (xb, e1', e2'),
+       (CoreExpr.info e1')#subterm_errors @
+       (CoreExpr.info e2')#subterm_errors)
+    | CoreExpr.Iter (x, e1, e2) ->
+      let e1' = annotate_subterm_errors e1 in
+      let e2' = annotate_subterm_errors e2 in
+      (CoreExpr.Iter (x, e1', e2'),
+       (CoreExpr.info e1')#subterm_errors @
+       (CoreExpr.info e2')#subterm_errors)
+    | CoreExpr.Eq (e1, e2) ->
+      let e1' = annotate_subterm_errors e1 in
+      let e2' = annotate_subterm_errors e2 in
+      (CoreExpr.Eq (e1', e2'),
+       (CoreExpr.info e1')#subterm_errors @
+       (CoreExpr.info e2')#subterm_errors)
     | CoreExpr.And (e1, e2) ->
-      collect_errors e1 @ collect_errors e2
+      let e1' = annotate_subterm_errors e1 in
+      let e2' = annotate_subterm_errors e2 in
+      (CoreExpr.And (e1', e2'),
+       (CoreExpr.info e1')#subterm_errors @
+       (CoreExpr.info e2')#subterm_errors)
     | CoreExpr.If (e1, e2, e3) ->
-      collect_errors e1 @ collect_errors e2 @ collect_errors e3
+      let e1' = annotate_subterm_errors e1 in
+      let e2' = annotate_subterm_errors e2 in
+      let e3' = annotate_subterm_errors e3 in
+      (CoreExpr.If (e1', e2', e3'),
+       (CoreExpr.info e1')#subterm_errors @
+       (CoreExpr.info e2')#subterm_errors @
+       (CoreExpr.info e3')#subterm_errors)
     | CoreExpr.Tuple es ->
-      List.concat_map collect_errors es
-    | CoreExpr.Inject (_, e1)
-    | CoreExpr.App (_, e1)
-    | CoreExpr.Call (_, e1)
-    | CoreExpr.Not e1
-    | CoreExpr.Return e1 -> collect_errors e1
-    | CoreExpr.Annot (e1, _) -> collect_errors e1
+      let es' = List.map annotate_subterm_errors es in
+      (CoreExpr.Tuple es',
+       List.concat_map (fun e -> (CoreExpr.info e)#subterm_errors) es')
+    | CoreExpr.Inject (l, e1) ->
+      let e1' = annotate_subterm_errors e1 in
+      (CoreExpr.Inject (l, e1'),
+       (CoreExpr.info e1')#subterm_errors)
+    | CoreExpr.App (p, e1) ->
+      let e1' = annotate_subterm_errors e1 in
+      (CoreExpr.App (p, e1'), (CoreExpr.info e1')#subterm_errors)
+    | CoreExpr.Call (n, e1) ->
+      let e1' = annotate_subterm_errors e1 in
+      (CoreExpr.Call (n, e1'), (CoreExpr.info e1')#subterm_errors)
+    | CoreExpr.Not e1 ->
+      let e1' = annotate_subterm_errors e1 in
+      (CoreExpr.Not e1', (CoreExpr.info e1')#subterm_errors)
+    | CoreExpr.Return e1 ->
+      let e1' = annotate_subterm_errors e1 in
+      (CoreExpr.Return e1', (CoreExpr.info e1')#subterm_errors)
+    | CoreExpr.Annot (e1, s) ->
+      let e1' = annotate_subterm_errors e1 in
+      (CoreExpr.Annot (e1', s), (CoreExpr.info e1')#subterm_errors)
     | CoreExpr.Case (scrut, branches) ->
-      collect_errors scrut
-      @ List.concat_map
-          (fun (_, _, body, branch_info) ->
-             let here =
-               match branch_info#answer with
-               | Ok _ -> []
-               | Error e -> [e]
-             in
-             here @ collect_errors body)
-          branches
+      let scrut' = annotate_subterm_errors scrut in
+      let branches' =
+        List.map (fun (l, x, body, binfo) ->
+          let body' = annotate_subterm_errors body in
+          (l, x, body', binfo)
+        ) branches
+      in
+      let scrut_errs = (CoreExpr.info scrut')#subterm_errors in
+      let branch_errs =
+        List.concat_map (fun (_, _, body, binfo) ->
+          let here =
+            match binfo#answer with
+            | Ok _ -> [] | Error e -> [e]
+          in
+          here @ (CoreExpr.info body)#subterm_errors
+        ) branches'
+      in
+      (CoreExpr.Case (scrut', branches'), scrut_errs @ branch_errs)
   in
-  here @ children
+  let new_subterm_errors = here_err @ child_errs in
+  let new_info : typed_info =
+    object
+      method loc = info#loc
+      method ctx = info#ctx
+      method answer = info#answer
+      method eff = info#eff
+      method subterm_errors = new_subterm_errors
+    end
+  in
+  CoreExpr.mk new_info new_shape
+
+(** Collect every [Error _] recorded on [info#answer] anywhere in the
+    typed tree.
+
+    Reads the precomputed [subterm_errors] field on the root in O(1).
+    If the field is empty, defensively runs the annotation pass to
+    distinguish "annotated and clean" from "not yet annotated" — both
+    look like an empty list otherwise.  Callers wishing to pay only
+    the O(1) cost should invoke [annotate_subterm_errors] explicitly
+    before [collect_errors] (the elaborator + driver wrappers do
+    this; legacy / test call sites may rely on the fallback). *)
+let collect_errors (ce : typed_ce) : Error.t list =
+  let info = CoreExpr.info ce in
+  match info#subterm_errors with
+  | [] ->
+    let ce' = annotate_subterm_errors ce in
+    (CoreExpr.info ce')#subterm_errors
+  | xs -> xs
 
 (** Built-in step datatype: step(a, b) = { Next : a | Done : b } *)
 let step_decl =
@@ -822,6 +926,7 @@ let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
        body's tree as a structured failure, preserving the
        fail-fast contract for legacy callers.  Resilient drivers
        can call [collect_errors] directly to get every error. *)
+    let typed_body = annotate_subterm_errors typed_body in
     (match collect_errors typed_body with
      | e :: _ -> Error e
      | [] ->
@@ -887,6 +992,7 @@ let check_decl_multi supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
       return (y, typed_body)
     ) in
     let* ((y, typed_body), supply') = result in
+    let typed_body = annotate_subterm_errors typed_body in
     let errs = collect_errors typed_body in
     Ok (supply',
         Prog.CoreFunDecl { name = d.name; param = y;
@@ -972,6 +1078,7 @@ let check_prog supply (p : (SurfExpr.se, _, Var.t) Prog.t) : (typed_ce Sig.t * t
     Elaborate.check final_sig Context.empty p.main (Ok p.main_sort) p.main_eff
   ) in
   let* (main', _supply'') = result in
+  let main' = annotate_subterm_errors main' in
   (* Multi-error: same fail-fast surface as elaborate_fun. *)
   match collect_errors main' with
   | e :: _ -> Error e

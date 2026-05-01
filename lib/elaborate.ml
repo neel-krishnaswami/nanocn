@@ -11,6 +11,7 @@ let mk_typed ctx pos sort eff shape : typed_ce =
     method ctx = ctx
     method answer = Ok sort
     method eff = eff
+    method subterm_errors = []
   end) shape
 
 (** [mk ctx pos answer eff shape]: like [mk_typed] but takes the
@@ -22,6 +23,7 @@ let mk ctx pos answer eff shape : typed_ce =
     method ctx = ctx
     method answer = answer
     method eff = eff
+    method subterm_errors = []
   end) shape
 
 let lift_sort (s : Sort.sort) : typed_info Sort.t =
@@ -31,6 +33,7 @@ let lift_sort (s : Sort.sort) : typed_info Sort.t =
       method ctx = Context.empty
       method answer = Ok s
       method eff = Effect.Pure
+      method subterm_errors = []
     end : typed_info)) s
 
 let mk_sort pos s = Sort.mk (object method loc = pos end) s
@@ -77,6 +80,7 @@ let replace_answer (ce : typed_ce) answer : typed_ce =
       method ctx = info#ctx
       method answer = answer
       method eff = info#eff
+      method subterm_errors = info#subterm_errors
     end
   in
   CoreExpr.mk new_info (CoreExpr.shape ce)
@@ -160,6 +164,7 @@ let mk_bind_info_r x sort_kind eff ctx : typed_info =
     method ctx = ctx
     method answer = answer
     method eff = eff
+    method subterm_errors = []
   end
 
 let rec wrap_lets lets outer_ctx result_sort eff0 body =
@@ -717,6 +722,7 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
         method ctx = ctx
         method answer = Error err
         method eff = eff0
+        method subterm_errors = []
       end
     in
     ElabM.return
@@ -781,6 +787,7 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
          method ctx = ctx
          method answer = Error err
          method eff = eff0
+         method subterm_errors = []
        end in
        ElabM.return
          (CoreExpr.mk info (CoreExpr.Hole "incompatible-patterns")))
@@ -842,6 +849,7 @@ and build_observed_branches sig_ ctx y scrs branches eff_b sort eff0
         method ctx = ctx_xi
         method answer = branch_answer
         method eff = eff_b
+        method subterm_errors = []
       end in
       ElabM.return (label, xi, ce_i, branch_info)
     end else begin
@@ -852,6 +860,7 @@ and build_observed_branches sig_ ctx y scrs branches eff_b sort eff0
         method ctx = ctx_xi
         method answer = hole_answer
         method eff = eff0
+        method subterm_errors = []
       end in
       let body =
         CoreExpr.mk hole_info
@@ -872,6 +881,7 @@ and build_observed_branches sig_ ctx y scrs branches eff_b sort eff0
         method ctx = ctx_xi
         method answer = missing_err
         method eff = eff_b
+        method subterm_errors = []
       end in
       ElabM.return (label, xi, body, branch_info)
     end

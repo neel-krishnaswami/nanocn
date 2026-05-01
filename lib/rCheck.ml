@@ -35,19 +35,35 @@ let bool_sort = Sort.mk loc_dummy Sort.Bool
 (* Typed info constructor for manually-built expressions *)
 let mk_info sort =
   (object method loc = SourcePos.dummy method ctx = Context.empty
-          method answer = Ok sort method eff = Effect.Spec end : CoreExpr.typed_info)
+          method answer = Ok sort method eff = Effect.Spec
+          method subterm_errors = [] end : CoreExpr.typed_info)
 
-(* Elaborate a surface expression to typed core, synthesizing its sort. *)
+(* Elaborate a surface expression to typed core, synthesizing its
+   sort.  Defers to surface elaboration; if the elaborator recorded
+   any errors on the typed tree, fail-fast through ElabM with the
+   first one — the per-decl driver in [compileFile.compile_rfile]
+   captures these so later decls still get checked.  Slices C.2-C.5
+   will replace this fail-fast with an attach-and-continue path. *)
 let elab_se (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (se : SurfExpr.se) : (CoreExpr.typed_ce * Sort.sort) ElabM.t =
   let cs = RSig.comp rs in
   let* ce = Elaborate.synth cs gamma eff se in
-  let sort = CoreExpr.sort_of_info (CoreExpr.info ce) in
-  return (ce, sort)
+  let ce = Typecheck.annotate_subterm_errors ce in
+  match (CoreExpr.info ce)#answer with
+  | Error e -> ElabM.fail e
+  | Ok sort ->
+    (match (CoreExpr.info ce)#subterm_errors with
+     | e :: _ -> ElabM.fail e
+     | [] -> return (ce, sort))
 
-(* Elaborate a surface expression to typed core, checking against a sort *)
+(* Elaborate a surface expression to typed core, checking against
+   a sort.  Same fail-fast contract as [elab_se]. *)
 let elab_se_check (rs : RSig.t) (gamma : Context.t) (se : SurfExpr.se) (sort : Sort.sort) (eff : Effect.t) : CoreExpr.typed_ce ElabM.t =
   let cs = RSig.comp rs in
-  Elaborate.check cs gamma se (Ok sort) eff
+  let* ce = Elaborate.check cs gamma se (Ok sort) eff in
+  let ce = Typecheck.annotate_subterm_errors ce in
+  match (CoreExpr.info ce)#subterm_errors with
+  | e :: _ -> ElabM.fail e
+  | [] -> return ce
 
 (* Elaborate a surface expression to typed core using a refined context *)
 let elab_and_synth rs delta eff se =
@@ -1509,7 +1525,11 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (_eff : Effect.t)
 let elab_fundecl_body rs param arg_sort ret_sort eff body_se =
   let cs = RSig.comp rs in
   let gamma = Context.extend param arg_sort (Effect.purify eff) Context.empty in
-  Elaborate.check cs gamma body_se (Ok ret_sort) eff
+  let* ce = Elaborate.check cs gamma body_se (Ok ret_sort) eff in
+  let ce = Typecheck.annotate_subterm_errors ce in
+  match (CoreExpr.info ce)#subterm_errors with
+  | e :: _ -> ElabM.fail e
+  | [] -> return ce
 
 let check_rdecl rs ct_acc = function
   | RProg.SortDecl d ->

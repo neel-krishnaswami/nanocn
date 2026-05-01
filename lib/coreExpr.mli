@@ -48,7 +48,18 @@ type ce = < loc : SourcePos.t > t
     not be determined; the multi-error typechecker continues past the
     error so siblings still get full diagnostics.  [eff] is the
     ambient effect at the node and is always known. *)
-type typed_info = < loc : SourcePos.t; ctx : Context.t; answer : (Sort.sort, Error.t) result; eff : Effect.t >
+type typed_info = <
+  loc : SourcePos.t;
+  ctx : Context.t;
+  answer : (Sort.sort, Error.t) result;
+  eff : Effect.t;
+  subterm_errors : Error.t list;
+    (** Errors recorded on [info#answer] anywhere in the subtree
+        rooted at this node, including this node's own.  Populated
+        by [Typecheck.annotate_subterm_errors] as a single
+        bottom-up pass at the end of elaboration; before that pass
+        runs the field is the empty list at every node. *)
+>
 type typed_ce = typed_info t
 
 val sort_of_info : typed_info -> Sort.sort

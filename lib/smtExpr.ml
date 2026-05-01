@@ -342,6 +342,7 @@ module Test = struct
       method ctx = Context.empty
       method answer = Ok sort
       method eff = Effect.Pure
+      method subterm_errors = []
     end
 
   let dummy_sort_info = object method loc = SourcePos.dummy end

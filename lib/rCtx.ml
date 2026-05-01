@@ -162,7 +162,8 @@ let to_string ctx = Format.asprintf "%a" (print_gen Var.print_unique) ctx
 module Test = struct
   let mk_info sort =
     (object method loc = SourcePos.dummy method ctx = Context.empty
-            method answer = Ok sort method eff = Effect.Spec end : CoreExpr.typed_info)
+            method answer = Ok sort method eff = Effect.Spec
+            method subterm_errors = [] end : CoreExpr.typed_info)
 
   let bool_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Bool
 

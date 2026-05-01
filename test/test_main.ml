@@ -109,6 +109,7 @@ let elab_synth ?(supply = Var.empty_supply) sig_ ctx eff se =
   match ElabM.run supply (Elaborate.synth sig_ ctx eff se) with
   | Error msg -> Error msg
   | Ok (typed_e, _supply) ->
+    let typed_e = Typecheck.annotate_subterm_errors typed_e in
     (match Typecheck.collect_errors typed_e with
      | [] -> Ok typed_e
      | e :: _ -> Error e)
@@ -119,6 +120,7 @@ let elab_check ?(supply = Var.empty_supply) sig_ ctx se sort eff =
   match ElabM.run supply (Elaborate.check sig_ ctx se (Ok sort) eff) with
   | Error msg -> Error msg
   | Ok (typed_e, _supply) ->
+    let typed_e = Typecheck.annotate_subterm_errors typed_e in
     (match Typecheck.collect_errors typed_e with
      | [] -> Ok typed_e
      | e :: _ -> Error e)
@@ -1520,7 +1522,8 @@ main : Int [pure] = example(Both (1, 2) : Pair)
         let bool_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Bool in
         let mk_info sort =
           (object method loc = SourcePos.dummy method ctx = Context.empty
-                  method answer = Ok sort method eff = Effect.Spec end : CoreExpr.typed_info) in
+                  method answer = Ok sort method eff = Effect.Spec
+                  method subterm_errors = [] end : CoreExpr.typed_info) in
         let (x, _s0) = Var.mk "x" SourcePos.dummy Var.empty_supply in
         let ce = CoreExpr.mk (mk_info bool_sort) (CoreExpr.IntLit 0) in
         let ri : RProg.typed_rinfo =

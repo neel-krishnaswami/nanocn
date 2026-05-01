@@ -76,7 +76,13 @@ let rec map f (In (b, sf)) =
 
 type ce = < loc : SourcePos.t > t
 
-type typed_info = < loc : SourcePos.t; ctx : Context.t; answer : (Sort.sort, Error.t) result; eff : Effect.t >
+type typed_info = <
+  loc : SourcePos.t;
+  ctx : Context.t;
+  answer : (Sort.sort, Error.t) result;
+  eff : Effect.t;
+  subterm_errors : Error.t list;
+>
 type typed_ce = typed_info t
 
 let sort_of_info (i : typed_info) : Sort.sort = Result.get_ok i#answer

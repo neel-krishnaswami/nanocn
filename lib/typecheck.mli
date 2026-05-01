@@ -28,7 +28,21 @@ val collect_errors : typed_ce -> Error.t list
 (** [collect_errors ce] returns every [Error e] recorded on
     [info#answer] anywhere in [ce]'s tree, in source-position order
     (left-to-right pre-order traversal).  An empty list means the
-    expression typechecked without errors. *)
+    expression typechecked without errors.
+
+    Reads the precomputed [info#subterm_errors] field at the root in
+    O(1).  Requires that [annotate_subterm_errors] has been run on
+    [ce] (the elaborator + driver wrappers do this automatically;
+    hand-built typed trees in tests need an explicit call). *)
+
+val annotate_subterm_errors : typed_ce -> typed_ce
+(** [annotate_subterm_errors ce] returns a tree where every node's
+    [info#subterm_errors] is the concatenation of every error
+    recorded on [info#answer] anywhere in the subtree rooted at that
+    node.  A single bottom-up pass; total work O(n).
+
+    The pass is idempotent: calling it twice on the same tree yields
+    the same result as calling it once (modulo allocation). *)
 
 val prim_signature : Prim.t -> Sort.sort * Sort.sort * Effect.t
 (** [prim_signature p] returns [(arg_sort, ret_sort, effect)] for primitive [p]. *)
