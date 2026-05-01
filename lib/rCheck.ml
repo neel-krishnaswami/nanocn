@@ -1112,7 +1112,12 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
        let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CCase (_y, ce, checked_branches)) in
        return (checked, delta', ct)
      | _ ->
-       ElabM.fail (Error.scrutinee_not_data ~loc:pos ~got:ce_sort))
+       let err = Error.scrutinee_not_data ~loc:pos ~got:ce_sort in
+       let rinfo = mk_rinfo_err ~goal:(RProg.CrtGoal pf) pos delta
+                     (ProofSort.comp pf) eff err in
+       let checked = RefinedExpr.mk_crt rinfo
+         (RefinedExpr.CHole "case-scrutinee-not-data") in
+       return (checked, delta, Constraint.top pos))
 
   | RefinedExpr.CTuple spine ->
     let* (checked_spine, delta', ct) = _check_tuple rs delta eff spine pf in
