@@ -21,6 +21,18 @@ val check_rdecl :
     against [rsig], conjoining any new constraints with [ct].
     Returns the typed declaration, updated signature, and constraint tree. *)
 
+val collect_errors_rprog : RProg.typed -> Error.t list
+(** [collect_errors_rprog prog] returns every error recorded on
+    [info#answer] anywhere in the typed refined program — across
+    typed_rinfo nodes (RPat, ProofSort, RefinedExpr.{lpf,rpf,crt,
+    spine}) and embedded typed_ce sub-trees (via
+    [Typecheck.collect_errors]).
+
+    Pre-order over decls then main; within each tree, source order.
+    The walker is currently a manual O(n) traversal; once slices
+    C.2-C.5 populate the [subterm_errors] field on every rinfo,
+    this can be reduced to an O(1) read at the root. *)
+
 module Test : sig
   val test : QCheck.Test.t list
   val pf_eq : SourcePos.t -> RSig.t -> RCtx.t -> (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t -> (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t -> Constraint.typed_ct ElabM.t

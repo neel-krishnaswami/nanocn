@@ -227,9 +227,14 @@ let compile_rfile source ~file =
                 diagnostics = [e];
                 hover = HoverIndex.empty }
             | Ok ((typed_prog, rsig, ct), _supply) ->
+              (* Multi-error: harvest any errors that rCheck
+                 attached to typed_rinfo answer fields (slices
+                 C.2-C.5 produce them; for now this list is empty
+                 on successful runs). *)
+              let rprog_errs = RCheck.collect_errors_rprog typed_prog in
               { final_rsig = rsig;
                 constraints = ct;
-                diagnostics = [];
+                diagnostics = rprog_errs;
                 hover = HoverIndex.of_typed_rprog typed_prog }
           end
   with Util.Invariant_failure info ->

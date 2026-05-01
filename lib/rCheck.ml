@@ -1635,6 +1635,206 @@ let check_rprog (prog : RProg.parsed) : (RProg.typed * RSig.t * Constraint.typed
   } in
   return (typed_prog, rs, Constraint.conj prog.loc ct_decls ct_main)
 
+(** {1 Error collection over typed refined programs}
+
+    Each [collect_errors_*] walker traverses its argument, pulls
+    every error recorded on [info#answer] (via [typed_rinfo]), and
+    recurses into embedded [typed_ce] sub-trees through
+    [Typecheck.collect_errors].  Errors are returned in source-
+    pre-order.  Slices C.2-C.5 will populate the [answer] fields
+    that this walker reads; until those slices land, refined
+    judgements still fail-fast through ElabM and the walker
+    returns an empty list on successful runs. *)
+
+let rinfo_error (info : RProg.typed_rinfo) : Error.t list =
+  match info#answer with
+  | Ok _ -> []
+  | Error e -> [e]
+
+let collect_errors_pf (pf : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t)
+    : Error.t list =
+  List.concat_map (fun entry ->
+    let here = rinfo_error (ProofSort.entry_info entry) in
+    let inner =
+      match entry with
+      | ProofSort.Comp _ -> []
+      | ProofSort.Log { prop; _ } -> Typecheck.collect_errors prop
+      | ProofSort.Res { pred; value; _ } ->
+        Typecheck.collect_errors pred @ Typecheck.collect_errors value
+      | ProofSort.DepRes { pred; _ } -> Typecheck.collect_errors pred
+    in
+    here @ inner
+  ) pf
+
+let rec collect_errors_cpat (cpat : (RProg.typed_rinfo, Var.t) RPat.cpat)
+    : Error.t list =
+  let here = rinfo_error (RPat.cpat_info cpat) in
+  let inner =
+    match RPat.cpat_shape cpat with
+    | RPat.CVar _ -> []
+    | RPat.CTuple cps -> List.concat_map collect_errors_cpat cps
+  in
+  here @ inner
+
+and collect_errors_lpat (lpat : (RProg.typed_rinfo, Var.t) RPat.lpat)
+    : Error.t list =
+  rinfo_error (RPat.lpat_info lpat)
+
+and collect_errors_rpat_inner (rpat : (RProg.typed_rinfo, Var.t) RPat.rpat)
+    : Error.t list =
+  let here = rinfo_error (RPat.rpat_info rpat) in
+  let inner =
+    match RPat.rpat_shape rpat with
+    | RPat.RVar _ -> []
+    | RPat.RReturn lp -> collect_errors_lpat lp
+    | RPat.RTake (cp, rp1, rp2) ->
+      collect_errors_cpat cp
+      @ collect_errors_rpat_inner rp1
+      @ collect_errors_rpat_inner rp2
+    | RPat.RFail lp -> collect_errors_lpat lp
+    | RPat.RLet (lp, cp, rp) ->
+      collect_errors_lpat lp
+      @ collect_errors_cpat cp
+      @ collect_errors_rpat_inner rp
+    | RPat.RCase (lp, _, cp, rp) ->
+      collect_errors_lpat lp
+      @ collect_errors_cpat cp
+      @ collect_errors_rpat_inner rp
+    | RPat.RIfTrue rp | RPat.RIfFalse rp -> collect_errors_rpat_inner rp
+    | RPat.RUnfold rp -> collect_errors_rpat_inner rp
+    | RPat.RAnnot rp -> collect_errors_rpat_inner rp
+  in
+  here @ inner
+
+and collect_errors_qbase (qb : (RProg.typed_rinfo, Var.t) RPat.qbase)
+    : Error.t list =
+  let here = rinfo_error (RPat.qbase_info qb) in
+  let inner =
+    match RPat.qbase_shape qb with
+    | RPat.QCore cp -> collect_errors_cpat cp
+    | RPat.QLog lp -> collect_errors_lpat lp
+    | RPat.QRes rp -> collect_errors_rpat_inner rp
+    | RPat.QDepRes (cp, rp) ->
+      collect_errors_cpat cp @ collect_errors_rpat_inner rp
+  in
+  here @ inner
+
+let collect_errors_rpat (pat : (RProg.typed_rinfo, Var.t) RPat.t)
+    : Error.t list =
+  let here = rinfo_error (RPat.info pat) in
+  here @ List.concat_map collect_errors_qbase (RPat.elems pat)
+
+let rec collect_errors_lpf (lpf : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.lpf)
+    : Error.t list =
+  let here = rinfo_error (RefinedExpr.lpf_info lpf) in
+  let inner =
+    match RefinedExpr.lpf_shape lpf with
+    | RefinedExpr.LVar _ -> []
+    | RefinedExpr.LAuto -> []
+    | RefinedExpr.LHole _ -> []
+    | RefinedExpr.LUnfold (_, ce) -> Typecheck.collect_errors ce
+    | RefinedExpr.LOpenRet rp -> collect_errors_rpf rp
+    | RefinedExpr.LAnnot (lp, ce) ->
+      collect_errors_lpf lp @ Typecheck.collect_errors ce
+  in
+  here @ inner
+
+and collect_errors_rpf (rpf : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.rpf)
+    : Error.t list =
+  let here = rinfo_error (RefinedExpr.rpf_info rpf) in
+  let inner =
+    match RefinedExpr.rpf_shape rpf with
+    | RefinedExpr.RVar _ -> []
+    | RefinedExpr.RHole _ -> []
+    | RefinedExpr.RMakeRet lp -> collect_errors_lpf lp
+    | RefinedExpr.RMakeTake crt -> collect_errors_crt crt
+    | RefinedExpr.RAnnot (rp, ce1, ce2) ->
+      collect_errors_rpf rp
+      @ Typecheck.collect_errors ce1
+      @ Typecheck.collect_errors ce2
+    | RefinedExpr.RUnfold rp -> collect_errors_rpf rp
+  in
+  here @ inner
+
+and collect_errors_spine (spine : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.spine)
+    : Error.t list =
+  let here = rinfo_error (RefinedExpr.spine_info spine) in
+  let inner =
+    match RefinedExpr.spine_shape spine with
+    | RefinedExpr.SNil -> []
+    | RefinedExpr.SCore (ce, sp) ->
+      Typecheck.collect_errors ce @ collect_errors_spine sp
+    | RefinedExpr.SLog (lp, sp) ->
+      collect_errors_lpf lp @ collect_errors_spine sp
+    | RefinedExpr.SRes (rp, sp) ->
+      collect_errors_rpf rp @ collect_errors_spine sp
+  in
+  here @ inner
+
+and collect_errors_crt (crt : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.crt)
+    : Error.t list =
+  let here = rinfo_error (RefinedExpr.crt_info crt) in
+  let inner =
+    match RefinedExpr.crt_shape crt with
+    | RefinedExpr.CHole _ -> []
+    | RefinedExpr.CExfalso -> []
+    | RefinedExpr.CLet (pat, c1, c2) ->
+      collect_errors_rpat pat
+      @ collect_errors_crt c1
+      @ collect_errors_crt c2
+    | RefinedExpr.CLetLog (lp, lpf, crt') ->
+      collect_errors_lpat lp
+      @ collect_errors_lpf lpf
+      @ collect_errors_crt crt'
+    | RefinedExpr.CLetRes (rp, rpf, crt') ->
+      collect_errors_rpat_inner rp
+      @ collect_errors_rpf rpf
+      @ collect_errors_crt crt'
+    | RefinedExpr.CLetCore (lp, cp, ce, crt') ->
+      collect_errors_lpat lp
+      @ collect_errors_cpat cp
+      @ Typecheck.collect_errors ce
+      @ collect_errors_crt crt'
+    | RefinedExpr.CAnnot (crt', pf) ->
+      collect_errors_crt crt' @ collect_errors_pf pf
+    | RefinedExpr.CPrimApp (_, sp) -> collect_errors_spine sp
+    | RefinedExpr.CCall (_, sp) -> collect_errors_spine sp
+    | RefinedExpr.CTuple sp -> collect_errors_spine sp
+    | RefinedExpr.CIter (ce, pat, c1, c2) ->
+      Typecheck.collect_errors ce
+      @ collect_errors_rpat pat
+      @ collect_errors_crt c1
+      @ collect_errors_crt c2
+    | RefinedExpr.CIf (_, ce, c1, c2) ->
+      Typecheck.collect_errors ce
+      @ collect_errors_crt c1
+      @ collect_errors_crt c2
+    | RefinedExpr.CCase (_, ce, branches) ->
+      Typecheck.collect_errors ce
+      @ List.concat_map (fun (_, info, _, body) ->
+          rinfo_error info @ collect_errors_crt body
+        ) branches
+    | RefinedExpr.COpenTake rpf -> collect_errors_rpf rpf
+  in
+  here @ inner
+
+let collect_errors_rdecl
+    (decl : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RProg.decl)
+    : Error.t list =
+  match decl with
+  | RProg.SortDecl _ | RProg.TypeDecl _ -> []
+  | RProg.FunDecl { body; _ } -> Typecheck.collect_errors body
+  | RProg.RFunDecl { pat; domain; codomain; body; _ } ->
+    collect_errors_rpat pat
+    @ collect_errors_pf domain
+    @ collect_errors_pf codomain
+    @ collect_errors_crt body
+
+let collect_errors_rprog (prog : RProg.typed) : Error.t list =
+  List.concat_map collect_errors_rdecl prog.decls
+  @ collect_errors_pf prog.main_pf
+  @ collect_errors_crt prog.main_body
+
 module Test = struct
   let with_delta_check f =
     delta_check_enabled := true;
