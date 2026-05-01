@@ -1304,8 +1304,27 @@ and check_branches_list pos rs delta eff eq_var ce _ce_sort ctors branches pf =
       let branch = List.find_opt (fun (l, _, _, _) -> Label.compare l label = 0) branches in
       (match branch with
        | None ->
+         (* Multi-error: missing branch becomes a synthesized branch
+            with a CHole body and the non_exhaustive diagnostic
+            attached to its rinfo.  The constraint contribution is
+            Top so SMT skips this branch's constraint contribution. *)
          let witness = PatWitness.Ctor (label, PatWitness.Wild) in
-         ElabM.fail (Error.non_exhaustive ~loc:pos ~witness)
+         let err = Error.non_exhaustive ~loc:pos ~witness in
+         let (x, _) = Var.mk "<missing>" pos Var.empty_supply in
+         let eff_binder = Effect.purify eff in
+         let delta_ext = RCtx.extend_comp x ctor_sort eff_binder delta in
+         let body_rinfo = mk_rinfo_err pos delta_ext bool_sort eff err in
+         let body =
+           RefinedExpr.mk_crt body_rinfo
+             (RefinedExpr.CHole
+                (Format.asprintf "missing-rcase-%a" Label.print label))
+         in
+         let branch_rinfo = mk_rinfo_err pos delta ctor_sort eff err in
+         let n = RCtx.length delta in
+         let (delta_base, _) = RCtx.split n delta in
+         let* (rest_checked, rest) = go rest_ctors in
+         return ((label, branch_rinfo, x, body) :: rest_checked,
+                 (delta_base, Constraint.top pos) :: rest)
        | Some (_, _b, x, body) ->
          let ctor_sort' = ctor_sort in
          let eq_prop = mk_eq ce (CoreExpr.mk (mk_info (CoreExpr.sort_of_info (CoreExpr.info ce))) (CoreExpr.Inject (label, ce_of_var x ctor_sort'))) in
