@@ -788,26 +788,32 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
 
   | RefinedExpr.CCall (f, spine) ->
     let* rf = lookup_rf_m ~loc:pos rs f in
-    if not (Effect.sub rf.eff eff) then
-      ElabM.fail
-        (Error.fun_effect_mismatch
-           ~loc:pos ~name:f ~declared:rf.eff ~required:eff)
-    else
-      let eff'' = Effect.purify eff in
-      let* (checked_spine, pf, delta', ct) = check_spine rs delta eff'' spine rf in
+    let eff'' = Effect.purify eff in
+    let* (checked_spine, pf, delta', ct) = check_spine rs delta eff'' spine rf in
+    if not (Effect.sub rf.eff eff) then begin
+      let err = Error.fun_effect_mismatch
+                  ~loc:pos ~name:f ~declared:rf.eff ~required:eff in
+      let rinfo = mk_rinfo_err ~goal:(RProg.CrtGoal pf) pos delta
+                    (ProofSort.comp pf) eff err in
+      let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CCall (f, checked_spine)) in
+      return (checked, pf, delta', Constraint.top pos)
+    end else
       let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CCall (f, checked_spine)) in
       return (checked, pf, delta', ct)
 
   | RefinedExpr.CPrimApp (prim, spine) ->
     let* rf = rprim_signature prim in
-    if not (Effect.sub rf.eff eff) then
-      ElabM.fail
-        (Error.prim_effect_mismatch
-           ~loc:pos ~prim ~declared:rf.eff ~required:eff)
-    else
-      let eff'' = Effect.purify eff in
-      let* (checked_spine, pf, delta', ct) = check_spine rs delta eff'' spine rf in
+    let eff'' = Effect.purify eff in
+    let* (checked_spine, pf, delta', ct) = check_spine rs delta eff'' spine rf in
+    if not (Effect.sub rf.eff eff) then begin
+      let err = Error.prim_effect_mismatch
+                  ~loc:pos ~prim ~declared:rf.eff ~required:eff in
+      let rinfo = mk_rinfo_err ~goal:(RProg.CrtGoal pf) pos delta
+                    (ProofSort.comp pf) eff err in
+      let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CPrimApp (prim, checked_spine)) in
+      return (checked, pf, delta', Constraint.top pos)
+    end else
       let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CPrimApp (prim, checked_spine)) in
       return (checked, pf, delta', ct)
@@ -934,9 +940,16 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     return (checked, [], delta', ct)
 
   | _ ->
-    ElabM.fail
-      (Error.cannot_synthesize ~loc:binfo#loc
-         ~construct:"proof sort")
+    let err = Error.cannot_synthesize ~loc:binfo#loc
+                ~construct:"proof sort" in
+    let placeholder_pf = [] in
+    let placeholder_sort =
+      Sort.mk (object method loc = binfo#loc end) Sort.Bool in
+    let rinfo = mk_rinfo_err ~goal:(RProg.CrtGoal placeholder_pf)
+                  pos delta placeholder_sort eff err in
+    let checked = RefinedExpr.mk_crt rinfo
+      (RefinedExpr.CHole "crt-cannot-synthesize") in
+    return (checked, placeholder_pf, delta, Constraint.top pos)
 
 (* Core refined term checking: RS; Delta |-[eff] crt <= Pf -| Delta' ~> Ct *)
 and check_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t) : (checked_crt * RCtx.t * Constraint.typed_ct) ElabM.t =
@@ -1170,11 +1183,13 @@ and check_spine_inner rs delta eff spine domain codomain =
     return (checked, result_pf, delta', ct)
 
   | RefinedExpr.SCore (_, _), (ProofSort.Comp { info = _; sort; eff = Effect.Impure; _ } :: _) ->
-    ElabM.fail
-      (Error.construct_sort_mismatch ~loc:pos
-         ~construct:"function argument"
-         ~expected_shape:"pure or spec effect"
-         ~got:sort)
+    let err = Error.construct_sort_mismatch ~loc:pos
+                ~construct:"function argument"
+                ~expected_shape:"pure or spec effect"
+                ~got:sort in
+    let rinfo = mk_rinfo_err pos delta bool_sort eff err in
+    let checked = RefinedExpr.mk_spine rinfo RefinedExpr.SNil in
+    return (checked, codomain, delta, Constraint.top pos)
 
   | RefinedExpr.SLog (lpf, rest), (ProofSort.Log { info = _; prop } :: pf_rest) ->
     let* (checked_lpf, delta', ct) = check_lpf rs delta lpf prop in
@@ -1198,17 +1213,21 @@ and check_spine_inner rs delta eff spine domain codomain =
     return (checked, result_pf, delta'', Constraint.conj pos (Constraint.conj pos ct eq_ct) ct')
 
   | _, entry :: _ ->
-    ElabM.fail
-      (Error.spine_tag_mismatch ~loc:pos
-         ~expected_tag:(pf_entry_tag_name entry)
-         ~expected_entry:(pf_entry_to_string entry)
-         ~actual_tag:(spine_tag_name (RefinedExpr.spine_shape spine)))
+    let err = Error.spine_tag_mismatch ~loc:pos
+                ~expected_tag:(pf_entry_tag_name entry)
+                ~expected_entry:(pf_entry_to_string entry)
+                ~actual_tag:(spine_tag_name (RefinedExpr.spine_shape spine)) in
+    let rinfo = mk_rinfo_err pos delta bool_sort eff err in
+    let checked = RefinedExpr.mk_spine rinfo RefinedExpr.SNil in
+    return (checked, codomain, delta, Constraint.top pos)
   | _, [] ->
-    ElabM.fail
-      (Error.spine_tag_mismatch ~loc:pos
-         ~expected_tag:"end of arguments"
-         ~expected_entry:"(no more parameters expected)"
-         ~actual_tag:(spine_tag_name (RefinedExpr.spine_shape spine)))
+    let err = Error.spine_tag_mismatch ~loc:pos
+                ~expected_tag:"end of arguments"
+                ~expected_entry:"(no more parameters expected)"
+                ~actual_tag:(spine_tag_name (RefinedExpr.spine_shape spine)) in
+    let rinfo = mk_rinfo_err pos delta bool_sort eff err in
+    let checked = RefinedExpr.mk_spine rinfo RefinedExpr.SNil in
+    return (checked, codomain, delta, Constraint.top pos)
 
 (* Tuple checking: RS; Delta |-[eff] rsp : Pf -| Delta' ~> Ct *)
 and _check_tuple rs delta eff spine pf =
@@ -1250,17 +1269,21 @@ and _check_tuple rs delta eff spine pf =
     return (checked, delta'', Constraint.conj pos (Constraint.conj pos ct eq_ct) ct')
 
   | _, entry :: _ ->
-    ElabM.fail
-      (Error.spine_tag_mismatch ~loc:pos
-         ~expected_tag:(pf_entry_tag_name entry)
-         ~expected_entry:(pf_entry_to_string entry)
-         ~actual_tag:(spine_tag_name (RefinedExpr.spine_shape spine)))
+    let err = Error.spine_tag_mismatch ~loc:pos
+                ~expected_tag:(pf_entry_tag_name entry)
+                ~expected_entry:(pf_entry_to_string entry)
+                ~actual_tag:(spine_tag_name (RefinedExpr.spine_shape spine)) in
+    let rinfo = mk_rinfo_err pos delta bool_sort eff err in
+    let checked = RefinedExpr.mk_spine rinfo RefinedExpr.SNil in
+    return (checked, delta, Constraint.top pos)
   | _, [] ->
-    ElabM.fail
-      (Error.spine_tag_mismatch ~loc:pos
-         ~expected_tag:"end of entries"
-         ~expected_entry:"(no more entries expected)"
-         ~actual_tag:(spine_tag_name (RefinedExpr.spine_shape spine)))
+    let err = Error.spine_tag_mismatch ~loc:pos
+                ~expected_tag:"end of entries"
+                ~expected_entry:"(no more entries expected)"
+                ~actual_tag:(spine_tag_name (RefinedExpr.spine_shape spine)) in
+    let rinfo = mk_rinfo_err pos delta bool_sort eff err in
+    let checked = RefinedExpr.mk_spine rinfo RefinedExpr.SNil in
+    return (checked, delta, Constraint.top pos)
 
 (* Case branch checking *)
 and check_case_branches pos rs delta eff eq_var ce ce_sort ctors branches pf =
