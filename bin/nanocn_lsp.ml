@@ -489,16 +489,36 @@ let () =
   let ic = stdin in
   let stdin_fd = Unix.descr_of_in_channel ic in
   let wakeup_fd = SmtAsync.wakeup_fd () in
+  let log_invariant (info : Util.invariant_failure_info) =
+    (* Defensive outer catch: a compiler bug escaped per-file
+       processing.  Per-file invariants are already converted to
+       diagnostics by [CompileFile]; this catch only fires for
+       failures outside that path.  Log to stderr (LSP clients
+       usually surface stderr in their server output channel) and
+       keep the loop alive — crashing would lose all open
+       diagnostics. *)
+    Printf.eprintf
+      "[nanocn-lsp] internal compiler error in %s: %s (at %s)\n%!"
+      info.Util.rule info.Util.invariant
+      (let p = info.Util.loc in
+       Printf.sprintf "%s:%d:%d-%d:%d"
+         (SourcePos.file p)
+         (SourcePos.start_line p) (SourcePos.start_col p)
+         (SourcePos.end_line p) (SourcePos.end_col p))
+  in
+  let safe f =
+    try f () with Util.Invariant_failure info -> log_invariant info
+  in
   let rec loop () =
     (* Select on stdin (LSP messages) and wakeup pipe (SMT events). *)
     let ready, _, _ = Unix.select [stdin_fd; wakeup_fd] [] [] (-1.0) in
     List.iter (fun fd ->
       if fd == wakeup_fd then
-        handle_smt_events oc
+        safe (fun () -> handle_smt_events oc)
       else begin
         match Io.read ic with
         | None -> exit 0
-        | Some packet -> handle_packet oc packet
+        | Some packet -> safe (fun () -> handle_packet oc packet)
       end
     ) ready;
     loop ()

@@ -2,9 +2,10 @@
 
    [invariant_at pos ~rule msg]: "impossible-in-well-formed-code"
    check fired (the typechecker's own consistency guarantees should
-   have ruled this out). Emits [K_internal_invariant]. *)
+   have ruled this out).  Raises [Util.Invariant_failure] — caught
+   by the top-level driver and reported as a compiler bug. *)
 let invariant_at pos ~rule msg =
-  Error (Error.internal_invariant ~loc:pos ~rule ~invariant:msg)
+  Util.raise_invariant ~loc:pos ~rule msg
 
 let ( let* ) = Result.bind
 
@@ -190,17 +191,15 @@ let merge_branches ~loc sig_ branches scrutinee_kind =
         let err = match dsort_for_missing with
           | Some d -> Error.missing_ctor ~loc ~label:l ~decl:d
           | None ->
-            failwith
-              "Typecheck.merge_branches: lookup_all_observed produced \
-               a missing entry but the scrutinee sort does not yield \
-               a dsort (compiler bug)"
+            Util.raise_invariant ~loc ~rule:"merge_branches"
+              "lookup_all_observed produced a missing entry but the \
+               scrutinee sort does not yield a dsort"
         in
         M_missing (l, ctor_sort, err)
       | None, Error _ ->
-        failwith
-          "Typecheck.merge_branches: lookup_all_observed returned an \
-           Error entry for a label not in its observed input \
-           (compiler bug)"
+        Util.raise_invariant ~loc ~rule:"merge_branches"
+          "lookup_all_observed returned an Error entry for a label \
+           not in its observed input"
     ) outcomes
   in
   (* Redundant entries: each one needs the ctor sort to typecheck

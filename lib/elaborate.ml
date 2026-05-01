@@ -37,10 +37,11 @@ let mk_sort pos s = Sort.mk (object method loc = pos end) s
 
 (* [invariant_at pos ~rule msg]: an "impossible-in-well-formed-code"
    check fired (e.g. a pattern-matrix shape that an earlier
-   elaboration pass was meant to rule out). Emits
-   [Error.K_internal_invariant]. *)
+   elaboration pass was meant to rule out).  Raises
+   [Util.Invariant_failure] — caught by the top-level driver and
+   reported as a compiler bug, not as a user-facing diagnostic. *)
 let invariant_at pos ~rule msg =
-  ElabM.fail (Error.internal_invariant ~loc:pos ~rule ~invariant:msg)
+  Util.raise_invariant ~loc:pos ~rule msg
 
 let sort_equal a b = Sort.compare a b = 0
 
@@ -250,12 +251,11 @@ let classify_column branches : column_kind =
     in
     if all_ctors then Col_ctor
     else Col_incompatible (take_n 3 (dedupe_shapes descrs))
-  | (Error.PS_Var, _) :: _ ->
+  | (Error.PS_Var, loc) :: _ ->
     (* PS_Var is filtered out by the [filter_map] above; this arm is
        genuinely unreachable. *)
-    failwith
-      "Elaborate.classify_column: PS_Var leaked through filter_map \
-       (compiler bug)"
+    Util.raise_invariant ~loc ~rule:"Elaborate.classify_column"
+      "PS_Var leaked through filter_map"
 
 (** strip_var: all leading patterns are variables.
     Each [x : sort] gets a let-binding [let x = y]. *)

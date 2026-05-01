@@ -218,12 +218,29 @@ let smt_check_file filename =
         ) answers
 
 let () =
-  match Sys.argv with
-  | [| _; "help" |] -> help ()
-  | [| _; "check"; "--toplevel" |] -> toplevel ()
-  | [| _; "check"; file |] -> check_file file
-  | [| _; "check-refined"; file |] -> check_refined_file file
-  | [| _; "smt-check"; file |] -> smt_check_file file
-  | [| _; "elaborate"; file |] -> elaborate_file file
-  | [| _; "json"; file |] -> json_file file
-  | _ -> usage ()
+  try
+    match Sys.argv with
+    | [| _; "help" |] -> help ()
+    | [| _; "check"; "--toplevel" |] -> toplevel ()
+    | [| _; "check"; file |] -> check_file file
+    | [| _; "check-refined"; file |] -> check_refined_file file
+    | [| _; "smt-check"; file |] -> smt_check_file file
+    | [| _; "elaborate"; file |] -> elaborate_file file
+    | [| _; "json"; file |] -> json_file file
+    | _ -> usage ()
+  with Util.Invariant_failure info ->
+    (* Defensive outer catch: a compiler bug escaped the per-file
+       driver.  Render with the same machinery as user diagnostics
+       so the source excerpt and structured output still appear,
+       then exit with a distinct status so CI can flag it. *)
+    let err =
+      Error.internal_invariant
+        ~loc:info.Util.loc
+        ~rule:info.Util.rule
+        ~invariant:info.Util.invariant
+    in
+    Format.eprintf "%a@." (Error.print source_registry) err;
+    Format.eprintf
+      "@.This is a compiler bug.  Please report it with the input \
+       that triggered it.@.";
+    exit 2

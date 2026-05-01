@@ -6,6 +6,17 @@ let rec result_list = function
      | Error _ as e -> e)
   | Error e :: _ -> Error e
 
+type invariant_failure_info = {
+  rule : string;
+  invariant : string;
+  loc : SourcePos.t;
+}
+
+exception Invariant_failure of invariant_failure_info
+
+let raise_invariant ~loc ~rule invariant =
+  raise (Invariant_failure { rule; invariant; loc })
+
 module Test = struct
   let test =
     let int_gen = QCheck.Gen.nat_small in
@@ -47,5 +58,20 @@ module Test = struct
            match result_list ([] : (int, int) result list) with
            | Ok [] -> true
            | _ -> false);
+
+      QCheck.Test.make
+        ~name:"raise_invariant: payload reaches the catch site"
+        ~count:1
+        (QCheck.make QCheck.Gen.unit)
+        (fun () ->
+           try
+             let _ : int =
+               raise_invariant ~loc:SourcePos.dummy
+                 ~rule:"r" "broken thing"
+             in
+             false
+           with Invariant_failure info ->
+             String.equal info.rule "r"
+             && String.equal info.invariant "broken thing");
     ]
 end
