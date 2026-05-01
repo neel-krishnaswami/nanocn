@@ -1601,16 +1601,19 @@ main : Int [pure] = example(Both (1, 2) : Pair)
             let res r = unfold make-ret(auto); (res r)
           main : () [impure] = ()
         |} in
-        match run_m (
-          let open ElabM in
-          let* prog = Parse.parse_rprog src ~file:"test" in
-          RCheck.check_rprog prog
-        ) with
-        | Error msg ->
-          let s = Error.to_string msg in
-          if not (contains s "synthesize") then
-            Alcotest.fail ("expected cannot_synthesize, got: " ^ s)
-        | Ok _ -> Alcotest.fail "expected cannot_synthesize error");
+        (* Multi-error: rCheck no longer halts on missing
+           annotation; the error is captured by the per-decl
+           driver in compileFile.compile_rfile via
+           collect_errors_rprog. *)
+        let r = CompileFile.compile_rfile src ~file:"test.rcn" in
+        let any_match =
+          List.exists (fun e ->
+            contains (Error.to_string e) "synthesize") r.diagnostics
+        in
+        if not any_match then
+          Alcotest.failf
+            "expected cannot_synthesize diagnostic in: %s"
+            (String.concat "; " (List.map Error.to_string r.diagnostics)));
 
       (* unfold rpf: negative — predicate is not a function call *)
       Alcotest.test_case "unfold rpf rejects non-call predicate" `Quick (fun () ->
@@ -1625,15 +1628,14 @@ main : Int [pure] = example(Both (1, 2) : Pair)
             (res r2)
           main : () [impure] = ()
         |} in
-        match run_m (
-          let open ElabM in
-          let* prog = Parse.parse_rprog src ~file:"test" in
-          RCheck.check_rprog prog
-        ) with
-        | Error msg ->
-          let s = Error.to_string msg in
-          if not (contains s "unfold") then
-            Alcotest.fail ("expected unfold-shape error, got: " ^ s)
-        | Ok _ -> Alcotest.fail "expected wrong_pred_shape error");
+        let r = CompileFile.compile_rfile src ~file:"test.rcn" in
+        let any_match =
+          List.exists (fun e ->
+            contains (Error.to_string e) "unfold") r.diagnostics
+        in
+        if not any_match then
+          Alcotest.failf
+            "expected an 'unfold' diagnostic in: %s"
+            (String.concat "; " (List.map Error.to_string r.diagnostics)));
     ]);
   ]
