@@ -15,16 +15,21 @@ val lift_sort : Sort.sort -> typed_info Sort.t
     [CoreExpr.Annot]. The lifted sort carries empty context, [Effect.Pure],
     and uses each node's existing location. *)
 
-(** {1 Coverage types} *)
+(** {1 Coverage types}
 
-(** A single binding: pattern with its sort. *)
-type binding = Pat.pat * Sort.sort
+    Pattern-matrix bindings carry result-typed sorts so an upstream
+    [Error _] (missing scrutinee sort, undeclared dsort) propagates
+    uniformly through the matrix instead of forcing elaboration to
+    halt. *)
+
+(** A single binding: pattern with its result-typed sort. *)
+type binding = Pat.pat * (Sort.sort, Error.kind) result
 
 (** A let-binding accumulated during coverage checking. *)
 type let_binding = {
   var : Var.t;
   rhs : Var.t;
-  sort : Sort.sort;
+  sort : (Sort.sort, Error.kind) result;
   eff : Effect.t;
   loc : SourcePos.t;
 }
@@ -59,7 +64,7 @@ val check : _ Sig.t -> Context.t -> SurfExpr.se ->
 (** {1 Coverage} *)
 
 val coverage_check : _ Sig.t -> Context.t -> Var.t list -> branch list ->
-  Effect.t -> Sort.sort -> Effect.t ->
+  Effect.t -> (Sort.sort, Error.kind) result -> Effect.t ->
   cov_loc:SourcePos.t ->
   (PatWitness.t list -> PatWitness.t) ->
   typed_ce ElabM.t

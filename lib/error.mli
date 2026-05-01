@@ -19,6 +19,17 @@ type branch_merge_failure =
   | Mf_usage_incompatible of Var.t
   | Mf_empty_list
 
+(** A coarse syntactic shape for a leading pattern.  Used by
+    [K_incompatible_patterns] to describe why a column couldn't be
+    dispatched syntactically.  Variable patterns are universally
+    compatible and never appear in a conflict report; they're
+    represented for completeness but the typechecker only constructs
+    [PS_Tuple] / [PS_Ctor] entries. *)
+type pattern_shape_descriptor =
+  | PS_Tuple of int
+  | PS_Ctor of Label.t
+  | PS_Var
+
 type kind =
   (* Lexer / parser *)
   | K_parse_error of { msg : string }
@@ -138,6 +149,16 @@ type kind =
         The duplicate is still typechecked against the known ctor
         sort (so the body's diagnostics aren't cascading), but the
         duplication itself is the error. *)
+  | K_incompatible_patterns of
+      { shapes : (pattern_shape_descriptor * SourcePos.t) list }
+    (** A pattern matrix column has incompatible leading patterns
+        (e.g. a tuple-of-2 next to a constructor pattern, or two
+        tuples of different arity), and the typechecker has no type
+        information to disambiguate.  Pattern elaboration abandons
+        the column and synthesizes a [Hole]; the renderer lists the
+        conflicting pattern shapes with their source positions so
+        the user can see which patterns disagreed.  Up to a small
+        number of distinct shapes are reported. *)
 
   (* Kind well-formedness (kind_wf / type_guarded) *)
   | K_tvar_kind_mismatch of
@@ -323,6 +344,16 @@ val missing_ctor :
   loc:SourcePos.t -> label:Label.t -> decl:Dsort.t -> t
 val redundant_ctor :
   loc:SourcePos.t -> label:Label.t -> t
+
+val incompatible_patterns :
+  loc:SourcePos.t ->
+  shapes:(pattern_shape_descriptor * SourcePos.t) list -> t
+(** [incompatible_patterns ~loc ~shapes] reports a pattern-matrix
+    column whose leading patterns can't be dispatched syntactically
+    without type information.  [shapes] is the list of conflicting
+    pattern shapes (up to a few distinct ones) with their source
+    positions, used by the renderer to point at the disagreeing
+    patterns inline. *)
 
 val at : loc:SourcePos.t -> ('a, kind) result -> ('a, t) result
 (** [at ~loc r] attaches [loc] to any [kind]-typed error in [r],

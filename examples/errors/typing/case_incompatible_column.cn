@@ -1,0 +1,7 @@
+fun mixed : Int -> Int [pure] = {
+    n -> case unknown_call(n) of {
+        (a, b) -> a
+      | LCons x -> x
+    }
+}
+main : Int [pure] = mixed(1)

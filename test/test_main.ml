@@ -1197,6 +1197,196 @@ let () =
              let errs = Typecheck.collect_errors typed_e in
              if List.length errs < 2 then
                Alcotest.failf "expected ≥2 errors, got %d" (List.length errs)));
+
+      (* File-driven fixtures: the three halt-on-first-error bugs in
+         elaborate.ml's coverage_check are now fixed.  Each fixture
+         exercises one (or more) bug; we assert that elaboration
+         continues past the upstream error and that >= 2 diagnostics
+         reach the driver.
+
+         The fixtures are also persisted under
+         examples/errors/typing/ for documentation.  We embed them
+         inline here so the tests are self-contained and don't rely
+         on dune sandbox file paths. *)
+      (let contains_substring s sub =
+         let n = String.length s and m = String.length sub in
+         let rec aux i =
+           i + m <= n && (String.sub s i m = sub || aux (i+1)) in
+         m = 0 || (n >= m && aux 0)
+       in
+       let any_diag_contains diags sub =
+         List.exists (fun e ->
+           contains_substring (Error.to_string e) sub) diags
+       in
+       let assert_halt_fix ~name ~src ~min_diags ~contains =
+         Alcotest.test_case name `Quick (fun () ->
+           let outcome = CompileFile.compile_file src ~file:name in
+           let n = List.length outcome.diagnostics in
+           if n < min_diags then
+             Alcotest.failf
+               "%s: expected >= %d diagnostics, got %d (%s)"
+               name min_diags n
+               (String.concat "; "
+                  (List.map Error.to_string outcome.diagnostics));
+           if not (any_diag_contains outcome.diagnostics contains) then
+             Alcotest.failf
+               "%s: expected diagnostic containing %S in: %s"
+               name contains
+               (String.concat "; "
+                  (List.map Error.to_string outcome.diagnostics)))
+       in
+       let src = {|
+type Maybe = { Just : Int | Nothing : () }
+fun pickJust : Maybe -> Int [pure] = {
+    Just x -> x
+  | Nothing u -> 0
+}
+fun useUnknown : Int -> Int [pure] = {
+    n -> case unknown_call(n) of {
+        Just x -> x + n
+      | Nothing u -> 0
+    }
+}
+main : Int [pure] = useUnknown(7)
+|} in
+       assert_halt_fix
+         ~name:"halt fix: case scrutinee with errored synth"
+         ~src
+         ~min_diags:2
+         ~contains:"unknown function");
+
+      (let contains_substring s sub =
+         let n = String.length s and m = String.length sub in
+         let rec aux i =
+           i + m <= n && (String.sub s i m = sub || aux (i+1)) in
+         m = 0 || (n >= m && aux 0)
+       in
+       let any_diag_contains diags sub =
+         List.exists (fun e ->
+           contains_substring (Error.to_string e) sub) diags
+       in
+       let src = {|
+fun useUndefined : UndefinedT -> Int [pure] = {
+    LFoo x -> x
+  | LBar u -> 0
+}
+main : Int [pure] = 1
+|} in
+       Alcotest.test_case
+         "halt fix: case scrutinee with undeclared dsort"
+         `Quick (fun () ->
+           let outcome =
+             CompileFile.compile_file src
+               ~file:"halt_fix_undeclared_dsort.cn" in
+           let n = List.length outcome.diagnostics in
+           if n < 2 then
+             Alcotest.failf
+               "expected >= 2 diagnostics, got %d" n;
+           if not (any_diag_contains outcome.diagnostics "unknown sort or type") then
+             Alcotest.failf
+               "expected an 'unknown sort/type' diagnostic in: %s"
+               (String.concat "; "
+                  (List.map Error.to_string outcome.diagnostics))));
+
+      (let contains_substring s sub =
+         let n = String.length s and m = String.length sub in
+         let rec aux i =
+           i + m <= n && (String.sub s i m = sub || aux (i+1)) in
+         m = 0 || (n >= m && aux 0)
+       in
+       let any_diag_contains diags sub =
+         List.exists (fun e ->
+           contains_substring (Error.to_string e) sub) diags
+       in
+       let src = {|
+fun mixed : Int -> Int [pure] = {
+    n -> case unknown_call(n) of {
+        (a, b) -> a
+      | LCons x -> x
+    }
+}
+main : Int [pure] = mixed(1)
+|} in
+       Alcotest.test_case
+         "halt fix: column with incompatible patterns"
+         `Quick (fun () ->
+           let outcome =
+             CompileFile.compile_file src
+               ~file:"halt_fix_incompatible_column.cn" in
+           if not (any_diag_contains outcome.diagnostics "incompatible") then
+             Alcotest.failf
+               "expected an 'incompatible patterns' diagnostic in: %s"
+               (String.concat "; "
+                  (List.map Error.to_string outcome.diagnostics))));
+
+      (let contains_substring s sub =
+         let n = String.length s and m = String.length sub in
+         let rec aux i =
+           i + m <= n && (String.sub s i m = sub || aux (i+1)) in
+         m = 0 || (n >= m && aux 0)
+       in
+       let any_diag_contains diags sub =
+         List.exists (fun e ->
+           contains_substring (Error.to_string e) sub) diags
+       in
+       let src = {|
+fun first : Int -> Int [pure] = {
+    n -> let (x, y, z) = unknown_call();
+         x + y + z
+}
+main : Int [pure] = first(1)
+|} in
+       Alcotest.test_case
+         "halt fix: let-tuple with errored RHS"
+         `Quick (fun () ->
+           let outcome =
+             CompileFile.compile_file src
+               ~file:"halt_fix_let_pattern_error_rhs.cn" in
+           let n = List.length outcome.diagnostics in
+           if n < 2 then
+             Alcotest.failf
+               "expected >= 2 diagnostics, got %d" n;
+           if not (any_diag_contains outcome.diagnostics "unknown function") then
+             Alcotest.failf
+               "expected an 'unknown function' diagnostic in: %s"
+               (String.concat "; "
+                  (List.map Error.to_string outcome.diagnostics))));
+
+      (let contains_substring s sub =
+         let n = String.length s and m = String.length sub in
+         let rec aux i =
+           i + m <= n && (String.sub s i m = sub || aux (i+1)) in
+         m = 0 || (n >= m && aux 0)
+       in
+       let any_diag_contains diags sub =
+         List.exists (fun e ->
+           contains_substring (Error.to_string e) sub) diags
+       in
+       let src = {|
+type LL = { LCons : (Int * Int) | LNil : () }
+fun useNested : Int -> Int [pure] = {
+    n -> case unknown_call(n) of {
+        LCons (x, y) -> x + y + n
+      | LNil u -> n
+    }
+}
+main : Int [pure] = useNested(1)
+|} in
+       Alcotest.test_case
+         "halt fix: nested patterns with errored scrutinee"
+         `Quick (fun () ->
+           let outcome =
+             CompileFile.compile_file src
+               ~file:"halt_fix_nested_pattern_error.cn" in
+           let n = List.length outcome.diagnostics in
+           if n < 2 then
+             Alcotest.failf
+               "expected >= 2 diagnostics, got %d" n;
+           if not (any_diag_contains outcome.diagnostics "unknown function") then
+             Alcotest.failf
+               "expected an 'unknown function' diagnostic in: %s"
+               (String.concat "; "
+                  (List.map Error.to_string outcome.diagnostics))));
     ]);
 
     ("rcheck", [

@@ -1,0 +1,12 @@
+type Maybe = { Just : Int | Nothing : () }
+fun pickJust : Maybe -> Int [pure] = {
+    Just x -> x
+  | Nothing u -> 0
+}
+fun useUnknown : Int -> Int [pure] = {
+    n -> case unknown_call(n) of {
+        Just x -> x + n
+      | Nothing u -> 0
+    }
+}
+main : Int [pure] = useUnknown(7)

@@ -106,53 +106,122 @@ let unsynth ~construct r =
 
 (** Outcome of pairing each given case branch with the declared
     constructor list — used by [merge_branches] / [check_case_branches]
-    to detect missing, redundant, and unknown ctors. *)
+    to detect missing, redundant, and unknown ctors.  Each error
+    variant carries the diagnostic to attach to its branch's
+    [info#answer] so the caller is a pure dispatcher. *)
 type merged_branch =
   | M_present of Label.t * Var.t * CoreExpr.ce * Sort.sort
-  | M_missing of Label.t * Sort.sort
+  | M_missing of Label.t * Sort.sort * Error.t
     (** A declared ctor that the user did not match.  The body is
-        synthesized as [CoreExpr.Hole "missing-case-<label>"]. *)
-  | M_redundant of Label.t * Var.t * CoreExpr.ce * Sort.sort
+        synthesized as [CoreExpr.Hole "missing-case-<label>"];
+        [Error.t] is the [K_missing_ctor] diagnostic. *)
+  | M_redundant of Label.t * Var.t * CoreExpr.ce * Sort.sort * Error.t
     (** Second or later occurrence of [label].  The known ctor sort
-        is preserved so the body still typechecks. *)
-  | M_unknown_label of Label.t * Var.t * CoreExpr.ce
+        is preserved so the body still typechecks; [Error.t] is the
+        [K_redundant_ctor] diagnostic. *)
+  | M_unknown_label of Label.t * Var.t * CoreExpr.ce * Error.t
     (** Either the label isn't declared at this dsort, or the
-        declared list itself errored — body still elaborates with
-        an unknown bound-var sort. *)
+        scrutinee sort itself errored — body still elaborates with
+        an unknown bound-var sort.  [Error.t] is the diagnostic
+        [CtorLookup.lookup_all_observed] reported (typically
+        [K_ctor_not_in_decl] or an upstream sort-resolution error). *)
 
-(** [merge_branches given declared] pairs the user's case branches
-    with the full declared ctor list.  Returns merged entries in
-    declared order, with extra [M_unknown_label] entries appended for
-    given branches whose label isn't declared.  The caller constructs
-    per-branch [Error.t]s from the [M_*] tags using its location and
-    dsort context. *)
-let merge_branches branches declared =
-  match declared with
-  | Error _ ->
-    List.map (fun (l, x, body, _) -> M_unknown_label (l, x, body)) branches
-  | Ok lts ->
-    let label_eq l1 l2 = Label.compare l1 l2 = 0 in
-    let seen = Hashtbl.create 8 in
-    let classified =
-      List.map (fun (l, x, body, _) ->
-        match List.find_opt (fun (l', _) -> label_eq l l') lts with
-        | None -> M_unknown_label (l, x, body)
-        | Some (_, ctor_sort) ->
-          if Hashtbl.mem seen l then
-            M_redundant (l, x, body, ctor_sort)
-          else begin
-            Hashtbl.add seen l ();
-            M_present (l, x, body, ctor_sort)
-          end
-      ) branches
-    in
-    let missing =
-      List.filter_map (fun (l, ctor_sort) ->
-        if Hashtbl.mem seen l then None
-        else Some (M_missing (l, ctor_sort))
-      ) lts
-    in
-    classified @ missing
+(** [merge_branches ~loc sig_ branches scrutinee_kind] pairs the
+    user's case branches with the constructor set determined by
+    [scrutinee_kind] via [CtorLookup.lookup_all_observed].
+
+    1. Pre-pass: scans [branches] for duplicate labels.  The first
+       occurrence of each label is the canonical entry; any later
+       occurrence becomes [M_redundant].
+    2. Passes the deduped label list to [lookup_all_observed].
+    3. Translates the wrapper output:
+       - For each observed entry [(L, Ok ctor_sort)] whose label is
+         in the canonical map → [M_present].
+       - For each observed entry [(L, Error k)] → [M_unknown_label]
+         carrying the upstream [k].
+       - For each declared-but-not-observed entry [(L, Ok ctor_sort)]
+         → [M_missing] with [K_missing_ctor].
+
+    The error in each [M_*] variant uses [~loc] (the case
+    expression's source position). *)
+let merge_branches ~loc sig_ branches scrutinee_kind =
+  let label_eq l1 l2 = Label.compare l1 l2 = 0 in
+  (* Step 1: dedupe input branches.  Keep the first occurrence of
+     each label; record subsequent occurrences as redundant. *)
+  let seen = Hashtbl.create 8 in
+  let canonical, redundant =
+    List.partition (fun (l, _, _, _) ->
+      if Hashtbl.mem seen l then false
+      else begin Hashtbl.add seen l (); true end
+    ) branches
+  in
+  let canonical_map = Hashtbl.create 8 in
+  List.iter (fun ((l, _, _, _) as br) -> Hashtbl.add canonical_map l br)
+    canonical;
+  let canonical_labels =
+    List.map (fun (l, _, _, _) -> l) canonical in
+  (* Step 2: ask the wrapper for every label it knows about. *)
+  let outcomes =
+    CtorLookup.lookup_all_observed sig_ scrutinee_kind canonical_labels in
+  (* The wrapper's missing entries (those whose label isn't in
+     [canonical_map]) come back with [Ok payload_sort]; convert each
+     to [M_missing] with a fresh [K_missing_ctor] diagnostic.  We
+     need the dsort to construct the diagnostic — recover it from
+     the scrutinee sort (when available) so the error names the
+     right type. *)
+  let dsort_for_missing =
+    match scrutinee_kind with
+    | Error _ -> None
+    | Ok s ->
+      let view : (Sort.sort, Error.kind) result = Ok s in
+      let (d_result, _) =
+        SortView.Get.app ~construct:"case scrutinee" view in
+      Result.to_option d_result
+  in
+  let main =
+    List.map (fun (l, sort_result) ->
+      match Hashtbl.find_opt canonical_map l, sort_result with
+      | Some (_, x, body, _), Ok ctor_sort ->
+        M_present (l, x, body, ctor_sort)
+      | Some (_, x, body, _), Error k ->
+        let err = Error.structured ~loc k in
+        M_unknown_label (l, x, body, err)
+      | None, Ok ctor_sort ->
+        let err = match dsort_for_missing with
+          | Some d -> Error.missing_ctor ~loc ~label:l ~decl:d
+          | None ->
+            failwith
+              "Typecheck.merge_branches: lookup_all_observed produced \
+               a missing entry but the scrutinee sort does not yield \
+               a dsort (compiler bug)"
+        in
+        M_missing (l, ctor_sort, err)
+      | None, Error _ ->
+        failwith
+          "Typecheck.merge_branches: lookup_all_observed returned an \
+           Error entry for a label not in its observed input \
+           (compiler bug)"
+    ) outcomes
+  in
+  (* Redundant entries: each one needs the ctor sort to typecheck
+     its body.  Reuse the canonical entry's outcome (every redundant
+     label's canonical version is in [outcomes]). *)
+  let redundant_merged =
+    List.map (fun (l, x, body, _) ->
+      let ctor_sort_opt =
+        List.find_map (fun (l', sort_result) ->
+          if label_eq l l' then
+            (match sort_result with Ok s -> Some s | Error _ -> None)
+          else None
+        ) outcomes
+      in
+      let err = Error.redundant_ctor ~loc ~label:l in
+      match ctor_sort_opt with
+      | Some ctor_sort -> M_redundant (l, x, body, ctor_sort, err)
+      | None -> M_unknown_label (l, x, body, err)
+    ) redundant
+  in
+  main @ redundant_merged
 
 (** [replace_answer ce answer] returns a copy of [ce] whose top-level
     [answer] field has been replaced.  Used by synth's unsynthesizable
@@ -449,14 +518,7 @@ and check sig_ ctx ce sort eff0 : typed_ce =
 
 and check_case_branches sig_ ctx branches scrut_answer result_sort eff0 bind_eff pos =
   let scrut_kind = unsynth ~construct:"case scrutinee" scrut_answer in
-  let (d_result, args_results) =
-    SortView.Get.app ~construct:"case scrutinee" scrut_kind in
-  let declared : ((Label.t * Sort.sort) list, Error.kind) result =
-    let* d = d_result in
-    let* args = Util.result_list args_results in
-    CtorLookup.lookup_all sig_ d args
-  in
-  let merged = merge_branches branches declared in
+  let merged = merge_branches ~loc:pos sig_ branches scrut_kind in
   List.map (fun mb ->
     match mb with
     | M_present (l, x, body, ctor_sort) ->
@@ -470,7 +532,7 @@ and check_case_branches sig_ ctx branches scrut_answer result_sort eff0 bind_eff
       end : typed_info) in
       (l, x, body', branch_info)
 
-    | M_redundant (l, x, body, ctor_sort) ->
+    | M_redundant (l, x, body, ctor_sort, err) ->
       (* Body still typechecks against the known ctor sort so its
          own diagnostics aren't cascading; the redundancy itself
          is recorded on the branch's [answer]. *)
@@ -479,13 +541,12 @@ and check_case_branches sig_ ctx branches scrut_answer result_sort eff0 bind_eff
       let branch_info = (object
         method loc = pos
         method ctx = ctx'
-        method answer =
-          Error (Error.redundant_ctor ~loc:pos ~label:l)
+        method answer = Error err
         method eff = bind_eff
       end : typed_info) in
       (l, x, body', branch_info)
 
-    | M_unknown_label (l, x, body) ->
+    | M_unknown_label (l, x, body, err) ->
       (* Label isn't in the declaration, or the declaration itself
          couldn't be looked up.  Bind [x] as Unknown so the body can
          still be elaborated, and attribute the error appropriately. *)
@@ -493,20 +554,15 @@ and check_case_branches sig_ ctx branches scrut_answer result_sort eff0 bind_eff
       let body_expected : (Sort.sort, Error.kind) result =
         Error (Error.K_cannot_synthesize { construct = "case branch payload" }) in
       let body' = check sig_ ctx' body body_expected eff0 in
-      let ans : (Sort.sort, Error.t) result =
-        match d_result with
-        | Ok d -> Error (Error.ctor_not_in_decl ~loc:pos ~label:l ~decl:d)
-        | Error k -> Error (Error.structured ~loc:pos k)
-      in
       let branch_info = (object
         method loc = pos
         method ctx = ctx'
-        method answer = ans
+        method answer = Error err
         method eff = bind_eff
       end : typed_info) in
       (l, x, body', branch_info)
 
-    | M_missing (l, ctor_sort) ->
+    | M_missing (l, ctor_sort, err) ->
       (* Synthesize a branch with a Hole body and a fresh dummy var. *)
       let (x, _) = Var.mk "<missing>" pos Var.empty_supply in
       let ctx' = Context.extend x ctor_sort bind_eff ctx in
@@ -521,15 +577,10 @@ and check_case_branches sig_ ctx branches scrut_answer result_sort eff0 bind_eff
         CoreExpr.mk hole_info
           (CoreExpr.Hole ("missing-case-" ^ label_str))
       in
-      let ans : (Sort.sort, Error.t) result =
-        match d_result with
-        | Ok d -> Error (Error.missing_ctor ~loc:pos ~label:l ~decl:d)
-        | Error k -> Error (Error.structured ~loc:pos k)
-      in
       let branch_info = (object
         method loc = pos
         method ctx = ctx'
-        method answer = ans
+        method answer = Error err
         method eff = bind_eff
       end : typed_info) in
       (l, x, body', branch_info)
@@ -752,7 +803,7 @@ let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
       let bind_eff = Effect.purify d.eff in
       let ctx = Context.extend y d.arg_sort bind_eff Context.empty in
       let branches = List.map (fun (pat, body, _) ->
-        Elaborate.({ bindings = [(pat, d.arg_sort)];
+        Elaborate.({ bindings = [(pat, Ok d.arg_sort)];
                      let_bindings = [];
                      body })
       ) d.branches in
@@ -763,7 +814,7 @@ let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
       in
       let* typed_body =
         Elaborate.coverage_check sig_for_body ctx
-          [y] branches param_eff_b d.ret_sort d.eff
+          [y] branches param_eff_b (Ok d.ret_sort) d.eff
           ~cov_loc:d.loc rebuilder in
       return (y, typed_body)
     ) in
@@ -821,7 +872,7 @@ let check_decl_multi supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
       let bind_eff = Effect.purify d.eff in
       let ctx = Context.extend y d.arg_sort bind_eff Context.empty in
       let branches = List.map (fun (pat, body, _) ->
-        Elaborate.({ bindings = [(pat, d.arg_sort)];
+        Elaborate.({ bindings = [(pat, Ok d.arg_sort)];
                      let_bindings = [];
                      body })
       ) d.branches in
@@ -832,7 +883,7 @@ let check_decl_multi supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
       in
       let* typed_body =
         Elaborate.coverage_check sig_for_body ctx
-          [y] branches param_eff_b d.ret_sort d.eff
+          [y] branches param_eff_b (Ok d.ret_sort) d.eff
           ~cov_loc:d.loc rebuilder in
       return (y, typed_body)
     ) in

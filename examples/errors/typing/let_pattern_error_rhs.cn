@@ -1,0 +1,5 @@
+fun first : Int -> Int [pure] = {
+    n -> let (x, y, z) = unknown_call();
+         x + y + z
+}
+main : Int [pure] = first(1)

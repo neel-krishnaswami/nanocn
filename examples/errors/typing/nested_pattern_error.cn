@@ -1,0 +1,8 @@
+type LL = { LCons : (Int * Int) | LNil : () }
+fun useNested : Int -> Int [pure] = {
+    n -> case unknown_call(n) of {
+        LCons (x, y) -> x + y + n
+      | LNil u -> n
+    }
+}
+main : Int [pure] = useNested(1)

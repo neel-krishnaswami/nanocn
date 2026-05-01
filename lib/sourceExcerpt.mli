@@ -28,6 +28,13 @@ val excerpt : registry -> context:int -> SourcePos.t -> Format.formatter -> unit
 
     If [pos]'s file is not in the registry, prints nothing. *)
 
+val text_at : registry -> SourcePos.t -> string option
+(** [text_at reg pos] returns the raw source substring spanning
+    [pos], if [pos]'s file is in the registry and the position is
+    in range.  For multi-line spans, the returned string contains
+    the literal newlines.  Returns [None] when the file isn't
+    registered or the position is malformed. *)
+
 module Test : sig
   val test : QCheck.Test.t list
 end

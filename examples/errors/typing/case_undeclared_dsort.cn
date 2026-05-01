@@ -1,0 +1,5 @@
+fun useUndefined : UndefinedT -> Int [pure] = {
+    LFoo x -> x
+  | LBar u -> 0
+}
+main : Int [pure] = 1

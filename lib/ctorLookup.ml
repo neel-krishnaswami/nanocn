@@ -30,6 +30,51 @@ let lookup_all sig_ dsort args =
     | Ok sub ->
       Ok (List.map (fun (l, raw) -> (l, Subst.apply sub raw)) decl.DtypeDecl.ctors)
 
+let lookup_all_observed sig_ sort_result observed =
+  (* Dedupe observed labels, preserving first-occurrence order. *)
+  let seen = Hashtbl.create 8 in
+  let observed_unique =
+    List.filter (fun l ->
+      if Hashtbl.mem seen l then false
+      else begin Hashtbl.add seen l (); true end
+    ) observed
+  in
+  match sort_result with
+  | Error e ->
+    List.map (fun l -> (l, Error e)) observed_unique
+  | Ok s ->
+    let view : (Sort.sort, Error.kind) result = Ok s in
+    let (d_result, args_results) =
+      SortView.Get.app ~construct:"case scrutinee" view in
+    let declared : ((Label.t * Sort.sort) list, Error.kind) result =
+      Result.bind d_result (fun d ->
+        Result.bind (Util.result_list args_results) (fun args ->
+          lookup_all sig_ d args))
+    in
+    match declared with
+    | Error k ->
+      List.map (fun l -> (l, Error k)) observed_unique
+    | Ok lts ->
+      let label_eq l1 l2 = Label.compare l1 l2 = 0 in
+      let observed_entries =
+        List.map (fun l ->
+          match List.find_opt (fun (l', _) -> label_eq l l') lts with
+          | Some (_, ctor_sort) -> (l, Ok ctor_sort)
+          | None ->
+            (match d_result with
+             | Ok d ->
+               (l, Error (Error.K_ctor_not_in_decl { label = l; decl = d }))
+             | Error k -> (l, Error k))
+        ) observed_unique
+      in
+      let missing_entries =
+        List.filter_map (fun (l, ctor_sort) ->
+          if Hashtbl.mem seen l then None
+          else Some (l, Ok ctor_sort)
+        ) lts
+      in
+      observed_entries @ missing_entries
+
 module Test = struct
   let mk_dsort s = match Dsort.of_string s with
     | Ok d -> d | Error _ -> assert false

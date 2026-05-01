@@ -4,6 +4,11 @@ type branch_merge_failure =
   | Mf_usage_incompatible of Var.t
   | Mf_empty_list
 
+type pattern_shape_descriptor =
+  | PS_Tuple of int
+  | PS_Ctor of Label.t
+  | PS_Var
+
 type kind =
   | K_parse_error of { msg : string }
   | K_duplicate_pat_var of { name : string }
@@ -57,6 +62,8 @@ type kind =
   | K_ctor_not_in_decl of { label : Label.t; decl : Dsort.t }
   | K_missing_ctor of { label : Label.t; decl : Dsort.t }
   | K_redundant_ctor of { label : Label.t }
+  | K_incompatible_patterns of
+      { shapes : (pattern_shape_descriptor * SourcePos.t) list }
   | K_tvar_kind_mismatch of
       { tvar : Tvar.t; got : Kind.t; expected : Kind.t }
   | K_dsort_arity_mismatch of
@@ -193,6 +200,9 @@ let missing_ctor ~loc ~label ~decl =
 let redundant_ctor ~loc ~label =
   structured ~loc (K_redundant_ctor { label })
 
+let incompatible_patterns ~loc ~shapes =
+  structured ~loc (K_incompatible_patterns { shapes })
+
 let at ~loc r =
   Result.map_error (structured ~loc) r
 
@@ -289,7 +299,7 @@ let print_location reg fmt pos =
   SourceExcerpt.excerpt reg ~context:1 pos fmt;
   Format.pp_print_cut fmt ()
 
-let print_kind fmt = function
+let print_kind reg fmt = function
   | K_parse_error { msg } ->
     (* Preserve the Menhir-derived message layout — it already
        contains its own newlines and hanging indentation. *)
@@ -448,6 +458,38 @@ let print_kind fmt = function
     Format.fprintf fmt
       "  constructor %a appears more than once in this case."
       (print_emph Label.print) label
+  | K_incompatible_patterns { shapes } ->
+    let shape_label = function
+      | PS_Tuple n ->
+        Format.asprintf "tuple of length %d" n
+      | PS_Ctor l ->
+        Format.asprintf "constructor %a" Label.print l
+      | PS_Var ->
+        "variable"
+    in
+    Format.fprintf fmt "@[<v>";
+    Format.fprintf fmt
+      "  this pattern column has incompatible leading patterns,";
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt
+      "  and no type information is available to disambiguate them.";
+    Format.pp_print_cut fmt ();
+    Format.fprintf fmt "  conflicting patterns:";
+    List.iter (fun (shape, pos) ->
+      Format.pp_print_cut fmt ();
+      let label = shape_label shape in
+      match SourceExcerpt.text_at reg pos with
+      | Some text when String.length text > 0
+                       && not (String.contains text '\n') ->
+        Format.fprintf fmt "    - %s @[<hov>%a@] (%a)"
+          label
+          (print_emph Format.pp_print_string) text
+          SourcePos.print pos
+      | _ ->
+        Format.fprintf fmt "    - %s at %a"
+          label SourcePos.print pos
+    ) shapes;
+    Format.fprintf fmt "@]"
   | K_tvar_kind_mismatch { tvar; got; expected } ->
     Format.fprintf fmt "@[<v>";
     Format.fprintf fmt "  type variable %a has kind %a,"
@@ -635,6 +677,8 @@ let kind_header = function
   | K_ctor_not_in_decl _ -> "Type error: unknown constructor"
   | K_missing_ctor _ -> "Type error: non-exhaustive case"
   | K_redundant_ctor _ -> "Type error: redundant case branch"
+  | K_incompatible_patterns _ ->
+    "Type error: incompatible pattern shapes"
   | K_tvar_kind_mismatch _ -> "Type error: kind mismatch"
   | K_dsort_arity_mismatch _ -> "Type error: sort arity mismatch"
   | K_pred_misuse _ -> "Type error: pred in wrong context"
@@ -667,7 +711,7 @@ and print reg fmt = function
     (match loc with
      | Some pos -> print_location reg fmt pos
      | None -> Format.pp_print_cut fmt ());
-    print_kind fmt kind;
+    print_kind reg fmt kind;
     Format.fprintf fmt "@]"
 
 module Test = struct

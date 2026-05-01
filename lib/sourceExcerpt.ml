@@ -82,6 +82,32 @@ let excerpt reg ~context pos fmt =
       Format.fprintf fmt "@]"
     end
 
+let text_at reg pos =
+  match Hashtbl.find_opt reg (SourcePos.file pos) with
+  | None -> None
+  | Some lines ->
+    let total = Array.length lines in
+    let start_line = SourcePos.start_line pos in
+    let end_line = SourcePos.end_line pos in
+    let start_col = SourcePos.start_col pos in
+    let end_col = SourcePos.end_col pos in
+    if start_line < 1 || start_line > total
+    || end_line < 1 || end_line > total
+    || end_line < start_line
+    then None
+    else
+      let buf = Buffer.create 32 in
+      for n = start_line to end_line do
+        let line = lines.(n - 1) in
+        let len = String.length line in
+        let lo = if n = start_line then min (max 0 start_col) len else 0 in
+        let hi = if n = end_line then min (max 0 end_col) len else len in
+        let hi = max lo hi in
+        Buffer.add_substring buf line lo (hi - lo);
+        if n < end_line then Buffer.add_char buf '\n'
+      done;
+      Some (Buffer.contents buf)
+
 module Test = struct
   let test_empty_registry =
     QCheck.Test.make ~name:"SourceExcerpt: unregistered file is a no-op"

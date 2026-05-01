@@ -32,6 +32,46 @@ val lookup_all :
     is the caller's responsibility — reported via
     [K_missing_ctor] / [K_redundant_ctor]). *)
 
+val lookup_all_observed :
+  'a Sig.t ->
+  (Sort.sort, Error.kind) result ->
+  Label.t list ->
+  (Label.t * (Sort.sort, Error.kind) result) list
+(** [lookup_all_observed sig sort observed] unifies the case-dispatch
+    decisions made by surface case checking and pattern-matrix
+    elaboration.  [observed] is the list of constructor labels seen
+    in a column's leading patterns (caller may pass duplicates; the
+    wrapper dedupes internally, keeping the first occurrence).
+
+    Behaviour:
+
+    - When [sort] is [Error e]: returns [(L, Error e)] for each
+      distinct observed label.  Exhaustiveness checking is
+      suppressed — the upstream error has already been reported,
+      and we don't know which constructors are declared.
+
+    - When [sort] is [Ok s]: extracts the head dsort and type args
+      via [SortView.Get.app], then calls [lookup_all] to obtain the
+      declared ctor set.
+      - Each observed label that is in the declared set yields
+        [(L, Ok payload_sort)] (with type args substituted).
+      - Each observed label that is not in the declared set yields
+        [(L, Error (K_ctor_not_in_decl ...))].
+      - Each declared label that was not observed yields
+        [(L, Ok payload_sort)] appended after the observed entries.
+        Callers synthesize a [Hole] branch for these.
+      - If [Get.app] or [lookup_all] fails (head sort isn't a
+        datasort/datatype application, dsort is unbound, type-arg
+        arity mismatches), the failure is propagated to every
+        observed label as in the [Error] case above; no
+        exhaustiveness entries are emitted.
+
+    Callers distinguish "observed but valid" from
+    "declared-but-missing-from-observation" by looking up each
+    output label in their own row map: present in the input ⇒ user
+    wrote the branch; absent ⇒ wrapper synthesized the entry for
+    completeness, body should be filled with a [Hole]. *)
+
 module Test : sig
   val test : QCheck.Test.t list
 end
