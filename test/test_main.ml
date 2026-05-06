@@ -1573,12 +1573,12 @@ main : Int [pure] = example(Both (1, 2) : Pair)
         | Error msg -> Alcotest.fail ("check: " ^ Error.to_string msg)
           | Ok _ -> ());
 
-      (* unfold rpf: positive — building a folded resource via unfold/make-ret *)
+      (* unfold; rpf: positive — building a folded resource via [unfold ; return] *)
       Alcotest.test_case "unfold rpf typechecks" `Quick (fun () ->
         let src = {|
           fun box (x : Int) -> Pred Int [spec] = return x
           rfun test (x : Int) -> ([res] box(x) @ x) [pure] =
-            let res r : box(x) @ x = unfold make-ret(auto);
+            let res r : box(x) @ x = unfold; return auto;
             (res r)
           main : () [impure] = ()
         |} in
@@ -1590,7 +1590,7 @@ main : Int [pure] = example(Both (1, 2) : Pair)
         | Error msg -> Alcotest.fail ("check: " ^ Error.to_string msg)
         | Ok _ -> ());
 
-      (* unfold rpf: negative — synthesis form with no annotation *)
+      (* unfold; rpf: negative — synthesis form with no annotation *)
       Alcotest.test_case "unfold rpf rejects synthesis" `Quick (fun () ->
         let contains s sub =
           let n = String.length sub and m = String.length s in
@@ -1599,7 +1599,7 @@ main : Int [pure] = example(Both (1, 2) : Pair)
         let src = {|
           fun box (x : Int) -> Pred Int [spec] = return x
           rfun test (x : Int) -> ([res] box(x) @ x) [pure] =
-            let res r = unfold make-ret(auto); (res r)
+            let res r = unfold; return auto; (res r)
           main : () [impure] = ()
         |} in
         (* Multi-error: rCheck no longer halts on missing
@@ -1616,7 +1616,7 @@ main : Int [pure] = example(Both (1, 2) : Pair)
             "expected cannot_synthesize diagnostic in: %s"
             (String.concat "; " (List.map Error.to_string r.diagnostics)));
 
-      (* unfold rpf: negative — predicate is not a function call *)
+      (* unfold; rpf: negative — predicate is not a function call *)
       Alcotest.test_case "unfold rpf rejects non-call predicate" `Quick (fun () ->
         let contains s sub =
           let n = String.length sub and m = String.length s in
@@ -1625,7 +1625,7 @@ main : Int [pure] = example(Both (1, 2) : Pair)
         let src = {|
           rfun test (p : Ptr Int, [res] r : Own[Int] p @ 0)
             -> ([res] Own[Int] p @ 0) [impure] =
-            let res r2 : Own[Int] p @ 0 = unfold r;
+            let res r2 : Own[Int] p @ 0 = unfold; r;
             (res r2)
           main : () [impure] = ()
         |} in

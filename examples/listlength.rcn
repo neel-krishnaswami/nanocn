@@ -29,68 +29,15 @@ fun sequence (p : Ptr(List(Int))) -> Pred Lst(Int) [spec] =
   }
 
 // Refined length: walks the heap list, returns (len, proof, resource).
-// The proof threads ownership of p through Get and back into make-take
-// to reconstruct the sequence(p) resource for the caller.
-rfun len
-    (p : Ptr(List(Int)),
-     [res] r : (do xs : Lst(Int) = sequence(p)))
-  -> (n : Int,
-      [log] (n == length(xs)),
-      [res] (do xs' : Lst(Int) = sequence(p)))
-  [impure] =
-  let log prop = unfold sequence(p);
-  // Refine r's type by ascribing the unfolded take-form of sequence(p).
-  let res r1 : (take v_in = (Own[List(Int)](p) : Pred List(Int));
-                case v_in of {
-                    Nil u -> return (Nil ())
-                  | Cons pair -> let (x, q) = pair;
-                                 take xs_tl = (sequence(q) : Pred Lst(Int));
-                                 return (Cons (x, xs_tl))
-                }) @ xs = r;
-  let (v0, res own, res rest) = open-take(r1);
-  let (v, log veq, res own2) = Get[List(Int)](p, res own);
-  case [a] v of {
-      Nil u ->
-        // rest : (case v0 of {...}) @ xs, specialized to the Nil branch
-        let res rest_nil : (return (Nil ()) : Pred Lst(Int)) @ xs = rest;
-        let log prop1 = open-ret(rest_nil);
-        // Reconstruct: branch result = return(Nil()) @ Nil()
-        let res branch_res : (return (Nil ()) : Pred Lst(Int))
-                             @ (Nil () : Lst(Int))
-          = make-ret(auto);
-        // Wrap ownership + branch into the take form of sequence(p)
-        let res r_out : ((take v_in = (Own[List(Int)](p) : Pred List(Int));
-                          return (Nil ())) : Pred Lst(Int))
-                        @ (Nil () : Lst(Int))
-          = make-take((v0, res own2, res branch_res));
-        (0, log auto, res r_out)
-    | Cons pair ->
-        let core[pair_eq] (x, q) = pair;
-        // rest : (case v0 of {...}) @ xs, specialized to the Cons branch
-        let res rest_cons : (take xs_tl = (sequence(q) : Pred Lst(Int));
-                             return (Cons (x, xs_tl))) @ xs = rest;
-        let (xs0, res rq, res rret) = open-take(rest_cons);
-        let log prop2 = open-ret(rret);
-        let (m, log prop3, do xs_new = rq2) = len(q, res rq);
-        // Reconstruct the Cons-branch continuation
-        let res branch_res : ((take xs_tl = (sequence(q) : Pred Lst(Int));
-                               return (Cons (x, xs_tl))) : Pred Lst(Int))
-                             @ (Cons (x, xs0) : Lst(Int))
-          = make-take((xs0,
-                       res rq2,
-                       res make-ret(auto)
-                         : (return (Cons (x, xs0)) : Pred Lst(Int))
-                           @ (Cons (x, xs0) : Lst(Int))));
-        // Wrap ownership + branch into the take form of sequence(p)
-        let res r_out : ((take v_in = (Own[List(Int)](p) : Pred List(Int));
-                          take xs_tl = (sequence(q) : Pred Lst(Int));
-                          return (Cons (x, xs_tl))) : Pred Lst(Int))
-                        @ (Cons (x, xs0) : Lst(Int))
-          = make-take((v0, res own2, res branch_res));
-        (m + 1, log auto, res r_out)
-  }
-
-
+//
+// This example is being rewritten for the new resource-term syntax
+// (return / take / unfold; / annot; replacing make-ret / make-take /
+// unfold rpf).  The new [take(rpf1, rpf2)] form takes two rpfs (the
+// witness and the body) where the OLD [make-take] took a CRT tuple.
+// The proof needs reconstruction in the new style — for now [len2]
+// uses [res unfold; take(v, own); rest = r] (the rpat side, which
+// destructures), and the rpf side of the proof still has $holes
+// where the new [take(_,_)] reconstruction goes.
 rfun len2
     (p : Ptr(List(Int)),
      [res] r : (do xs : Lst(Int) = sequence(p)))
@@ -102,11 +49,12 @@ rfun len2
   let (val, log pf, res own) = Get[List(Int)] (p, res own);
   case[val_eq] val of {
     Nil u -> let res case[foo] Nil(); let[u_eq] y; return[eq] = rest;
-	     (0, log auto, res $hole1)
-  | Cons p -> $hole2
+             (0,
+              log auto,
+              res $hole_reconstruct_nil)
+  | Cons p -> $hole_reconstruct_cons
   }
 
-  
 
 
 
