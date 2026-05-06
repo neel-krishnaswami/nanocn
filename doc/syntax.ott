@@ -332,39 +332,41 @@ lpat :: 'LPat_' ::=                                  {{ com logical patterns }}
   | auto                            :: :: Auto
 
 rpat :: 'RPR_' ::=                                   {{ com resource patterns }}
-  | x                               :: :: Var
-  | return lpat                     :: :: Return
-  | take ( cpat , rpat1 ) ; rpat2   :: :: Take
-  | fail [ lpat ]                   :: :: Fail
-  | let [ lpat ] cpat ; rpat       :: :: Let
-  | case L ( cpat ) ; lpat ; rpat  :: :: Case
-  | iftrue ; rpat                   :: :: IfTrue
-  | iffalse ; rpat                  :: :: IfFalse
-  | unfold ; rpat                   :: :: Unfold
-  | annot ; rpat                    :: :: Annot
+  | x                                  :: :: Var
+  | return lpat                        :: :: Return
+  | take ( cpat , rpat1 ) ; rpat2      :: :: Take
+  | fail [ lpat ]                      :: :: Fail
+  | let [ lpat ] cpat ; rpat           :: :: Let
+  | case [ lpat ] L cpat ; rpat        :: :: Case
+  | iftrue ; rpat                      :: :: IfTrue
+  | iffalse ; rpat                     :: :: IfFalse
+  | unfold ; rpat                      :: :: Unfold
+  | annot ; rpat                       :: :: Annot
+
+rpb :: 'RPB_' ::=                                    {{ com resource pattern bases }}
+  | do cpat = rpat                     :: :: Do
+  | rpat                               :: :: Plain
 
 q :: 'RPat_' ::=                                     {{ com refined patterns }}
-  | rpempty                         :: :: Empty
-  | ( cpat , q )                    :: :: Core
-  | ( log lpat , q )                :: :: Log
-  | ( res rpat , q )                :: :: Res
-  | ( do cpat = rpat , q )          :: :: DepRes
+  | rpempty                            :: :: Empty
+  | ( cpat , q )                       :: :: Core
+  | ( log lpat , q )                   :: :: Log
+  | ( res rpb , q )                    :: :: Res
 
 crt :: 'CRT_' ::=                                    {{ com core refined terms }}
-  | let q = crt1 ; crt2            :: :: Let
-  | let log x = lpf ; crt          :: :: LetLog
-  | let res x = rpf ; crt          :: :: LetRes
-  | let core [ w ] x = ce ; crt    :: :: LetCore
-  | let core [ w ] ( x1 , .. , xn ) = ce ; crt  :: :: LetCoreTup
-  | crt : Pf                        :: :: Annot
-  | prim rsp                        :: :: PrimApp
-  | f rsp                           :: :: Call
-  | ( rsp )                         :: :: Tuple
-  | iter [ ce ] ( q = crt1 ) { crt2 }  :: :: Iter
-  | if [ x ] ce then crt1 else crt2  :: :: If
+  | let q = crt1 ; crt2                       :: :: Let
+  | let log lpat = lpf ; crt                  :: :: LetLog
+  | let res rpat = rpf ; crt                  :: :: LetRes
+  | let core [ lpat ] cpat = ce ; crt         :: :: LetCore
+  | crt : Pf                                  :: :: Annot
+  | prim rsp                                  :: :: PrimApp
+  | f rsp                                     :: :: Call
+  | ( rsp )                                   :: :: Tuple
+  | iter [ ce ] ( q = crt1 ) { crt2 }         :: :: Iter
+  | if [ x ] ce then crt1 else crt2           :: :: If
   | case [ y ] ce of { L1 x1 -> crt1 '|' .. '|' Ln xn -> crtn }  :: :: Case
-  | exfalso                          :: :: Exfalso     {{ tex \mathsf{exfalso} }}
-  | open-take rpf                    :: :: OpenTake    {{ tex \mathsf{open\text{-}take}\;[[rpf]] }}
+  | exfalso                                   :: :: Exfalso     {{ tex \mathsf{exfalso} }}
+  | open-take rpf                             :: :: OpenTake    {{ tex \mathsf{open\text{-}take}\;[[rpf]] }}
 
 rsp :: 'Spine_' ::=                                  {{ com refined spines }}
   | rspnil                           :: :: Nil        {{ tex \cdot }}
@@ -379,13 +381,21 @@ lpf :: 'LPf_' ::=                                   {{ com logical proof facts }
   | open-ret rpf                    :: :: OpenRet      {{ tex \mathsf{open\text{-}ret}\;[[rpf]] }}
   | lpf : ce                        :: :: Annot
 
+% Synthesis is restricted to Var and Annot; non-variable rpfs that
+% appear in synth positions (let res, take's first arg, open-ret,
+% open-take) must be ascribed via `rpf : ce @ ce'`.
 rpf :: 'RPf_' ::=                                    {{ com resource proof facts }}
-  | x                               :: :: Var
-  | make-ret lpf                    :: :: MakeRet      {{ tex \mathsf{make\text{-}ret}\;[[lpf]] }}
-  | make-take crt                   :: :: MakeTake     {{ tex \mathsf{make\text{-}take}\;[[crt]] }}
-  | rpf : ce @ ce'                :: :: Annot        {{ tex [[rpf]] : [[ce]] @ [[ce']] }}
-  | unfold rpf                      :: :: Unfold       {{ tex \mathsf{unfold}\;[[rpf]] }}
-  | ( rpf )                         :: M :: Paren        {{ tex ([[rpf]]) }}
+  | x                                  :: :: Var
+  | rpf : ce @ ce'                     :: :: Annot
+  | return lpf                         :: :: Return
+  | take ( rpf1 , rpf2 )               :: :: Take
+  | fail [ lpf ]                       :: :: Fail
+  | let [ lpat ] cpat ; rpf            :: :: Let
+  | case [ lpat ] L cpat ; rpf         :: :: Case
+  | iftrue ; rpf                       :: :: IfTrue
+  | iffalse ; rpf                      :: :: IfFalse
+  | unfold ; rpf                       :: :: Unfold
+  | annot ; rpf                        :: :: AnnotStrip
 
 
 
@@ -1590,21 +1600,63 @@ defns Jrefine :: '' ::=
   {{ tex [[RS]] ; [[Delta]] \vdash [[rpf]] \Leftarrow [[ce]] @ [[ce']] \dashv [[Delta']] \leadsto [[Ct]] }} by
 
     RS ; Delta |- lpf l<== ce1 == ce2 -| Delta' ~~> Ct
-    ---------------------------------------------------------------- :: makeret
-    RS ; Delta |- make-ret lpf r<== return ce1 @ ce2 -| Delta' ~~> Ct
+    ---------------------------------------------------------------- :: return
+    RS ; Delta |- return lpf r<== return ce1 @ ce2 -| Delta' ~~> Ct
 
-    RS ; Delta |- [ eff ] crt r<== x : tau [ spec ] , ce1 @ x [ res ] , ce2 @ ce3 [ res ] , pfnil -| Delta' ~~> Ct
-    ---------------------------------------------------------------- :: maketake
-    RS ; Delta |- make-take crt r<== take x = ce1 ; ce2 @ ce3 -| Delta' ~~> Ct
+    G = erase Delta1
+    RS ; Delta1 |- rpf1 r==> ce1 @ ce -| Delta2 ~~> Ct1
+    RS ; Delta2 |- rpf2 r<== app_s id G , ce / x ce2 @ ce3 -| Delta3 ~~> Ct2
+    ---------------------------------------------------------------- :: take
+    RS ; Delta1 |- take ( rpf1 , rpf2 ) r<== take x = ce1 ; ce2 @ ce3 -| Delta3 ~~> Ct1 cand Ct2
 
-    CS = comp RS    f : tau -> tau' [ eff ] = ce'' in CS    eff <= spec
+    RS ; Delta |- lpf l<== false -| Delta' ~~> Ct
+    Delta'' = affinize Delta'
+    ---------------------------------------------------------------- :: fail
+    RS ; Delta |- fail [ lpf ] r<== fail @ ce -| Delta'' ~~> Ct
+
+    CS = comp RS    G = erase Delta0    CS ; G |- [ spec ] ce1 ==> tau
+    RS ; Delta0 |- [ spec ] cpat : tau -| Delta1 ~~> ce
+    RS ; Delta1 |- lpat : ce == ce1 -| Delta2 ~~> Ct1
+    RS ; Delta2 |- rpf r<== app_s id G , ( ce : tau ) / x ce2 @ ce3 -| Delta3 , Delta'' ~~> Ct2
+    len Delta0 = len Delta3
+    zero Delta''
+    Ct = close Delta'' ( Ct1 cand Ct2 )
+    ---------------------------------------------------------------- :: let
+    RS ; Delta0 |- let [ lpat ] cpat ; rpf r<== let x = ce1 ; ce2 @ ce3 -| Delta3 ~~> Ct
+
+    CS = comp RS    G = erase Delta0
+    CS ; G |- [ spec ] ce ==> D ( tau1 , .. , taui )
+    L : tau rawctor D in CS
+    ce'' = case_branch L x ce'''
+    RS ; Delta0 |- [ spec ] cpat : tau -| Delta1 ~~> ce0
+    RS ; Delta1 |- lpat : ( L ce0 ) == ce -| Delta2 ~~> Ct1
+    RS ; Delta2 |- rpf r<== app_s id G , ( ce0 : tau ) / x ce'' @ ce' -| Delta3 , Delta'' ~~> Ct2
+    len Delta0 = len Delta3
+    zero Delta''
+    Ct = close Delta'' ( Ct1 cand Ct2 )
+    ---------------------------------------------------------------- :: case
+    RS ; Delta0 |- case [ lpat ] L cpat ; rpf r<== ce''' @ ce' -| Delta3 ~~> ( is ce L ) cand Ct
+
+    RS ; Delta |- rpf r<== ce2 @ ce4 -| Delta' ~~> Ct
+    ---------------------------------------------------------------- :: iftrue
+    RS ; Delta |- iftrue ; rpf r<== if ce1 then ce2 else ce3 @ ce4 -| Delta' ~~> ( Ct_ce ce1 ) cand Ct
+
+    RS ; Delta |- rpf r<== ce3 @ ce4 -| Delta' ~~> Ct
+    ---------------------------------------------------------------- :: iffalse
+    RS ; Delta |- iffalse ; rpf r<== if ce1 then ce2 else ce3 @ ce4 -| Delta' ~~> ( Ct_ce ( Not ce1 ) ) cand Ct
+
+    CS = comp RS    f : tau -> tau' [ eff ] = ce0 in CS    eff <= spec
     G = erase Delta    CS ; G |- [ spec ] ce <== tau
-    RS ; Delta |- rpf r<== app_s id G , ( ce : tau ) / x ce'' @ ce' -| Delta' ~~> Ct
+    RS ; Delta |- rpf r<== app_s id G , ( ce : tau ) / x ce0 @ ce' -| Delta' ~~> Ct
     ---------------------------------------------------------------- :: unfold
-    RS ; Delta |- unfold rpf r<== f ce @ ce' -| Delta' ~~> Ct
+    RS ; Delta |- unfold ; rpf r<== f ce @ ce' -| Delta' ~~> Ct
+
+    RS ; Delta |- rpf r<== ce @ ce' -| Delta' ~~> Ct
+    ---------------------------------------------------------------- :: annot
+    RS ; Delta |- annot ; rpf r<== ( ce : tau ) @ ce' -| Delta' ~~> Ct
 
     RS ; Delta |- rpf r==> ce1 @ ce1' -| Delta' ~~> Ct
-    ---------------------------------------------------------------------- :: sub
+    ---------------------------------------------------------------- :: sub
     RS ; Delta |- rpf r<== ce2 @ ce2' -| Delta' ~~> ( Ct cand Ct_ce ( ce1 == ce2 ) ) cand Ct_ce ( ce1' == ce2' )
 
 
@@ -1661,86 +1713,128 @@ defns Jrefine :: '' ::=
 
 
 % -----------------------------------------------------------------------------
-% Refined pattern matching
+% Core pattern matching
 % -----------------------------------------------------------------------------
 
-  defn RS ; Delta |- [ eff ] q : Pf -| Delta' ~~> Ct :: :: rpat_match :: 'RPM_'
-  {{ tex [[RS]] ; [[Delta]] \vdash_{[[eff]]} [[q]] : [[Pf]] \dashv [[Delta']] \leadsto [[Ct]] }} by
+  defn RS ; Delta |- [ eff ] cpat : tau -| Delta' ~~> ce :: :: cpat_match :: 'CPM_'
+  {{ tex [[RS]] ; [[Delta]] \vdash_{[[eff]]} [[cpat]] : [[tau]] \dashv [[Delta']] \leadsto [[ce]] }} by
 
-    ---------------------------------------- :: empty
-    RS ; Delta |- [ eff ] rpempty : pfnil -| Delta ~~> Top
+    eff' = purify eff
+    -------------------------------------------------------- :: var
+    RS ; Delta |- [ eff ] x : tau -| Delta , x : tau [ eff' ] ~~> x
 
-    G = erase Delta
-    RS ; Delta , x : tau [ eff' ] |- [ eff ] q : app_s id G , x / y Pf -| Delta' ~~> Ct
-    --------------------------------------------------------------------------- :: comp
-    RS ; Delta |- [ eff ] ( x , q ) : y : tau [ eff' ] , Pf -| Delta' ~~> Ct
+    eff' = purify eff
+    -------------------------------------------------------- :: tuple
+    RS ; Delta |- [ eff ] ( x1 , .. , xn ) : ( tau1 , .. , taun ) -| Delta , x1 : tau1 [ eff' ] , .. , xn : taun [ eff' ] ~~> ( x1 , .. , xn )
 
-    %% Tuple cpat: (cpat1,...,cpatn) matching y:(tau1,...,taun)[eff'] is
-    %% desugared to individual cpat matches by expanding both the pattern
-    %% and the proof sort binding, then applying the comp rule to each component.
 
-    RS ; Delta , x : ce [ log ] |- [ eff ] q : Pf -| Delta' ~~> Ct
-    ----------------------------------------------------------------- :: log
-    RS ; Delta |- [ eff ] ( log x , q ) : ce [ log ] , Pf -| Delta' ~~> Ct
+% -----------------------------------------------------------------------------
+% Logical pattern matching
+% -----------------------------------------------------------------------------
 
-    RS ; Delta |- [ eff ] q : Pf -| Delta' ~~> Ct
-    ----------------------------------------------------------------- :: auto
-    RS ; Delta |- [ eff ] ( log auto , q ) : ce [ log ] , Pf -| Delta' ~~> Ct_ce ce cand Ct
+  defn RS ; Delta |- lpat : ce -| Delta' ~~> Ct :: :: lpat_match :: 'LPM_'
+  {{ tex [[RS]] ; [[Delta]] \vdash [[lpat]] : [[ce]] \dashv [[Delta']] \leadsto [[Ct]] }} by
 
-    CS = comp RS    G = erase Delta    CS ; G |- [ spec ] ce ==> pred tau
-    RS ; Delta |- [ eff ] ( cpat , ( res rpat , q ) ) : x : tau [ spec ] , ce @ x [ res ] , Pf -| Delta' ~~> Ct
-    --------------------------------------------------------------------------------------------- :: depres
-    RS ; Delta |- [ eff ] ( do cpat = rpat , q ) : ( y ) . ce [ res ] , Pf -| Delta' ~~> Ct
+    -------------------------------------------------------- :: var
+    RS ; Delta |- x : ce -| Delta , x : ce [ log ] ~~> Top
 
-    RS ; Delta , x : ce @ ce' [ res ( avail ) ] |- [ eff ] q : Pf -| Delta' ~~> Ct
-    ---------------------------------------------------------------------------- :: res
-    RS ; Delta |- [ eff ] ( res x , q ) : ce @ ce' [ res ] , Pf -| Delta' ~~> Ct
+    -------------------------------------------------------- :: auto
+    RS ; Delta |- auto : ce -| Delta ~~> Ct_ce ce
 
-    RS ; Delta |- [ eff ] ( log lpat , q ) : ce == ce' [ log ] , Pf -| Delta' ~~> Ct
-    ---------------------------------------------------------------------------- :: return
-    RS ; Delta |- [ eff ] ( res return lpat , q ) : return ce @ ce' [ res ] , Pf -| Delta' ~~> Ct
 
-    CS = comp RS    G = erase Delta    CS ; G |- [ spec ] ce1 ==> pred tau
-    RS ; Delta |- [ eff ] ( cpat , ( res rpat1 , ( res rpat2 , q ) ) ) : x : tau [ spec ] , ce1 @ x [ res ] , ce2 @ ce' [ res ] , Pf -| Delta' ~~> Ct
-    ----------------------------------------------------------------------------- :: take
-    RS ; Delta |- [ eff ] ( res take ( cpat , rpat1 ) ; rpat2 , q ) : take x = ce1 ; ce2 @ ce' [ res ] , Pf -| Delta' ~~> Ct
+% -----------------------------------------------------------------------------
+% Resource pattern matching
+% -----------------------------------------------------------------------------
 
-    RS ; Delta |- [ eff ] ( log lpat , q ) : false [ log ] , Pf -| Delta' ~~> Ct
-    ---------------------------------------------------------------------------- :: fail
-    RS ; Delta |- [ eff ] ( res fail [ lpat ] , q ) : fail @ ce [ res ] , Pf -| Delta' ~~> Bot
+  defn RS ; Delta |- [ eff ] rpat : ce @ ce' -| Delta' ~~> Ct :: :: rpat_match :: 'RPM_'
+  {{ tex [[RS]] ; [[Delta]] \vdash_{[[eff]]} [[rpat]] : [[ce]] @ [[ce']] \dashv [[Delta']] \leadsto [[Ct]] }} by
 
-    CS = comp RS    G = erase Delta    CS ; G |- [ spec ] ce1 ==> tau
-    RS ; Delta |- [ eff ] ( cpat , ( log lpat , ( res rpat , q ) ) ) : x : tau [ spec ] , x == ce1 [ log ] , ce2 @ ce' [ res ] , Pf -| Delta' ~~> Ct
-    ----------------------------------------------------------------------------- :: rlet
-    RS ; Delta |- [ eff ] ( res let [ lpat ] cpat ; rpat , q ) : let x = ce1 ; ce2 @ ce' [ res ] , Pf -| Delta' ~~> Ct
+    -------------------------------------------------------- :: var
+    RS ; Delta |- [ eff ] x : ce @ ce' -| Delta , x : ce @ ce' [ res ( avail ) ] ~~> Top
 
-    RS ; Delta |- [ eff ] ( res rpat , q ) : ce1 @ ce' [ res ] , Pf -| Delta' ~~> Ct
-    ----------------------------------------------------------------------------- :: iftrue
-    RS ; Delta |- [ eff ] ( res iftrue ; rpat , q ) : if ce then ce1 else ce2 @ ce' [ res ] , Pf -| Delta' ~~> Ct_ce ce cand Ct
+    RS ; Delta |- lpat : ce == ce' -| Delta' ~~> Ct
+    -------------------------------------------------------- :: return
+    RS ; Delta |- [ eff ] return lpat : return ce @ ce' -| Delta' ~~> Ct
 
-    RS ; Delta |- [ eff ] ( res rpat , q ) : ce2 @ ce' [ res ] , Pf -| Delta' ~~> Ct
-    ----------------------------------------------------------------------------- :: iffalse
-    RS ; Delta |- [ eff ] ( res iffalse ; rpat , q ) : if ce then ce1 else ce2 @ ce' [ res ] , Pf -| Delta' ~~> Ct_ce ( Not ce ) cand Ct
+    CS = comp RS    G = erase Delta0    CS ; G |- [ spec ] ce1 ==> pred tau
+    RS ; Delta0 |- [ spec ] cpat : tau -| Delta1 ~~> ce
+    RS ; Delta1 |- [ eff ] rpat1 : ce1 @ ce -| Delta2 ~~> Ct1
+    RS ; Delta2 |- [ eff ] rpat2 : app_s id G , ce / x ce2 @ ce' -| Delta3 ~~> Ct2
+    -------------------------------------------------------- :: take
+    RS ; Delta0 |- [ eff ] take ( cpat , rpat1 ) ; rpat2 : take x = ce1 ; ce2 @ ce' -| Delta3 ~~> Ct1 cand Ct2
 
-    %% Case pattern: case L(cpat); lpat; rpat matches ce_case@ce'[res]
-    %% where ce_case is a case expression on ce with constructor L.
-    %% ce'' = branch body for L with variable x.  Constraint: is(ce, L) /\ C.
-    CS = comp RS    G = erase Delta    eff' = purify eff
+    RS ; Delta |- lpat : false -| Delta' ~~> Ct
+    -------------------------------------------------------- :: fail
+    RS ; Delta |- [ eff ] fail [ lpat ] : fail @ ce -| Delta' ~~> Ct
+
+    CS = comp RS    G = erase Delta0    CS ; G |- [ spec ] ce1 ==> tau
+    RS ; Delta0 |- [ spec ] cpat : tau -| Delta1 ~~> ce
+    RS ; Delta1 |- lpat : ce == ce1 -| Delta2 ~~> Ct1
+    RS ; Delta2 |- [ eff ] rpat : app_s id G , ( ce : tau ) / x ce2 @ ce3 -| Delta3 ~~> Ct2
+    -------------------------------------------------------- :: let
+    RS ; Delta0 |- [ eff ] let [ lpat ] cpat ; rpat : let x = ce1 ; ce2 @ ce3 -| Delta3 ~~> Ct1 cand Ct2
+
+    RS ; Delta |- [ eff ] rpat : ce1 @ ce' -| Delta' ~~> Ct
+    -------------------------------------------------------- :: iftrue
+    RS ; Delta |- [ eff ] iftrue ; rpat : if ce then ce1 else ce2 @ ce' -| Delta' ~~> ( Ct_ce ce ) cand Ct
+
+    RS ; Delta |- [ eff ] rpat : ce2 @ ce' -| Delta' ~~> Ct
+    -------------------------------------------------------- :: iffalse
+    RS ; Delta |- [ eff ] iffalse ; rpat : if ce then ce1 else ce2 @ ce' -| Delta' ~~> ( Ct_ce ( Not ce ) ) cand Ct
+
+    CS = comp RS    G = erase Delta0    eff' = purify eff
     CS ; G |- [ eff' ] ce ==> D ( tau1 , .. , taui )
     L : tau rawctor D in CS
     ce'' = case_branch L x ce'''
-    RS ; Delta |- [ eff ] ( cpat , ( log lpat , ( res rpat , q ) ) ) : x : tau [ spec ] , ( L x ) == ce [ log ] , ce'' @ ce' [ res ] , Pf -| Delta' ~~> Ct
-    ----------------------------------------------------------------------------- :: case
-    RS ; Delta |- [ eff ] ( res case L ( cpat ) ; lpat ; rpat , q ) : ce''' @ ce' [ res ] , Pf -| Delta' ~~> is ce L cand Ct
+    RS ; Delta0 |- [ spec ] cpat : tau -| Delta1 ~~> ce0
+    RS ; Delta1 |- lpat : ( L ce0 ) == ce -| Delta2 ~~> Ct1
+    RS ; Delta2 |- [ eff ] rpat : app_s id G , ( ce0 : tau ) / x ce'' @ ce' -| Delta3 ~~> Ct2
+    -------------------------------------------------------- :: case
+    RS ; Delta0 |- [ eff ] case [ lpat ] L cpat ; rpat : ce''' @ ce' -| Delta3 ~~> ( is ce L ) cand Ct1 cand Ct2
 
-    f : tau -> tau' [ eff' ] = ce0 in RS
-    RS ; Delta |- [ eff ] ( res rpat , q ) : ( app_s nosub , ce / x ce0 ) @ ce' [ res ] , Pf -| Delta' ~~> Ct
-    ----------------------------------------------------------------------------- :: unfold
-    RS ; Delta |- [ eff ] ( res unfold ; rpat , q ) : f ce @ ce' [ res ] , Pf -| Delta' ~~> Ct
+    CS = comp RS    f : tau -> tau' [ eff' ] = ce0 in CS    eff' <= spec
+    G = erase Delta    CS ; G |- [ spec ] ce <== tau
+    RS ; Delta |- [ eff ] rpat : app_s id G , ( ce : tau ) / x ce0 @ ce' -| Delta' ~~> Ct
+    -------------------------------------------------------- :: unfold
+    RS ; Delta |- [ eff ] unfold ; rpat : f ce @ ce' -| Delta' ~~> Ct
 
-    RS ; Delta |- [ eff ] ( res rpat , q ) : ce @ ce' [ res ] , Pf -| Delta' ~~> Ct
-    ----------------------------------------------------------------------------- :: annot
-    RS ; Delta |- [ eff ] ( res annot ; rpat , q ) : ( ce : tau ) @ ce' [ res ] , Pf -| Delta' ~~> Ct
+    RS ; Delta |- [ eff ] rpat : ce @ ce' -| Delta' ~~> Ct
+    -------------------------------------------------------- :: annot
+    RS ; Delta |- [ eff ] annot ; rpat : ( ce : tau ) @ ce' -| Delta' ~~> Ct
+
+
+% -----------------------------------------------------------------------------
+% Refined pattern matching
+% -----------------------------------------------------------------------------
+
+  defn RS ; Delta |- [ eff ] q : Pf -| Delta' ~~> Ct :: :: q_match :: 'QM_'
+  {{ tex [[RS]] ; [[Delta]] \vdash_{[[eff]]} [[q]] : [[Pf]] \dashv [[Delta']] \leadsto [[Ct]] }} by
+
+    -------------------------------------------------------- :: empty
+    RS ; Delta |- [ eff ] rpempty : pfnil -| Delta ~~> Top
+
+    G = erase Delta0
+    RS ; Delta0 |- [ eff' ] cpat : tau -| Delta1 ~~> ce
+    RS ; Delta1 |- [ eff ] q : app_s id G , ( ce : tau ) / x Pf -| Delta2 ~~> Ct
+    -------------------------------------------------------- :: comp_cpat
+    RS ; Delta0 |- [ eff ] ( cpat , q ) : x : tau [ eff' ] , Pf -| Delta2 ~~> Ct
+
+    RS ; Delta0 |- lpat : ce -| Delta1 ~~> Ct1
+    RS ; Delta1 |- [ eff ] q : Pf -| Delta2 ~~> Ct2
+    -------------------------------------------------------- :: comp_log
+    RS ; Delta0 |- [ eff ] ( log lpat , q ) : ce [ log ] , Pf -| Delta2 ~~> Ct1 cand Ct2
+
+    RS ; Delta0 |- [ eff ] rpat : ce @ ce' -| Delta1 ~~> Ct1
+    RS ; Delta1 |- [ eff ] q : Pf -| Delta2 ~~> Ct2
+    -------------------------------------------------------- :: comp_res
+    RS ; Delta0 |- [ eff ] ( res rpat , q ) : ce @ ce' [ res ] , Pf -| Delta2 ~~> Ct1 cand Ct2
+
+    CS = comp RS    G = erase Delta0    CS ; G |- [ spec ] ce ==> pred tau
+    RS ; Delta0 |- [ spec ] cpat : tau -| Delta1 ~~> ce'
+    RS ; Delta1 |- [ eff ] rpat : ce @ ce' -| Delta2 ~~> Ct1
+    RS ; Delta2 |- [ eff ] q : Pf -| Delta3 ~~> Ct2
+    -------------------------------------------------------- :: comp_depres
+    RS ; Delta0 |- [ eff ] ( res do cpat = rpat , q ) : ( y ) . ce [ res ] , Pf -| Delta3 ~~> Ct1 cand Ct2
 
 
 % -----------------------------------------------------------------------------
@@ -1798,9 +1892,8 @@ defns Jrefine :: '' ::=
   defn RS ; Delta |- [ eff ] crt r<== Pf -| Delta' ~~> Ct :: :: rcrt_check :: 'RCChk_'
   {{ tex [[RS]] ; [[Delta]] \vdash_{[[eff]]} [[crt]] \Leftarrow [[Pf]] \dashv [[Delta']] \leadsto [[Ct]] }} by
 
-    RS ; Delta0 |- [ eff ] crt1 r==> Pf' -| Delta1  ~~> Ct
-    eff' = purify eff
-    RS ; Delta1 |- [ eff' ] q : Pf' -| Delta2 ~~> Ct1
+    RS ; Delta0 |- [ eff ] crt1 r==> Pf' -| Delta1 ~~> Ct
+    RS ; Delta1 |- [ eff ] q : Pf' -| Delta2 ~~> Ct1
     RS ; Delta2 |- [ eff ] crt2 r<== Pf -| Delta3 , Delta4 ~~> Ct2
     len Delta1 = len Delta3
     zero Delta4
@@ -1808,30 +1901,34 @@ defns Jrefine :: '' ::=
     ----------------------------------------------------------------------------- :: let
     RS ; Delta0 |- [ eff ] let q = crt1 ; crt2 r<== Pf -| Delta3 ~~> Ct cand Ct'
 
-    RS ; Delta |- lpf l==> ce -| Delta1 ~~> Ct
-    RS ; Delta1 , x : ce [ log ] |- [ eff ] crt r<== Pf -| Delta2 , x : ce [ log ] ~~> Ct'
+    RS ; Delta0 |- lpf l==> ce -| Delta1 ~~> Ct
+    RS ; Delta1 |- lpat : ce -| Delta2 ~~> Ct1
+    RS ; Delta2 |- [ eff ] crt r<== Pf -| Delta3 , Delta4 ~~> Ct2
+    len Delta1 = len Delta3
+    zero Delta4
+    Ct' = close Delta4 ( Ct1 cand Ct2 )
     ----------------------------------------------------------------------------- :: letlog
-    RS ; Delta |- [ eff ] let log x = lpf ; crt r<== Pf -| Delta2 ~~> Ct cand ( ce cimp Ct' )
+    RS ; Delta0 |- [ eff ] let log lpat = lpf ; crt r<== Pf -| Delta3 ~~> Ct cand Ct'
 
-    RS ; Delta |- rpf r==> ce @ ce' -| Delta1 ~~> Ct
-    RS ; Delta1 , x : ce @ ce' [ res ( avail ) ] |- [ eff ] crt r<== Pf -| Delta2 , x : ce @ ce' [ res ( u ) ] ~~> Ct'
-    u in_zero
+    RS ; Delta0 |- rpf r==> ce @ ce' -| Delta1 ~~> Ct
+    RS ; Delta1 |- [ eff ] rpat : ce @ ce' -| Delta2 ~~> Ct1
+    RS ; Delta2 |- [ eff ] crt r<== Pf -| Delta3 , Delta4 ~~> Ct2
+    len Delta1 = len Delta3
+    zero Delta4
+    Ct' = close Delta4 ( Ct1 cand Ct2 )
     ----------------------------------------------------------------------------- :: letres
-    RS ; Delta |- [ eff ] let res x = rpf ; crt r<== Pf -| Delta2 ~~> Ct cand Ct'
+    RS ; Delta0 |- [ eff ] let res rpat = rpf ; crt r<== Pf -| Delta3 ~~> Ct cand Ct'
 
-    CS = comp RS    G = erase Delta    eff' = purify eff
+    CS = comp RS    G = erase Delta0    eff' = purify eff
     CS ; G |- [ eff' ] ce ==> tau
-    RS ; Delta , x : tau [ eff' ] , w : x == ce [ log ] |- [ eff ] crt r<== Pf -| Delta1 , x : tau [ eff' ] , w : x == ce [ log ] ~~> Ct
+    RS ; Delta0 |- [ eff' ] cpat : tau -| Delta1 ~~> ce'
+    RS ; Delta1 |- lpat : ce' == ce -| Delta2 ~~> Ct1
+    RS ; Delta2 |- [ eff ] crt r<== Pf -| Delta3 , Delta4 ~~> Ct2
+    len Delta0 = len Delta3
+    zero Delta4
+    Ct = close Delta4 ( Ct1 cand Ct2 )
     ----------------------------------------------------------------------------- :: letcore
-    RS ; Delta |- [ eff ] let core [ w ] x = ce ; crt r<== Pf -| Delta1 ~~> forall x : tau . ( x == ce ) cimp Ct
-
-    CS = comp RS    G = erase Delta    eff' = purify eff
-    CS ; G |- [ eff' ] ce ==> ( tau1 , .. , taun )
-    Delta' = x1 : tau1 [ eff' ] , .. , xn : taun [ eff' ] , w : ( x1 , .. , xn ) == ce [ log ]
-    RS ; Delta , Delta' |- [ eff ] crt r<== Pf -| Delta1 , Delta' ~~> Ct
-    Ct' = close Delta' Ct
-    ----------------------------------------------------------------------------- :: letcoretup
-    RS ; Delta |- [ eff ] let core [ w ] ( x1 , .. , xn ) = ce ; crt r<== Pf -| Delta1 ~~> Ct'
+    RS ; Delta0 |- [ eff ] let core [ lpat ] cpat = ce ; crt r<== Pf -| Delta3 ~~> Ct
 
     eff' = purify eff
     G = erase Delta    CS = comp RS    CS ; G |- [ eff' ] ce <== bool
