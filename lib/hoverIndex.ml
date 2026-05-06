@@ -171,11 +171,17 @@ and collect_rpf acc rpf =
   let acc = node_of_rinfo ri :: acc in
   match RefinedExpr.rpf_shape rpf with
   | RefinedExpr.RVar _ | RefinedExpr.RHole _ -> acc
-  | RefinedExpr.RMakeRet lpf -> collect_lpf acc lpf
-  | RefinedExpr.RMakeTake crt -> collect_crt acc crt
   | RefinedExpr.RAnnot (rpf', e1, e2) ->
     collect_rpf (collect_enriched ri (collect_enriched ri acc e1) e2) rpf'
+  | RefinedExpr.RReturn lpf -> collect_lpf acc lpf
+  | RefinedExpr.RTake (r1, r2) -> collect_rpf (collect_rpf acc r1) r2
+  | RefinedExpr.RFail lpf -> collect_lpf acc lpf
+  | RefinedExpr.RLet (_, _, rpf') -> collect_rpf acc rpf'
+  | RefinedExpr.RCase (_, _, _, rpf') -> collect_rpf acc rpf'
+  | RefinedExpr.RIfTrue rpf' -> collect_rpf acc rpf'
+  | RefinedExpr.RIfFalse rpf' -> collect_rpf acc rpf'
   | RefinedExpr.RUnfold rpf' -> collect_rpf acc rpf'
+  | RefinedExpr.RAnnotStrip rpf' -> collect_rpf acc rpf'
 
 and collect_spine acc spine =
   let ri = RefinedExpr.spine_info spine in

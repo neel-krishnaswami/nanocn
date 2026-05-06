@@ -606,67 +606,43 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (c
     let checked = RefinedExpr.mk_rpf rinfo (RefinedExpr.RAnnot (checked_rpf', ce1, ce2)) in
     return (checked, ce1, ce2, delta', ct)
 
-  | RefinedExpr.RMakeRet _ ->
+  | RefinedExpr.RReturn _
+  | RefinedExpr.RTake _
+  | RefinedExpr.RFail _
+  | RefinedExpr.RLet _
+  | RefinedExpr.RCase _
+  | RefinedExpr.RIfTrue _
+  | RefinedExpr.RIfFalse _
+  | RefinedExpr.RUnfold _
+  | RefinedExpr.RAnnotStrip _ ->
+    (* All check-only rpf forms are unsynthesizable; ascribe via [: pred @ value]. *)
+    let construct = match RefinedExpr.rpf_shape rpf with
+      | RefinedExpr.RReturn _ -> "return"
+      | RefinedExpr.RTake _ -> "take"
+      | RefinedExpr.RFail _ -> "fail"
+      | RefinedExpr.RLet _ -> "let"
+      | RefinedExpr.RCase _ -> "case"
+      | RefinedExpr.RIfTrue _ -> "iftrue"
+      | RefinedExpr.RIfFalse _ -> "iffalse"
+      | RefinedExpr.RUnfold _ -> "unfold;"
+      | RefinedExpr.RAnnotStrip _ -> "annot;"
+      | _ -> "rpf"
+    in
     let err = Error.cannot_synthesize ~loc:pos
-                ~construct:"make-ret (add a : pred @ value annotation)" in
+                ~construct:(construct ^ " (add a : pred @ value annotation)") in
     let placeholder_pred =
       CoreExpr.mk (mk_info bool_sort)
-        (CoreExpr.Hole "rpf-make-ret-unsynth-pred") in
+        (CoreExpr.Hole ("rpf-" ^ construct ^ "-unsynth-pred")) in
     let placeholder_value =
       CoreExpr.mk (mk_info bool_sort)
-        (CoreExpr.Hole "rpf-make-ret-unsynth-value") in
+        (CoreExpr.Hole ("rpf-" ^ construct ^ "-unsynth-value")) in
     let rinfo = mk_rinfo_err
       ~goal:(RProg.RpfGoal (placeholder_pred, placeholder_value))
       pos delta bool_sort Effect.Spec err in
-    let inner_rinfo = mk_rinfo
-      ~goal:(RProg.LpfGoal placeholder_pred) pos delta
-      bool_sort Effect.Spec in
-    let inner_lpf = RefinedExpr.mk_lpf inner_rinfo
-      (RefinedExpr.LHole "make-ret-unsynth") in
-    let checked =
-      RefinedExpr.mk_rpf rinfo (RefinedExpr.RMakeRet inner_lpf) in
-    return (checked, placeholder_pred, placeholder_value, delta,
-            Constraint.top pos)
-  | RefinedExpr.RMakeTake _ ->
-    let err = Error.cannot_synthesize ~loc:pos
-                ~construct:"make-take (add a : pred @ value annotation)" in
-    let placeholder_pred =
-      CoreExpr.mk (mk_info bool_sort)
-        (CoreExpr.Hole "rpf-make-take-unsynth-pred") in
-    let placeholder_value =
-      CoreExpr.mk (mk_info bool_sort)
-        (CoreExpr.Hole "rpf-make-take-unsynth-value") in
-    let rinfo = mk_rinfo_err
-      ~goal:(RProg.RpfGoal (placeholder_pred, placeholder_value))
-      pos delta bool_sort Effect.Spec err in
-    let inner_rinfo = mk_rinfo
-      ~goal:RProg.NoGoal pos delta bool_sort Effect.Spec in
-    let inner_crt = RefinedExpr.mk_crt inner_rinfo
-      (RefinedExpr.CHole "make-take-unsynth") in
-    let checked =
-      RefinedExpr.mk_rpf rinfo (RefinedExpr.RMakeTake inner_crt) in
-    return (checked, placeholder_pred, placeholder_value, delta,
-            Constraint.top pos)
-  | RefinedExpr.RUnfold _ ->
-    let err = Error.cannot_synthesize ~loc:pos
-                ~construct:"unfold (add a : f(ce) @ value annotation)" in
-    let placeholder_pred =
-      CoreExpr.mk (mk_info bool_sort)
-        (CoreExpr.Hole "rpf-unfold-unsynth-pred") in
-    let placeholder_value =
-      CoreExpr.mk (mk_info bool_sort)
-        (CoreExpr.Hole "rpf-unfold-unsynth-value") in
-    let rinfo = mk_rinfo_err
-      ~goal:(RProg.RpfGoal (placeholder_pred, placeholder_value))
-      pos delta bool_sort Effect.Spec err in
-    let inner_rinfo = mk_rinfo
-      ~goal:(RProg.RpfGoal (placeholder_pred, placeholder_value))
-      pos delta bool_sort Effect.Spec in
-    let inner_rpf = RefinedExpr.mk_rpf inner_rinfo
-      (RefinedExpr.RHole "unfold-unsynth") in
-    let checked =
-      RefinedExpr.mk_rpf rinfo (RefinedExpr.RUnfold inner_rpf) in
-    return (checked, placeholder_pred, placeholder_value, delta,
+    let placeholder =
+      RefinedExpr.mk_rpf rinfo
+        (RefinedExpr.RHole (construct ^ "-unsynth")) in
+    return (placeholder, placeholder_pred, placeholder_value, delta,
             Constraint.top pos)
   | RefinedExpr.RHole h ->
     let err = Error.cannot_synthesize ~loc:pos
@@ -690,34 +666,6 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
   let binfo = RefinedExpr.rpf_info rpf in
   let pos = binfo#loc in
   match RefinedExpr.rpf_shape rpf with
-  | RefinedExpr.RMakeRet lpf' ->
-    let* ce_a =
-      ElabM.lift_at pos
-        (CoreExprGet.get_return ~construct:"make-ret" (strip_annots ce1)) in
-    let* (checked_lpf', delta', ct) = check_lpf rs delta lpf' (mk_eq ce_a ce2) in
-    let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2)) pos delta bool_sort Effect.Spec in
-    let checked = RefinedExpr.mk_rpf rinfo (RefinedExpr.RMakeRet checked_lpf') in
-    return (checked, delta', ct)
-
-  | RefinedExpr.RMakeTake crt ->
-    let* (x, pred_expr, pred_body) =
-      ElabM.lift_at pos
-        (CoreExprGet.get_take ~construct:"make-take" (strip_annots ce1)) in
-    let pred_sort = (CoreExpr.sort_of_info (CoreExpr.info pred_expr)) in
-    let* inner_sort =
-      ElabM.lift_at pos
-        (SortGet.get_pred ~construct:"make-take bound expression" pred_sort) in
-    let pf = [
-      ProofSort.Comp { info = rinfo_dummy; var = x; sort = inner_sort; eff = Effect.Spec };
-      ProofSort.Res { info = rinfo_dummy; pred = pred_expr; value = ce_of_var x inner_sort };
-      ProofSort.Res { info = rinfo_dummy; pred = pred_body; value = ce2 };
-    ] in
-    let eff = Effect.Spec in
-    let* (checked_crt, delta', ct) = check_crt rs delta eff crt pf in
-    let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2)) pos delta bool_sort Effect.Spec in
-    let checked = RefinedExpr.mk_rpf rinfo (RefinedExpr.RMakeTake checked_crt) in
-    return (checked, delta', ct)
-
   | RefinedExpr.RHole h ->
     let delta' = RCtx.affinize delta in
     let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2)) pos delta (CoreExpr.sort_of_info (CoreExpr.info ce1)) Effect.Spec in
@@ -725,6 +673,11 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
     return (checked, delta', Constraint.top pos)
 
   | RefinedExpr.RUnfold rpf' ->
+    (* Old [unfold rpf] semantics, preserved for Phase A.
+       Phase E will rewrite this rule to match the new spec, where
+       [unfold ; rpf] strips a function-call predicate and recurses
+       on the body's substitution.  The body's logic is identical;
+       only the surface keyword shape changed. *)
     let* (f, ce_arg) =
       ElabM.lift_at pos
         (CoreExprGet.get_call ~construct:"unfold" (strip_annots ce1)) in
@@ -761,6 +714,39 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
       let checked =
         RefinedExpr.mk_rpf rinfo (RefinedExpr.RUnfold checked_rpf') in
       return (checked, delta', ct)
+
+  | RefinedExpr.RReturn _
+  | RefinedExpr.RTake _
+  | RefinedExpr.RFail _
+  | RefinedExpr.RLet _
+  | RefinedExpr.RCase _
+  | RefinedExpr.RIfTrue _
+  | RefinedExpr.RIfFalse _
+  | RefinedExpr.RAnnotStrip _ ->
+    (* Phase A stub: new check-only constructors are not yet implemented;
+       Phase E replaces these with full per-rule clauses.  Emit a hole with
+       a [cannot_synthesize] error attached so multi-error collection
+       continues. *)
+    let construct = match RefinedExpr.rpf_shape rpf with
+      | RefinedExpr.RReturn _ -> "return"
+      | RefinedExpr.RTake _ -> "take"
+      | RefinedExpr.RFail _ -> "fail"
+      | RefinedExpr.RLet _ -> "let"
+      | RefinedExpr.RCase _ -> "case"
+      | RefinedExpr.RIfTrue _ -> "iftrue"
+      | RefinedExpr.RIfFalse _ -> "iffalse"
+      | RefinedExpr.RAnnotStrip _ -> "annot;"
+      | _ -> "rpf"
+    in
+    let err = Error.cannot_synthesize ~loc:pos
+                ~construct:(construct ^ " (Phase A stub: not yet implemented)") in
+    let rinfo = mk_rinfo_err
+      ~goal:(RProg.RpfGoal (ce1, ce2))
+      pos delta bool_sort Effect.Spec err in
+    let checked = RefinedExpr.mk_rpf rinfo
+      (RefinedExpr.RHole (construct ^ "-stub")) in
+    let delta' = RCtx.affinize delta in
+    return (checked, delta', Constraint.top pos)
 
   | _ ->
     let* (checked_rpf, ce1_synth, ce2_synth, delta', ct) = synth_rpf rs delta rpf in
@@ -1924,13 +1910,26 @@ and collect_errors_rpf (rpf : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) Refi
     match RefinedExpr.rpf_shape rpf with
     | RefinedExpr.RVar _ -> []
     | RefinedExpr.RHole _ -> []
-    | RefinedExpr.RMakeRet lp -> collect_errors_lpf lp
-    | RefinedExpr.RMakeTake crt -> collect_errors_crt crt
     | RefinedExpr.RAnnot (rp, ce1, ce2) ->
       collect_errors_rpf rp
       @ Typecheck.collect_errors ce1
       @ Typecheck.collect_errors ce2
+    | RefinedExpr.RReturn lp -> collect_errors_lpf lp
+    | RefinedExpr.RTake (r1, r2) ->
+      collect_errors_rpf r1 @ collect_errors_rpf r2
+    | RefinedExpr.RFail lp -> collect_errors_lpf lp
+    | RefinedExpr.RLet (lp, cp, rp) ->
+      collect_errors_lpat lp
+      @ collect_errors_cpat cp
+      @ collect_errors_rpf rp
+    | RefinedExpr.RCase (lp, _, cp, rp) ->
+      collect_errors_lpat lp
+      @ collect_errors_cpat cp
+      @ collect_errors_rpf rp
+    | RefinedExpr.RIfTrue rp -> collect_errors_rpf rp
+    | RefinedExpr.RIfFalse rp -> collect_errors_rpf rp
     | RefinedExpr.RUnfold rp -> collect_errors_rpf rp
+    | RefinedExpr.RAnnotStrip rp -> collect_errors_rpf rp
   in
   here @ inner
 

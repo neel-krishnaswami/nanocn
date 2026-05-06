@@ -87,8 +87,6 @@ let rec token buf =
     (match Sedlexing.Utf8.lexeme buf with
      | "open-ret" -> Parser.OPEN_RET
      | "open-take" -> Parser.OPEN_TAKE
-     | "make-ret" -> Parser.MAKE_RET
-     | "make-take" -> Parser.MAKE_TAKE
      | s -> failwith (Format.asprintf "unexpected hyphenated identifier '%s' at %a" s SourcePos.print (pos_of_lexbuf buf)))
   | hole ->
     let s = Sedlexing.Utf8.lexeme buf in

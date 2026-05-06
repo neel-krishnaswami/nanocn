@@ -557,20 +557,43 @@ and resolve_rpf env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string) Ref
   | RefinedExpr.RVar name ->
     let* v = resolve_use b#loc env name in
     return (RefinedExpr.mk_rpf b (RefinedExpr.RVar v))
-  | RefinedExpr.RMakeRet lpf ->
-    let* lpf' = resolve_lpf env lpf in
-    return (RefinedExpr.mk_rpf b (RefinedExpr.RMakeRet lpf'))
-  | RefinedExpr.RMakeTake crt ->
-    let* crt' = resolve_crt env crt in
-    return (RefinedExpr.mk_rpf b (RefinedExpr.RMakeTake crt'))
   | RefinedExpr.RAnnot (rpf, ce1, ce2) ->
     let* rpf' = resolve_rpf env rpf in
     let* ce1' = resolve_expr env ce1 in
     let* ce2' = resolve_expr env ce2 in
     return (RefinedExpr.mk_rpf b (RefinedExpr.RAnnot (rpf', ce1', ce2')))
+  | RefinedExpr.RReturn lpf ->
+    let* lpf' = resolve_lpf env lpf in
+    return (RefinedExpr.mk_rpf b (RefinedExpr.RReturn lpf'))
+  | RefinedExpr.RTake (rpf1, rpf2) ->
+    let* rpf1' = resolve_rpf env rpf1 in
+    let* rpf2' = resolve_rpf env rpf2 in
+    return (RefinedExpr.mk_rpf b (RefinedExpr.RTake (rpf1', rpf2')))
+  | RefinedExpr.RFail lpf ->
+    let* lpf' = resolve_lpf env lpf in
+    return (RefinedExpr.mk_rpf b (RefinedExpr.RFail lpf'))
+  | RefinedExpr.RLet (lp, cp, rpf) ->
+    let* (cp', env_cp) = resolve_cpat env cp in
+    let* (lp', env_lp) = resolve_lpat env_cp lp in
+    let* rpf' = resolve_rpf env_lp rpf in
+    return (RefinedExpr.mk_rpf b (RefinedExpr.RLet (lp', cp', rpf')))
+  | RefinedExpr.RCase (lp, label, cp, rpf) ->
+    let* (cp', env_cp) = resolve_cpat env cp in
+    let* (lp', env_lp) = resolve_lpat env_cp lp in
+    let* rpf' = resolve_rpf env_lp rpf in
+    return (RefinedExpr.mk_rpf b (RefinedExpr.RCase (lp', label, cp', rpf')))
+  | RefinedExpr.RIfTrue rpf ->
+    let* rpf' = resolve_rpf env rpf in
+    return (RefinedExpr.mk_rpf b (RefinedExpr.RIfTrue rpf'))
+  | RefinedExpr.RIfFalse rpf ->
+    let* rpf' = resolve_rpf env rpf in
+    return (RefinedExpr.mk_rpf b (RefinedExpr.RIfFalse rpf'))
   | RefinedExpr.RUnfold rpf ->
     let* rpf' = resolve_rpf env rpf in
     return (RefinedExpr.mk_rpf b (RefinedExpr.RUnfold rpf'))
+  | RefinedExpr.RAnnotStrip rpf ->
+    let* rpf' = resolve_rpf env rpf in
+    return (RefinedExpr.mk_rpf b (RefinedExpr.RAnnotStrip rpf'))
   | RefinedExpr.RHole h ->
     return (RefinedExpr.mk_rpf b (RefinedExpr.RHole h))
 

@@ -48,7 +48,7 @@
 %token LBRACKET RBRACKET LPAREN RPAREN LBRACE RBRACE
 %token LESS LESSEQ GREATER GREATEREQ
 %token COMMA SEMICOLON EQUAL COLON ARROW BAR
-%token EXFALSO AUTO UNFOLD OPEN_RET OPEN_TAKE MAKE_RET MAKE_TAKE LOG RES FORALL AT CORE
+%token EXFALSO AUTO UNFOLD OPEN_RET OPEN_TAKE LOG RES FORALL AT CORE
 %token IFTRUE IFFALSE ANNOT
 %token EOF
 
@@ -611,13 +611,31 @@ rpf_expr:
 rpf_atom_expr:
   | x = ident_var
     { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RVar x) }
-  | MAKE_RET; LPAREN; l = lpf_expr; RPAREN
-    { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RMakeRet l) }
-  | MAKE_TAKE; LPAREN; e = crt_expr; RPAREN
-    { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RMakeTake e) }
-  | UNFOLD; r = rpf_atom_expr
+  | RETURN; l = rpf_atom_expr_inner_lpf
+    { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RReturn l) }
+  | TAKE; LPAREN; r1 = rpf_expr; COMMA; r2 = rpf_expr; RPAREN
+    { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RTake (r1, r2)) }
+  | FAIL; LBRACKET; l = lpf_expr; RBRACKET
+    { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RFail l) }
+  | LET; LBRACKET; lp = lpat_inner; RBRACKET; cp = cpat_inner; SEMICOLON; r = rpf_atom_expr
+    { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RLet (lp, cp, r)) }
+  | CASE; LBRACKET; lp = lpat_inner; RBRACKET; lab = LABEL; cp = cpat_inner; SEMICOLON; r = rpf_atom_expr
+    { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RCase (lp, label lab, cp, r)) }
+  | IFTRUE; SEMICOLON; r = rpf_atom_expr
+    { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RIfTrue r) }
+  | IFFALSE; SEMICOLON; r = rpf_atom_expr
+    { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RIfFalse r) }
+  | UNFOLD; SEMICOLON; r = rpf_atom_expr
     { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RUnfold r) }
+  | ANNOT; SEMICOLON; r = rpf_atom_expr
+    { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RAnnotStrip r) }
   | LPAREN; r = rpf_expr; RPAREN
     { r }
   | h = HOLE
     { RefinedExpr.mk_rpf (loc_obj $startpos $endpos) (RefinedExpr.RHole h) }
+
+(* [return] takes a single lpf as argument; allow either parenthesized
+   or bare lpf-atom forms so [return auto] parses cleanly. *)
+rpf_atom_expr_inner_lpf:
+  | LPAREN; l = lpf_expr; RPAREN { l }
+  | l = lpf_atom_expr { l }

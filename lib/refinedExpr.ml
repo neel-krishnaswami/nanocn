@@ -24,12 +24,18 @@ type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) lpfF =
   | LAnnot of 'lpf * 'e
   | LHole of string
 
-type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) rpfF =
+type ('crt, 'lpf, 'rpf, 'spine, 'e, 'b, 'var) rpfF =
   | RVar of 'var
-  | RMakeRet of 'lpf
-  | RMakeTake of 'crt
   | RAnnot of 'rpf * 'e * 'e
+  | RReturn of 'lpf
+  | RTake of 'rpf * 'rpf
+  | RFail of 'lpf
+  | RLet of ('b, 'var) RPat.lpat * ('b, 'var) RPat.cpat * 'rpf
+  | RCase of ('b, 'var) RPat.lpat * Label.t * ('b, 'var) RPat.cpat * 'rpf
+  | RIfTrue of 'rpf
+  | RIfFalse of 'rpf
   | RUnfold of 'rpf
+  | RAnnotStrip of 'rpf
   | RHole of string
 
 type ('crt, 'lpf, 'rpf, 'spine, 'e) spineF =
@@ -81,10 +87,23 @@ let map_lpfF m = function
 
 let map_rpfF m = function
   | RVar x -> RVar (m.var x)
-  | RMakeRet l -> RMakeRet (m.lpf l)
-  | RMakeTake c -> RMakeTake (m.crt c)
   | RAnnot (r, e1, e2) -> RAnnot (m.rpf r, m.expr e1, m.expr e2)
+  | RReturn l -> RReturn (m.lpf l)
+  | RTake (r1, r2) -> RTake (m.rpf r1, m.rpf r2)
+  | RFail l -> RFail (m.lpf l)
+  | RLet (lp, cp, r) ->
+    RLet (RPat.map_info_lpat m.info (RPat.map_var_lpat m.var lp),
+          RPat.map_info_cpat m.info (RPat.map_var_cpat m.var cp),
+          m.rpf r)
+  | RCase (lp, label, cp, r) ->
+    RCase (RPat.map_info_lpat m.info (RPat.map_var_lpat m.var lp),
+           label,
+           RPat.map_info_cpat m.info (RPat.map_var_cpat m.var cp),
+           m.rpf r)
+  | RIfTrue r -> RIfTrue (m.rpf r)
+  | RIfFalse r -> RIfFalse (m.rpf r)
   | RUnfold r -> RUnfold (m.rpf r)
+  | RAnnotStrip r -> RAnnotStrip (m.rpf r)
   | RHole h -> RHole h
 
 let map_spineF m = function
@@ -97,7 +116,7 @@ let map_spineF m = function
 
 type ('e, 'b, 'var) crt = CIn of 'b * (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e, 'b, 'var) crtF
 and ('e, 'b, 'var) lpf = LIn of 'b * (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e, 'var) lpfF
-and ('e, 'b, 'var) rpf = RIn of 'b * (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e, 'var) rpfF
+and ('e, 'b, 'var) rpf = RIn of 'b * (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e, 'b, 'var) rpfF
 and ('e, 'b, 'var) spine = SIn of 'b * (('e, 'b, 'var) crt, ('e, 'b, 'var) lpf, ('e, 'b, 'var) rpf, ('e, 'b, 'var) spine, 'e) spineF
 
 let mk_crt b s = CIn (b, s)
@@ -214,14 +233,28 @@ and print_gen_lpf pp_var pp_e fmt t =
 and print_gen_rpf pp_var pp_e fmt t =
   match rpf_shape t with
   | RVar x -> pp_var fmt x
-  | RMakeRet lpf ->
-    Format.fprintf fmt "@[<hov 2>make-ret@ %a@]" (print_gen_lpf pp_var pp_e) lpf
-  | RMakeTake crt ->
-    Format.fprintf fmt "@[<hov 2>make-take@ %a@]" (print_gen_crt pp_var pp_e) crt
   | RAnnot (rpf, e1, e2) ->
     Format.fprintf fmt "@[<hov 2>%a :@ %a @@@ %a@]" (print_gen_rpf pp_var pp_e) rpf pp_e e1 pp_e e2
+  | RReturn lpf ->
+    Format.fprintf fmt "@[<hov 2>return@ %a@]" (print_gen_lpf pp_var pp_e) lpf
+  | RTake (r1, r2) ->
+    Format.fprintf fmt "@[<hov 2>take(%a,@ %a)@]" (print_gen_rpf pp_var pp_e) r1 (print_gen_rpf pp_var pp_e) r2
+  | RFail lpf ->
+    Format.fprintf fmt "@[<hov 2>fail[%a]@]" (print_gen_lpf pp_var pp_e) lpf
+  | RLet (lp, cp, rpf) ->
+    Format.fprintf fmt "@[<v>@[<hov 2>let[%a] %a;@]@ %a@]"
+      (RPat.print_lpat pp_var) lp (RPat.print_cpat pp_var) cp (print_gen_rpf pp_var pp_e) rpf
+  | RCase (lp, label, cp, rpf) ->
+    Format.fprintf fmt "@[<v>@[<hov 2>case[%a] %a %a;@]@ %a@]"
+      (RPat.print_lpat pp_var) lp Label.print label (RPat.print_cpat pp_var) cp (print_gen_rpf pp_var pp_e) rpf
+  | RIfTrue rpf ->
+    Format.fprintf fmt "@[<hov 2>iftrue;@ %a@]" (print_gen_rpf pp_var pp_e) rpf
+  | RIfFalse rpf ->
+    Format.fprintf fmt "@[<hov 2>iffalse;@ %a@]" (print_gen_rpf pp_var pp_e) rpf
   | RUnfold rpf ->
-    Format.fprintf fmt "@[<hov 2>unfold@ %a@]" (print_gen_rpf pp_var pp_e) rpf
+    Format.fprintf fmt "@[<hov 2>unfold;@ %a@]" (print_gen_rpf pp_var pp_e) rpf
+  | RAnnotStrip rpf ->
+    Format.fprintf fmt "@[<hov 2>annot;@ %a@]" (print_gen_rpf pp_var pp_e) rpf
   | RHole h -> Format.fprintf fmt "$%s" h
 
 and print_gen_spine pp_var pp_e fmt t =
