@@ -767,9 +767,15 @@ export default grammar({
 
     _rpf_atom: $ => choice(
       $.rpf_var,
-      $.rpf_make_ret,
-      $.rpf_make_take,
+      $.rpf_return,
+      $.rpf_take,
+      $.rpf_fail,
+      $.rpf_let,
+      $.rpf_case,
+      $.rpf_iftrue,
+      $.rpf_iffalse,
       $.rpf_unfold,
+      $.rpf_annot_strip,
       $.rpf_paren,
       $.hole_expr,
     ),
@@ -777,14 +783,38 @@ export default grammar({
     rpf_paren: $ => seq('(', field('inner', $.rpf_expr), ')'),
 
     rpf_var: $ => $.lower_ident,
-    rpf_make_ret: $ => seq(
-      'make-ret', '(', field('arg', $.lpf_expr), ')',
+    rpf_return: $ => seq(
+      'return', '(', field('lpf', $.lpf_expr), ')',
     ),
-    rpf_make_take: $ => seq(
-      'make-take', '(', field('arg', $._crt_expr), ')',
+    rpf_take: $ => seq(
+      'take', '(', field('rpf1', $.rpf_expr), ',',
+                   field('rpf2', $.rpf_expr), ')',
+    ),
+    rpf_fail: $ => seq(
+      'fail', '[', field('lpf', $.lpf_expr), ']',
+    ),
+    rpf_let: $ => seq(
+      'let', '[', field('lpat', $.lpat_inner), ']',
+      field('cpat', $.cpat_inner), ';',
+      field('body', $._rpf_atom),
+    ),
+    rpf_case: $ => seq(
+      'case', '[', field('lpat', $.lpat_inner), ']',
+      field('label', $.upper_label),
+      field('cpat', $.cpat_inner), ';',
+      field('body', $._rpf_atom),
+    ),
+    rpf_iftrue: $ => seq(
+      'iftrue', ';', field('body', $._rpf_atom),
+    ),
+    rpf_iffalse: $ => seq(
+      'iffalse', ';', field('body', $._rpf_atom),
     ),
     rpf_unfold: $ => seq(
-      'unfold', field('inner', $._rpf_atom),
+      'unfold', ';', field('body', $._rpf_atom),
+    ),
+    rpf_annot_strip: $ => seq(
+      'annot', ';', field('body', $._rpf_atom),
     ),
 
     // ======================================================================
