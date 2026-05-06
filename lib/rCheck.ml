@@ -37,6 +37,101 @@ let mk_info sort =
           method answer = Ok sort method eff = Effect.Spec
           method subterm_errors = [] end : CoreExpr.typed_info)
 
+(** {2 SortView / CoreExprView wrappers — local option→result helpers}
+
+    Lift [SortView.Get.*] / [CoreExprView.Get.*] from option-typed to
+    [(_, Error.kind) result] using the call-site's [construct] string
+    plus the appropriate [K_construct_sort_mismatch] /
+    [K_wrong_pred_shape] error kind.  Errors from the input result
+    propagate unchanged. *)
+let mismatch_sort_kind ~construct ~expected_shape s =
+  Error.K_construct_sort_mismatch
+    { construct; expected_shape; got = SortView.project s }
+
+let[@warning "-32"] view_get_pred_sort ~construct (sr : (Sort.sort, Error.kind) result)
+    : (Sort.sort, Error.kind) result =
+  match sr with
+  | Error _ as e -> e
+  | Ok s ->
+    Option.to_result
+      ~none:(mismatch_sort_kind ~construct ~expected_shape:"Pred _" s)
+      (SortView.Get.pred (Some s))
+
+let[@warning "-32"] view_get_record_sorts ~construct (n : int)
+    (sr : (Sort.sort, Error.kind) result)
+    : (Sort.sort, Error.kind) result list =
+  let sub_options = SortView.Get.record n (Result.to_option sr) in
+  let mismatch_for s =
+    mismatch_sort_kind ~construct ~expected_shape:"Record _" s in
+  List.mapi (fun _ opt ->
+    match sr, opt with
+    | Error e, _ -> Error e
+    | Ok s, None -> Error (mismatch_for s)
+    | Ok _, Some t -> Ok t)
+    sub_options
+
+let[@warning "-32"] view_get_app_sort ~construct (sr : (Sort.sort, Error.kind) result)
+    : (Dsort.t, Error.kind) result * (Sort.sort, Error.kind) result list =
+  match sr with
+  | Error e -> Error e, []
+  | Ok s ->
+    let (d_opt, ts_opt) = SortView.Get.app (Some s) in
+    let mismatch =
+      mismatch_sort_kind ~construct
+        ~expected_shape:"datasort/datatype application" s in
+    let d_result = Option.to_result ~none:mismatch d_opt in
+    let ts_result =
+      List.map (fun t_opt -> Option.to_result ~none:mismatch t_opt)
+        ts_opt in
+    (d_result, ts_result)
+
+let mismatch_ce_kind ~construct ~expected_shape ce =
+  Error.K_wrong_pred_shape
+    { construct; expected_shape;
+      got = Format.asprintf "%a" CoreExpr.print ce }
+
+(** [view_get_X ~construct ce] lifts [CoreExprView.Get.X] over
+    [Some ce] to a result-typed value, attaching a
+    [K_wrong_pred_shape] error if the shape doesn't match.  These
+    are the result-domain analogues of the option-typed primitives
+    in [CoreExprView]. *)
+let[@warning "-32"] view_get_return_ce ~construct (ce : CoreExpr.typed_ce)
+    : (CoreExpr.typed_ce, Error.kind) result =
+  Option.to_result
+    ~none:(mismatch_ce_kind ~construct ~expected_shape:"return _" ce)
+    (CoreExprView.Get.return (Some ce))
+
+let[@warning "-32"] view_get_take_ce ~construct (ce : CoreExpr.typed_ce)
+    : (Var.t * CoreExpr.typed_ce * CoreExpr.typed_ce, Error.kind) result =
+  Option.to_result
+    ~none:(mismatch_ce_kind ~construct ~expected_shape:"take _ = _; _" ce)
+    (CoreExprView.Get.take (Some ce))
+
+let[@warning "-32"] view_get_let_ce ~construct (ce : CoreExpr.typed_ce)
+    : (Var.t * CoreExpr.typed_ce * CoreExpr.typed_ce, Error.kind) result =
+  Option.to_result
+    ~none:(mismatch_ce_kind ~construct ~expected_shape:"let _ = _; _" ce)
+    (CoreExprView.Get.let_ (Some ce))
+
+let[@warning "-32"] view_get_if_ce ~construct (ce : CoreExpr.typed_ce)
+    : (CoreExpr.typed_ce * CoreExpr.typed_ce * CoreExpr.typed_ce,
+       Error.kind) result =
+  Option.to_result
+    ~none:(mismatch_ce_kind ~construct ~expected_shape:"if _ then _ else _" ce)
+    (CoreExprView.Get.if_ (Some ce))
+
+let[@warning "-32"] view_get_call_ce ~construct (ce : CoreExpr.typed_ce)
+    : (string * CoreExpr.typed_ce, Error.kind) result =
+  Option.to_result
+    ~none:(mismatch_ce_kind ~construct ~expected_shape:"f(_)" ce)
+    (CoreExprView.Get.call (Some ce))
+
+let[@warning "-32"] view_get_fail_ce ~construct (ce : CoreExpr.typed_ce)
+    : (unit, Error.kind) result =
+  Option.to_result
+    ~none:(mismatch_ce_kind ~construct ~expected_shape:"fail" ce)
+    (CoreExprView.Get.fail (Some ce))
+
 (* Elaborate a surface expression to typed core, synthesizing its
    sort.  Defers to surface elaboration; if the elaborator recorded
    any errors on the typed tree, fail-fast through ElabM with the
@@ -680,7 +775,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
        only the surface keyword shape changed. *)
     let* (f, ce_arg) =
       ElabM.lift_at pos
-        (CoreExprGet.get_call ~construct:"unfold" (strip_annots ce1)) in
+        (view_get_call_ce ~construct:"unfold" (strip_annots ce1)) in
     let cs = RSig.comp rs in
     let* (param, arg_sort, _ret_sort, eff, body) =
       ElabM.lift_at pos (Sig.lookup_fundef f cs) in

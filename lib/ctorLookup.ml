@@ -43,9 +43,15 @@ let lookup_all_observed sig_ sort_result observed =
   | Error e ->
     List.map (fun l -> (l, Error e)) observed_unique
   | Ok s ->
-    let view : (Sort.sort, Error.kind) result = Ok s in
-    let (d_result, args_results) =
-      SortView.Get.app ~construct:"case scrutinee" view in
+    let mismatch =
+      Error.K_construct_sort_mismatch
+        { construct = "case scrutinee";
+          expected_shape = "datasort/datatype application";
+          got = SortView.project s } in
+    let (d_opt, args_opts) = SortView.Get.app (Some s) in
+    let d_result = Option.to_result ~none:mismatch d_opt in
+    let args_results =
+      List.map (fun a -> Option.to_result ~none:mismatch a) args_opts in
     let declared : ((Label.t * Sort.sort) list, Error.kind) result =
       Result.bind d_result (fun d ->
         Result.bind (Util.result_list args_results) (fun args ->

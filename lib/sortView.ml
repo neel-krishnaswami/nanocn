@@ -1,104 +1,99 @@
-type 'a t = ('a, Error.kind) result
+type 'a t = 'a option
 
-(** Project an arbitrary ['info Sort.t] (where ['info] carries at least
-    [loc : SourcePos.t]) down to a [Sort.sort] so it can be embedded in
-    [K_construct_sort_mismatch]'s [got] field for error reporting. *)
 let project s =
   Sort.map (fun i -> (object method loc = i#loc end)) s
 
-let mismatch ~construct ~expected_shape s =
-  Error (Error.K_construct_sort_mismatch
-           { construct; expected_shape; got = project s })
-
-let propagate r = (Error r : 'a t)
-
 module Get = struct
-  let int ~construct = function
-    | Error _ as e -> e
-    | Ok s ->
+  let int = function
+    | None -> None
+    | Some s ->
       (match Sort.shape s with
-       | Sort.Int -> Ok ()
-       | _ -> mismatch ~construct ~expected_shape:"Int" s)
+       | Sort.Int -> Some ()
+       | _ -> None)
 
-  let bool ~construct = function
-    | Error _ as e -> e
-    | Ok s ->
+  let bool = function
+    | None -> None
+    | Some s ->
       (match Sort.shape s with
-       | Sort.Bool -> Ok ()
-       | _ -> mismatch ~construct ~expected_shape:"Bool" s)
+       | Sort.Bool -> Some ()
+       | _ -> None)
 
-  let ptr ~construct = function
-    | Error _ as e -> e
-    | Ok s ->
+  let ptr = function
+    | None -> None
+    | Some s ->
       (match Sort.shape s with
-       | Sort.Ptr inner -> Ok inner
-       | _ -> mismatch ~construct ~expected_shape:"Ptr _" s)
+       | Sort.Ptr inner -> Some inner
+       | _ -> None)
 
-  let pred ~construct = function
-    | Error _ as e -> e
-    | Ok s ->
+  let pred = function
+    | None -> None
+    | Some s ->
       (match Sort.shape s with
-       | Sort.Pred inner -> Ok inner
-       | _ -> mismatch ~construct ~expected_shape:"Pred _" s)
+       | Sort.Pred inner -> Some inner
+       | _ -> None)
 
-  let record ~construct n = function
-    | Error e -> List.init n (fun _ -> propagate e)
-    | Ok s ->
+  let record n = function
+    | None -> List.init n (fun _ -> None)
+    | Some s ->
       (match Sort.shape s with
        | Sort.Record ts when List.length ts = n ->
-         List.map (fun t -> Ok t) ts
+         List.map (fun t -> Some t) ts
        | _ ->
-         let err = mismatch ~construct ~expected_shape:"Record _" s in
-         List.init n (fun _ -> err))
+         List.init n (fun _ -> None))
 
-  let app ~construct = function
-    | Error e -> propagate e, []
-    | Ok s ->
+  let app = function
+    | None -> None, []
+    | Some s ->
       (match Sort.shape s with
-       | Sort.App (d, ts) -> Ok d, List.map (fun t -> Ok t) ts
-       | _ ->
-         let err = mismatch ~construct ~expected_shape:"datasort/datatype application" s in
-         err, [])
+       | Sort.App (d, ts) -> Some d, List.map (fun t -> Some t) ts
+       | _ -> None, [])
 
-  let tvar ~construct = function
-    | Error _ as e -> e
-    | Ok s ->
+  let tvar = function
+    | None -> None
+    | Some s ->
       (match Sort.shape s with
-       | Sort.TVar a -> Ok a
-       | _ -> mismatch ~construct ~expected_shape:"type variable" s)
+       | Sort.TVar a -> Some a
+       | _ -> None)
 end
 
 module Build = struct
   let int info = function
-    | Error _ as e -> e
-    | Ok () -> Ok (Sort.mk info Sort.Int)
+    | None -> None
+    | Some () -> Some (Sort.mk info Sort.Int)
 
   let bool info = function
-    | Error _ as e -> e
-    | Ok () -> Ok (Sort.mk info Sort.Bool)
+    | None -> None
+    | Some () -> Some (Sort.mk info Sort.Bool)
 
   let ptr info = function
-    | Error _ as e -> e
-    | Ok inner -> Ok (Sort.mk info (Sort.Ptr inner))
+    | None -> None
+    | Some inner -> Some (Sort.mk info (Sort.Ptr inner))
 
   let pred info = function
-    | Error _ as e -> e
-    | Ok inner -> Ok (Sort.mk info (Sort.Pred inner))
+    | None -> None
+    | Some inner -> Some (Sort.mk info (Sort.Pred inner))
+
+  let rec sequence_options = function
+    | [] -> Some []
+    | None :: _ -> None
+    | Some x :: rest ->
+      (match sequence_options rest with
+       | None -> None
+       | Some xs -> Some (x :: xs))
 
   let record info xs =
-    match Util.result_list xs with
-    | Error _ as e -> e
-    | Ok ts -> Ok (Sort.mk info (Sort.Record ts))
+    match sequence_options xs with
+    | None -> None
+    | Some ts -> Some (Sort.mk info (Sort.Record ts))
 
   let app info d xs =
-    match d, Util.result_list xs with
-    | Error _ as e, _ -> e
-    | _, (Error _ as e) -> e
-    | Ok d, Ok ts -> Ok (Sort.mk info (Sort.App (d, ts)))
+    match d, sequence_options xs with
+    | None, _ | _, None -> None
+    | Some d, Some ts -> Some (Sort.mk info (Sort.App (d, ts)))
 
   let tvar info = function
-    | Error _ as e -> e
-    | Ok a -> Ok (Sort.mk info (Sort.TVar a))
+    | None -> None
+    | Some a -> Some (Sort.mk info (Sort.TVar a))
 end
 
 module Test = struct
@@ -113,91 +108,89 @@ module Test = struct
 
   let test = [
     QCheck.Test.make
-      ~name:"SortView.Get.int: Ok Int -> Ok ()"
+      ~name:"SortView.Get.int: Some Int -> Some ()"
       ~count:1 QCheck.unit
       (fun () ->
-         match Get.int ~construct:"x" (Ok int_sort) with
-         | Ok () -> true
+         match Get.int (Some int_sort) with
+         | Some () -> true
          | _ -> false);
 
     QCheck.Test.make
-      ~name:"SortView.Get.int: Ok Bool -> Error"
+      ~name:"SortView.Get.int: Some Bool -> None"
       ~count:1 QCheck.unit
       (fun () ->
-         match Get.int ~construct:"x" (Ok bool_sort) with
-         | Error _ -> true
+         match Get.int (Some bool_sort) with
+         | None -> true
          | _ -> false);
 
     QCheck.Test.make
-      ~name:"SortView.Get.int: Error in -> Error out"
+      ~name:"SortView.Get.int: None in -> None out"
       ~count:1 QCheck.unit
       (fun () ->
-         let dummy = Error.K_unbound_var (fst (Var.mk "z" SourcePos.dummy Var.empty_supply)) in
-         match Get.int ~construct:"x" (Error dummy) with
-         | Error e when e = dummy -> true
+         match Get.int None with
+         | None -> true
          | _ -> false);
 
     QCheck.Test.make
       ~name:"SortView.Get.ptr: round-trip on Ptr _"
       ~count:1 QCheck.unit
       (fun () ->
-         match Get.ptr ~construct:"x" (Ok ptr_int) with
-         | Ok inner -> Sort.compare inner int_sort = 0
+         match Get.ptr (Some ptr_int) with
+         | Some inner -> Sort.compare inner int_sort = 0
          | _ -> false);
 
     QCheck.Test.make
       ~name:"SortView.Get.record: arity match"
       ~count:1 QCheck.unit
       (fun () ->
-         let xs = Get.record ~construct:"tuple" 2 (Ok pair_int) in
-         List.length xs = 2 && List.for_all Result.is_ok xs);
+         let xs = Get.record 2 (Some pair_int) in
+         List.length xs = 2 && List.for_all Option.is_some xs);
 
     QCheck.Test.make
-      ~name:"SortView.Get.record: arity mismatch yields list of n errors"
+      ~name:"SortView.Get.record: arity mismatch yields list of n Nones"
       ~count:1 QCheck.unit
       (fun () ->
-         let xs = Get.record ~construct:"tuple" 3 (Ok pair_int) in
-         List.length xs = 3 && List.for_all Result.is_error xs);
+         let xs = Get.record 3 (Some pair_int) in
+         List.length xs = 3 && List.for_all Option.is_none xs);
 
     QCheck.Test.make
-      ~name:"SortView.Get.record: wrong shape yields list of n errors"
+      ~name:"SortView.Get.record: wrong shape yields list of n Nones"
       ~count:1 QCheck.unit
       (fun () ->
-         let xs = Get.record ~construct:"tuple" 2 (Ok int_sort) in
-         List.length xs = 2 && List.for_all Result.is_error xs);
+         let xs = Get.record 2 (Some int_sort) in
+         List.length xs = 2 && List.for_all Option.is_none xs);
 
     QCheck.Test.make
       ~name:"SortView.Build.int: round-trip"
       ~count:1 QCheck.unit
       (fun () ->
-         match Build.int dummy_info (Ok ()) with
-         | Ok s -> Sort.compare s int_sort = 0
+         match Build.int dummy_info (Some ()) with
+         | Some s -> Sort.compare s int_sort = 0
          | _ -> false);
 
     QCheck.Test.make
-      ~name:"SortView.Build.record: round-trip on Ok inputs"
+      ~name:"SortView.Build.record: round-trip on Some inputs"
       ~count:1 QCheck.unit
       (fun () ->
-         match Build.record dummy_info [Ok int_sort; Ok int_sort] with
-         | Ok s -> Sort.compare s pair_int = 0
+         match Build.record dummy_info [Some int_sort; Some int_sort] with
+         | Some s -> Sort.compare s pair_int = 0
          | _ -> false);
 
     QCheck.Test.make
-      ~name:"SortView.Build.record: any Error input -> Error output"
+      ~name:"SortView.Build.record: any None input -> None output"
       ~count:1 QCheck.unit
       (fun () ->
-         let dummy = Error.K_unbound_var (fst (Var.mk "z" SourcePos.dummy Var.empty_supply)) in
-         match Build.record dummy_info [Ok int_sort; Error dummy] with
-         | Error _ -> true
+         match Build.record dummy_info [Some int_sort; None] with
+         | None -> true
          | _ -> false);
 
     QCheck.Test.make
-      ~name:"SortView round-trip: Get.pred then Build.pred = Ok original"
+      ~name:"SortView round-trip: Get.pred then Build.pred = Some original"
       ~count:1 QCheck.unit
       (fun () ->
-         let inner = Get.pred ~construct:"x" (Ok pred_int) in
+         let inner = Get.pred (Some pred_int) in
          match Build.pred dummy_info inner with
-         | Ok s -> Sort.compare s pred_int = 0
+         | Some s -> Sort.compare s pred_int = 0
          | _ -> false);
   ]
 end

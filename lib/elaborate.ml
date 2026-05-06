@@ -38,6 +38,54 @@ let lift_sort (s : Sort.sort) : typed_info Sort.t =
 
 let mk_sort pos s = Sort.mk (object method loc = pos end) s
 
+(** {2 SortView wrappers — local option→result helpers}
+
+    [SortView.Get.*] is option-typed; these wrappers lift the [option]
+    output to a [(_, Error.kind) result] using the construct-specific
+    [K_construct_sort_mismatch] error.  Errors from the input result
+    propagate unchanged.  Mirrors the call shape of the old
+    [SortView.Get.* ~construct:...]. *)
+let mismatch_kind ~construct ~expected_shape s =
+  Error.K_construct_sort_mismatch
+    { construct; expected_shape; got = SortView.project s }
+
+let view_get_pred ~construct (sr : (Sort.sort, Error.kind) result)
+    : (Sort.sort, Error.kind) result =
+  match sr with
+  | Error _ as e -> e
+  | Ok s ->
+    Option.to_result
+      ~none:(mismatch_kind ~construct ~expected_shape:"Pred _" s)
+      (SortView.Get.pred (Some s))
+
+let view_get_record ~construct (n : int)
+    (sr : (Sort.sort, Error.kind) result)
+    : (Sort.sort, Error.kind) result list =
+  let sub_options = SortView.Get.record n (Result.to_option sr) in
+  let mismatch_for s =
+    mismatch_kind ~construct ~expected_shape:"Record _" s in
+  List.mapi (fun _ opt ->
+    match sr, opt with
+    | Error e, _ -> Error e
+    | Ok s, None -> Error (mismatch_for s)
+    | Ok _, Some t -> Ok t)
+    sub_options
+
+let view_get_app ~construct (sr : (Sort.sort, Error.kind) result)
+    : (Dsort.t, Error.kind) result * (Sort.sort, Error.kind) result list =
+  match sr with
+  | Error e -> Error e, []
+  | Ok s ->
+    let (d_opt, ts_opt) = SortView.Get.app (Some s) in
+    let mismatch =
+      mismatch_kind ~construct
+        ~expected_shape:"datasort/datatype application" s in
+    let d_result = Option.to_result ~none:mismatch d_opt in
+    let ts_result =
+      List.map (fun t_opt -> Option.to_result ~none:mismatch t_opt)
+        ts_opt in
+    (d_result, ts_result)
+
 (* [invariant_at pos ~rule msg]: an "impossible-in-well-formed-code"
    check fired (e.g. a pattern-matrix shape that an earlier
    elaboration pass was meant to rule out).  Raises
@@ -504,7 +552,7 @@ and check sig_ ctx se sort eff0 =
   | SurfExpr.Return inner ->
     let eff_check = check_pred (Effect.sub Effect.Spec eff0)
       (Error.spec_context_required ~loc:pos ~construct:"return") in
-    let inner_expected = SortView.Get.pred ~construct:"return" sort in
+    let inner_expected = view_get_pred ~construct:"return" sort in
     let* ce = check sig_ ctx inner inner_expected eff0 in
     let answer = eff_check &&& Error.at ~loc:pos sort in
     ElabM.return (mk ctx pos answer eff0 (CoreExpr.Return ce))
@@ -512,20 +560,20 @@ and check sig_ ctx se sort eff0 =
   | SurfExpr.Fail ->
     let eff_check = check_pred (Effect.sub Effect.Spec eff0)
       (Error.spec_context_required ~loc:pos ~construct:"fail") in
-    let _ = SortView.Get.pred ~construct:"fail" sort in
+    let _ = view_get_pred ~construct:"fail" sort in
     let answer = eff_check &&& Error.at ~loc:pos sort in
     ElabM.return (mk ctx pos answer eff0 CoreExpr.Fail)
 
   | SurfExpr.Take (pat, se1, se2) ->
     let eff_check = check_pred (Effect.sub Effect.Spec eff0)
       (Error.spec_context_required ~loc:pos ~construct:"take") in
-    let _target_check = SortView.Get.pred ~construct:"take target" sort in
+    let _target_check = view_get_pred ~construct:"take target" sort in
     let* ce1 = synth sig_ ctx eff0 se1 in
     let ce1_answer = (CoreExpr.info ce1)#answer in
     let bound_kind =
       ce1_answer
       |> unsynth ~construct:"take scrutinee"
-      |> SortView.Get.pred ~construct:"take scrutinee"
+      |> view_get_pred ~construct:"take scrutinee"
     in
     let eff_b = Effect.purify eff0 in
     let* y = ElabM.fresh (Pat.info pat)#loc in
@@ -571,7 +619,7 @@ and check sig_ ctx se sort eff0 =
 
   | SurfExpr.Tuple ses ->
     let n = List.length ses in
-    let ts = SortView.Get.record ~construct:"tuple" n sort in
+    let ts = view_get_record ~construct:"tuple" n sort in
     let* ces =
       ElabM.sequence
         (List.map (fun (e, s_result) -> check sig_ ctx e s_result eff0)
@@ -583,7 +631,7 @@ and check sig_ ctx se sort eff0 =
   | SurfExpr.Inject (l, inner) ->
     let construct = Format.asprintf "constructor %a" Label.print l in
     let (d_result, args_results) =
-      SortView.Get.app ~construct sort in
+      view_get_app ~construct sort in
     let ctor_kind =
       Result.bind d_result (fun d ->
         Result.bind (Util.result_list args_results) (fun args ->
@@ -739,7 +787,7 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
      | Col_tuple n ->
        let column_sort = column_sort_of branches in
        let sub_sorts =
-         SortView.Get.record ~construct:"tuple pattern" n column_sort in
+         view_get_record ~construct:"tuple pattern" n column_sort in
        let positions =
          find_tup_subpat_positions branches n (Var.binding_site y) in
        let* fresh_zs = fresh_vars_with_positions sub_sorts positions in
@@ -825,7 +873,7 @@ and build_observed_branches sig_ ctx y scrs branches eff_b sort eff0
     | Error _ -> None
     | Ok _ ->
       let (d_result, _) =
-        SortView.Get.app ~construct:"case scrutinee" column_sort in
+        view_get_app ~construct:"case scrutinee" column_sort in
       Result.to_option d_result
   in
   let process_one (label, ctor_sort_result) =

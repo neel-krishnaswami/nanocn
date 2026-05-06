@@ -56,6 +56,7 @@ let qcheck_tests =
     Tvar.Test.test;
     Sort.Test.test;
     SortView.Test.test;
+    CoreExprView.Test.test;
     SortDiff.Test.test;
     SourceExcerpt.Test.test;
     PatWitness.Test.test;

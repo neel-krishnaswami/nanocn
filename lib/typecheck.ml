@@ -108,6 +108,55 @@ let prim_signature (p : Prim.t) =
 let unsynth ~construct r =
   Result.map_error (fun _ -> Error.K_cannot_synthesize { construct }) r
 
+(** {2 SortView wrappers — local option→result helpers}
+
+    [SortView.Get.*] is option-typed; these wrappers lift the [option]
+    output to a [(_, Error.kind) result] using the construct-specific
+    [K_construct_sort_mismatch] error.  Errors from the input result
+    propagate unchanged.  Mirrors the call shape of the old
+    [SortView.Get.* ~construct:...]. *)
+let mismatch_kind ~construct ~expected_shape s =
+  Error.K_construct_sort_mismatch
+    { construct; expected_shape; got = SortView.project s }
+
+let view_get_pred ~construct (sr : (Sort.sort, Error.kind) result)
+    : (Sort.sort, Error.kind) result =
+  match sr with
+  | Error _ as e -> e
+  | Ok s ->
+    Option.to_result
+      ~none:(mismatch_kind ~construct ~expected_shape:"Pred _" s)
+      (SortView.Get.pred (Some s))
+
+let view_get_record ~construct (n : int)
+    (sr : (Sort.sort, Error.kind) result)
+    : (Sort.sort, Error.kind) result list =
+  let sub_options = SortView.Get.record n (Result.to_option sr) in
+  let mismatch_for s =
+    mismatch_kind ~construct ~expected_shape:"Record _" s in
+  List.mapi (fun _ opt ->
+    match sr, opt with
+    | Error e, _ -> Error e
+    | Ok s, None -> Error (mismatch_for s)
+    | Ok _, Some t -> Ok t)
+    sub_options
+
+let view_get_app ~construct (sr : (Sort.sort, Error.kind) result)
+    : (Dsort.t, Error.kind) result * (Sort.sort, Error.kind) result list =
+  match sr with
+  | Error e -> Error e, []
+  | Ok s ->
+    let (d_opt, ts_opt) = SortView.Get.app (Some s) in
+    let mismatch =
+      mismatch_kind ~construct
+        ~expected_shape:"datasort/datatype application" s in
+    let d_result =
+      Option.to_result ~none:mismatch d_opt in
+    let ts_result =
+      List.map (fun t_opt -> Option.to_result ~none:mismatch t_opt)
+        ts_opt in
+    (d_result, ts_result)
+
 (** Outcome of pairing each given case branch with the declared
     constructor list — used by [merge_branches] / [check_case_branches]
     to detect missing, redundant, and unknown ctors.  Each error
@@ -179,7 +228,7 @@ let merge_branches ~loc sig_ branches scrutinee_kind =
     | Ok s ->
       let view : (Sort.sort, Error.kind) result = Ok s in
       let (d_result, _) =
-        SortView.Get.app ~construct:"case scrutinee" view in
+        view_get_app ~construct:"case scrutinee" view in
       Result.to_option d_result
   in
   let main =
@@ -359,7 +408,7 @@ and check sig_ ctx ce sort eff0 : typed_ce =
     let eff_check = check_pred (Effect.sub Effect.Spec eff0)
       (Error.spec_context_required ~loc:pos ~construct:"return") in
     let inner_expected =
-      SortView.Get.pred ~construct:"return" sort in
+      view_get_pred ~construct:"return" sort in
     let inner' = check sig_ ctx inner inner_expected eff0 in
     let answer =
       eff_check &&& Error.at ~loc:pos sort
@@ -369,20 +418,20 @@ and check sig_ ctx ce sort eff0 : typed_ce =
   | CoreExpr.Fail ->
     let eff_check = check_pred (Effect.sub Effect.Spec eff0)
       (Error.spec_context_required ~loc:pos ~construct:"fail") in
-    let _ = SortView.Get.pred ~construct:"fail" sort in
+    let _ = view_get_pred ~construct:"fail" sort in
     let answer = eff_check &&& Error.at ~loc:pos sort in
     mk ctx pos answer eff0 CoreExpr.Fail
 
   | CoreExpr.Take ((x, _), ce1, ce2) ->
     let eff_check = check_pred (Effect.sub Effect.Spec eff0)
       (Error.spec_context_required ~loc:pos ~construct:"take") in
-    let _target_check = SortView.Get.pred ~construct:"take target" sort in
+    let _target_check = view_get_pred ~construct:"take target" sort in
     let ce1' = synth sig_ ctx eff0 ce1 in
     let ce1_answer = (CoreExpr.info ce1')#answer in
     let bound_kind =
       ce1_answer
       |> unsynth ~construct:"take scrutinee"
-      |> SortView.Get.pred ~construct:"take scrutinee"
+      |> view_get_pred ~construct:"take scrutinee"
     in
     let bind_eff = Effect.purify eff0 in
     let ctx' = Context.extend_or_unknown x bound_kind bind_eff ctx in
@@ -410,7 +459,7 @@ and check sig_ ctx ce sort eff0 : typed_ce =
     let n = List.length xs in
     let scrut_record = unsynth ~construct:"let-tuple scrutinee" ce1_answer in
     let ts =
-      SortView.Get.record ~construct:"let-tuple scrutinee" n scrut_record in
+      view_get_record ~construct:"let-tuple scrutinee" n scrut_record in
     let bind_eff = Effect.purify eff0 in
     let ctx' =
       List.fold_left
@@ -433,7 +482,7 @@ and check sig_ ctx ce sort eff0 : typed_ce =
 
   | CoreExpr.Tuple es ->
     let n = List.length es in
-    let ts = SortView.Get.record ~construct:"tuple" n sort in
+    let ts = view_get_record ~construct:"tuple" n sort in
     let es' =
       List.map (fun (e, s_result) -> check sig_ ctx e s_result eff0)
         (List.combine es ts) in
@@ -442,7 +491,7 @@ and check sig_ ctx ce sort eff0 : typed_ce =
 
   | CoreExpr.Inject (l, e_inner) ->
     let (d_result, args_results) =
-      SortView.Get.app ~construct:"injection" sort in
+      view_get_app ~construct:"injection" sort in
     let ctor_kind =
       let* d = d_result in
       let* args = Util.result_list args_results in
