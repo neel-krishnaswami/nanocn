@@ -630,8 +630,47 @@ typechecker.  Replaces Flymake's default wavy underline with a light
 pink (light-background) or muted dark-red (dark-background) wash."
   :group 'nanocn)
 
+(defvar nanocn-ts--z3-warned nil
+  "Non-nil once the Z3-availability warning has been issued.
+Prevents the warning from re-firing on every nanoCN buffer.")
+
+(defun nanocn-ts--check-z3 ()
+  "Verify the SMT solver is reachable from this Emacs session.
+
+The nanoCN LSP server resolves the solver in this order: it reads
+the [Z3] environment variable, falling back to bare \"z3\" on
+[PATH].  Both lookups happen inside the LSP process, which inherits
+Emacs's environment — and Emacs started from a desktop session
+typically has a stripped-down PATH that doesn't include user shell
+directories.
+
+When the solver isn't reachable, [start_smt_run] in the LSP
+silently swallows the error: no diagnostic is published, sat/unsat
+decorations never appear, and the user has no signal that SMT
+checking is disabled.  This function detects that case and emits a
+visible warning (in [*Messages*] and [*Warnings*]) once per
+session."
+  (unless nanocn-ts--z3-warned
+    (let* ((env-z3 (getenv "Z3"))
+           (env-ok (and env-z3 (file-executable-p env-z3)))
+           (path-ok (executable-find "z3")))
+      (unless (or env-ok path-ok)
+        (setq nanocn-ts--z3-warned t)
+        (message "nanoCN: Z3 not found — SMT checks disabled. Set the Z3 env var to the solver's absolute path.")
+        (display-warning
+         'nanocn
+         (concat
+          "Z3 was not found on PATH and the Z3 environment variable is unset.\n"
+          "The nanoCN LSP server will skip SMT checks: sat/unsat\n"
+          "decorations will not appear in .rcn buffers.\n\n"
+          "Fix by adding to your init file:\n"
+          "  (setenv \"Z3\" \"/absolute/path/to/z3\")\n\n"
+          "Then restart Eglot (M-x eglot-shutdown, then reopen the buffer).")
+         :warning)))))
+
 (defun nanocn-ts--setup ()
   "Configure buffer-local settings and start Eglot for nanoCN."
+  (nanocn-ts--check-z3)
   ;; Enable native fontification of fenced code blocks in eldoc
   ;; markdown rendering (requires markdown-mode).
   (when (boundp 'markdown-fontify-code-blocks-natively)
