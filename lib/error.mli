@@ -443,6 +443,9 @@ val internal_invariant :
 val loc : t -> SourcePos.t option
 (** [loc e] returns the error's source position, if known. *)
 
+val kind : t -> kind
+(** [kind e] returns the error's structured [kind] payload. *)
+
 val to_string : t -> string
 (** [to_string e] renders [e] through [print] with an empty source
     registry (no excerpt) and captures the result as a string.

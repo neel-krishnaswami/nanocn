@@ -263,24 +263,31 @@ let[@warning "-32"] extend_res_opt (var : Var.t option)
    first one — the per-decl driver in [compileFile.compile_rfile]
    captures these so later decls still get checked.  Slices C.2-C.5
    will replace this fail-fast with an attach-and-continue path. *)
-let elab_se (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (se : SurfExpr.se) : (CoreExpr.typed_ce * Sort.sort) ElabM.t =
+(* Elaborate a surface expression to typed core, synthesizing its
+   sort.  Returns the typed_ce together with a result-typed sort:
+   [Ok sort] when elaboration succeeded, [Error _] when it recorded
+   any failure on the typed AST.  Errors live on [info#answer] /
+   [info#subterm_errors] of the returned [ce]; downstream callers
+   thread the result-typed sort through [view_get_*_sort] wrappers
+   without needing to fail the monad. *)
+let elab_se (rs : RSig.t) (gamma : Context.t) (eff : Effect.t)
+    (se : SurfExpr.se)
+    : (CoreExpr.typed_ce * (Sort.sort, Error.kind) result) ElabM.t =
   let cs = RSig.comp rs in
   let* ce = Elaborate.synth cs gamma eff se in
-  match (CoreExpr.info ce)#answer with
-  | Error e -> ElabM.fail e
-  | Ok sort ->
-    (match (CoreExpr.info ce)#subterm_errors with
-     | e :: _ -> ElabM.fail e
-     | [] -> return (ce, sort))
+  let sort_r =
+    Result.map_error Error.kind (CoreExpr.info ce)#answer in
+  return (ce, sort_r)
 
-(* Elaborate a surface expression to typed core, checking against
-   a sort.  Same fail-fast contract as [elab_se]. *)
-let elab_se_check (rs : RSig.t) (gamma : Context.t) (se : SurfExpr.se) (sort : Sort.sort) (eff : Effect.t) : CoreExpr.typed_ce ElabM.t =
+(* Elaborate a surface expression to typed core, checking against a
+   sort.  Returns the typed_ce regardless of internal errors; errors
+   ride along on [info#answer] / [info#subterm_errors] for downstream
+   consumption. *)
+let elab_se_check (rs : RSig.t) (gamma : Context.t) (se : SurfExpr.se)
+    (sort : Sort.sort) (eff : Effect.t)
+    : CoreExpr.typed_ce ElabM.t =
   let cs = RSig.comp rs in
-  let* ce = Elaborate.check cs gamma se (Ok sort) eff in
-  match (CoreExpr.info ce)#subterm_errors with
-  | e :: _ -> ElabM.fail e
-  | [] -> return ce
+  Elaborate.check cs gamma se (Ok sort) eff
 
 (* Elaborate a surface expression to typed core using a refined context *)
 let elab_and_synth rs delta eff se =
@@ -311,17 +318,16 @@ let elab_pf_entry (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (entry : (S
     let* ce = elab_se_check rs gamma prop bool_sort Effect.Spec in
     return (ProofSort.Log { info = ri; prop = ce })
   | ProofSort.Res { info = _; pred; value } ->
-    let* (ce_pred, pred_sort) = elab_se rs gamma Effect.Spec pred in
-    let* inner_sort =
-      ElabM.lift_at loc
-        (SortGet.get_pred ~construct:"resource predicate" pred_sort) in
+    let* (ce_pred, pred_sort_r) = elab_se rs gamma Effect.Spec pred in
+    let inner_sort_r =
+      view_get_pred_sort ~construct:"resource predicate" pred_sort_r in
+    let inner_sort = Result.value inner_sort_r ~default:bool_sort in
     let* ce_value = elab_se_check rs gamma value inner_sort Effect.Spec in
     return (ProofSort.Res { info = ri; pred = ce_pred; value = ce_value })
   | ProofSort.DepRes { info = _; bound_var; pred } ->
-    let* (ce_pred, pred_sort) = elab_se rs gamma Effect.Spec pred in
-    let* _inner_sort =
-      ElabM.lift_at loc
-        (SortGet.get_pred ~construct:"dep-res predicate" pred_sort) in
+    let* (ce_pred, pred_sort_r) = elab_se rs gamma Effect.Spec pred in
+    let _ : (Sort.sort, Error.kind) result =
+      view_get_pred_sort ~construct:"dep-res predicate" pred_sort_r in
     return (ProofSort.DepRes { info = ri; bound_var; pred = ce_pred })
 
 let elab_pf (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (pf : (SurfExpr.se, < loc : SourcePos.t >, Var.t) ProofSort.t) : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t ElabM.t =
@@ -908,7 +914,8 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (c
        constructs like [take]/[case]/[return] enough context to
        elaborate inside the annotation. *)
     let gamma = RCtx.erase delta in
-    let* (ce2, sort2) = elab_se rs gamma Effect.Spec se2 in
+    let* (ce2, sort2_r) = elab_se rs gamma Effect.Spec se2 in
+    let sort2 = Result.value sort2_r ~default:bool_sort in
     let pred_sort =
       Sort.mk (object method loc = SourcePos.dummy end) (Sort.Pred sort2)
     in
@@ -1345,12 +1352,13 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       if Effect.sub Effect.Impure eff then Ok ()
       else Error (Error.iter_requires_impure ~loc:iter_pos ~actual:eff) in
     (* Elaborate predicate at spec effect *)
-    let* (ce_pred, pred_sort) = elab_and_synth rs delta Effect.Spec se_pred in
+    let* (ce_pred, pred_sort_r) = elab_and_synth rs delta Effect.Spec se_pred in
     let inner_sort_r =
-      SortGet.get_pred ~construct:"iter" pred_sort in
+      view_get_pred_sort ~construct:"iter" pred_sort_r in
     let inner_sort = Result.value inner_sort_r ~default:bool_sort in
     let dsort_args_r =
-      SortGet.get_app ~construct:"iter" inner_sort in
+      Result.bind inner_sort_r (fun inner ->
+        SortGet.get_app ~construct:"iter" inner) in
     let cs = RSig.comp rs in
     let next_label =
       match Label.of_string "Next" with
@@ -1624,7 +1632,8 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let eff_scrut = Effect.purify eff in
     let gamma = RCtx.erase delta in
     let cs = RSig.comp rs in
-    let* (ce, ce_sort) = elab_se rs gamma eff_scrut se in
+    let* (ce, ce_sort_r) = elab_se rs gamma eff_scrut se in
+    let ce_sort = Result.value ce_sort_r ~default:bool_sort in
     (match Sort.shape ce_sort with
      | Sort.App (dsort_name, args) ->
        let* decl =
@@ -1681,7 +1690,8 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
        pattern-match (cpat, lpat) against it, check body, close. *)
     let eff_pure = Effect.purify eff in
     let gamma = RCtx.erase delta in
-    let* (ce, sort) = elab_se rs gamma eff_pure se_ce in
+    let* (ce, sort_r) = elab_se rs gamma eff_pure se_ce in
+    let sort = Result.value sort_r ~default:bool_sort in
     let* y = fresh pos in
     let ce_y = ce_of_var y sort in
     let prop = mk_eq ce_y ce in
@@ -2404,10 +2414,7 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
 let elab_fundecl_body rs param arg_sort ret_sort eff body_se =
   let cs = RSig.comp rs in
   let gamma = Context.extend param arg_sort (Effect.purify eff) Context.empty in
-  let* ce = Elaborate.check cs gamma body_se (Ok ret_sort) eff in
-  match (CoreExpr.info ce)#subterm_errors with
-  | e :: _ -> ElabM.fail e
-  | [] -> return ce
+  Elaborate.check cs gamma body_se (Ok ret_sort) eff
 
 let check_rdecl rs ct_acc = function
   | RProg.SortDecl d ->

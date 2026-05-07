@@ -271,6 +271,9 @@ let internal_invariant ~loc ~rule ~invariant =
 let loc = function
   | Structured { loc; _ } -> loc
 
+let kind = function
+  | Structured { kind; _ } -> kind
+
 (* Tag names are ocolor tag names (see Ocolor_format.mli): once the
    formatter has been prettified via [ErrorRender.configure_formatter],
    these render as ANSI styles; on non-tty output they become no-ops
