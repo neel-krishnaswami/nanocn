@@ -413,6 +413,19 @@ let rec strip_annots ce =
      | _ -> ce)
   | _ -> ce
 
+(** [strip_annots_shallow ce] strips only [CoreExpr.Annot] wrappers,
+    leaving [Let (y, Var x, body)] aliases intact.  Used by
+    [rpat_match]: the user's rpat is written against the structural
+    form they see in hover (which preserves coverage-introduced
+    alias-lets), so rpat matching must see the same form.  Other
+    refined operations (open-take, unfold, RReturn/RFail/RCase/etc.)
+    use [strip_annots] which inlines aliases, since they want the
+    semantic form. *)
+let rec strip_annots_shallow ce =
+  match CoreExpr.shape ce with
+  | CoreExpr.Annot (inner, _) -> strip_annots_shallow inner
+  | _ -> ce
+
 (* ---------- refined primitive signatures ---------- *)
 
 (* Dummy rinfo for manually-built proof sorts (e.g. rprim_signature)
@@ -2217,7 +2230,14 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
     return (typed_rp, delta', ct)
 
   | RPat.RLet (lpat, cpat, rp_inner) ->
-    (match view_get_let_ce ~construct:"let pattern" pred' with
+    (* RLet matches the user's pattern against the structural form
+       of the predicate, which the user reads from hover.  Hover
+       displays the raw form (alias-lets preserved), so we use
+       [strip_annots_shallow] here to keep [Let (y, Var x, body)]
+       wrappers visible — [strip_annots] would inline them and the
+       rpat would falsely fail to match. *)
+    let pred_for_let = strip_annots_shallow pred in
+    (match view_get_let_ce ~construct:"let pattern" pred_for_let with
      | Error k ->
        let (typed_rp, delta') = error_rp_blanket rp delta eff k in
        return (typed_rp, delta', Constraint.top pos)
