@@ -378,12 +378,11 @@ lpf :: 'LPf_' ::=                                   {{ com logical proof facts }
   | x                               :: :: Var
   | auto                            :: :: Auto        {{ tex \mathsf{auto} }}
   | unfold f ( ce )                 :: :: Unfold       {{ tex \mathsf{unfold}\;[[f]]([[ce]]) }}
-  | open-ret rpf                    :: :: OpenRet      {{ tex \mathsf{open\text{-}ret}\;[[rpf]] }}
   | lpf : ce                        :: :: Annot
 
 % Synthesis is restricted to Var and Annot; non-variable rpfs that
-% appear in synth positions (let res, take's first arg, open-ret,
-% open-take) must be ascribed via `rpf : ce @ ce'`.
+% appear in synth positions (let res, take's first arg, open-take)
+% must be ascribed via `rpf : ce @ ce'`.
 rpf :: 'RPf_' ::=                                    {{ com resource proof facts }}
   | x                                  :: :: Var
   | rpf : ce @ ce'                     :: :: Annot
@@ -1532,10 +1531,6 @@ defns Jrefine :: '' ::=
     ------------------------------------------------ :: annot
     RS ; Delta |- lpf : ce l==> ce -| Delta' ~~> Ct
 
-    RS ; Delta |- rpf r==> return ce @ ce' -| Delta' ~~> Ct
-    ----------------------------------------------------------- :: openret
-    RS ; Delta |- open-ret rpf l==> ce == ce' -| Delta' ~~> Ct
-
 
 % -----------------------------------------------------------------------------
 % Logical fact checking
@@ -1623,6 +1618,22 @@ defns Jrefine :: '' ::=
     Ct = close Delta'' ( Ct1 cand Ct2 )
     ---------------------------------------------------------------- :: let
     RS ; Delta0 |- let [ lpat ] cpat ; rpf r<== let x = ce1 ; ce2 @ ce3 -| Delta3 ~~> Ct
+
+    CS = comp RS    G = erase Delta0
+    CS ; G |- [ spec ] ce ==> ( tau1 , .. , taun )
+    RS ; Delta0     |- [ spec ] cpat1 : tau1 -| Delta1     ~~> ce1 ..
+    RS ; Delta {n-1} |- [ spec ] cpatn : taun -| Deltan    ~~> cen
+    RS ; Deltan |- lpat : ce == ( ce1 , .. , cen ) -| Delta {n+1} ~~> Ct1
+    RS ; Delta {n+1} |- rpf r<==
+        app_s id G , ( ce1 : tau1 ) / x1 , .. , ( cen : taun ) / xn ce' @ ce''
+        -| Delta {n+2} , Delta'' ~~> Ct2
+    len Delta0 = len Delta {n+2}
+    zero Delta''
+    Ct = close Delta'' ( Ct1 cand Ct2 )
+    ---------------------------------------------------------------- :: let_tuple
+    RS ; Delta0 |- let [ lpat ] ( cpat1 , .. , cpatn ) ; rpf r<==
+        let ( x1 , .. , xn ) = ce ; ce' @ ce''
+        -| Delta {n+2} ~~> Ct
 
     CS = comp RS    G = erase Delta0
     CS ; G |- [ spec ] ce ==> D ( tau1 , .. , taui )
