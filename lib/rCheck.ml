@@ -132,6 +132,14 @@ let[@warning "-32"] view_get_fail_ce ~construct (ce : CoreExpr.typed_ce)
     ~none:(mismatch_ce_kind ~construct ~expected_shape:"fail" ce)
     (CoreExprView.Get.fail (Some ce))
 
+let[@warning "-32"] view_get_case_ce ~construct (ce : CoreExpr.typed_ce)
+    : (CoreExpr.typed_ce
+       * (Label.t * Var.t * CoreExpr.typed_ce * CoreExpr.typed_info) list,
+       Error.kind) result =
+  Option.to_result
+    ~none:(mismatch_ce_kind ~construct ~expected_shape:"case _ of { ... }" ce)
+    (CoreExprView.Get.case (Some ce))
+
 (** {2 ProofSortView wrappers — local option→result helpers}
 
     Lift [ProofSortView.Get.*] from option-typed to result-typed, using
@@ -691,6 +699,24 @@ let[@warning "-32"] answer_of_sort_kind_r ~loc
     (sort_r : (Sort.sort, Error.kind) result)
     : (Sort.sort, Error.t) result =
   Result.map_error (Error.structured ~loc) sort_r
+
+(** [error_rp_blanket rp delta eff k] produces a typed rpat with the
+    same shape as [rp] but with [Error _] on every internal node's
+    answer.  Used at structural-mismatch short-circuits in
+    [rpat_match]: if a view extract fails, we still produce a typed
+    AST so LSP can show "this region had a structural mismatch"
+    without losing the user's syntax. *)
+let[@warning "-32"] error_rp_blanket
+    (rp : (_, Var.t) RPat.rpat)
+    (delta : RCtx.t)
+    (eff : Effect.t)
+    (k : Error.kind)
+    : (RProg.typed_rinfo, Var.t) RPat.rpat =
+  RPat.map_info_rpat
+    (fun b ->
+      mk_rinfo_with_answer b#loc delta bool_sort eff
+        (Error (Error.structured ~loc:b#loc k)))
+    rp
 
 (* ---------- typing judgements ---------- *)
 
@@ -1947,15 +1973,9 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   let pos = binfo#loc in
   match pred, value with
   | (Error e, _) | (_, Error e) ->
-    (* Cascade fast-path: build typed_rp with Error answers throughout
-       and emit no constraint contribution.  Full Error-aware body
-       refactor is C3. *)
-    let typed_rp =
-      RPat.map_info_rpat
-        (fun b ->
-          mk_rinfo_with_answer b#loc delta bool_sort eff
-            (Error (Error.structured ~loc:b#loc e)))
-        rp in
+    (* Input cascade: pred or value is fundamentally Error.  Build
+       typed_rp with Error annotations throughout. *)
+    let typed_rp = error_rp_blanket rp delta eff e in
     return (typed_rp, delta, Constraint.top pos)
   | Ok pred, Ok value ->
   let cs = RSig.comp rs in
@@ -1969,114 +1989,145 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
     return (typed_rp, delta', Constraint.top pos)
 
   | RPat.RReturn lpat ->
-    let* ret_ce =
-      ElabM.lift_at pos
-        (view_get_return_ce ~construct:"return pattern" pred') in
-    let eq_ce = CoreExpr.mk pred_info (CoreExpr.Eq (ret_ce, value)) in
-    let* (typed_lp, delta', ct) = lpat_match rs delta lpat (Ok eq_ce) in
-    let info = mk_rinfo pos delta' bool_sort eff in
-    let typed_rp = RPat.mk_rpat info (RPat.RReturn typed_lp) in
-    return (typed_rp, delta', ct)
+    (match view_get_return_ce ~construct:"return pattern" pred' with
+     | Error k ->
+       let typed_rp = error_rp_blanket rp delta eff k in
+       return (typed_rp, delta, Constraint.top pos)
+     | Ok ret_ce ->
+       let eq_ce = CoreExpr.mk pred_info (CoreExpr.Eq (ret_ce, value)) in
+       let* (typed_lp, delta', ct) = lpat_match rs delta lpat (Ok eq_ce) in
+       let info = mk_rinfo pos delta' bool_sort eff in
+       let typed_rp = RPat.mk_rpat info (RPat.RReturn typed_lp) in
+       return (typed_rp, delta', ct))
 
   | RPat.RTake (cpat, rp1, rp2) ->
-    let* (x, ce1, ce2) =
-      ElabM.lift_at pos
-        (view_get_take_ce ~construct:"take pattern" pred') in
-    let ce1_sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
-    let* inner_sort =
-      ElabM.lift_at pos
-        (SortGet.get_pred ~construct:"take pattern" ce1_sort) in
-    let ce_x = ce_of_var x inner_sort in
-    let* (typed_cp, delta1, _) = cpat_match rs delta (Ok eff) cpat (Ok inner_sort) in
-    let* (typed_rp1, delta2, ct1) =
-      rpat_match rs delta1 eff rp1 (Ok ce1) (Ok ce_x) in
-    let* (typed_rp2, delta3, ct2) =
-      rpat_match rs delta2 eff rp2 (Ok ce2) (Ok value) in
-    let ct = Constraint.conj pos ct1 ct2 in
-    let info = mk_rinfo pos delta3 bool_sort eff in
-    let typed_rp =
-      RPat.mk_rpat info (RPat.RTake (typed_cp, typed_rp1, typed_rp2)) in
-    return (typed_rp, delta3, ct)
+    (match view_get_take_ce ~construct:"take pattern" pred' with
+     | Error k ->
+       let typed_rp = error_rp_blanket rp delta eff k in
+       return (typed_rp, delta, Constraint.top pos)
+     | Ok (x, ce1, ce2) ->
+       let ce1_sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
+       let inner_sort_r =
+         SortGet.get_pred ~construct:"take pattern" ce1_sort in
+       let inner_sort = Result.value inner_sort_r ~default:bool_sort in
+       let ce_x = ce_of_var x inner_sort in
+       let* (typed_cp, delta1, _) =
+         cpat_match rs delta (Ok eff) cpat inner_sort_r in
+       let* (typed_rp1, delta2, ct1) =
+         rpat_match rs delta1 eff rp1 (Ok ce1) (Ok ce_x) in
+       let* (typed_rp2, delta3, ct2) =
+         rpat_match rs delta2 eff rp2 (Ok ce2) (Ok value) in
+       let ct = Constraint.conj pos ct1 ct2 in
+       let answer = answer_of_sort_kind_r ~loc:pos
+                      (Result.map (fun _ -> bool_sort) inner_sort_r) in
+       let info =
+         mk_rinfo_with_answer pos delta3 bool_sort eff answer in
+       let typed_rp =
+         RPat.mk_rpat info (RPat.RTake (typed_cp, typed_rp1, typed_rp2)) in
+       return (typed_rp, delta3, ct))
 
   | RPat.RFail lpat ->
-    let* () =
-      ElabM.lift_at pos
-        (view_get_fail_ce ~construct:"fail pattern" pred') in
+    let fail_check = view_get_fail_ce ~construct:"fail pattern" pred' in
     let false_ce = CoreExpr.mk pred_info (CoreExpr.BoolLit false) in
-    let* (typed_lp, delta', _ct) = lpat_match rs delta lpat (Ok false_ce) in
-    let info = mk_rinfo pos delta' bool_sort eff in
+    let* (typed_lp, delta', _ct) =
+      lpat_match rs delta lpat (Ok false_ce) in
+    let ct = match fail_check with
+      | Ok () -> Constraint.bot pos
+      | Error _ -> Constraint.top pos in
+    let answer = answer_of_sort_kind_r ~loc:pos
+                   (Result.map (fun () -> bool_sort) fail_check) in
+    let info = mk_rinfo_with_answer pos delta' bool_sort eff answer in
     let typed_rp = RPat.mk_rpat info (RPat.RFail typed_lp) in
-    return (typed_rp, delta', Constraint.bot pos)
+    return (typed_rp, delta', ct)
 
   | RPat.RLet (lpat, cpat, rp_inner) ->
-    let* (x, ce1, ce2) =
-      ElabM.lift_at pos
-        (view_get_let_ce ~construct:"let pattern" pred') in
-    let sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
-    let* (typed_cp, delta1, ce_w) =
-      cpat_match rs delta (Ok eff) cpat (Ok sort) in
-    let eq_ce = CoreExpr.mk pred_info (CoreExpr.Eq (ce_w, ce1)) in
-    let* (typed_lp, delta2, ct1) = lpat_match rs delta1 lpat (Ok eq_ce) in
-    (* Substitute (ce_w : sort) / x into ce2 *)
-    let arg_typed_sort = Elaborate.lift_sort sort in
-    let ce_w_annot =
-      CoreExpr.mk (mk_info sort) (CoreExpr.Annot (ce_w, arg_typed_sort)) in
-    let sub = Subst.extend_var x ce_w_annot Subst.empty in
-    let ce2_subst = Subst.apply_ce sub ce2 in
-    let* (typed_inner, delta3, ct2) =
-      rpat_match rs delta2 eff rp_inner (Ok ce2_subst) (Ok value) in
-    let ct = Constraint.conj pos ct1 ct2 in
-    let info = mk_rinfo pos delta3 bool_sort eff in
-    let typed_rp =
-      RPat.mk_rpat info (RPat.RLet (typed_lp, typed_cp, typed_inner)) in
-    return (typed_rp, delta3, ct)
+    (match view_get_let_ce ~construct:"let pattern" pred' with
+     | Error k ->
+       let typed_rp = error_rp_blanket rp delta eff k in
+       return (typed_rp, delta, Constraint.top pos)
+     | Ok (x, ce1, ce2) ->
+       let sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
+       let* (typed_cp, delta1, ce_w) =
+         cpat_match rs delta (Ok eff) cpat (Ok sort) in
+       let eq_ce = CoreExpr.mk pred_info (CoreExpr.Eq (ce_w, ce1)) in
+       let* (typed_lp, delta2, ct1) =
+         lpat_match rs delta1 lpat (Ok eq_ce) in
+       (* Substitute (ce_w : sort) / x into ce2 *)
+       let arg_typed_sort = Elaborate.lift_sort sort in
+       let ce_w_annot =
+         CoreExpr.mk (mk_info sort) (CoreExpr.Annot (ce_w, arg_typed_sort)) in
+       let sub = Subst.extend_var x ce_w_annot Subst.empty in
+       let ce2_subst = Subst.apply_ce sub ce2 in
+       let* (typed_inner, delta3, ct2) =
+         rpat_match rs delta2 eff rp_inner (Ok ce2_subst) (Ok value) in
+       let ct = Constraint.conj pos ct1 ct2 in
+       let info = mk_rinfo pos delta3 bool_sort eff in
+       let typed_rp =
+         RPat.mk_rpat info (RPat.RLet (typed_lp, typed_cp, typed_inner)) in
+       return (typed_rp, delta3, ct))
 
   | RPat.RIfTrue rp_inner ->
-    let* (ce_cond, ce_t, _ce_e) =
-      ElabM.lift_at pos
-        (view_get_if_ce ~construct:"iftrue pattern" pred') in
-    let* (typed_inner, delta', ct_inner) =
-      rpat_match rs delta eff rp_inner (Ok ce_t) (Ok value) in
-    let info = mk_rinfo pos delta' bool_sort eff in
-    let typed_rp = RPat.mk_rpat info (RPat.RIfTrue typed_inner) in
-    let ct = Constraint.conj pos (Constraint.atom pos ce_cond) ct_inner in
-    return (typed_rp, delta', ct)
+    (match view_get_if_ce ~construct:"iftrue pattern" pred' with
+     | Error k ->
+       let typed_rp = error_rp_blanket rp delta eff k in
+       return (typed_rp, delta, Constraint.top pos)
+     | Ok (ce_cond, ce_t, _ce_e) ->
+       let* (typed_inner, delta', ct_inner) =
+         rpat_match rs delta eff rp_inner (Ok ce_t) (Ok value) in
+       let info = mk_rinfo pos delta' bool_sort eff in
+       let typed_rp = RPat.mk_rpat info (RPat.RIfTrue typed_inner) in
+       let ct = Constraint.conj pos (Constraint.atom pos ce_cond) ct_inner in
+       return (typed_rp, delta', ct))
 
   | RPat.RIfFalse rp_inner ->
-    let* (ce_cond, _ce_t, ce_e) =
-      ElabM.lift_at pos
-        (view_get_if_ce ~construct:"iffalse pattern" pred') in
-    let* (typed_inner, delta', ct_inner) =
-      rpat_match rs delta eff rp_inner (Ok ce_e) (Ok value) in
-    let info = mk_rinfo pos delta' bool_sort eff in
-    let typed_rp = RPat.mk_rpat info (RPat.RIfFalse typed_inner) in
-    let not_ce =
-      CoreExpr.mk (CoreExpr.info ce_cond) (CoreExpr.App (Prim.Not, ce_cond)) in
-    let ct = Constraint.conj pos (Constraint.atom pos not_ce) ct_inner in
-    return (typed_rp, delta', ct)
+    (match view_get_if_ce ~construct:"iffalse pattern" pred' with
+     | Error k ->
+       let typed_rp = error_rp_blanket rp delta eff k in
+       return (typed_rp, delta, Constraint.top pos)
+     | Ok (ce_cond, _ce_t, ce_e) ->
+       let* (typed_inner, delta', ct_inner) =
+         rpat_match rs delta eff rp_inner (Ok ce_e) (Ok value) in
+       let info = mk_rinfo pos delta' bool_sort eff in
+       let typed_rp = RPat.mk_rpat info (RPat.RIfFalse typed_inner) in
+       let not_ce =
+         CoreExpr.mk (CoreExpr.info ce_cond) (CoreExpr.App (Prim.Not, ce_cond)) in
+       let ct = Constraint.conj pos (Constraint.atom pos not_ce) ct_inner in
+       return (typed_rp, delta', ct))
 
   | RPat.RCase (lpat, label, cpat, rp_inner) ->
-    (match CoreExpr.shape pred' with
-     | CoreExpr.Case (scrutinee, branches) ->
-       (match List.find_opt (fun (l, _, _, _) -> Label.compare l label = 0) branches with
+    (match view_get_case_ce ~construct:"case pattern" pred' with
+     | Error k ->
+       let typed_rp = error_rp_blanket rp delta eff k in
+       return (typed_rp, delta, Constraint.top pos)
+     | Ok (scrutinee, branches) ->
+       (match List.find_opt
+                (fun (l, _, _, _) -> Label.compare l label = 0) branches with
         | None ->
           let case_labels = List.map (fun (l, _, _, _) -> l) branches in
-          ElabM.fail
-            (Error.rcase_label_not_in_branches
-               ~loc:pos ~label ~case_labels)
+          let err_t =
+            Error.rcase_label_not_in_branches
+              ~loc:pos ~label ~case_labels in
+          let typed_rp =
+            RPat.map_info_rpat
+              (fun b -> mk_rinfo_with_answer b#loc delta bool_sort eff
+                          (Error err_t))
+              rp in
+          return (typed_rp, delta, Constraint.top pos)
         | Some (_l, x_br, ce_br, _bi) ->
           let scrut_sort = (CoreExpr.sort_of_info (CoreExpr.info scrutinee)) in
-          let* (d, args) =
-            ElabM.lift_at pos
-              (SortGet.get_app ~construct:"case pattern scrutinee" scrut_sort) in
-          let* payload_sort =
-            ElabM.lift_at pos (CtorLookup.lookup cs d label args) in
+          let d_args_r =
+            SortGet.get_app ~construct:"case pattern scrutinee" scrut_sort in
+          let payload_sort_r =
+            Result.bind d_args_r (fun (d, args) ->
+              CtorLookup.lookup cs d label args) in
+          let payload_sort = Result.value payload_sort_r ~default:bool_sort in
           let* (typed_cp, delta1, ce_w) =
-            cpat_match rs delta (Ok eff) cpat (Ok payload_sort) in
+            cpat_match rs delta (Ok eff) cpat payload_sort_r in
           let inject_ce =
             CoreExpr.mk (CoreExpr.info scrutinee)
               (CoreExpr.Inject (label, ce_w)) in
-          let eq_ce = CoreExpr.mk pred_info (CoreExpr.Eq (inject_ce, scrutinee)) in
+          let eq_ce =
+            CoreExpr.mk pred_info (CoreExpr.Eq (inject_ce, scrutinee)) in
           let* (typed_lp, delta2, ct1) =
             lpat_match rs delta1 lpat (Ok eq_ce) in
           (* Substitute (ce_w : payload_sort) / x_br into ce_br *)
@@ -2092,43 +2143,46 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
             Constraint.conj pos
               (Constraint.is_ pos label scrutinee)
               (Constraint.conj pos ct1 ct2) in
-          let info = mk_rinfo pos delta3 bool_sort eff in
+          let answer = answer_of_sort_kind_r ~loc:pos
+                         (Result.map (fun _ -> bool_sort) payload_sort_r) in
+          let info =
+            mk_rinfo_with_answer pos delta3 bool_sort eff answer in
           let typed_rp =
             RPat.mk_rpat info
               (RPat.RCase (typed_lp, label, typed_cp, typed_inner)) in
-          return (typed_rp, delta3, ct))
-     | _ ->
-       ElabM.fail (Error.structured ~loc:pos
-         (Error.K_wrong_pred_shape
-            { construct = "case pattern";
-              expected_shape = "case ce of { ... }";
-              got = CoreExpr.to_string pred' })))
+          return (typed_rp, delta3, ct)))
 
   | RPat.RUnfold rp_inner ->
-    let* (f, ce_arg) =
-      ElabM.lift_at pos
-        (view_get_call_ce ~construct:"unfold pattern" pred') in
-    let* (param, arg_sort, _ret_sort, eff', body) =
-      ElabM.lift_at pos (Sig.lookup_fundef f cs) in
-    if not (Effect.sub eff' Effect.Spec) then
-      let err = Error.unfold_not_spec ~loc:pos ~name:f in
-      let info = mk_rinfo_err pos delta bool_sort eff err in
-      let typed_inner =
-        RPat.map_info_rpat (fun b -> mk_rinfo b#loc delta bool_sort eff) rp_inner in
-      let typed_rp = RPat.mk_rpat info (RPat.RUnfold typed_inner) in
-      return (typed_rp, delta, Constraint.top pos)
-    else
-      let arg_typed_sort = Elaborate.lift_sort arg_sort in
-      let ce_arg_annot =
-        CoreExpr.mk (mk_info arg_sort)
-          (CoreExpr.Annot (ce_arg, arg_typed_sort)) in
-      let sub = Subst.extend_var param ce_arg_annot Subst.empty in
-      let unfolded = Subst.apply_ce sub body in
-      let* (typed_inner, delta', ct) =
-        rpat_match rs delta eff rp_inner (Ok unfolded) (Ok value) in
-      let info = mk_rinfo pos delta' bool_sort eff in
-      let typed_rp = RPat.mk_rpat info (RPat.RUnfold typed_inner) in
-      return (typed_rp, delta', ct)
+    (match view_get_call_ce ~construct:"unfold pattern" pred' with
+     | Error k ->
+       let typed_rp = error_rp_blanket rp delta eff k in
+       return (typed_rp, delta, Constraint.top pos)
+     | Ok (f, ce_arg) ->
+       (match Sig.lookup_fundef f cs with
+        | Error k ->
+          let typed_rp = error_rp_blanket rp delta eff k in
+          return (typed_rp, delta, Constraint.top pos)
+        | Ok (param, arg_sort, _ret_sort, eff', body) ->
+          if not (Effect.sub eff' Effect.Spec) then
+            let err = Error.unfold_not_spec ~loc:pos ~name:f in
+            let info = mk_rinfo_err pos delta bool_sort eff err in
+            let typed_inner =
+              RPat.map_info_rpat (fun b ->
+                mk_rinfo b#loc delta bool_sort eff) rp_inner in
+            let typed_rp = RPat.mk_rpat info (RPat.RUnfold typed_inner) in
+            return (typed_rp, delta, Constraint.top pos)
+          else
+            let arg_typed_sort = Elaborate.lift_sort arg_sort in
+            let ce_arg_annot =
+              CoreExpr.mk (mk_info arg_sort)
+                (CoreExpr.Annot (ce_arg, arg_typed_sort)) in
+            let sub = Subst.extend_var param ce_arg_annot Subst.empty in
+            let unfolded = Subst.apply_ce sub body in
+            let* (typed_inner, delta', ct) =
+              rpat_match rs delta eff rp_inner (Ok unfolded) (Ok value) in
+            let info = mk_rinfo pos delta' bool_sort eff in
+            let typed_rp = RPat.mk_rpat info (RPat.RUnfold typed_inner) in
+            return (typed_rp, delta', ct)))
 
   | RPat.RAnnot rp_inner ->
     let* (typed_inner, delta', ct) =
