@@ -1774,6 +1774,13 @@ defns Jrefine :: '' ::=
     -------------------------------------------------------- :: let
     RS ; Delta0 |- [ eff ] let [ lpat ] cpat ; rpat : let x = ce1 ; ce2 @ ce3 -| Delta3 ~~> Ct1 cand Ct2
 
+    CS = comp RS    G = erase Delta0    CS ; G |- [ spec ] ce ==> ( tau1 , .. , taun )
+    RS ; Delta0 |- [ spec ] cpat1 : tau1 -| Delta1 ~~> ce1 .. RS ; Delta {n-1} |- [ spec ] cpatn : taun -| Deltan ~~> cen
+    RS ; Deltan |- lpat : ( ce1 , .. , cen ) == ce -| Delta {n+1} ~~> Ct1
+    RS ; Delta {n+1} |- [ eff ] rpat : app_s id G , ( ce1 : tau1 ) / x1 , .. , ( cen : taun ) / xn ce' @ ce'' -| Delta {n+2} ~~> Ct2
+    -------------------------------------------------------- :: let_tuple
+    RS ; Delta0 |- [ eff ] let [ lpat ] ( cpat1 , .. , cpatn ) ; rpat : let ( x1 , .. , xn ) = ce ; ce' @ ce'' -| Delta {n+2} ~~> Ct1 cand Ct2
+
     RS ; Delta |- [ eff ] rpat : ce1 @ ce' -| Delta' ~~> Ct
     -------------------------------------------------------- :: iftrue
     RS ; Delta |- [ eff ] iftrue ; rpat : if ce then ce1 else ce2 @ ce' -| Delta' ~~> ( Ct_ce ce ) cand Ct

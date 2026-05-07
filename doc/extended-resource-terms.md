@@ -273,6 +273,20 @@ and so we don't need to add it as a hypothesis.
 Σ; Δ0 ⊢[eff] let[lpat]cpat; rpat : (let x=ce1;ce2)@ce3 ⊣ Δ3 ↝ C1 ∧ C2
 
 
+Σ; |Δ0| ⊢[spec] ce ==> (τ1, ..., τn)
+Σ; Δ0     ⊢[spec] cpat1 : τ1 ⊣ Δ1     ↝ ce1
+...
+Σ; Δ{n-1} ⊢[spec] cpatn : τn ⊣ Δn     ↝ cen
+Σ; Δn     ⊢ lpat : ce = (ce1, ..., cen) ⊣ Δ{n+1} ↝ C1
+Σ; Δ{n+1} ⊢ rpat : [(ce1:τ1)/x1, ..., (cen:τn)/xn]ce'@ce'' ⊣ Δ{n+2} ↝ C2
+——————————————————————————————————————————————————————————————————————————————————————————————
+Σ; Δ0 ⊢[eff] let[lpat](cpat1, ..., cpatn); rpat : (let (x1, ..., xn)=ce;ce')@ce'' ⊣ Δ{n+2} ↝ C1 ∧ C2
+
+
+
+
+
+
 Σ; Δ ⊢[eff] rpat : ce1@ce' ⊣ Δ' ↝  C
 ——————————————————————————————————————————————————————————————————————————————————————————————————
 Σ; Δ ⊢[eff] iftrue; rpat : (if ce then ce1 else ce2)@ce' ⊣ Δ' ↝ (ce ∧ C)
