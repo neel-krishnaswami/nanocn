@@ -718,6 +718,30 @@ let[@warning "-32"] error_rp_blanket
         (Error (Error.structured ~loc:b#loc k)))
     rp
 
+(** [mk_rinfo_full ?goal loc delta sort eff errors] is like
+    [mk_rinfo] but takes an explicit [errors] list.  When non-empty,
+    [info#answer = Error (List.hd errors)] and [info#subterm_errors =
+    errors]; when empty, [info#answer = Ok sort] and
+    [info#subterm_errors = []].  Used at clauses with multiple
+    cross-cutting checks (e.g. CIter's effect / sort / leak / pattern
+    checks) where every error should surface, not just the first. *)
+let[@warning "-32"] mk_rinfo_full
+    ?(goal=RProg.NoGoal) loc delta sort eff
+    (errors : Error.t list) : RProg.typed_rinfo =
+  let answer = match errors with
+    | [] -> Ok sort
+    | e :: _ -> Error e in
+  (object
+    method loc = loc
+    method ctx = RCtx.erase delta
+    method rctx = delta
+    method sort = sort
+    method eff = eff
+    method goal = goal
+    method answer = answer
+    method subterm_errors = errors
+  end)
+
 (* ---------- typing judgements ---------- *)
 
 (* Tag description helpers for error messages *)
@@ -1291,37 +1315,45 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     return (checked, pf, delta', ct)
 
   | RefinedExpr.CIter (se_pred, pat, crt1, crt2) ->
-    (* iter requires impure effect *)
-    if not (Effect.sub Effect.Impure eff) then
-      ElabM.fail
-        (Error.iter_requires_impure ~loc:binfo#loc ~actual:eff)
-    else
+    let iter_pos = binfo#loc in
+    (* Each cross-cutting check produces a result; we accumulate
+       errors and surface them on the outer rinfo's
+       answer/subterm_errors via mk_rinfo_full. *)
+    let eff_check =
+      if Effect.sub Effect.Impure eff then Ok ()
+      else Error (Error.iter_requires_impure ~loc:iter_pos ~actual:eff) in
     (* Elaborate predicate at spec effect *)
     let* (ce_pred, pred_sort) = elab_and_synth rs delta Effect.Spec se_pred in
-    let* inner_sort =
-      ElabM.lift_at binfo#loc (SortGet.get_pred ~construct:"iter" pred_sort) in
-    let* (dsort_name, args) =
-      ElabM.lift_at binfo#loc (SortGet.get_app ~construct:"iter" inner_sort) in
+    let inner_sort_r =
+      SortGet.get_pred ~construct:"iter" pred_sort in
+    let inner_sort = Result.value inner_sort_r ~default:bool_sort in
+    let dsort_args_r =
+      SortGet.get_app ~construct:"iter" inner_sort in
     let cs = RSig.comp rs in
-    let* next_label =
+    let next_label =
       match Label.of_string "Next" with
-      | Ok l -> return l
+      | Ok l -> l
       | Error _ ->
-        invariant_at binfo#loc ~rule:"CIter"
+        invariant_at iter_pos ~rule:"CIter"
           "Label.of_string \"Next\" failed — the literal \"Next\" \
            is always a valid constructor name"
     in
-    let* done_label =
+    let done_label =
       match Label.of_string "Done" with
-      | Ok l -> return l
+      | Ok l -> l
       | Error _ ->
-        invariant_at binfo#loc ~rule:"CIter"
+        invariant_at iter_pos ~rule:"CIter"
           "Label.of_string \"Done\" failed — the literal \"Done\" \
            is always a valid constructor name"
     in
-    (* Look up constructor sorts with type parameter substitution *)
-    let* a_sort = lift_at binfo#loc (CtorLookup.lookup cs dsort_name next_label args) in
-    let* b_sort = lift_at binfo#loc (CtorLookup.lookup cs dsort_name done_label args) in
+    let a_sort_r =
+      Result.bind dsort_args_r (fun (d, args) ->
+        CtorLookup.lookup cs d next_label args) in
+    let b_sort_r =
+      Result.bind dsort_args_r (fun (d, args) ->
+        CtorLookup.lookup cs d done_label args) in
+    let a_sort = Result.value a_sort_r ~default:bool_sort in
+    let b_sort = Result.value b_sort_r ~default:bool_sort in
     let step_sort = inner_sort in
     (* Build init proof sort: x:A [pure], y:ce @ Next(x) [res], pfnil *)
     let* x_var = fresh SourcePos.dummy in
@@ -1348,10 +1380,9 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     (* Validate output context: extension resources must be consumed *)
     let n = RCtx.length delta' in
     let (_delta_base, delta_pat_out) = RCtx.split n delta_out in
-    if not (RCtx.zero delta_pat_out) then
-      ElabM.fail
-        (Error.resource_leak ~loc:binfo#loc ~name:None)
-    else
+    let leak_check =
+      if RCtx.zero delta_pat_out then Ok ()
+      else Error (Error.resource_leak ~loc:iter_pos ~name:None) in
     (* Build result proof sort: z:B [pure], y:ce @ Done(z) [res], pfnil *)
     let* zr_var = fresh SourcePos.dummy in
     let ce_zr = ce_of_var zr_var b_sort in
@@ -1360,30 +1391,59 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       ProofSort.Comp { info = rinfo_dummy; var = zr_var; sort = b_sort; eff = Effect.Pure };
       ProofSort.Res { info = rinfo_dummy; pred = ce_pred; value = ce_done_z };
     ] in
-    (* Extract iter binder: must start with a QCore CVar. *)
-    (match RPat.shape pat with
-     | RPat.QCore (cp, _rest) ->
-       let* x_pat =
-         ElabM.lift_at binfo#loc
-           (RPatGet.get_cvar ~construct:"iter" cp)
-       in
-       let result_ct = Constraint.conj pos ct (Constraint.forall_ pos x_pat a_sort ct') in
-       let rinfo = mk_rinfo ~goal:(RProg.CrtGoal result_pf) pos delta (ProofSort.comp result_pf) eff in
-       let typed_pat = RPat.map_info (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp init_pf) eff) pat in
-       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CIter (ce_pred, typed_pat, checked_crt1, checked_crt2)) in
-       return (checked, result_pf, delta', result_ct)
-     | RPat.QLog _ ->
-       ElabM.fail
-         (Error.iter_pattern_shape ~loc:binfo#loc
-            ~got:"a logical pattern")
-     | RPat.QRes _ | RPat.QDepRes _ ->
-       ElabM.fail
-         (Error.iter_pattern_shape ~loc:binfo#loc
-            ~got:"a resource pattern")
-     | RPat.QNil ->
-       ElabM.fail
-         (Error.iter_pattern_shape ~loc:binfo#loc
-            ~got:"an empty pattern"))
+    (* Extract iter binder.  Per the C4 plan: when the pattern doesn't
+       start with a QCore CVar, drop the forall and just use ct'.
+       The QLog/QRes/QDepRes cases collapse to one "non-core
+       pattern" diagnostic. *)
+    let (x_pat_o, pat_shape_err_o) =
+      match RPat.shape pat with
+      | RPat.QCore (cp, _rest) ->
+        (match RPatGet.get_cvar ~construct:"iter" cp with
+         | Ok x -> (Some x, None)
+         | Error k -> (None, Some (Error.structured ~loc:iter_pos k)))
+      | RPat.QLog _ | RPat.QRes _ | RPat.QDepRes _ ->
+        (None,
+         Some (Error.iter_pattern_shape ~loc:iter_pos
+                 ~got:"a non-core pattern"))
+      | RPat.QNil ->
+        (None,
+         Some (Error.iter_pattern_shape ~loc:iter_pos
+                 ~got:"an empty pattern"))
+    in
+    let result_ct = match x_pat_o with
+      | Some x_pat ->
+        Constraint.conj pos ct (Constraint.forall_ pos x_pat a_sort ct')
+      | None ->
+        Constraint.conj pos ct ct' in
+    (* Aggregate all cross-cutting errors in source order. *)
+    let acc_t errs r = match r with Ok _ -> errs | Error e -> e :: errs in
+    let acc_k errs r = match r with
+      | Ok _ -> errs
+      | Error k -> Error.structured ~loc:iter_pos k :: errs in
+    let errors_rev =
+      let errs = [] in
+      let errs = acc_t errs eff_check in
+      let errs = acc_k errs inner_sort_r in
+      let errs = acc_k errs (Result.map (fun _ -> ()) dsort_args_r) in
+      let errs = acc_k errs a_sort_r in
+      let errs = acc_k errs b_sort_r in
+      let errs = acc_t errs leak_check in
+      let errs = match pat_shape_err_o with
+        | None -> errs
+        | Some e -> e :: errs in
+      errs in
+    let errors = List.rev errors_rev in
+    let rinfo =
+      mk_rinfo_full ~goal:(RProg.CrtGoal result_pf)
+        pos delta (ProofSort.comp result_pf) eff errors in
+    let typed_pat =
+      RPat.map_info
+        (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp init_pf) eff)
+        pat in
+    let checked =
+      RefinedExpr.mk_crt rinfo
+        (RefinedExpr.CIter (ce_pred, typed_pat, checked_crt1, checked_crt2)) in
+    return (checked, result_pf, delta', result_ct)
 
   | RefinedExpr.CTuple spine ->
     let* (checked_spine, delta', ct) = _check_tuple rs delta eff spine [] in
