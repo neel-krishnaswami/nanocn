@@ -51,8 +51,26 @@ rfun len2
     Nil u -> let res case[foo] Nil(); let[u_eq] y; return[eq] = rest;
              (0,
               log auto,
-              res $hole_reconstruct_nil)
-  | Cons p -> $hole_reconstruct_cons
+              res unfold; take(own, let[a1] v1;
+                                    let [a2] v2;
+                                    case[a3] Nil ();
+                                    let [a4] ();
+                                    return auto)
+	     )
+  | Cons p -> let res let[a1] val1; 
+                      let[a2] val2;
+                      case[a3] Cons(x, q);
+                      let[a5] pair2;
+		      let[a6] val6;
+		      let[a7] (x',q');
+		      let[a8] x'';
+		      let[a9] q'';
+		      take(xs''', seq);
+		      let[b0] xs4;
+		      return[b1]
+               = rest; 
+              let (m, pf, seq') = len2(q, res seq);
+	      $hole_reconstruct_cons
   }
 
 
