@@ -14,6 +14,12 @@
    IO functor for Lsp.Io.Make — blocking stdin/stdout
    ================================================================== *)
 
+(* Identity monad: [Lsp.Io.Make] is parameterized over an IO monad so the
+   library can target Lwt, Async, etc. We run synchronously, so ['a t = 'a]
+   and the let-operators collapse to plain application. [let+] is map
+   (['a t -> ('a -> 'b) -> 'b t]) and [let*] is bind
+   (['a t -> ('a -> 'b t) -> 'b t]); both signatures specialize to
+   ['a -> ('a -> 'b) -> 'b] under the identity monad. *)
 module SyncIo = struct
   type 'a t = 'a
 
@@ -266,6 +272,8 @@ let handle_hover (doc : doc_state) (params : Lsp.Types.HoverParams.t) : Lsp.Type
             when not (Var.is_generated var) && Usage.is_avail usage ->
             Some (Format.asprintf "%a : %a @@ %a [res]"
               Var.print var CoreExpr.print pred CoreExpr.print value)
+          | RCtx.Unknown { var } when not (Var.is_generated var) ->
+            Some (Format.asprintf "%a : ?" Var.print var)
           | _ -> None
         ) (RCtx.entries delta) in
         (match lines with [] -> "(empty)" | ls -> String.concat "\n" ls)
@@ -274,6 +282,8 @@ let handle_hover (doc : doc_state) (params : Lsp.Types.HoverParams.t) : Lsp.Type
           match binding with
           | Context.Term (v, s, e) when not (Var.is_generated v) ->
             Some (Format.asprintf "%a : %a [%a]" Var.print v Sort.print s Effect.print e)
+          | Context.Unknown v when not (Var.is_generated v) ->
+            Some (Format.asprintf "%a : ?" Var.print v)
           | _ -> None
         ) (Context.to_list ctx) in
         (match user_bindings with [] -> "(empty)" | bs -> String.concat "\n" bs)
