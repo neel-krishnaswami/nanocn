@@ -18,10 +18,20 @@ type t = node list
 
 let empty = []
 
+(** [safe_sort_of_info b] reads the sort from [b#answer], falling
+    back to a [Bool] placeholder when the typechecker recorded an
+    Error rather than a sort.  Hover queries should never crash on
+    error-tainted nodes; the actual error surfaces separately as a
+    Flymake diagnostic. *)
+let safe_sort_of_info (b : Typecheck.typed_info) : Sort.sort =
+  match b#answer with
+  | Ok s -> s
+  | Error _ -> Sort.mk (object method loc = b#loc end) Sort.Bool
+
 (** Extract a node from a typed_ce info object (core — no refined context). *)
 let node_of_info (b : Typecheck.typed_info) : node =
   { loc = b#loc; ctx = b#ctx; rctx = None;
-    sort = CoreExpr.sort_of_info b; eff = b#eff; goal = RProg.NoGoal }
+    sort = safe_sort_of_info b; eff = b#eff; goal = RProg.NoGoal }
 
 (** Collect all nodes from a typed_ce tree by structural recursion. *)
 let rec collect (acc : node list) (e : Typecheck.typed_ce) : node list =
@@ -109,7 +119,7 @@ let collect_pf acc pf =
 let rec collect_enriched (rinfo : RProg.typed_rinfo) (acc : node list) (e : Typecheck.typed_ce) : node list =
   let b = CoreExpr.info e in
   let n = { loc = b#loc; ctx = b#ctx; rctx = Some rinfo#rctx;
-            sort = CoreExpr.sort_of_info b; eff = b#eff; goal = rinfo#goal } in
+            sort = safe_sort_of_info b; eff = b#eff; goal = rinfo#goal } in
   let acc = n :: acc in
   match CoreExpr.shape e with
   | CoreExpr.Var _ | CoreExpr.IntLit _ | CoreExpr.BoolLit _
