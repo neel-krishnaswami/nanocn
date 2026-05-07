@@ -88,9 +88,9 @@ let compile_file source ~file =
         | Error e -> (e :: acc.diags_rev, acc.warns_rev)
         | Ok (typed_e, _supply, ws) ->
           (* Multi-error: prepend every error recorded on the typed
-             tree so LSP shows them all.  Annotate the tree first so
-             [collect_errors] can read the precomputed field. *)
-          let typed_e = Typecheck.annotate_subterm_errors typed_e in
+             tree so LSP shows them all.  [collect_errors] reads
+             [info#subterm_errors] which is populated live during
+             elaboration. *)
           (List.rev_append (Typecheck.collect_errors typed_e) acc.diags_rev,
            List.rev_append ws acc.warns_rev)
         end

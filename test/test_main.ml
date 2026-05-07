@@ -110,7 +110,6 @@ let elab_synth ?(supply = Var.empty_supply) sig_ ctx eff se =
   match ElabM.run supply (Elaborate.synth sig_ ctx eff se) with
   | Error msg -> Error msg
   | Ok (typed_e, _supply) ->
-    let typed_e = Typecheck.annotate_subterm_errors typed_e in
     (match Typecheck.collect_errors typed_e with
      | [] -> Ok typed_e
      | e :: _ -> Error e)
@@ -121,7 +120,6 @@ let elab_check ?(supply = Var.empty_supply) sig_ ctx se sort eff =
   match ElabM.run supply (Elaborate.check sig_ ctx se (Ok sort) eff) with
   | Error msg -> Error msg
   | Ok (typed_e, _supply) ->
-    let typed_e = Typecheck.annotate_subterm_errors typed_e in
     (match Typecheck.collect_errors typed_e with
      | [] -> Ok typed_e
      | e :: _ -> Error e)

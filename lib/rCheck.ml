@@ -266,7 +266,6 @@ let[@warning "-32"] extend_res_opt (var : Var.t option)
 let elab_se (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (se : SurfExpr.se) : (CoreExpr.typed_ce * Sort.sort) ElabM.t =
   let cs = RSig.comp rs in
   let* ce = Elaborate.synth cs gamma eff se in
-  let ce = Typecheck.annotate_subterm_errors ce in
   match (CoreExpr.info ce)#answer with
   | Error e -> ElabM.fail e
   | Ok sort ->
@@ -279,7 +278,6 @@ let elab_se (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (se : SurfExpr.se
 let elab_se_check (rs : RSig.t) (gamma : Context.t) (se : SurfExpr.se) (sort : Sort.sort) (eff : Effect.t) : CoreExpr.typed_ce ElabM.t =
   let cs = RSig.comp rs in
   let* ce = Elaborate.check cs gamma se (Ok sort) eff in
-  let ce = Typecheck.annotate_subterm_errors ce in
   match (CoreExpr.info ce)#subterm_errors with
   | e :: _ -> ElabM.fail e
   | [] -> return ce
@@ -2407,7 +2405,6 @@ let elab_fundecl_body rs param arg_sort ret_sort eff body_se =
   let cs = RSig.comp rs in
   let gamma = Context.extend param arg_sort (Effect.purify eff) Context.empty in
   let* ce = Elaborate.check cs gamma body_se (Ok ret_sort) eff in
-  let ce = Typecheck.annotate_subterm_errors ce in
   match (CoreExpr.info ce)#subterm_errors with
   | e :: _ -> ElabM.fail e
   | [] -> return ce

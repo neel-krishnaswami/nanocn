@@ -5,13 +5,48 @@ let ( let* ) = ElabM.( let* )
 type typed_info = CoreExpr.typed_info
 type typed_ce = typed_info CoreExpr.t
 
+(** [collect_subtree_errors shape] aggregates [info#answer]'s [Error]
+    case (if any) and [info#subterm_errors] from every immediate
+    sub-tree of [shape].  Used at construction time so each typed_ce
+    node's [subterm_errors] is correct as the tree is built — no
+    post-pass needed. *)
+let collect_subtree_errors (shape : (typed_ce, typed_info) CoreExpr.ceF)
+    : Error.t list =
+  let collect_one e =
+    let info = CoreExpr.info e in
+    let own = match info#answer with Ok _ -> [] | Error err -> [err] in
+    own @ info#subterm_errors in
+  match shape with
+  | CoreExpr.Var _ | CoreExpr.IntLit _ | CoreExpr.BoolLit _
+  | CoreExpr.Fail | CoreExpr.Hole _ -> []
+  | CoreExpr.Let (_, e1, e2)
+  | CoreExpr.LetTuple (_, e1, e2)
+  | CoreExpr.Take (_, e1, e2)
+  | CoreExpr.Iter (_, e1, e2)
+  | CoreExpr.Eq (e1, e2)
+  | CoreExpr.And (e1, e2) ->
+    collect_one e1 @ collect_one e2
+  | CoreExpr.If (e1, e2, e3) ->
+    collect_one e1 @ collect_one e2 @ collect_one e3
+  | CoreExpr.Tuple es -> List.concat_map collect_one es
+  | CoreExpr.Inject (_, e1) | CoreExpr.App (_, e1) | CoreExpr.Not e1
+  | CoreExpr.Return e1 | CoreExpr.Call (_, e1) -> collect_one e1
+  | CoreExpr.Annot (e1, _) -> collect_one e1
+  | CoreExpr.Case (scrut, branches) ->
+    let collect_binfo (binfo : typed_info) =
+      let own = match binfo#answer with Ok _ -> [] | Error err -> [err] in
+      own @ binfo#subterm_errors in
+    collect_one scrut
+    @ List.concat_map (fun (_, _, body, binfo) ->
+        collect_binfo binfo @ collect_one body) branches
+
 let mk_typed ctx pos sort eff shape : typed_ce =
   CoreExpr.mk (object
     method loc = pos
     method ctx = ctx
     method answer = Ok sort
     method eff = eff
-    method subterm_errors = []
+    method subterm_errors = collect_subtree_errors shape
   end) shape
 
 (** [mk ctx pos answer eff shape]: like [mk_typed] but takes the
@@ -23,7 +58,7 @@ let mk ctx pos answer eff shape : typed_ce =
     method ctx = ctx
     method answer = answer
     method eff = eff
-    method subterm_errors = []
+    method subterm_errors = collect_subtree_errors shape
   end) shape
 
 let lift_sort (s : Sort.sort) : typed_info Sort.t =

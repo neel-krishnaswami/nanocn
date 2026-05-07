@@ -54,11 +54,13 @@ type typed_info = <
   answer : (Sort.sort, Error.t) result;
   eff : Effect.t;
   subterm_errors : Error.t list;
-    (** Errors recorded on [info#answer] anywhere in the subtree
-        rooted at this node, including this node's own.  Populated
-        by [Typecheck.annotate_subterm_errors] as a single
-        bottom-up pass at the end of elaboration; before that pass
-        runs the field is the empty list at every node. *)
+    (** Errors recorded on [info#answer] anywhere in the immediate
+        sub-trees of this node (i.e. NOT including this node's own
+        answer).  Populated live during construction by
+        [Elaborate.collect_subtree_errors] / [Typecheck.mk] —
+        every constructor walks one level of the shape and
+        aggregates from each immediate child's [own_error_if_any
+        ++ subterm_errors]. *)
 >
 type typed_ce = typed_info t
 

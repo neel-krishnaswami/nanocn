@@ -10,6 +10,13 @@
 type typed_info = CoreExpr.typed_info
 type typed_ce = typed_info CoreExpr.t
 
+val collect_subtree_errors : (typed_ce, typed_info) CoreExpr.ceF -> Error.t list
+(** [collect_subtree_errors shape] aggregates [info#answer]'s [Error]
+    case (if any) and [info#subterm_errors] from every immediate
+    sub-tree of [shape].  Used at construction time so each typed_ce
+    node's [subterm_errors] is correct as the tree is built — no
+    post-pass needed. *)
+
 val lift_sort : Sort.sort -> typed_info Sort.t
 (** Upgrade a plain [Sort.sort] to a [typed_info Sort.t] suitable for use in
     [CoreExpr.Annot]. The lifted sort carries empty context, [Effect.Pure],
