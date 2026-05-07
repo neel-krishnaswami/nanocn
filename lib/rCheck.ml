@@ -704,23 +704,73 @@ let[@warning "-32"] answer_of_sort_kind_r ~loc
     : (Sort.sort, Error.t) result =
   Result.map_error (Error.structured ~loc) sort_r
 
+(** [collect_cpat_vars cp] collects every [Var.t] introduced by [cp]
+    (CVar binders, recursively through CTuple). *)
+let rec collect_cpat_vars (cp : (_, Var.t) RPat.cpat) : Var.t list =
+  match RPat.cpat_shape cp with
+  | RPat.CVar x -> [x]
+  | RPat.CTuple cps -> List.concat_map collect_cpat_vars cps
+
+(** [collect_lpat_vars lp] collects [lp]'s introduced [Var.t], if any. *)
+let collect_lpat_vars (lp : (_, Var.t) RPat.lpat) : Var.t list =
+  match RPat.lpat_shape lp with
+  | RPat.LVar x -> [x]
+  | RPat.LAuto -> []
+
+(** [collect_rp_vars rp] collects every [Var.t] introduced anywhere in
+    [rp]'s structure: cpat binders (Comp/Spec), lpat binders (Log),
+    and the trailing RVar (Res).  Used at error-short-circuit sites in
+    [rpat_match] so the rpat's variables stay in scope as
+    [extend_unknown] entries even when the structural pattern check
+    fails — without this, the user loses every variable they named in
+    the pattern from the body's context. *)
+let rec collect_rp_vars (rp : (_, Var.t) RPat.rpat) : Var.t list =
+  match RPat.rpat_shape rp with
+  | RPat.RVar x -> [x]
+  | RPat.RReturn lp -> collect_lpat_vars lp
+  | RPat.RTake (cp, rp1, rp2) ->
+    collect_cpat_vars cp @ collect_rp_vars rp1 @ collect_rp_vars rp2
+  | RPat.RFail lp -> collect_lpat_vars lp
+  | RPat.RLet (lp, cp, rp') ->
+    collect_lpat_vars lp @ collect_cpat_vars cp @ collect_rp_vars rp'
+  | RPat.RCase (lp, _, cp, rp') ->
+    collect_lpat_vars lp @ collect_cpat_vars cp @ collect_rp_vars rp'
+  | RPat.RIfTrue rp' | RPat.RIfFalse rp'
+  | RPat.RUnfold rp' | RPat.RAnnot rp' ->
+    collect_rp_vars rp'
+
+(** [extend_delta_with_rp_unknowns rp delta] extends [delta] with an
+    [extend_unknown] entry for every [Var.t] introduced anywhere in
+    [rp]'s structure.  Used at error-short-circuit sites so the user's
+    pattern variables are still in scope downstream even when the
+    structural match failed. *)
+let extend_delta_with_rp_unknowns rp delta =
+  List.fold_left
+    (fun d v -> RCtx.extend_unknown v d)
+    delta (collect_rp_vars rp)
+
 (** [error_rp_blanket rp delta eff k] produces a typed rpat with the
     same shape as [rp] but with [Error _] on every internal node's
-    answer.  Used at structural-mismatch short-circuits in
-    [rpat_match]: if a view extract fails, we still produce a typed
-    AST so LSP can show "this region had a structural mismatch"
-    without losing the user's syntax. *)
+    answer, and an extended context with an [extend_unknown] entry for
+    every variable the rpat introduces.  Used at structural-mismatch
+    short-circuits in [rpat_match]: if a view extract fails, we still
+    produce a typed AST and keep the user's pattern variables in scope
+    so LSP context queries downstream of the rpat see [a1, x, xs,
+    rest2 : ?] rather than dropping them entirely. *)
 let[@warning "-32"] error_rp_blanket
     (rp : (_, Var.t) RPat.rpat)
     (delta : RCtx.t)
     (eff : Effect.t)
     (k : Error.kind)
-    : (RProg.typed_rinfo, Var.t) RPat.rpat =
-  RPat.map_info_rpat
-    (fun b ->
-      mk_rinfo_with_answer b#loc delta bool_sort eff
-        (Error (Error.structured ~loc:b#loc k)))
-    rp
+    : (RProg.typed_rinfo, Var.t) RPat.rpat * RCtx.t =
+  let delta' = extend_delta_with_rp_unknowns rp delta in
+  let typed_rp =
+    RPat.map_info_rpat
+      (fun b ->
+        mk_rinfo_with_answer b#loc delta' bool_sort eff
+          (Error (Error.structured ~loc:b#loc k)))
+      rp in
+  (typed_rp, delta')
 
 (** [mk_rinfo_full ?goal loc delta sort eff errors] is like
     [mk_rinfo] but takes an explicit [errors] list.  When non-empty,
@@ -2101,8 +2151,8 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   | (Error e, _) | (_, Error e) ->
     (* Input cascade: pred or value is fundamentally Error.  Build
        typed_rp with Error annotations throughout. *)
-    let typed_rp = error_rp_blanket rp delta eff e in
-    return (typed_rp, delta, Constraint.top pos)
+    let (typed_rp, delta') = error_rp_blanket rp delta eff e in
+    return (typed_rp, delta', Constraint.top pos)
   | Ok pred, Ok value ->
   let cs = RSig.comp rs in
   let pred' = strip_annots pred in
@@ -2117,8 +2167,8 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   | RPat.RReturn lpat ->
     (match view_get_return_ce ~construct:"return pattern" pred' with
      | Error k ->
-       let typed_rp = error_rp_blanket rp delta eff k in
-       return (typed_rp, delta, Constraint.top pos)
+       let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+       return (typed_rp, delta', Constraint.top pos)
      | Ok ret_ce ->
        let eq_ce = CoreExpr.mk pred_info (CoreExpr.Eq (ret_ce, value)) in
        let* (typed_lp, delta', ct) = lpat_match rs delta lpat (Ok eq_ce) in
@@ -2129,8 +2179,8 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   | RPat.RTake (cpat, rp1, rp2) ->
     (match view_get_take_ce ~construct:"take pattern" pred' with
      | Error k ->
-       let typed_rp = error_rp_blanket rp delta eff k in
-       return (typed_rp, delta, Constraint.top pos)
+       let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+       return (typed_rp, delta', Constraint.top pos)
      | Ok (x, ce1, ce2) ->
        let ce1_sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
        let inner_sort_r =
@@ -2169,8 +2219,8 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   | RPat.RLet (lpat, cpat, rp_inner) ->
     (match view_get_let_ce ~construct:"let pattern" pred' with
      | Error k ->
-       let typed_rp = error_rp_blanket rp delta eff k in
-       return (typed_rp, delta, Constraint.top pos)
+       let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+       return (typed_rp, delta', Constraint.top pos)
      | Ok (x, ce1, ce2) ->
        let sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
        let* (typed_cp, delta1, ce_w) =
@@ -2195,8 +2245,8 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   | RPat.RIfTrue rp_inner ->
     (match view_get_if_ce ~construct:"iftrue pattern" pred' with
      | Error k ->
-       let typed_rp = error_rp_blanket rp delta eff k in
-       return (typed_rp, delta, Constraint.top pos)
+       let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+       return (typed_rp, delta', Constraint.top pos)
      | Ok (ce_cond, ce_t, _ce_e) ->
        let* (typed_inner, delta', ct_inner) =
          rpat_match rs delta eff rp_inner (Ok ce_t) (Ok value) in
@@ -2208,8 +2258,8 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   | RPat.RIfFalse rp_inner ->
     (match view_get_if_ce ~construct:"iffalse pattern" pred' with
      | Error k ->
-       let typed_rp = error_rp_blanket rp delta eff k in
-       return (typed_rp, delta, Constraint.top pos)
+       let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+       return (typed_rp, delta', Constraint.top pos)
      | Ok (ce_cond, _ce_t, ce_e) ->
        let* (typed_inner, delta', ct_inner) =
          rpat_match rs delta eff rp_inner (Ok ce_e) (Ok value) in
@@ -2223,8 +2273,8 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   | RPat.RCase (lpat, label, cpat, rp_inner) ->
     (match view_get_case_ce ~construct:"case pattern" pred' with
      | Error k ->
-       let typed_rp = error_rp_blanket rp delta eff k in
-       return (typed_rp, delta, Constraint.top pos)
+       let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+       return (typed_rp, delta', Constraint.top pos)
      | Ok (scrutinee, branches) ->
        (match List.find_opt
                 (fun (l, _, _, _) -> Label.compare l label = 0) branches with
@@ -2281,13 +2331,13 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   | RPat.RUnfold rp_inner ->
     (match view_get_call_ce ~construct:"unfold pattern" pred' with
      | Error k ->
-       let typed_rp = error_rp_blanket rp delta eff k in
-       return (typed_rp, delta, Constraint.top pos)
+       let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+       return (typed_rp, delta', Constraint.top pos)
      | Ok (f, ce_arg) ->
        (match Sig.lookup_fundef f cs with
         | Error k ->
-          let typed_rp = error_rp_blanket rp delta eff k in
-          return (typed_rp, delta, Constraint.top pos)
+          let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+          return (typed_rp, delta', Constraint.top pos)
         | Ok (param, arg_sort, _ret_sort, eff', body) ->
           if not (Effect.sub eff' Effect.Spec) then
             let err = Error.unfold_not_spec ~loc:pos ~name:f in
