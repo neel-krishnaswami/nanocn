@@ -132,6 +132,123 @@ let[@warning "-32"] view_get_fail_ce ~construct (ce : CoreExpr.typed_ce)
     ~none:(mismatch_ce_kind ~construct ~expected_shape:"fail" ce)
     (CoreExprView.Get.fail (Some ce))
 
+(** {2 ProofSortView wrappers — local option→result helpers}
+
+    Lift [ProofSortView.Get.*] from option-typed to result-typed, using
+    [K_rpat_length_mismatch] for nil mismatches and
+    [K_rpat_kind_mismatch] for head-shape mismatches.  The wrapper
+    inspects [pf_opt] to compute the actual head kind for the
+    diagnostic. *)
+
+let pf_head_kind = function
+  | None -> "(unknown)"
+  | Some [] -> "(end)"
+  | Some (ProofSort.Comp _ :: _) -> "comp"
+  | Some (ProofSort.Log _ :: _) -> "log"
+  | Some (ProofSort.Res _ :: _) -> "res"
+  | Some (ProofSort.DepRes _ :: _) -> "depres"
+
+let pf_remaining_len = function
+  | None -> 0
+  | Some pf -> List.length pf
+
+let[@warning "-32"] view_get_pf_nil
+    (pf_opt : (CoreExpr.typed_ce, _, Var.t) ProofSort.t option)
+    : (unit, Error.kind) result =
+  match ProofSortView.Get.nil pf_opt with
+  | Some () -> Ok ()
+  | None ->
+    Error (Error.K_rpat_length_mismatch
+             { pat_len = 0; pf_len = pf_remaining_len pf_opt })
+
+let[@warning "-32"] view_get_pf_comp
+    (pf_opt : (CoreExpr.typed_ce, _, Var.t) ProofSort.t option)
+    : Var.t option
+    * (Sort.sort, Error.kind) result
+    * (Effect.t, Error.kind) result
+    * (CoreExpr.typed_ce, _, Var.t) ProofSort.t option =
+  let (var_o, sort_o, eff_o, tail_o) = ProofSortView.Get.comp pf_opt in
+  let mismatch =
+    Error.K_rpat_kind_mismatch
+      { pat_kind = "core"; pf_kind = pf_head_kind pf_opt } in
+  ( var_o,
+    Option.to_result ~none:mismatch sort_o,
+    Option.to_result ~none:mismatch eff_o,
+    tail_o )
+
+let[@warning "-32"] view_get_pf_log
+    (pf_opt : (CoreExpr.typed_ce, _, Var.t) ProofSort.t option)
+    : (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, _, Var.t) ProofSort.t option =
+  let (prop_o, tail_o) = ProofSortView.Get.log pf_opt in
+  let mismatch =
+    Error.K_rpat_kind_mismatch
+      { pat_kind = "log"; pf_kind = pf_head_kind pf_opt } in
+  ( Option.to_result ~none:mismatch prop_o, tail_o )
+
+let[@warning "-32"] view_get_pf_res
+    (pf_opt : (CoreExpr.typed_ce, _, Var.t) ProofSort.t option)
+    : (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, _, Var.t) ProofSort.t option =
+  let (pred_o, value_o, tail_o) = ProofSortView.Get.res pf_opt in
+  let mismatch =
+    Error.K_rpat_kind_mismatch
+      { pat_kind = "res"; pf_kind = pf_head_kind pf_opt } in
+  ( Option.to_result ~none:mismatch pred_o,
+    Option.to_result ~none:mismatch value_o,
+    tail_o )
+
+let[@warning "-32"] view_get_pf_depres
+    (pf_opt : (CoreExpr.typed_ce, _, Var.t) ProofSort.t option)
+    : Var.t option
+    * (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, _, Var.t) ProofSort.t option =
+  let (bvar_o, pred_o, tail_o) = ProofSortView.Get.depres pf_opt in
+  let mismatch =
+    Error.K_rpat_kind_mismatch
+      { pat_kind = "depres"; pf_kind = pf_head_kind pf_opt } in
+  ( bvar_o,
+    Option.to_result ~none:mismatch pred_o,
+    tail_o )
+
+(** {2 [extend_*_opt] helpers — wrap [RCtx.extend_*] for option-typed
+    var and result-typed payloads.
+
+    Three rules, applied in order:
+    - If [var] is [None], the variable name itself is unknown — don't
+      extend at all.
+    - If [var] is [Some v] but any payload argument is [Error _],
+      extend with [extend_unknown] (we know the variable but not its
+      sort/predicate/etc.).
+    - Otherwise extend with the matching [RCtx.extend_<kind>]. *)
+
+let[@warning "-32"] extend_comp_opt (var : Var.t option)
+    (sort : (Sort.sort, Error.kind) result)
+    (eff : (Effect.t, Error.kind) result)
+    (delta : RCtx.t) : RCtx.t =
+  match var, sort, eff with
+  | None, _, _ -> delta
+  | Some v, Ok s, Ok e -> RCtx.extend_comp v s e delta
+  | Some v, _, _ -> RCtx.extend_unknown v delta
+
+let[@warning "-32"] extend_log_opt (var : Var.t option)
+    (prop : (CoreExpr.typed_ce, Error.kind) result)
+    (delta : RCtx.t) : RCtx.t =
+  match var, prop with
+  | None, _ -> delta
+  | Some v, Ok p -> RCtx.extend_log v p delta
+  | Some v, Error _ -> RCtx.extend_unknown v delta
+
+let[@warning "-32"] extend_res_opt (var : Var.t option)
+    (pred : (CoreExpr.typed_ce, Error.kind) result)
+    (value : (CoreExpr.typed_ce, Error.kind) result)
+    (usage : Usage.t) (delta : RCtx.t) : RCtx.t =
+  match var, pred, value with
+  | None, _, _ -> delta
+  | Some v, Ok p, Ok va -> RCtx.extend_res v p va usage delta
+  | Some v, _, _ -> RCtx.extend_unknown v delta
+
 (* Elaborate a surface expression to typed core, synthesizing its
    sort.  Defers to surface elaboration; if the elaborator recorded
    any errors on the typed tree, fail-fast through ElabM with the
@@ -547,6 +664,34 @@ let[@warning "-32"] mk_rinfo_err ?(goal=RProg.NoGoal) loc delta sort eff err : R
     method subterm_errors = []
   end)
 
+(** [mk_rinfo_with_answer ?goal loc delta sort eff answer] takes an
+    explicit answer (already a [(Sort.sort, Error.t) result]) so
+    callers can lift [(_, Error.kind) result] inputs from the View
+    wrappers via [Error.structured ~loc].  [sort] is the placeholder
+    used when [answer = Error _]. *)
+let[@warning "-32"] mk_rinfo_with_answer
+    ?(goal=RProg.NoGoal) loc delta sort eff
+    (answer : (Sort.sort, Error.t) result) : RProg.typed_rinfo =
+  (object
+    method loc = loc
+    method ctx = RCtx.erase delta
+    method rctx = delta
+    method sort = sort
+    method eff = eff
+    method goal = goal
+    method answer = answer
+    method subterm_errors = []
+  end)
+
+(** [answer_of_sort_kind_r ~loc sort_r] lifts a
+    [(Sort.sort, Error.kind) result] into a
+    [(Sort.sort, Error.t) result] suitable for the [answer] field, by
+    attaching [loc] to the error kind. *)
+let[@warning "-32"] answer_of_sort_kind_r ~loc
+    (sort_r : (Sort.sort, Error.kind) result)
+    : (Sort.sort, Error.t) result =
+  Result.map_error (Error.structured ~loc) sort_r
+
 (* ---------- typing judgements ---------- *)
 
 (* Tag description helpers for error messages *)
@@ -875,10 +1020,10 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
         (view_get_let_ce ~construct:"let rpf" ce1') in
     let tau = (CoreExpr.sort_of_info (CoreExpr.info ce_a)) in
     let* (typed_cp, delta1, ce_w) =
-      cpat_match rs delta Effect.Spec cpat tau in
+      cpat_match rs delta (Ok Effect.Spec) cpat (Ok tau) in
     let eq_prop =
       CoreExpr.mk (CoreExpr.info ce1) (CoreExpr.Eq (ce_w, ce_a)) in
-    let* (typed_lp, delta2, ct1) = lpat_match rs delta1 lpat eq_prop in
+    let* (typed_lp, delta2, ct1) = lpat_match rs delta1 lpat (Ok eq_prop) in
     let arg_typed_sort = Elaborate.lift_sort tau in
     let ce_w_annot =
       CoreExpr.mk (mk_info tau)
@@ -940,7 +1085,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
           let* payload_sort =
             ElabM.lift_at pos (CtorLookup.lookup cs d label args) in
           let* (typed_cp, delta1, ce_w) =
-            cpat_match rs delta Effect.Spec cpat payload_sort in
+            cpat_match rs delta (Ok Effect.Spec) cpat (Ok payload_sort) in
           let inject_ce =
             CoreExpr.mk (CoreExpr.info scrutinee)
               (CoreExpr.Inject (label, ce_w)) in
@@ -948,7 +1093,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
             CoreExpr.mk (CoreExpr.info ce1)
               (CoreExpr.Eq (inject_ce, scrutinee)) in
           let* (typed_lp, delta2, ct1) =
-            lpat_match rs delta1 lpat eq_prop in
+            lpat_match rs delta1 lpat (Ok eq_prop) in
           let payload_typed_sort = Elaborate.lift_sort payload_sort in
           let ce_w_annot =
             CoreExpr.mk (mk_info payload_sort)
@@ -1730,73 +1875,89 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.ty
    kind mismatch) are attached to the appropriate pattern node's
    [info#answer] via attach-and-continue.  *)
 
-and cpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
-    (cp : (_, Var.t) RPat.cpat) (sort : Sort.sort)
+and cpat_match (rs : RSig.t) (delta : RCtx.t)
+    (eff : (Effect.t, Error.kind) result)
+    (cp : (_, Var.t) RPat.cpat)
+    (sort : (Sort.sort, Error.kind) result)
   : ((RProg.typed_rinfo, Var.t) RPat.cpat * RCtx.t * CoreExpr.typed_ce) ElabM.t =
   let binfo = RPat.cpat_info cp in
   let pos = binfo#loc in
   let _ = rs in
-  let eff' = Effect.purify eff in
+  let eff' = Result.map Effect.purify eff in
+  let placeholder_sort = Result.value sort ~default:bool_sort in
+  let placeholder_eff = Result.value eff' ~default:Effect.Pure in
+  let answer = answer_of_sort_kind_r ~loc:pos sort in
   match RPat.cpat_shape cp with
   | RPat.CVar x ->
-    let delta' = RCtx.extend_comp x sort eff' delta in
-    let ce_x = ce_of_var x sort in
-    let info = mk_rinfo pos delta' sort eff' in
+    let delta' = extend_comp_opt (Some x) sort eff' delta in
+    let ce_x = ce_of_var x placeholder_sort in
+    let info =
+      mk_rinfo_with_answer pos delta' placeholder_sort placeholder_eff answer in
     let typed_cp = RPat.mk_cpat info (RPat.CVar x) in
     return (typed_cp, delta', ce_x)
   | RPat.CTuple cps ->
     let n = List.length cps in
     let component_sort_results =
-      view_get_record_sorts ~construct:"tuple pattern" n (Ok sort) in
-    let placeholder_sort = bool_sort in
-    let rec loop cps sorts delta_acc typed_acc ce_acc =
-      match cps, sorts with
-      | [], [] ->
+      view_get_record_sorts ~construct:"tuple pattern" n sort in
+    let pairs = List.combine cps component_sort_results in
+    let rec loop pairs delta_acc typed_acc ce_acc =
+      match pairs with
+      | [] ->
         return (List.rev typed_acc, delta_acc, List.rev ce_acc)
-      | cp :: cps_rest, sr :: sorts_rest ->
-        let component_sort = match sr with
-          | Ok s -> s | Error _ -> placeholder_sort in
+      | (cp, sr) :: rest ->
         let* (typed_cp, delta', ce_w) =
-          cpat_match rs delta_acc eff cp component_sort in
-        loop cps_rest sorts_rest delta'
-          (typed_cp :: typed_acc) (ce_w :: ce_acc)
-      | _ ->
-        ElabM.fail (Error.structured ~loc:pos
-          (Error.K_rpat_length_mismatch
-             { pat_len = List.length cps;
-               pf_len = List.length sorts }))
+          cpat_match rs delta_acc eff cp sr in
+        loop rest delta' (typed_cp :: typed_acc) (ce_w :: ce_acc)
     in
-    let* (typed_cps, delta', ces) =
-      loop cps component_sort_results delta [] [] in
+    let* (typed_cps, delta', ces) = loop pairs delta [] [] in
     let tuple_ce =
-      CoreExpr.mk (mk_info sort) (CoreExpr.Tuple ces) in
-    let info = mk_rinfo pos delta' sort eff' in
+      CoreExpr.mk (mk_info placeholder_sort) (CoreExpr.Tuple ces) in
+    let info =
+      mk_rinfo_with_answer pos delta' placeholder_sort placeholder_eff answer in
     let typed_tuple = RPat.mk_cpat info (RPat.CTuple typed_cps) in
     return (typed_tuple, delta', tuple_ce)
 
 and lpat_match (rs : RSig.t) (delta : RCtx.t)
-    (lp : (_, Var.t) RPat.lpat) (prop : CoreExpr.typed_ce)
+    (lp : (_, Var.t) RPat.lpat)
+    (prop : (CoreExpr.typed_ce, Error.kind) result)
   : ((RProg.typed_rinfo, Var.t) RPat.lpat * RCtx.t * Constraint.typed_ct) ElabM.t =
   let _ = rs in
   let binfo = RPat.lpat_info lp in
   let pos = binfo#loc in
   match RPat.lpat_shape lp with
   | RPat.LVar x ->
-    let delta' = RCtx.extend_log x prop delta in
+    let delta' = extend_log_opt (Some x) prop delta in
     let info = mk_rinfo pos delta' bool_sort Effect.Spec in
     let typed_lp = RPat.mk_lpat info (RPat.LVar x) in
     return (typed_lp, delta', Constraint.top pos)
   | RPat.LAuto ->
     let info = mk_rinfo pos delta bool_sort Effect.Spec in
     let typed_lp = RPat.mk_lpat info RPat.LAuto in
-    return (typed_lp, delta, Constraint.atom pos prop)
+    let ct = match prop with
+      | Ok p -> Constraint.atom pos p
+      | Error _ -> Constraint.top pos in
+    return (typed_lp, delta, ct)
 
 and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
     (rp : (_, Var.t) RPat.rpat)
-    (pred : CoreExpr.typed_ce) (value : CoreExpr.typed_ce)
+    (pred : (CoreExpr.typed_ce, Error.kind) result)
+    (value : (CoreExpr.typed_ce, Error.kind) result)
   : ((RProg.typed_rinfo, Var.t) RPat.rpat * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RPat.rpat_info rp in
   let pos = binfo#loc in
+  match pred, value with
+  | (Error e, _) | (_, Error e) ->
+    (* Cascade fast-path: build typed_rp with Error answers throughout
+       and emit no constraint contribution.  Full Error-aware body
+       refactor is C3. *)
+    let typed_rp =
+      RPat.map_info_rpat
+        (fun b ->
+          mk_rinfo_with_answer b#loc delta bool_sort eff
+            (Error (Error.structured ~loc:b#loc e)))
+        rp in
+    return (typed_rp, delta, Constraint.top pos)
+  | Ok pred, Ok value ->
   let cs = RSig.comp rs in
   let pred' = strip_annots pred in
   let pred_info = CoreExpr.info pred in
@@ -1812,7 +1973,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
       ElabM.lift_at pos
         (view_get_return_ce ~construct:"return pattern" pred') in
     let eq_ce = CoreExpr.mk pred_info (CoreExpr.Eq (ret_ce, value)) in
-    let* (typed_lp, delta', ct) = lpat_match rs delta lpat eq_ce in
+    let* (typed_lp, delta', ct) = lpat_match rs delta lpat (Ok eq_ce) in
     let info = mk_rinfo pos delta' bool_sort eff in
     let typed_rp = RPat.mk_rpat info (RPat.RReturn typed_lp) in
     return (typed_rp, delta', ct)
@@ -1826,11 +1987,11 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
       ElabM.lift_at pos
         (SortGet.get_pred ~construct:"take pattern" ce1_sort) in
     let ce_x = ce_of_var x inner_sort in
-    let* (typed_cp, delta1, _) = cpat_match rs delta eff cpat inner_sort in
+    let* (typed_cp, delta1, _) = cpat_match rs delta (Ok eff) cpat (Ok inner_sort) in
     let* (typed_rp1, delta2, ct1) =
-      rpat_match rs delta1 eff rp1 ce1 ce_x in
+      rpat_match rs delta1 eff rp1 (Ok ce1) (Ok ce_x) in
     let* (typed_rp2, delta3, ct2) =
-      rpat_match rs delta2 eff rp2 ce2 value in
+      rpat_match rs delta2 eff rp2 (Ok ce2) (Ok value) in
     let ct = Constraint.conj pos ct1 ct2 in
     let info = mk_rinfo pos delta3 bool_sort eff in
     let typed_rp =
@@ -1842,7 +2003,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
       ElabM.lift_at pos
         (view_get_fail_ce ~construct:"fail pattern" pred') in
     let false_ce = CoreExpr.mk pred_info (CoreExpr.BoolLit false) in
-    let* (typed_lp, delta', _ct) = lpat_match rs delta lpat false_ce in
+    let* (typed_lp, delta', _ct) = lpat_match rs delta lpat (Ok false_ce) in
     let info = mk_rinfo pos delta' bool_sort eff in
     let typed_rp = RPat.mk_rpat info (RPat.RFail typed_lp) in
     return (typed_rp, delta', Constraint.bot pos)
@@ -1853,9 +2014,9 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
         (view_get_let_ce ~construct:"let pattern" pred') in
     let sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
     let* (typed_cp, delta1, ce_w) =
-      cpat_match rs delta eff cpat sort in
+      cpat_match rs delta (Ok eff) cpat (Ok sort) in
     let eq_ce = CoreExpr.mk pred_info (CoreExpr.Eq (ce_w, ce1)) in
-    let* (typed_lp, delta2, ct1) = lpat_match rs delta1 lpat eq_ce in
+    let* (typed_lp, delta2, ct1) = lpat_match rs delta1 lpat (Ok eq_ce) in
     (* Substitute (ce_w : sort) / x into ce2 *)
     let arg_typed_sort = Elaborate.lift_sort sort in
     let ce_w_annot =
@@ -1863,7 +2024,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
     let sub = Subst.extend_var x ce_w_annot Subst.empty in
     let ce2_subst = Subst.apply_ce sub ce2 in
     let* (typed_inner, delta3, ct2) =
-      rpat_match rs delta2 eff rp_inner ce2_subst value in
+      rpat_match rs delta2 eff rp_inner (Ok ce2_subst) (Ok value) in
     let ct = Constraint.conj pos ct1 ct2 in
     let info = mk_rinfo pos delta3 bool_sort eff in
     let typed_rp =
@@ -1875,7 +2036,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
       ElabM.lift_at pos
         (view_get_if_ce ~construct:"iftrue pattern" pred') in
     let* (typed_inner, delta', ct_inner) =
-      rpat_match rs delta eff rp_inner ce_t value in
+      rpat_match rs delta eff rp_inner (Ok ce_t) (Ok value) in
     let info = mk_rinfo pos delta' bool_sort eff in
     let typed_rp = RPat.mk_rpat info (RPat.RIfTrue typed_inner) in
     let ct = Constraint.conj pos (Constraint.atom pos ce_cond) ct_inner in
@@ -1886,7 +2047,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
       ElabM.lift_at pos
         (view_get_if_ce ~construct:"iffalse pattern" pred') in
     let* (typed_inner, delta', ct_inner) =
-      rpat_match rs delta eff rp_inner ce_e value in
+      rpat_match rs delta eff rp_inner (Ok ce_e) (Ok value) in
     let info = mk_rinfo pos delta' bool_sort eff in
     let typed_rp = RPat.mk_rpat info (RPat.RIfFalse typed_inner) in
     let not_ce =
@@ -1911,13 +2072,13 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
           let* payload_sort =
             ElabM.lift_at pos (CtorLookup.lookup cs d label args) in
           let* (typed_cp, delta1, ce_w) =
-            cpat_match rs delta eff cpat payload_sort in
+            cpat_match rs delta (Ok eff) cpat (Ok payload_sort) in
           let inject_ce =
             CoreExpr.mk (CoreExpr.info scrutinee)
               (CoreExpr.Inject (label, ce_w)) in
           let eq_ce = CoreExpr.mk pred_info (CoreExpr.Eq (inject_ce, scrutinee)) in
           let* (typed_lp, delta2, ct1) =
-            lpat_match rs delta1 lpat eq_ce in
+            lpat_match rs delta1 lpat (Ok eq_ce) in
           (* Substitute (ce_w : payload_sort) / x_br into ce_br *)
           let payload_typed_sort = Elaborate.lift_sort payload_sort in
           let ce_w_annot =
@@ -1926,7 +2087,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
           let sub = Subst.extend_var x_br ce_w_annot Subst.empty in
           let ce_br_subst = Subst.apply_ce sub ce_br in
           let* (typed_inner, delta3, ct2) =
-            rpat_match rs delta2 eff rp_inner ce_br_subst value in
+            rpat_match rs delta2 eff rp_inner (Ok ce_br_subst) (Ok value) in
           let ct =
             Constraint.conj pos
               (Constraint.is_ pos label scrutinee)
@@ -1964,19 +2125,25 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
       let sub = Subst.extend_var param ce_arg_annot Subst.empty in
       let unfolded = Subst.apply_ce sub body in
       let* (typed_inner, delta', ct) =
-        rpat_match rs delta eff rp_inner unfolded value in
+        rpat_match rs delta eff rp_inner (Ok unfolded) (Ok value) in
       let info = mk_rinfo pos delta' bool_sort eff in
       let typed_rp = RPat.mk_rpat info (RPat.RUnfold typed_inner) in
       return (typed_rp, delta', ct)
 
   | RPat.RAnnot rp_inner ->
     let* (typed_inner, delta', ct) =
-      rpat_match rs delta eff rp_inner pred' value in
+      rpat_match rs delta eff rp_inner (Ok pred') (Ok value) in
     let info = mk_rinfo pos delta' bool_sort eff in
     let typed_rp = RPat.mk_rpat info (RPat.RAnnot typed_inner) in
     return (typed_rp, delta', ct)
 
-(* Refined pattern matching: RS; Delta |- [eff] q : Pf -| Delta' ~~> Ct *)
+(* Refined pattern matching: RS; Delta |- [eff] q : Pf -| Delta' ~~> Ct
+
+   Walks RPat.shape and ProofSort.t in lockstep via ProofSortView.
+   Mismatches between the pattern's qbase shape and the proof sort's
+   head naturally produce Error-typed components (via the View
+   wrappers), which propagate through cpat_match / lpat_match /
+   rpat_match into the typed AST without halting. *)
 and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
     (pat : (_, Var.t) RPat.t)
     (pf : (CoreExpr.typed_ce, _, Var.t) ProofSort.t)
@@ -1984,100 +2151,84 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   let pos = (RPat.info pat)#loc in
   let cs = RSig.comp rs in
   let _ = cs in
-  let rec count_qbases t =
-    match RPat.shape t with
-    | RPat.QNil -> 0
-    | RPat.QCore (_, rest) | RPat.QLog (_, rest) | RPat.QRes (_, rest) ->
-      1 + count_qbases rest
-    | RPat.QDepRes (_, _, rest) -> 1 + count_qbases rest
-  in
-  let fail_length pat_t pf_remaining =
-    ElabM.fail (Error.structured ~loc:pos
-      (Error.K_rpat_length_mismatch
-         { pat_len = count_qbases pat_t;
-           pf_len = List.length pf_remaining }))
-  in
-  let pat_kind_str = function
-    | RPat.QCore _ -> "core" | RPat.QLog _ -> "log"
-    | RPat.QRes _ -> "res" | RPat.QDepRes _ -> "depres"
-    | RPat.QNil -> "(end)" in
-  let pf_kind_str = function
-    | ProofSort.Comp _ -> "comp" | ProofSort.Log _ -> "log"
-    | ProofSort.Res _ -> "res" | ProofSort.DepRes _ -> "depres" in
-  let fail_kind pat_shape entry =
-    ElabM.fail (Error.structured ~loc:pos
-      (Error.K_rpat_kind_mismatch
-         { pat_kind = pat_kind_str pat_shape;
-           pf_kind = pf_kind_str entry }))
-  in
-  let rec go pat_t entries delta ct_acc =
+  let answer_ok = Ok bool_sort in
+  let answer_of_kind ~loc kind_r : (Sort.sort, Error.t) result =
+    Result.map_error (Error.structured ~loc) kind_r in
+  let rec go pat_t pf_opt delta ct_acc =
     let b = RPat.info pat_t in
-    let pat_shape = RPat.shape pat_t in
-    match pat_shape, entries with
-    | RPat.QNil, [] ->
-      let info = mk_rinfo b#loc delta bool_sort eff in
+    match RPat.shape pat_t with
+    | RPat.QNil ->
+      let nil_check = view_get_pf_nil pf_opt in
+      let answer = match nil_check with
+        | Ok () -> answer_ok
+        | Error k -> answer_of_kind ~loc:b#loc (Error k) in
+      let info =
+        mk_rinfo_with_answer b#loc delta bool_sort eff answer in
       return (RPat.mk info RPat.QNil, delta, ct_acc)
 
-    | RPat.QCore (cp, rest_pat),
-      ProofSort.Comp { info = _; var = y; sort; eff = entry_eff } :: rest_pf ->
+    | RPat.QCore (cp, rest_pat) ->
+      let (var_o, sort_r, eff_r, tail_o) = view_get_pf_comp pf_opt in
       let* (typed_cp, delta', ce_w) =
-        cpat_match rs delta entry_eff cp sort in
-      let rest_pf' = ProofSort.subst y ce_w rest_pf in
+        cpat_match rs delta eff_r cp sort_r in
+      let tail_o' = match var_o with
+        | Some v -> Option.map (ProofSort.subst v ce_w) tail_o
+        | None -> tail_o in
       let* (typed_rest, delta'', ct) =
-        go rest_pat rest_pf' delta' ct_acc in
+        go rest_pat tail_o' delta' ct_acc in
       let info = mk_rinfo b#loc delta'' bool_sort eff in
       return (RPat.mk info (RPat.QCore (typed_cp, typed_rest)), delta'', ct)
 
-    | RPat.QLog (lp, rest_pat),
-      ProofSort.Log { info = _; prop } :: rest_pf ->
-      let* (typed_lp, delta', ct1) = lpat_match rs delta lp prop in
+    | RPat.QLog (lp, rest_pat) ->
+      let (prop_r, tail_o) = view_get_pf_log pf_opt in
+      let* (typed_lp, delta', ct1) = lpat_match rs delta lp prop_r in
       let ct_acc' = Constraint.conj pos ct_acc ct1 in
       let* (typed_rest, delta'', ct) =
-        go rest_pat rest_pf delta' ct_acc' in
+        go rest_pat tail_o delta' ct_acc' in
       let info = mk_rinfo b#loc delta'' bool_sort eff in
       return (RPat.mk info (RPat.QLog (typed_lp, typed_rest)), delta'', ct)
 
-    | RPat.QRes (rp, rest_pat),
-      ProofSort.Res { info = _; pred; value } :: rest_pf ->
+    | RPat.QRes (rp, rest_pat) ->
+      let (pred_r, value_r, tail_o) = view_get_pf_res pf_opt in
       let* (typed_rp, delta', ct1) =
-        rpat_match rs delta eff rp pred value in
+        rpat_match rs delta eff rp pred_r value_r in
       let ct_acc' = Constraint.conj pos ct_acc ct1 in
       let* (typed_rest, delta'', ct) =
-        go rest_pat rest_pf delta' ct_acc' in
+        go rest_pat tail_o delta' ct_acc' in
       let info = mk_rinfo b#loc delta'' bool_sort eff in
       return (RPat.mk info (RPat.QRes (typed_rp, typed_rest)), delta'', ct)
 
-    | RPat.QDepRes (cp, rp, rest_pat),
-      ProofSort.DepRes { info = _; bound_var = z; pred } :: rest_pf ->
-      let pred_sort = (CoreExpr.sort_of_info (CoreExpr.info pred)) in
-      (match Sort.shape pred_sort with
-       | Sort.Pred inner_sort ->
-         let* (typed_cp, delta1, ce_w) =
-           cpat_match rs delta Effect.Spec cp inner_sort in
-         let sub = Subst.extend_var z ce_w Subst.empty in
-         let pred_subst = Subst.apply_ce sub pred in
-         let* (typed_rp, delta2, ct1) =
-           rpat_match rs delta1 eff rp pred_subst ce_w in
-         let rest_pf' = ProofSort.subst z ce_w rest_pf in
-         let ct_acc' = Constraint.conj pos ct_acc ct1 in
-         let* (typed_rest, delta3, ct) =
-           go rest_pat rest_pf' delta2 ct_acc' in
-         let info = mk_rinfo b#loc delta3 bool_sort eff in
-         return (RPat.mk info (RPat.QDepRes (typed_cp, typed_rp, typed_rest)),
-                 delta3, ct)
-       | _ ->
-         ElabM.fail (Error.structured ~loc:b#loc
-           (Error.K_dep_res_not_pred { got = pred_sort })))
-
-    | RPat.QNil, _ :: _ ->
-      fail_length pat_t entries
-    | (RPat.QCore _ | RPat.QLog _ | RPat.QRes _ | RPat.QDepRes _), [] ->
-      fail_length pat_t entries
-    | (RPat.QCore _ | RPat.QLog _ | RPat.QRes _ | RPat.QDepRes _),
-      entry :: _ ->
-      fail_kind pat_shape entry
+    | RPat.QDepRes (cp, rp, rest_pat) ->
+      let (bvar_o, pred_r, tail_o) = view_get_pf_depres pf_opt in
+      (* Extract pred's inner sort: pred_r's sort must be Pred _.  If
+         not, view_get_pred_sort returns Error which propagates into
+         cpat_match's sort argument. *)
+      let pred_sort_r =
+        Result.map (fun pred -> CoreExpr.sort_of_info (CoreExpr.info pred))
+          pred_r in
+      let inner_sort_r =
+        view_get_pred_sort ~construct:"dep res predicate" pred_sort_r in
+      let* (typed_cp, delta1, ce_w) =
+        cpat_match rs delta (Ok Effect.Spec) cp inner_sort_r in
+      (* Substitute z with ce_w in pred (when possible) and tail. *)
+      let pred_subst_r = match bvar_o, pred_r with
+        | Some z, Ok pred ->
+          let sub = Subst.extend_var z ce_w Subst.empty in
+          Ok (Subst.apply_ce sub pred)
+        | _, Ok p -> Ok p
+        | _, (Error _ as e) -> e in
+      let tail_o' = match bvar_o with
+        | Some z -> Option.map (ProofSort.subst z ce_w) tail_o
+        | None -> tail_o in
+      let* (typed_rp, delta2, ct1) =
+        rpat_match rs delta1 eff rp pred_subst_r (Ok ce_w) in
+      let ct_acc' = Constraint.conj pos ct_acc ct1 in
+      let* (typed_rest, delta3, ct) =
+        go rest_pat tail_o' delta2 ct_acc' in
+      let info = mk_rinfo b#loc delta3 bool_sort eff in
+      return (RPat.mk info (RPat.QDepRes (typed_cp, typed_rp, typed_rest)),
+              delta3, ct)
   in
-  go pat pf delta (Constraint.top pos)
+  go pat (Some pf) delta (Constraint.top pos)
 (* ---------- Program checking ---------- *)
 
 let elab_fundecl_body rs param arg_sort ret_sort eff body_se =
