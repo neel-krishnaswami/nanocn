@@ -1467,7 +1467,8 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     (* Check init (pure) *)
     let* (checked_crt1, delta', ct) = check_crt rs delta Effect.Pure crt1 init_pf in
     (* Build body input context: delta' + pattern bindings from init_pf *)
-    let* (_, delta_pat, _ct_pat) = q_match rs delta' (Effect.purify eff) pat init_pf in
+    let* (typed_pat_init, delta_pat, _ct_pat) =
+      q_match rs delta' (Effect.purify eff) pat init_pf in
     let delta_body = RCtx.concat delta' delta_pat in
     (* Build body proof sort: z:D(A,B) [pure], y2:ce @ z [res], pfnil *)
     let* z_var = fresh SourcePos.dummy in
@@ -1537,10 +1538,9 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let rinfo =
       mk_rinfo_full ~goal:(RProg.CrtGoal result_pf)
         pos delta (ProofSort.comp result_pf) eff errors in
-    let typed_pat =
-      RPat.map_info
-        (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp init_pf) eff)
-        pat in
+    (* Use the typed_q from q_match so any kind/length errors q_match
+       attached ride along to LSP collection. *)
+    let typed_pat = typed_pat_init in
     let checked =
       RefinedExpr.mk_crt rinfo
         (RefinedExpr.CIter (ce_pred, typed_pat, checked_crt1, checked_crt2)) in
@@ -1583,7 +1583,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
        as hypotheses for subsequent atoms. *)
     let* (checked_crt1, pf', delta1, ct) = synth_crt rs delta eff crt1 in
     let eff_pat = Effect.purify eff in
-    let* (_typed_q, delta2, ct_pat) = q_match rs delta1 eff_pat pat pf' in
+    let* (typed_pat, delta2, ct_pat) = q_match rs delta1 eff_pat pat pf' in
     let* (checked_crt2, delta3, ct2) = check_crt rs delta2 eff crt2 pf in
     let n = RCtx.length delta1 in
     let (delta_out, delta_pat_out) = RCtx.split n delta3 in
@@ -1608,7 +1608,6 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       | None -> mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff
       | Some err -> mk_rinfo_err ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff err
     in
-    let typed_pat = RPat.map_info (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp pf') eff) pat in
     let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLet (typed_pat, checked_crt1, checked_crt2)) in
     let final_ct = match leak with
       | None -> Constraint.conj pos ct ct_closed
@@ -1624,7 +1623,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let eff_pat = Effect.purify eff in
     let pf_log = [ProofSort.Log { info = rinfo_dummy; prop = ce }] in
     let lp_b = RPat.lpat_info lp in
-    let* (_, delta2, ct_pat) =
+    let* (typed_q, delta2, ct_pat) =
       q_match rs delta1 eff_pat
         (RPat.mk lp_b (RPat.QLog (lp, RPat.mk lp_b RPat.QNil))) pf_log in
     let* (checked_body, delta3, ct_body) = check_crt rs delta2 eff body pf in
@@ -1632,7 +1631,14 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let (delta_out, delta_close) = RCtx.split n delta3 in
     let ct_closed = close_ctx pos delta_close (Constraint.conj pos ct_pat ct_body) in
     let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
-    let typed_lp = RPat.map_info_lpat (fun b -> mk_rinfo b#loc RCtx.empty bool_sort eff) lp in
+    (* Extract typed_lp from the singleton typed_q; q_match wrapped lp
+       in QLog (lp, QNil), so the shape is QLog (typed_lp, _).  Errors
+       attached by lpat_match ride along on typed_lp. *)
+    let typed_lp = match RPat.shape typed_q with
+      | RPat.QLog (typed_lp, _) -> typed_lp
+      | _ ->
+        RPat.map_info_lpat
+          (fun b -> mk_rinfo b#loc RCtx.empty bool_sort eff) lp in
     let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLetLog (typed_lp, checked_lpf, checked_body)) in
     return (checked, delta_out, Constraint.conj pos ct ct_closed)
 
@@ -1644,7 +1650,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let eff_pat = Effect.purify eff in
     let pf_res = [ProofSort.Res { info = rinfo_dummy; pred = ce_pred; value = ce_val }] in
     let rp_b = RPat.rpat_info rp in
-    let* (_, delta2, ct_pat) =
+    let* (typed_q, delta2, ct_pat) =
       q_match rs delta1 eff_pat
         (RPat.mk rp_b (RPat.QRes (rp, RPat.mk rp_b RPat.QNil))) pf_res in
     let* (checked_body, delta3, ct_body) = check_crt rs delta2 eff body pf in
@@ -1668,7 +1674,14 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       | None -> mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff
       | Some err -> mk_rinfo_err ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff err
     in
-    let typed_rp = RPat.map_info_rpat (fun b -> mk_rinfo b#loc RCtx.empty bool_sort eff) rp in
+    (* Extract typed_rp from the singleton typed_q; q_match wrapped rp
+       in QRes (rp, QNil).  Errors attached by rpat_match ride along
+       on typed_rp. *)
+    let typed_rp = match RPat.shape typed_q with
+      | RPat.QRes (typed_rp, _) -> typed_rp
+      | _ ->
+        RPat.map_info_rpat
+          (fun b -> mk_rinfo b#loc RCtx.empty bool_sort eff) rp in
     let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLetRes (typed_rp, checked_rpf, checked_body)) in
     let final_ct = match leak with
       | None -> Constraint.conj pos ct ct_closed
@@ -1777,17 +1790,34 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
         (RPat.QCore (cp,
           RPat.mk lp_b
             (RPat.QLog (lp, RPat.mk lp_b RPat.QNil)))) in
-    let* (_, delta1, ct_pat) = q_match rs delta eff_pure pat pf_core in
+    let* (typed_q, delta1, ct_pat) = q_match rs delta eff_pure pat pf_core in
     let* (checked_body, delta2, ct_body) = check_crt rs delta1 eff body pf in
     let n = RCtx.length delta in
     let (delta_out, delta_close) = RCtx.split n delta2 in
     let ct_closed = close_ctx pos delta_close (Constraint.conj pos ct_pat ct_body) in
     let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
+    (* Extract typed_cp and typed_lp from the typed_q whose shape is
+       QCore (typed_cp, QLog (typed_lp, QNil)).  Falls back to vanilla
+       map_info if the shape doesn't match (shouldn't happen — q_match
+       preserves the input shape). *)
+    let (typed_cp, typed_lp) = match RPat.shape typed_q with
+      | RPat.QCore (typed_cp, rest) ->
+        (match RPat.shape rest with
+         | RPat.QLog (typed_lp, _) -> (typed_cp, typed_lp)
+         | _ ->
+           (typed_cp,
+            RPat.map_info_lpat
+              (fun b -> mk_rinfo b#loc RCtx.empty bool_sort eff) lp))
+      | _ ->
+        (RPat.map_info_cpat
+           (fun b -> mk_rinfo b#loc RCtx.empty sort eff) cp,
+         RPat.map_info_lpat
+           (fun b -> mk_rinfo b#loc RCtx.empty bool_sort eff) lp) in
     let checked =
       RefinedExpr.mk_crt rinfo
         (RefinedExpr.CLetCore (
-           RPat.map_info_lpat (fun b -> mk_rinfo b#loc RCtx.empty bool_sort eff) lp,
-           RPat.map_info_cpat (fun b -> mk_rinfo b#loc RCtx.empty sort eff) cp,
+           typed_lp,
+           typed_cp,
            ce, checked_body))
     in
     return (checked, delta_out, ct_closed)
@@ -2596,7 +2626,7 @@ let check_rdecl rs ct_acc = function
     let* codomain = elab_pf rs gamma' eff se_codomain in
     let rf = RFunType.{ domain; codomain; eff } in
     let pat_eff = match eff with Effect.Spec -> Effect.Spec | _ -> Effect.Pure in
-    let* (_, delta, ct_pat) = q_match rs RCtx.empty pat_eff pat domain in
+    let* (typed_pat, delta, ct_pat) = q_match rs RCtx.empty pat_eff pat domain in
     let rs' = match eff with
       | Effect.Pure -> rs
       | _ -> RSig.extend name (RSig.RFunSig rf) rs
@@ -2619,7 +2649,6 @@ let check_rdecl rs ct_acc = function
     let checked = prepend_subterm_errors_crt decl_errors checked in
     let ct_closed = close_ctx loc delta' (Constraint.conj loc ct_pat ct_body) in
     let entry = RSig.RFunSig rf in
-    let typed_pat = RPat.map_info (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp domain) eff) pat in
     let typed_decl = RProg.RFunDecl { name; pat = typed_pat; domain; codomain; eff; body = checked; loc } in
     return (typed_decl, RSig.extend name entry rs, Constraint.conj loc ct_acc ct_closed)
 
