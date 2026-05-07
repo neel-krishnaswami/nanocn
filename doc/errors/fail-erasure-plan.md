@@ -1,5 +1,29 @@
 # Eliminating `ElabM.fail` — implementation plan
 
+## Status
+
+- C1 (rPat shape functor merge) — landed (`85ebe3d`)
+- C2 (ProofSortView, q_match, signature changes) — landed (`9040e56`)
+- C3 (rpat_match whole-body refactor) — landed (`6f3149f`)
+- C4 (CIter Error-aware refactor) — landed (`f3660d4`)
+- C5 (RFunDecl Error-aware refactor) — landed (`49ee649`)
+- C6 (pf_eq returns errors via tuple) — landed (`eedd053`)
+- C7a (live subterm_errors aggregation) — landed (`d7e978e`)
+- C7 (drop boundary defensive guards) — landed (`d5deec0`)
+- C8 (drop `ElabM.fail` API + simplify `'a t`) — **deferred**
+
+After C7, all 20 cataloged `ElabM.fail` sites in `lib/rCheck.ml` are
+gone — `grep -c "ElabM\.fail" lib/rCheck.ml` returns 0.  The user
+goal "elaboration never short-circuits, LSP gets full diagnostics
+even on type errors" is achieved at the rCheck layer.
+
+C8 (the API change) remains: `ElabM.fail` is still in the API, and
+~19 `ElabM.lift_at` call sites in `lib/rCheck.ml` (plus a handful in
+`lib/parse.ml`, `lib/typecheck.ml`, `lib/compileFile.ml`,
+`bin/main.ml`) still short-circuit the monad on `Error.t result`
+inputs.  Migrating those sites + dropping the API is mechanical but
+sizeable — a focused C8 commit can address them.
+
 ## Goal
 
 Drop `ElabM.fail` from the elaboration monad's API and simplify the
