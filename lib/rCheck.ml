@@ -794,17 +794,18 @@ let[@warning "-32"] error_rp_blanket
 
 (** [mk_rinfo_full ?goal loc delta sort eff errors] is like
     [mk_rinfo] but takes an explicit [errors] list.  When non-empty,
-    [info#answer = Error (List.hd errors)] and [info#subterm_errors =
-    errors]; when empty, [info#answer = Ok sort] and
+    the first error rides on [info#answer] and the remainder rides
+    on [info#subterm_errors] — so [rinfo_error] reads them all
+    without duplication.  When empty, [info#answer = Ok sort] and
     [info#subterm_errors = []].  Used at clauses with multiple
     cross-cutting checks (e.g. CIter's effect / sort / leak / pattern
     checks) where every error should surface, not just the first. *)
 let[@warning "-32"] mk_rinfo_full
     ?(goal=RProg.NoGoal) loc delta sort eff
     (errors : Error.t list) : RProg.typed_rinfo =
-  let answer = match errors with
-    | [] -> Ok sort
-    | e :: _ -> Error e in
+  let (answer, rest) = match errors with
+    | [] -> (Ok sort, [])
+    | e :: rest -> (Error e, rest) in
   (object
     method loc = loc
     method ctx = RCtx.erase delta
@@ -813,7 +814,7 @@ let[@warning "-32"] mk_rinfo_full
     method eff = eff
     method goal = goal
     method answer = answer
-    method subterm_errors = errors
+    method subterm_errors = rest
   end)
 
 (** [prepend_subterm_errors_crt errs ce] rebuilds [ce]'s outer
@@ -2655,9 +2656,16 @@ let check_rprog (prog : RProg.parsed) : (RProg.typed * RSig.t * Constraint.typed
     returns an empty list on successful runs. *)
 
 let rinfo_error (info : RProg.typed_rinfo) : Error.t list =
-  match info#answer with
-  | Ok _ -> []
-  | Error e -> [e]
+  let own = match info#answer with
+    | Ok _ -> []
+    | Error e -> [e] in
+  (* [info#subterm_errors] holds cross-cutting errors prepended at
+     this node (e.g. RFunDecl resource leak, pf_eq structural
+     mismatches, CIter check accumulation).  Sub-tree errors are
+     collected via the structural recursion in [collect_errors_rdecl
+     / _crt / _rpf / _spine / _pf], not through this field, so we
+     don't double-count. *)
+  own @ info#subterm_errors
 
 let collect_errors_pf (pf : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t)
     : Error.t list =
