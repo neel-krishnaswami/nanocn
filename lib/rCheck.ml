@@ -742,6 +742,30 @@ let[@warning "-32"] mk_rinfo_full
     method subterm_errors = errors
   end)
 
+(** [prepend_subterm_errors_crt errs ce] rebuilds [ce]'s outer
+    rinfo with [errs] prepended to its [subterm_errors] list.  Used
+    at decl-level boundaries where cross-cutting errors (resource
+    leak, ProofSort.bind failure, pf_eq mismatches) need to attach
+    to the body's typed AST without their own node. *)
+let[@warning "-32"] prepend_subterm_errors_crt
+    (errs : Error.t list)
+    (ce : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.crt)
+    : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.crt =
+  if errs = [] then ce
+  else
+    let info = RefinedExpr.crt_info ce in
+    let new_info : RProg.typed_rinfo = object
+      method loc = info#loc
+      method ctx = info#ctx
+      method rctx = info#rctx
+      method sort = info#sort
+      method eff = info#eff
+      method goal = info#goal
+      method answer = info#answer
+      method subterm_errors = errs @ info#subterm_errors
+    end in
+    RefinedExpr.mk_crt new_info (RefinedExpr.crt_shape ce)
+
 (* ---------- typing judgements ---------- *)
 
 (* Tag description helpers for error messages *)
@@ -2381,7 +2405,10 @@ let check_rdecl rs ct_acc = function
   | RProg.RFunDecl { name; pat; domain = se_domain; codomain = se_codomain; eff; body; loc } ->
     let gamma = Context.empty in
     let* domain = elab_pf rs gamma eff se_domain in
-    let* gamma' = lift_at loc (ProofSort.bind gamma domain) in
+    let bind_r =
+      Result.map_error (Error.structured ~loc)
+        (ProofSort.bind gamma domain) in
+    let gamma' = Result.value bind_r ~default:gamma in
     let* codomain = elab_pf rs gamma' eff se_codomain in
     let rf = RFunType.{ domain; codomain; eff } in
     let pat_eff = match eff with Effect.Spec -> Effect.Spec | _ -> Effect.Pure in
@@ -2391,21 +2418,26 @@ let check_rdecl rs ct_acc = function
       | _ -> RSig.extend name (RSig.RFunSig rf) rs
     in
     let* (checked, delta', ct_body) = check_crt rs' delta eff body codomain in
-    if not (RCtx.zero delta') then
-      ElabM.fail
-        (Error.let_pattern_resource_leak ~loc
-           ~leftovers:(List.filter_map (function
-             | RCtx.Res { var; pred; value; usage } when not (Usage.is_zero usage) ->
-               Some (Format.asprintf "@[<hov 2>%a : %a @@ %a [%a]@]"
-                       Var.print var CoreExpr.print pred
-                       CoreExpr.print value Usage.print usage)
-             | _ -> None) (RCtx.entries delta')))
-    else
-      let ct_closed = close_ctx loc delta' (Constraint.conj loc ct_pat ct_body) in
-      let entry = RSig.RFunSig rf in
-      let typed_pat = RPat.map_info (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp domain) eff) pat in
-      let typed_decl = RProg.RFunDecl { name; pat = typed_pat; domain; codomain; eff; body = checked; loc } in
-      return (typed_decl, RSig.extend name entry rs, Constraint.conj loc ct_acc ct_closed)
+    let leak_check =
+      if RCtx.zero delta' then Ok ()
+      else
+        let leftovers =
+          List.filter_map (function
+            | RCtx.Res { var; pred; value; usage } when not (Usage.is_zero usage) ->
+              Some (Format.asprintf "@[<hov 2>%a : %a @@ %a [%a]@]"
+                      Var.print var CoreExpr.print pred
+                      CoreExpr.print value Usage.print usage)
+            | _ -> None) (RCtx.entries delta') in
+        Error (Error.let_pattern_resource_leak ~loc ~leftovers) in
+    let decl_errors =
+      let collect = function Ok _ -> [] | Error e -> [e] in
+      collect bind_r @ collect leak_check in
+    let checked = prepend_subterm_errors_crt decl_errors checked in
+    let ct_closed = close_ctx loc delta' (Constraint.conj loc ct_pat ct_body) in
+    let entry = RSig.RFunSig rf in
+    let typed_pat = RPat.map_info (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp domain) eff) pat in
+    let typed_decl = RProg.RFunDecl { name; pat = typed_pat; domain; codomain; eff; body = checked; loc } in
+    return (typed_decl, RSig.extend name entry rs, Constraint.conj loc ct_acc ct_closed)
 
 let check_rprog (prog : RProg.parsed) : (RProg.typed * RSig.t * Constraint.typed_ct) ElabM.t =
   let rec check_rprog_decls rs ct_acc = function
