@@ -179,8 +179,6 @@ let rec collect_crt acc crt =
       collect_crt (node_of_rinfo b :: acc) body)
       (collect_enriched ri acc e) branches
   | RefinedExpr.CExfalso | RefinedExpr.CHole _ -> acc
-  | RefinedExpr.COpenTake rpf ->
-    collect_rpf acc rpf
 
 and collect_lpf acc lpf =
   let ri = RefinedExpr.lpf_info lpf in
@@ -188,7 +186,6 @@ and collect_lpf acc lpf =
   match RefinedExpr.lpf_shape lpf with
   | RefinedExpr.LVar _ | RefinedExpr.LAuto | RefinedExpr.LHole _ -> acc
   | RefinedExpr.LUnfold (_, e) -> collect_enriched ri acc e
-  | RefinedExpr.LOpenRet rpf -> collect_rpf acc rpf
   | RefinedExpr.LAnnot (lpf', e) ->
     collect_lpf (collect_enriched ri acc e) lpf'
 

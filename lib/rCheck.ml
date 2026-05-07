@@ -937,17 +937,6 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
     let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LAnnot (checked_lpf', ce)) in
     return (checked, ce, delta', ct)
 
-  | RefinedExpr.LOpenRet rpf ->
-    let* (checked_rpf, ce_pred, ce_val, delta', ct) = synth_rpf rs delta rpf in
-    let* ce1 =
-      ElabM.lift_at pos
-        (CoreExprGet.get_return ~construct:"open-ret"
-           (strip_annots ce_pred)) in
-    let prop = mk_eq ce1 ce_val in
-    let rinfo = mk_rinfo ~goal:(RProg.LpfGoal prop) pos delta bool_sort Effect.Spec in
-    let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LOpenRet checked_rpf) in
-    return (checked, prop, delta', ct)
-
 (* Logical fact checking: RS; Delta |- lpf <= ce -| Delta' ~> Ct *)
 and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce : CoreExpr.typed_ce) : (checked_lpf * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.lpf_info lpf in
@@ -1395,24 +1384,6 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CPrimApp (prim, checked_spine)) in
       return (checked, pf, delta', ct)
-
-  | RefinedExpr.COpenTake rpf ->
-    let* (checked_rpf, ce_pred, ce_val, delta', ct) = synth_rpf rs delta rpf in
-    let* (x, ce1, ce2) =
-      ElabM.lift_at binfo#loc
-        (CoreExprGet.get_take ~construct:"open-take" (strip_annots ce_pred)) in
-    let pred_sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
-    let* inner_sort =
-      ElabM.lift_at binfo#loc
-        (SortGet.get_pred ~construct:"open-take" pred_sort) in
-    let pf = [
-      ProofSort.Comp { info = rinfo_dummy; var = x; sort = inner_sort; eff = Effect.Spec };
-      ProofSort.Res { info = rinfo_dummy; pred = ce1; value = ce_of_var x inner_sort };
-      ProofSort.Res { info = rinfo_dummy; pred = ce2; value = ce_val };
-    ] in
-    let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
-    let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.COpenTake checked_rpf) in
-    return (checked, pf, delta', ct)
 
   | RefinedExpr.CIter (se_pred, pat, crt1, crt2) ->
     let iter_pos = binfo#loc in
@@ -2798,7 +2769,6 @@ let rec collect_errors_lpf (lpf : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) 
     | RefinedExpr.LAuto -> []
     | RefinedExpr.LHole _ -> []
     | RefinedExpr.LUnfold (_, ce) -> Typecheck.collect_errors ce
-    | RefinedExpr.LOpenRet rp -> collect_errors_rpf rp
     | RefinedExpr.LAnnot (lp, ce) ->
       collect_errors_lpf lp @ Typecheck.collect_errors ce
   in
@@ -2892,7 +2862,6 @@ and collect_errors_crt (crt : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) Refi
       @ List.concat_map (fun (_, info, _, body) ->
           rinfo_error info @ collect_errors_crt body
         ) branches
-    | RefinedExpr.COpenTake rpf -> collect_errors_rpf rpf
   in
   here @ inner
 

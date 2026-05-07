@@ -13,14 +13,12 @@ type ('crt, 'lpf, 'rpf, 'spine, 'e, 'b, 'var) crtF =
   | CIf of 'var * 'e * 'crt * 'crt
   | CCase of 'var * 'e * (Label.t * 'b * 'var * 'crt) list
   | CExfalso
-  | COpenTake of 'rpf
   | CHole of string
 
 type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) lpfF =
   | LVar of 'var
   | LAuto
   | LUnfold of string * 'e
-  | LOpenRet of 'rpf
   | LAnnot of 'lpf * 'e
   | LHole of string
 
@@ -74,14 +72,12 @@ let map_crtF m = function
   | CIf (x, e, c1, c2) -> CIf (m.var x, m.expr e, m.crt c1, m.crt c2)
   | CCase (y, e, bs) -> CCase (m.var y, m.expr e, List.map (fun (l, b, x, c) -> (l, m.info b, m.var x, m.crt c)) bs)
   | CExfalso -> CExfalso
-  | COpenTake r -> COpenTake (m.rpf r)
   | CHole h -> CHole h
 
 let map_lpfF m = function
   | LVar x -> LVar (m.var x)
   | LAuto -> LAuto
   | LUnfold (f, e) -> LUnfold (f, m.expr e)
-  | LOpenRet r -> LOpenRet (m.rpf r)
   | LAnnot (l, e) -> LAnnot (m.lpf l, m.expr e)
   | LHole h -> LHole h
 
@@ -214,8 +210,6 @@ let rec print_gen_crt pp_var pp_e fmt t =
             Format.fprintf fmt "@[<hov 2>%a %a ->@ %a@]" Label.print l pp_var x (print_gen_crt pp_var pp_e) body))
       branches
   | CExfalso -> Format.fprintf fmt "exfalso"
-  | COpenTake rpf ->
-    Format.fprintf fmt "@[<hov 2>open-take@ %a@]" (print_gen_rpf pp_var pp_e) rpf
   | CHole h -> Format.fprintf fmt "$%s" h
 
 and print_gen_lpf pp_var pp_e fmt t =
@@ -224,8 +218,6 @@ and print_gen_lpf pp_var pp_e fmt t =
   | LAuto -> Format.fprintf fmt "auto"
   | LUnfold (f, ce) ->
     Format.fprintf fmt "@[<hov 2>unfold %s(%a)@]" f pp_e ce
-  | LOpenRet rpf ->
-    Format.fprintf fmt "@[<hov 2>open-ret@ %a@]" (print_gen_rpf pp_var pp_e) rpf
   | LAnnot (lpf, ce) ->
     Format.fprintf fmt "@[<hov 2>%a :@ %a@]" (print_gen_lpf pp_var pp_e) lpf pp_e ce
   | LHole h -> Format.fprintf fmt "$%s" h

@@ -13,12 +13,12 @@ rfun read_and_return
   let log prop = unfold read_pred(p);
   // r : read_pred(p) @ x, unfold to (take v = Own[Int](p); return v) @ x
   let res r1 : (take v = Own[Int](p); return v : Pred Int) @ x = r;
-  // open-take gives: v0 : Int[spec], own : Own[Int](p) @ v0, ret : (return v0) @ x
-  let (v0, res own, res ret) = open-take(r1);
+  // take rpat gives: v0 : Int[spec], own : Own[Int](p) @ v0, ret : (return v0) @ x
+  let res take(v0, own); ret = r1;
   // Read the actual value
   let (val_read, log veq, res own2) = Get[Int](p, res own);
-  // open-ret on ret gives: v0 = x
-  let log eq = open-ret(ret);
+  // return rpat on ret gives: v0 = x
+  let res return[eq] = ret;
   (val_read, res own2)
 
 main : () [impure] = ()

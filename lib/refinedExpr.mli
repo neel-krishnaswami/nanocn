@@ -32,14 +32,12 @@ type ('crt, 'lpf, 'rpf, 'spine, 'e, 'b, 'var) crtF =
   | CIf of 'var * 'e * 'crt * 'crt
   | CCase of 'var * 'e * (Label.t * 'b * 'var * 'crt) list
   | CExfalso
-  | COpenTake of 'rpf
   | CHole of string
 
 type ('crt, 'lpf, 'rpf, 'spine, 'e, 'var) lpfF =
   | LVar of 'var
   | LAuto
   | LUnfold of string * 'e
-  | LOpenRet of 'rpf
   | LAnnot of 'lpf * 'e
   | LHole of string
 

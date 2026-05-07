@@ -1,6 +1,6 @@
-// Test: return pattern with auto — the existing open-ret + auto workflow.
+// Test: return pattern with auto — the existing return-rpat + auto workflow.
 //
-// Exercises: log auto in return position
+// Exercises: log auto in return position, [return lpat] rpat
 
 fun id_pred (x : Int) -> Pred Int [spec] = return x
 
@@ -8,7 +8,7 @@ rfun check_ret (x : Int, [res] r : (do v : Int = id_pred(x)))
   -> (y : Int, [log] (y == x)) [pure] =
   let log prop = unfold id_pred(x);
   let res r1 : (return x : Pred Int) @ v = r;
-  let log eq = open-ret(r1);
+  let res return[eq] = r1;
   // eq : x = v [log].  We need a pure y with y == x.
   (x, log auto)
 

@@ -84,10 +84,8 @@ let rec token buf =
   | "//" , Star (Compl '\n') -> token buf
   | integer -> Parser.INT_LIT (int_of_string (Sedlexing.Utf8.lexeme buf))
   | hyphenated_ident ->
-    (match Sedlexing.Utf8.lexeme buf with
-     | "open-ret" -> Parser.OPEN_RET
-     | "open-take" -> Parser.OPEN_TAKE
-     | s -> failwith (Format.asprintf "unexpected hyphenated identifier '%s' at %a" s SourcePos.print (pos_of_lexbuf buf)))
+    let s = Sedlexing.Utf8.lexeme buf in
+    failwith (Format.asprintf "unexpected hyphenated identifier '%s' at %a" s SourcePos.print (pos_of_lexbuf buf))
   | hole ->
     let s = Sedlexing.Utf8.lexeme buf in
     Parser.HOLE (String.sub s 1 (String.length s - 1))

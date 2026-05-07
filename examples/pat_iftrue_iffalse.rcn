@@ -17,7 +17,7 @@ rfun check_true (x : Int,
   let res r1 : (if true then return x else return 0 : Pred Int) @ v = r;
   // Ascribe to the true-branch form:
   let res r2 : (return x : Pred Int) @ v = r1;
-  let log eq = open-ret(r2);
+  let res return[eq] = r2;
   (x, log auto)
 
 rfun check_false (x : Int,
@@ -26,7 +26,7 @@ rfun check_false (x : Int,
   let log prop = unfold choose_false(x);
   let res r1 : (if false then return 0 else return x : Pred Int) @ v = r;
   let res r2 : (return x : Pred Int) @ v = r1;
-  let log eq = open-ret(r2);
+  let res return[eq] = r2;
   (x, log auto)
 
 main : () [pure] = ()

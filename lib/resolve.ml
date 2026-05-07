@@ -520,9 +520,6 @@ let rec resolve_crt env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string)
     return (RefinedExpr.mk_crt b RefinedExpr.CExfalso)
   | RefinedExpr.CHole h ->
     return (RefinedExpr.mk_crt b (RefinedExpr.CHole h))
-  | RefinedExpr.COpenTake rpf ->
-    let* rpf' = resolve_rpf env rpf in
-    return (RefinedExpr.mk_crt b (RefinedExpr.COpenTake rpf'))
 
 and resolve_crt_branches env = function
   | [] -> return []
@@ -545,9 +542,6 @@ and resolve_lpf env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string) Ref
   | RefinedExpr.LUnfold (name, ce) ->
     let* ce' = resolve_expr env ce in
     return (RefinedExpr.mk_lpf b (RefinedExpr.LUnfold (name, ce')))
-  | RefinedExpr.LOpenRet rpf ->
-    let* rpf' = resolve_rpf env rpf in
-    return (RefinedExpr.mk_lpf b (RefinedExpr.LOpenRet rpf'))
   | RefinedExpr.LAnnot (lpf, ce) ->
     let* lpf' = resolve_lpf env lpf in
     let* ce' = resolve_expr env ce in

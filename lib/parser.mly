@@ -48,7 +48,7 @@
 %token LBRACKET RBRACKET LPAREN RPAREN LBRACE RBRACE
 %token LESS LESSEQ GREATER GREATEREQ
 %token COMMA SEMICOLON EQUAL COLON ARROW BAR
-%token EXFALSO AUTO UNFOLD OPEN_RET OPEN_TAKE LOG RES FORALL AT CORE
+%token EXFALSO AUTO UNFOLD LOG RES FORALL AT CORE
 %token IFTRUE IFFALSE ANNOT
 %token EOF
 
@@ -476,8 +476,6 @@ crt_seq_expr:
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos) RefinedExpr.CExfalso }
   | h = HOLE
     { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.CHole h) }
-  | OPEN_TAKE; LPAREN; r = rpf_expr; RPAREN
-    { RefinedExpr.mk_crt (loc_obj $startpos $endpos) (RefinedExpr.COpenTake r) }
   | e = crt_spine_expr
     { e }
   | e = crt_app_expr
@@ -618,8 +616,6 @@ lpf_atom_expr:
     { RefinedExpr.mk_lpf (loc_obj $startpos $endpos) RefinedExpr.LAuto }
   | UNFOLD; f = ident_var; LPAREN; ce = expr; RPAREN
     { RefinedExpr.mk_lpf (loc_obj $startpos $endpos) (RefinedExpr.LUnfold (f, ce)) }
-  | OPEN_RET; LPAREN; r = rpf_expr; RPAREN
-    { RefinedExpr.mk_lpf (loc_obj $startpos $endpos) (RefinedExpr.LOpenRet r) }
   | h = HOLE
     { RefinedExpr.mk_lpf (loc_obj $startpos $endpos) (RefinedExpr.LHole h) }
 

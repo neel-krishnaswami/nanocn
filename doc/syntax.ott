@@ -366,7 +366,6 @@ crt :: 'CRT_' ::=                                    {{ com core refined terms }
   | if [ x ] ce then crt1 else crt2           :: :: If
   | case [ y ] ce of { L1 x1 -> crt1 '|' .. '|' Ln xn -> crtn }  :: :: Case
   | exfalso                                   :: :: Exfalso     {{ tex \mathsf{exfalso} }}
-  | open-take rpf                             :: :: OpenTake    {{ tex \mathsf{open\text{-}take}\;[[rpf]] }}
 
 rsp :: 'Spine_' ::=                                  {{ com refined spines }}
   | rspnil                           :: :: Nil        {{ tex \cdot }}
@@ -381,8 +380,8 @@ lpf :: 'LPf_' ::=                                   {{ com logical proof facts }
   | lpf : ce                        :: :: Annot
 
 % Synthesis is restricted to Var and Annot; non-variable rpfs that
-% appear in synth positions (let res, take's first arg, open-take)
-% must be ascribed via `rpf : ce @ ce'`.
+% appear in synth positions (let res, take's first arg) must be
+% ascribed via `rpf : ce @ ce'`.
 rpf :: 'RPf_' ::=                                    {{ com resource proof facts }}
   | x                                  :: :: Var
   | rpf : ce @ ce'                     :: :: Annot
@@ -1876,10 +1875,6 @@ defns Jrefine :: '' ::=
     RS ; Delta |- [ eff'' ] rsp : Pf1 -o Pf2 >> Pf -| Delta' ~~> Ct
     -------------------------------------------------------- :: primapp
     RS ; Delta |- [ eff ] prim rsp r==> Pf -| Delta' ~~> Ct
-
-    RS ; Delta |- rpf r==> take x = ce1 ; ce2 @ ce3 -| Delta' ~~> Ct
-    ------------------------------------------------------------------------------------------------------- :: opentake
-    RS ; Delta |- [ eff ] open-take rpf r==> x : tau [ spec ] , ce1 @ x [ res ] , ce2 @ ce3 [ res ] , pfnil -| Delta' ~~> Ct
 
     CS = comp RS    type D ( x , y ) = { Next : a , Done : b } in CS
     G = erase Delta    CS ; G |- [ spec ] ce ==> pred D ( A , B )
