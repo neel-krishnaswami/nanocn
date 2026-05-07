@@ -69,8 +69,16 @@ rfun len2
 		      let[b0] xs4;
 		      return[b1]
                = rest; 
-              let (m, pf, seq') = len2(q, res seq);
-	      $hole_reconstruct_cons
+              let (m, log pf, res seq') = len2(q, res seq);
+	      (m+1, log auto, res unfold; 
+                                  take(own,
+	                               let[a1] v1;
+                                       let[a2] v2;
+                                       case[a3] Cons(b, bs);
+                                       let[a4] v3;
+                                       let[a5] v4;
+                                       let[a6] (v5, v6);
+                                       $hole) )
   }
 
 
