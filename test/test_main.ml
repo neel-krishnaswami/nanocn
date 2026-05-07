@@ -1538,7 +1538,10 @@ main : Int [pure] = example(Both (1, 2) : Pair)
         let pf2 = [
           ProofSort.Comp { info = ri; var = x; sort = int_sort; eff = Effect.Pure };
         ] in
-        (* Synthesized pf1 has more entries than expected pf2 — should fail *)
+        (* Synthesized pf1 has more entries than expected pf2 — pf_eq
+           returns the constraint along with a non-empty error list
+           (rather than failing the monad).  Test that the error list
+           is non-empty. *)
         let src = {|
           main : () [impure] = ()
         |} in
@@ -1554,8 +1557,12 @@ main : Int [pure] = example(Both (1, 2) : Pair)
               RCheck.Test.pf_eq SourcePos.dummy rsig RCtx.empty pf1 pf2
             ) in
             match result with
-            | Ok _ -> Alcotest.fail "should reject mismatched proof sort lengths"
-            | Error _ -> ());
+            | Error msg ->
+              Alcotest.fail ("pf_eq should not fail the monad: "
+                             ^ Error.to_string msg)
+            | Ok ((_, []), _) ->
+              Alcotest.fail "should report mismatched proof sort lengths"
+            | Ok ((_, _ :: _), _) -> ());
 
       (* Fix 5: spec recursive core functions have self-reference *)
       Alcotest.test_case "spec recursive function succeeds" `Quick (fun () ->

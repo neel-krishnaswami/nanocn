@@ -1715,7 +1715,8 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
 
   | _ ->
     let* (checked_crt, pf', delta', ct) = synth_crt rs delta eff crt in
-    let* ct' = pf_eq pos rs delta' pf' pf in
+    let* (ct', pf_errs) = pf_eq pos rs delta' pf' pf in
+    let checked_crt = prepend_subterm_errors_crt pf_errs checked_crt in
     return (checked_crt, delta', Constraint.conj pos ct ct')
 
 (* Spine checking: RS; Delta |-[eff] rsp : Pf1 -o Pf2 >> Pf -| Delta' ~> Ct *)
@@ -1907,64 +1908,97 @@ and check_branches_list pos rs delta eff eq_var ce _ce_sort ctors branches pf =
   in
   go ctors
 
-(* Proof sort equality: RS; Delta |- Pf1 = Pf2 ~> Ct *)
-and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t) (pf1 : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t) (pf2 : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t) : Constraint.typed_ct ElabM.t =
+(* Proof sort equality: RS; Delta |- Pf1 = Pf2 ~> Ct
+
+   Returns the equality constraint together with a list of any
+   structural-mismatch errors encountered; a non-empty list means the
+   constraint is best-effort (typically Constraint.top contributions
+   for the mismatched portion).  The single caller folds the errors
+   into the synthesizing crt's outer rinfo via
+   prepend_subterm_errors_crt. *)
+and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t)
+    (pf1 : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t)
+    (pf2 : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t)
+  : (Constraint.typed_ct * Error.t list) ElabM.t =
   let _cs = RSig.comp rs in
   let _gamma = RCtx.erase delta in
   let rec go pf1 pf2 =
     match pf1, pf2 with
-    | [], [] -> return (Constraint.top pos)
+    | [], [] -> return (Constraint.top pos, [])
 
     | ProofSort.Comp { info = _; var = x; sort; eff } :: rest1,
       ProofSort.Comp { info = _; var = y; sort = sort2; eff = eff2 } :: rest2 ->
-      if Sort.compare sort sort2 <> 0 then
-        ElabM.fail
-          (Error.sort_mismatch ~loc:pos ~expected:sort ~actual:sort2)
-      else if Effect.compare eff eff2 <> 0 then
-        ElabM.fail
-          (Error.pf_effect_mismatch ~loc:pos ~sort
-             ~synthesized_eff:eff ~expected_eff:eff2)
-      else
-        let rest2' = ProofSort.subst y (ce_of_var x sort) rest2 in
-        let* ct = go rest1 rest2' in
-        return (Constraint.forall_ pos x sort ct)
+      let sort_check =
+        if Sort.compare sort sort2 = 0 then []
+        else [Error.sort_mismatch ~loc:pos ~expected:sort ~actual:sort2] in
+      let eff_check =
+        if Effect.compare eff eff2 = 0 then []
+        else [Error.pf_effect_mismatch ~loc:pos ~sort
+                ~synthesized_eff:eff ~expected_eff:eff2] in
+      let rest2' = ProofSort.subst y (ce_of_var x sort) rest2 in
+      let* (ct, errs_rest) = go rest1 rest2' in
+      let here_errs = sort_check @ eff_check in
+      return (Constraint.forall_ pos x sort ct, here_errs @ errs_rest)
 
     | ProofSort.Log { info = _; prop = ce1 } :: rest1,
       ProofSort.Log { info = _; prop = ce2 } :: rest2 ->
-      let* ct = go rest1 rest2 in
-      return (Constraint.conj pos (Constraint.atom pos (mk_eq ce1 ce2)) ct)
+      let* (ct, errs_rest) = go rest1 rest2 in
+      return (Constraint.conj pos (Constraint.atom pos (mk_eq ce1 ce2)) ct,
+              errs_rest)
 
     | ProofSort.Res { info = _; pred = p1; value = v1 } :: rest1,
       ProofSort.Res { info = _; pred = p2; value = v2 } :: rest2 ->
-      let* ct = go rest1 rest2 in
+      let* (ct, errs_rest) = go rest1 rest2 in
       let eq_ct = Constraint.conj pos (Constraint.atom pos (mk_eq p1 p2))
                                       (Constraint.atom pos (mk_eq v1 v2)) in
-      return (Constraint.conj pos eq_ct ct)
+      return (Constraint.conj pos eq_ct ct, errs_rest)
 
     | ProofSort.DepRes { info = _; bound_var = y1; pred = ce1 } :: rest1,
       ProofSort.DepRes { info = _; bound_var = y2; pred = ce2 } :: rest2 ->
       let pred_sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
-      let* inner_sort =
-        ElabM.lift_at pos
-          (SortGet.get_pred ~construct:"dependent resource" pred_sort) in
+      let inner_sort_r =
+        SortGet.get_pred ~construct:"dependent resource" pred_sort in
       let* z = fresh SourcePos.dummy in
-      let ce_z = ce_of_var z inner_sort in
-      let rest1' = ProofSort.subst y1 ce_z rest1 in
-      let rest2' = ProofSort.subst y2 ce_z rest2 in
-      let* ct = go rest1' rest2' in
-      return (Constraint.conj pos (Constraint.atom pos (mk_eq ce1 ce2))
-                                  (Constraint.forall_ pos z inner_sort ct))
+      (match inner_sort_r with
+       | Ok inner_sort ->
+         let ce_z = ce_of_var z inner_sort in
+         let rest1' = ProofSort.subst y1 ce_z rest1 in
+         let rest2' = ProofSort.subst y2 ce_z rest2 in
+         let* (ct, errs_rest) = go rest1' rest2' in
+         return
+           (Constraint.conj pos (Constraint.atom pos (mk_eq ce1 ce2))
+              (Constraint.forall_ pos z inner_sort ct),
+            errs_rest)
+       | Error k ->
+         (* Inner sort unknown: skip the substitution chain but still
+            walk both tails so trailing mismatches surface. *)
+         let* (ct, errs_rest) = go rest1 rest2 in
+         return (ct, Error.structured ~loc:pos k :: errs_rest))
 
-    | e1 :: _, e2 :: _ ->
-      ElabM.fail
-        (Error.pf_structure_mismatch ~loc:pos
-           ~synthesized_entry:(pf_entry_to_string e1)
-           ~expected_entry:(pf_entry_to_string e2))
-    | [], _ :: _ | _ :: _, [] ->
-      ElabM.fail
-        (Error.pf_structure_mismatch ~loc:pos
-           ~synthesized_entry:(if pf1 = [] then "(end)" else pf_entry_to_string (List.hd pf1))
-           ~expected_entry:(if pf2 = [] then "(end)" else pf_entry_to_string (List.hd pf2)))
+    | e1 :: rest1, e2 :: rest2 ->
+      let err =
+        Error.pf_structure_mismatch ~loc:pos
+          ~synthesized_entry:(pf_entry_to_string e1)
+          ~expected_entry:(pf_entry_to_string e2) in
+      let* (ct, errs_rest) = go rest1 rest2 in
+      return (ct, err :: errs_rest)
+
+    | [], (e :: _ as rest2) ->
+      let err =
+        Error.pf_structure_mismatch ~loc:pos
+          ~synthesized_entry:"(end)"
+          ~expected_entry:(pf_entry_to_string e) in
+      (* Trailing pf2 entries: no useful constraint contribution. *)
+      let _ = rest2 in
+      return (Constraint.top pos, [err])
+
+    | (e :: _ as rest1), [] ->
+      let err =
+        Error.pf_structure_mismatch ~loc:pos
+          ~synthesized_entry:(pf_entry_to_string e)
+          ~expected_entry:"(end)" in
+      let _ = rest1 in
+      return (Constraint.top pos, [err])
   in
   go pf1 pf2
 

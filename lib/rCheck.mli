@@ -35,7 +35,7 @@ val collect_errors_rprog : RProg.typed -> Error.t list
 
 module Test : sig
   val test : QCheck.Test.t list
-  val pf_eq : SourcePos.t -> RSig.t -> RCtx.t -> (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t -> (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t -> Constraint.typed_ct ElabM.t
+  val pf_eq : SourcePos.t -> RSig.t -> RCtx.t -> (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t -> (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t -> (Constraint.typed_ct * Error.t list) ElabM.t
   val with_delta_check : (unit -> 'a) -> 'a
   (** [with_delta_check f] runs [f] with the Delta ⊓ Delta' = Delta'
       monotonicity assertion enabled in [check_crt] and [synth_crt]. *)
