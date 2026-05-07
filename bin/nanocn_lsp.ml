@@ -78,6 +78,23 @@ let state : state = {
   source_registry = SourceExcerpt.create ();
 }
 
+(* Append-only debug log mirroring stderr to a known-location file.
+   Some LSP clients route stderr to obscure buffers or drop it
+   entirely; this gives the user a stable [tail -f] target while we
+   confirm the SMT pipeline is wired correctly. Format string should
+   NOT include a trailing newline — [log] appends one. *)
+let log_path = "/tmp/nanocn-lsp.log"
+let log_oc = open_out_gen [Open_append; Open_creat; Open_text] 0o644 log_path
+
+let log fmt =
+  let do_emit msg =
+    output_string log_oc msg; output_char log_oc '\n'; flush log_oc;
+    Printf.eprintf "%s\n%!" msg
+  in
+  Printf.ksprintf do_emit fmt
+
+let () = log "[nanocn-lsp] starting up (pid %d)" (Unix.getpid ())
+
 let find_doc uri =
   match List.find_opt (fun (u, _) -> Lsp.Types.DocumentUri.equal u uri) state.docs with
   | Some (_, doc) -> Some doc
@@ -229,8 +246,20 @@ let uri_to_path uri =
   Lsp.Types.DocumentUri.to_path uri
 
 let handle_initialize _params : Lsp.Types.InitializeResult.t =
+  (* The legacy [TextDocumentSyncKind] integer form (a bare [1] for
+     Full) doesn't advertise save support, so clients that respect
+     the spec (eglot does) won't send [textDocument/didSave]. We need
+     save events to trigger the SMT run, so emit the full
+     [TextDocumentSyncOptions] object with [save: true]. *)
+  let sync_options =
+    Lsp.Types.TextDocumentSyncOptions.create
+      ~openClose:true
+      ~change:Lsp.Types.TextDocumentSyncKind.Full
+      ~save:(`Bool true)
+      ()
+  in
   let capabilities = Lsp.Types.ServerCapabilities.create
-    ~textDocumentSync:(`TextDocumentSyncKind Lsp.Types.TextDocumentSyncKind.Full)
+    ~textDocumentSync:(`TextDocumentSyncOptions sync_options)
     ~hoverProvider:(`Bool true)
     ~definitionProvider:(`Bool true)
     ~documentSymbolProvider:(`Bool true)
@@ -407,8 +436,7 @@ let start_smt_run oc (doc : doc_state) (r : CompileFile.rfile_outcome) =
    | None -> ());
   match SmtEncode.encode r.final_rsig r.constraints with
   | Error msg ->
-    Printf.eprintf
-      "[nanocn-lsp] SMT encode failed: %s\n%!" msg
+    log "[nanocn-lsp] SMT encode failed: %s" msg
   | Ok (prelude, constraints) ->
     let smt_path = Filename.temp_file "nanocn" ".smt2" in
     let oc_smt = Out_channel.open_text smt_path in
@@ -426,10 +454,11 @@ let start_smt_run oc (doc : doc_state) (r : CompileFile.rfile_outcome) =
     match SmtAsync.start ~exe:z3 ~smt_path ~query_positions:positions
             ~on_event:(fun _ev -> ()) with
     | Error msg ->
-      Printf.eprintf
-        "[nanocn-lsp] SMT solver launch failed (exe=%s, smt_path=%s): %s\n%!"
+      log "[nanocn-lsp] SMT solver launch failed (exe=%s, smt_path=%s): %s"
         z3 smt_path msg
     | Ok run_id ->
+      log "[nanocn-lsp] SMT run %d started (%d obligations, %s)"
+        run_id (List.length positions) smt_path;
       current_smt_run := Some { id = run_id; uri = doc.uri; diags = [] }
 
 let handle_smt_events oc =
@@ -443,16 +472,26 @@ let handle_smt_events oc =
           | None -> ()
           | Some diag ->
             st.diags <- st.diags @ [diag];
+            log "[nanocn-lsp] SMT run %d: %s -> %s (publishing %d diag%s)"
+              run
+              (Format.asprintf "%a" SourcePos.print pos)
+              (Format.asprintf "%a" SolverInvoke.print_answer answer)
+              (List.length st.diags)
+              (if List.length st.diags = 1 then "" else "s");
             (match find_doc st.uri with
              | Some doc -> publish_with_smt oc doc st.diags
              | None -> ()))
        | _ -> ())  (* stale run *)
     | SmtAsync.Run_finished run ->
       (match !current_smt_run with
-       | Some st when Int.equal st.id run -> current_smt_run := None
+       | Some st when Int.equal st.id run ->
+         log "[nanocn-lsp] SMT run %d finished (%d diag%s published)"
+           run (List.length st.diags)
+           (if List.length st.diags = 1 then "" else "s");
+         current_smt_run := None
        | _ -> ())
     | SmtAsync.Run_failed { run; msg } ->
-      Printf.eprintf "[nanocn-lsp] SMT run %d failed: %s\n%!" run msg;
+      log "[nanocn-lsp] SMT run %d failed: %s" run msg;
       (match !current_smt_run with
        | Some st when Int.equal st.id run -> current_smt_run := None
        | _ -> ())
@@ -494,14 +533,26 @@ let handle_notification oc (notif : Lsp.Client_notification.t) =
      | Some doc when is_rcn doc.file ->
        (match doc.rfile with
         | Some r when List.length r.diagnostics = 0 ->
+          log "[nanocn-lsp] didSave %s: starting SMT run" doc.file;
           start_smt_run oc doc r
-        | _ -> ())
-     | _ -> ())
+        | Some r ->
+          log "[nanocn-lsp] didSave %s: skipping SMT (%d type-error diagnostics)"
+            doc.file (List.length r.diagnostics)
+        | None ->
+          log "[nanocn-lsp] didSave %s: skipping SMT (no rfile compiled)"
+            doc.file)
+     | Some doc ->
+       log "[nanocn-lsp] didSave %s: skipping SMT (not a .rcn file)"
+         doc.file
+     | None ->
+       log "[nanocn-lsp] didSave: doc not tracked")
   | Lsp.Client_notification.Initialized ->
     ()
   | Lsp.Client_notification.Exit ->
     exit 0
-  | _ -> ()
+  | other ->
+    let json = Lsp.Client_notification.to_jsonrpc other in
+    log "[nanocn-lsp] unhandled notification method=%s" json.method_
 
 let handle_packet oc packet =
   match packet with
@@ -538,9 +589,12 @@ let handle_packet oc packet =
           let resp = Jsonrpc.Response.error req.id err in
           Io.write oc (Jsonrpc.Packet.Response resp)))
   | Jsonrpc.Packet.Notification notif ->
+    log "[nanocn-lsp] notif received: method=%s" notif.method_;
     (match Lsp.Client_notification.of_jsonrpc notif with
      | Ok n -> handle_notification oc n
-     | Error _ -> ())
+     | Error msg ->
+       log "[nanocn-lsp] notif parse failed for method=%s: %s"
+         notif.method_ msg)
   | Jsonrpc.Packet.Response _ | Jsonrpc.Packet.Batch_response _
   | Jsonrpc.Packet.Batch_call _ ->
     ()
@@ -558,8 +612,7 @@ let () =
        usually surface stderr in their server output channel) and
        keep the loop alive — crashing would lose all open
        diagnostics. *)
-    Printf.eprintf
-      "[nanocn-lsp] internal compiler error in %s: %s (at %s)\n%!"
+    log "[nanocn-lsp] internal compiler error in %s: %s (at %s)"
       info.Util.rule info.Util.invariant
       (let p = info.Util.loc in
        Printf.sprintf "%s:%d:%d-%d:%d"
