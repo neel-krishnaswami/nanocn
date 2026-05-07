@@ -69,11 +69,27 @@ let of_typed_decls decls =
 let node_of_rinfo (b : RProg.typed_rinfo) : node =
   { loc = b#loc; ctx = b#ctx; rctx = Some b#rctx; sort = b#sort; eff = b#eff; goal = b#goal }
 
-(** Collect typed nodes from refined pattern elements. *)
+(** Collect typed nodes from refined pattern elements.  Walks
+    [RPat.shape] and emits one hover node per head element
+    (cpat / lpat / rpat).  The wrapper [t]'s info at each cons
+    level represents the "rest of pattern" position, not a per-qbase
+    position, so we use the head element's info instead. *)
 let collect_rpat acc pat =
-  List.fold_left (fun acc elem ->
-    node_of_rinfo (RPat.qbase_info elem) :: acc
-  ) acc (RPat.elems pat)
+  let rec go acc t =
+    match RPat.shape t with
+    | RPat.QNil -> acc
+    | RPat.QCore (cp, rest) ->
+      go (node_of_rinfo (RPat.cpat_info cp) :: acc) rest
+    | RPat.QLog (lp, rest) ->
+      go (node_of_rinfo (RPat.lpat_info lp) :: acc) rest
+    | RPat.QRes (rp, rest) ->
+      go (node_of_rinfo (RPat.rpat_info rp) :: acc) rest
+    | RPat.QDepRes (cp, rp, rest) ->
+      let acc = node_of_rinfo (RPat.rpat_info rp) :: acc in
+      let acc = node_of_rinfo (RPat.cpat_info cp) :: acc in
+      go acc rest
+  in
+  go acc pat
 
 (** Collect typed nodes from a proof sort entry list. *)
 let collect_pf acc pf =

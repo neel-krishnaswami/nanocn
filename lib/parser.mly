@@ -325,8 +325,12 @@ rdecl:
     { RProg.FunDecl { name = f; param = x; arg_sort = a; ret_sort = b; eff;
                        body; loc = mk_loc $startpos $endpos } }
   | RFUN; f = ident_var; dom = pf_domain; ARROW; pf2 = pf_sort; LBRACKET; eff = eff_level; RBRACKET; EQUAL; e = crt_expr
-    { let (pat_elems, pf1) = List.split dom in
-      let pat = RPat.mk (loc_obj $startpos $endpos) pat_elems in
+    { let (cons_fns, pf1) = List.split dom in
+      let b = loc_obj $startpos $endpos in
+      let pat =
+        List.fold_right
+          (fun cons rest -> RPat.mk b (cons rest))
+          cons_fns (RPat.mk b RPat.QNil) in
       RProg.RFunDecl { name = f; pat; domain = pf1; codomain = pf2; eff;
                         body = e; loc = mk_loc $startpos $endpos } }
   | SORT; d = LABEL; LPAREN; params = separated_nonempty_list(COMMA, IDENT); RPAREN; EQUAL; LBRACE; cs = separated_nonempty_list(BAR, ctor_decl); RBRACE
@@ -394,35 +398,44 @@ pf_domain:
 pf_domain_entry:
   | x = ident_var; COLON; s = sort
     { let b = loc_obj $startpos $endpos in
-      (RPat.mk_qbase b (RPat.QCore (RPat.mk_cpat b (RPat.CVar x))),
+      let cp = RPat.mk_cpat b (RPat.CVar x) in
+      ((fun rest -> RPat.QCore (cp, rest)),
        ProofSort.Comp { info = b; var = x; sort = s; eff = Effect.Pure }) }
   | LBRACKET; eff = eff_level; RBRACKET; x = ident_var; COLON; s = sort
     { let b = loc_obj $startpos $endpos in
-      (RPat.mk_qbase b (RPat.QCore (RPat.mk_cpat b (RPat.CVar x))),
+      let cp = RPat.mk_cpat b (RPat.CVar x) in
+      ((fun rest -> RPat.QCore (cp, rest)),
        ProofSort.Comp { info = b; var = x; sort = s; eff }) }
   | LBRACKET; LOG; RBRACKET; x = ident_var; COLON; e = app_expr
     { let b = loc_obj $startpos $endpos in
-      (RPat.mk_qbase b (RPat.QLog (RPat.mk_lpat b (RPat.LVar x))),
+      let lp = RPat.mk_lpat b (RPat.LVar x) in
+      ((fun rest -> RPat.QLog (lp, rest)),
        ProofSort.Log { info = b; prop = e }) }
   | LBRACKET; LOG; RBRACKET; AUTO; COLON; e = app_expr
     { let b = loc_obj $startpos $endpos in
-      (RPat.mk_qbase b (RPat.QLog (RPat.mk_lpat b RPat.LAuto)),
+      let lp = RPat.mk_lpat b RPat.LAuto in
+      ((fun rest -> RPat.QLog (lp, rest)),
        ProofSort.Log { info = b; prop = e }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON; e1 = app_expr; AT; e2 = app_expr
     { let b = loc_obj $startpos $endpos in
-      (RPat.mk_qbase b (RPat.QRes (RPat.mk_rpat b (RPat.RVar x))),
+      let rp = RPat.mk_rpat b (RPat.RVar x) in
+      ((fun rest -> RPat.QRes (rp, rest)),
        ProofSort.Res { info = b; pred = e1; value = e2 }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON;
     LPAREN; DO; y = ident_var; COLON; s = sort; EQUAL; e = app_expr; RPAREN
     { let b = loc_obj $startpos $endpos in
       let pred_sort = mk_sort $startpos $endpos (Sort.Pred s) in
       let annot_e = mk_surfexpr $startpos $endpos (SurfExpr.Annot (e, pred_sort)) in
-      (RPat.mk_qbase b (RPat.QDepRes (RPat.mk_cpat b (RPat.CVar y), RPat.mk_rpat b (RPat.RVar x))),
+      let cp = RPat.mk_cpat b (RPat.CVar y) in
+      let rp = RPat.mk_rpat b (RPat.RVar x) in
+      ((fun rest -> RPat.QDepRes (cp, rp, rest)),
        ProofSort.DepRes { info = b; bound_var = y; pred = annot_e }) }
   | LBRACKET; RES; RBRACKET; x = ident_var; COLON;
     LPAREN; DO; y = ident_var; EQUAL; e = app_expr; RPAREN
     { let b = loc_obj $startpos $endpos in
-      (RPat.mk_qbase b (RPat.QDepRes (RPat.mk_cpat b (RPat.CVar y), RPat.mk_rpat b (RPat.RVar x))),
+      let cp = RPat.mk_cpat b (RPat.CVar y) in
+      let rp = RPat.mk_rpat b (RPat.RVar x) in
+      ((fun rest -> RPat.QDepRes (cp, rp, rest)),
        ProofSort.DepRes { info = b; bound_var = y; pred = e }) }
 
 (* ===== Core refined terms ===== *)
@@ -497,22 +510,28 @@ crt_app_expr:
 rpat_elem:
   | x = ident_var
     { let b = loc_obj $startpos $endpos in
-      RPat.mk_qbase b (RPat.QCore (RPat.mk_cpat b (RPat.CVar x))) }
+      let cp = RPat.mk_cpat b (RPat.CVar x) in
+      fun rest -> RPat.QCore (cp, rest) }
   | LPAREN; xs = separated_nonempty_list(COMMA, ident_var); RPAREN
     { let b = loc_obj $startpos $endpos in
-      RPat.mk_qbase b (RPat.QCore (RPat.mk_cpat b (RPat.CTuple (List.map (fun x -> RPat.mk_cpat b (RPat.CVar x)) xs)))) }
+      let cp =
+        RPat.mk_cpat b
+          (RPat.CTuple (List.map (fun x -> RPat.mk_cpat b (RPat.CVar x)) xs)) in
+      fun rest -> RPat.QCore (cp, rest) }
   | LOG; x = ident_var
     { let b = loc_obj $startpos $endpos in
-      RPat.mk_qbase b (RPat.QLog (RPat.mk_lpat b (RPat.LVar x))) }
+      let lp = RPat.mk_lpat b (RPat.LVar x) in
+      fun rest -> RPat.QLog (lp, rest) }
   | LOG; AUTO
     { let b = loc_obj $startpos $endpos in
-      RPat.mk_qbase b (RPat.QLog (RPat.mk_lpat b RPat.LAuto)) }
+      let lp = RPat.mk_lpat b RPat.LAuto in
+      fun rest -> RPat.QLog (lp, rest) }
   | RES; rp = rpat_res
-    { let b = loc_obj $startpos $endpos in
-      RPat.mk_qbase b (RPat.QRes rp) }
+    { fun rest -> RPat.QRes (rp, rest) }
   | DO; x = ident_var; EQUAL; rp = rpat_res
     { let b = loc_obj $startpos $endpos in
-      RPat.mk_qbase b (RPat.QDepRes (RPat.mk_cpat b (RPat.CVar x), rp)) }
+      let cp = RPat.mk_cpat b (RPat.CVar x) in
+      fun rest -> RPat.QDepRes (cp, rp, rest) }
 
 rpat_res:
   | x = ident_var
@@ -553,12 +572,16 @@ cpat_inner:
 
 rpat:
   | LPAREN; RPAREN
-    { RPat.mk (loc_obj $startpos $endpos) [] }
+    { RPat.mk (loc_obj $startpos $endpos) RPat.QNil }
   | LPAREN; xs = separated_nonempty_list(COMMA, rpat_elem); RPAREN
-    { RPat.mk (loc_obj $startpos $endpos) xs }
+    { let b = loc_obj $startpos $endpos in
+      List.fold_right
+        (fun cons rest -> RPat.mk b (cons rest))
+        xs (RPat.mk b RPat.QNil) }
   | x = ident_var
     { let b = loc_obj $startpos $endpos in
-      RPat.mk b [RPat.mk_qbase b (RPat.QCore (RPat.mk_cpat b (RPat.CVar x)))] }
+      let cp = RPat.mk_cpat b (RPat.CVar x) in
+      RPat.mk b (RPat.QCore (cp, RPat.mk b RPat.QNil)) }
 
 (* ===== Spine expressions ===== *)
 

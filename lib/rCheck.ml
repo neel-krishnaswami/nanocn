@@ -1189,29 +1189,27 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       ProofSort.Comp { info = rinfo_dummy; var = zr_var; sort = b_sort; eff = Effect.Pure };
       ProofSort.Res { info = rinfo_dummy; pred = ce_pred; value = ce_done_z };
     ] in
-    (* Extract iter binder: must be a single QCore CVar pattern. *)
-    (match RPat.elems pat with
-     | qb :: _ ->
-       (match RPat.qbase_shape qb with
-        | RPat.QCore cp ->
-          let* x_pat =
-            ElabM.lift_at binfo#loc
-              (RPatGet.get_cvar ~construct:"iter" cp)
-          in
-          let result_ct = Constraint.conj pos ct (Constraint.forall_ pos x_pat a_sort ct') in
-          let rinfo = mk_rinfo ~goal:(RProg.CrtGoal result_pf) pos delta (ProofSort.comp result_pf) eff in
-          let typed_pat = RPat.map_info (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp init_pf) eff) pat in
-          let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CIter (ce_pred, typed_pat, checked_crt1, checked_crt2)) in
-          return (checked, result_pf, delta', result_ct)
-        | RPat.QLog _ ->
-          ElabM.fail
-            (Error.iter_pattern_shape ~loc:binfo#loc
-               ~got:"a logical pattern")
-        | RPat.QRes _ | RPat.QDepRes _ ->
-          ElabM.fail
-            (Error.iter_pattern_shape ~loc:binfo#loc
-               ~got:"a resource pattern"))
-     | [] ->
+    (* Extract iter binder: must start with a QCore CVar. *)
+    (match RPat.shape pat with
+     | RPat.QCore (cp, _rest) ->
+       let* x_pat =
+         ElabM.lift_at binfo#loc
+           (RPatGet.get_cvar ~construct:"iter" cp)
+       in
+       let result_ct = Constraint.conj pos ct (Constraint.forall_ pos x_pat a_sort ct') in
+       let rinfo = mk_rinfo ~goal:(RProg.CrtGoal result_pf) pos delta (ProofSort.comp result_pf) eff in
+       let typed_pat = RPat.map_info (fun b -> mk_rinfo b#loc RCtx.empty (ProofSort.comp init_pf) eff) pat in
+       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CIter (ce_pred, typed_pat, checked_crt1, checked_crt2)) in
+       return (checked, result_pf, delta', result_ct)
+     | RPat.QLog _ ->
+       ElabM.fail
+         (Error.iter_pattern_shape ~loc:binfo#loc
+            ~got:"a logical pattern")
+     | RPat.QRes _ | RPat.QDepRes _ ->
+       ElabM.fail
+         (Error.iter_pattern_shape ~loc:binfo#loc
+            ~got:"a resource pattern")
+     | RPat.QNil ->
        ElabM.fail
          (Error.iter_pattern_shape ~loc:binfo#loc
             ~got:"an empty pattern"))
@@ -1294,7 +1292,9 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let eff_pat = Effect.purify eff in
     let pf_log = [ProofSort.Log { info = rinfo_dummy; prop = ce }] in
     let lp_b = RPat.lpat_info lp in
-    let* (_, delta2, ct_pat) = q_match rs delta1 eff_pat (RPat.mk lp_b [RPat.mk_qbase lp_b (RPat.QLog lp)]) pf_log in
+    let* (_, delta2, ct_pat) =
+      q_match rs delta1 eff_pat
+        (RPat.mk lp_b (RPat.QLog (lp, RPat.mk lp_b RPat.QNil))) pf_log in
     let* (checked_body, delta3, ct_body) = check_crt rs delta2 eff body pf in
     let n = RCtx.length delta1 in
     let (delta_out, delta_close) = RCtx.split n delta3 in
@@ -1312,7 +1312,9 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let eff_pat = Effect.purify eff in
     let pf_res = [ProofSort.Res { info = rinfo_dummy; pred = ce_pred; value = ce_val }] in
     let rp_b = RPat.rpat_info rp in
-    let* (_, delta2, ct_pat) = q_match rs delta1 eff_pat (RPat.mk rp_b [RPat.mk_qbase rp_b (RPat.QRes rp)]) pf_res in
+    let* (_, delta2, ct_pat) =
+      q_match rs delta1 eff_pat
+        (RPat.mk rp_b (RPat.QRes (rp, RPat.mk rp_b RPat.QNil))) pf_res in
     let* (checked_body, delta3, ct_body) = check_crt rs delta2 eff body pf in
     let n = RCtx.length delta1 in
     let (delta_out, delta_close) = RCtx.split n delta3 in
@@ -1435,7 +1437,12 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       ProofSort.Log { info = rinfo_dummy; prop }
     ] in
     let cp_b = RPat.cpat_info cp in
-    let pat = RPat.mk cp_b [RPat.mk_qbase cp_b (RPat.QCore cp); RPat.mk_qbase (RPat.lpat_info lp) (RPat.QLog lp)] in
+    let lp_b = RPat.lpat_info lp in
+    let pat =
+      RPat.mk cp_b
+        (RPat.QCore (cp,
+          RPat.mk lp_b
+            (RPat.QLog (lp, RPat.mk lp_b RPat.QNil)))) in
     let* (_, delta1, ct_pat) = q_match rs delta eff_pure pat pf_core in
     let* (checked_body, delta2, ct_body) = check_crt rs delta1 eff body pf in
     let n = RCtx.length delta in
@@ -1974,90 +1981,103 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
     (pat : (_, Var.t) RPat.t)
     (pf : (CoreExpr.typed_ce, _, Var.t) ProofSort.t)
   : ((RProg.typed_rinfo, Var.t) RPat.t * RCtx.t * Constraint.typed_ct) ElabM.t =
-  let pat_elems = RPat.elems pat in
-  let pat_info = RPat.info pat in
-  let pos = pat_info#loc in
+  let pos = (RPat.info pat)#loc in
   let cs = RSig.comp rs in
   let _ = cs in
-  let fail_length elems pf_remaining =
+  let rec count_qbases t =
+    match RPat.shape t with
+    | RPat.QNil -> 0
+    | RPat.QCore (_, rest) | RPat.QLog (_, rest) | RPat.QRes (_, rest) ->
+      1 + count_qbases rest
+    | RPat.QDepRes (_, _, rest) -> 1 + count_qbases rest
+  in
+  let fail_length pat_t pf_remaining =
     ElabM.fail (Error.structured ~loc:pos
       (Error.K_rpat_length_mismatch
-         { pat_len = List.length elems; pf_len = List.length pf_remaining }))
+         { pat_len = count_qbases pat_t;
+           pf_len = List.length pf_remaining }))
   in
-  let fail_kind elems entries =
-    let pat_kind = match RPat.qbase_shape (List.hd elems) with
-      | RPat.QCore _ -> "core" | RPat.QLog _ -> "log"
-      | RPat.QRes _ -> "res" | RPat.QDepRes _ -> "depres" in
-    let pf_kind = match List.hd entries with
-      | ProofSort.Comp _ -> "comp" | ProofSort.Log _ -> "log"
-      | ProofSort.Res _ -> "res" | ProofSort.DepRes _ -> "depres" in
+  let pat_kind_str = function
+    | RPat.QCore _ -> "core" | RPat.QLog _ -> "log"
+    | RPat.QRes _ -> "res" | RPat.QDepRes _ -> "depres"
+    | RPat.QNil -> "(end)" in
+  let pf_kind_str = function
+    | ProofSort.Comp _ -> "comp" | ProofSort.Log _ -> "log"
+    | ProofSort.Res _ -> "res" | ProofSort.DepRes _ -> "depres" in
+  let fail_kind pat_shape entry =
     ElabM.fail (Error.structured ~loc:pos
-      (Error.K_rpat_kind_mismatch { pat_kind; pf_kind }))
+      (Error.K_rpat_kind_mismatch
+         { pat_kind = pat_kind_str pat_shape;
+           pf_kind = pf_kind_str entry }))
   in
-  let rec go elems entries delta typed_acc ct_acc =
-    match elems, entries with
-    | [], [] ->
-      return (List.rev typed_acc, delta, ct_acc)
+  let rec go pat_t entries delta ct_acc =
+    let b = RPat.info pat_t in
+    let pat_shape = RPat.shape pat_t in
+    match pat_shape, entries with
+    | RPat.QNil, [] ->
+      let info = mk_rinfo b#loc delta bool_sort eff in
+      return (RPat.mk info RPat.QNil, delta, ct_acc)
 
-    | qb :: rest_elems, entry :: rest_pf ->
-      let qb_info = RPat.qbase_info qb in
-      let qb_pos = qb_info#loc in
-      (match RPat.qbase_shape qb, entry with
-       | RPat.QCore cp, ProofSort.Comp { info = _; var = y; sort; eff = entry_eff } ->
-         let* (typed_cp, delta', ce_w) =
-           cpat_match rs delta entry_eff cp sort in
-         let rest_pf' = ProofSort.subst y ce_w rest_pf in
-         let qb_typed_info = mk_rinfo qb_pos delta' bool_sort eff in
-         let typed_qb =
-           RPat.mk_qbase qb_typed_info (RPat.QCore typed_cp) in
-         go rest_elems rest_pf' delta'
-           (typed_qb :: typed_acc) ct_acc
+    | RPat.QCore (cp, rest_pat),
+      ProofSort.Comp { info = _; var = y; sort; eff = entry_eff } :: rest_pf ->
+      let* (typed_cp, delta', ce_w) =
+        cpat_match rs delta entry_eff cp sort in
+      let rest_pf' = ProofSort.subst y ce_w rest_pf in
+      let* (typed_rest, delta'', ct) =
+        go rest_pat rest_pf' delta' ct_acc in
+      let info = mk_rinfo b#loc delta'' bool_sort eff in
+      return (RPat.mk info (RPat.QCore (typed_cp, typed_rest)), delta'', ct)
 
-       | RPat.QLog lp, ProofSort.Log { info = _; prop } ->
-         let* (typed_lp, delta', ct1) = lpat_match rs delta lp prop in
-         let qb_typed_info = mk_rinfo qb_pos delta' bool_sort eff in
-         let typed_qb =
-           RPat.mk_qbase qb_typed_info (RPat.QLog typed_lp) in
-         go rest_elems rest_pf delta'
-           (typed_qb :: typed_acc) (Constraint.conj pos ct_acc ct1)
+    | RPat.QLog (lp, rest_pat),
+      ProofSort.Log { info = _; prop } :: rest_pf ->
+      let* (typed_lp, delta', ct1) = lpat_match rs delta lp prop in
+      let ct_acc' = Constraint.conj pos ct_acc ct1 in
+      let* (typed_rest, delta'', ct) =
+        go rest_pat rest_pf delta' ct_acc' in
+      let info = mk_rinfo b#loc delta'' bool_sort eff in
+      return (RPat.mk info (RPat.QLog (typed_lp, typed_rest)), delta'', ct)
 
-       | RPat.QRes rp, ProofSort.Res { info = _; pred; value } ->
-         let* (typed_rp, delta', ct1) =
-           rpat_match rs delta eff rp pred value in
-         let qb_typed_info = mk_rinfo qb_pos delta' bool_sort eff in
-         let typed_qb =
-           RPat.mk_qbase qb_typed_info (RPat.QRes typed_rp) in
-         go rest_elems rest_pf delta'
-           (typed_qb :: typed_acc) (Constraint.conj pos ct_acc ct1)
+    | RPat.QRes (rp, rest_pat),
+      ProofSort.Res { info = _; pred; value } :: rest_pf ->
+      let* (typed_rp, delta', ct1) =
+        rpat_match rs delta eff rp pred value in
+      let ct_acc' = Constraint.conj pos ct_acc ct1 in
+      let* (typed_rest, delta'', ct) =
+        go rest_pat rest_pf delta' ct_acc' in
+      let info = mk_rinfo b#loc delta'' bool_sort eff in
+      return (RPat.mk info (RPat.QRes (typed_rp, typed_rest)), delta'', ct)
 
-       | RPat.QDepRes (cp, rp), ProofSort.DepRes { info = _; bound_var = z; pred } ->
-         let pred_sort = (CoreExpr.sort_of_info (CoreExpr.info pred)) in
-         (match Sort.shape pred_sort with
-          | Sort.Pred inner_sort ->
-            let* (typed_cp, delta1, ce_w) =
-              cpat_match rs delta Effect.Spec cp inner_sort in
-            let sub = Subst.extend_var z ce_w Subst.empty in
-            let pred_subst = Subst.apply_ce sub pred in
-            let* (typed_rp, delta2, ct1) =
-              rpat_match rs delta1 eff rp pred_subst ce_w in
-            let rest_pf' = ProofSort.subst z ce_w rest_pf in
-            let qb_typed_info = mk_rinfo qb_pos delta2 bool_sort eff in
-            let typed_qb =
-              RPat.mk_qbase qb_typed_info (RPat.QDepRes (typed_cp, typed_rp)) in
-            go rest_elems rest_pf' delta2
-              (typed_qb :: typed_acc) (Constraint.conj pos ct_acc ct1)
-          | _ ->
-            ElabM.fail (Error.structured ~loc:qb_pos
-              (Error.K_dep_res_not_pred { got = pred_sort })))
+    | RPat.QDepRes (cp, rp, rest_pat),
+      ProofSort.DepRes { info = _; bound_var = z; pred } :: rest_pf ->
+      let pred_sort = (CoreExpr.sort_of_info (CoreExpr.info pred)) in
+      (match Sort.shape pred_sort with
+       | Sort.Pred inner_sort ->
+         let* (typed_cp, delta1, ce_w) =
+           cpat_match rs delta Effect.Spec cp inner_sort in
+         let sub = Subst.extend_var z ce_w Subst.empty in
+         let pred_subst = Subst.apply_ce sub pred in
+         let* (typed_rp, delta2, ct1) =
+           rpat_match rs delta1 eff rp pred_subst ce_w in
+         let rest_pf' = ProofSort.subst z ce_w rest_pf in
+         let ct_acc' = Constraint.conj pos ct_acc ct1 in
+         let* (typed_rest, delta3, ct) =
+           go rest_pat rest_pf' delta2 ct_acc' in
+         let info = mk_rinfo b#loc delta3 bool_sort eff in
+         return (RPat.mk info (RPat.QDepRes (typed_cp, typed_rp, typed_rest)),
+                 delta3, ct)
+       | _ ->
+         ElabM.fail (Error.structured ~loc:b#loc
+           (Error.K_dep_res_not_pred { got = pred_sort })))
 
-       | _ -> fail_kind elems entries)
-
-    | [], _ :: _ | _ :: _, [] -> fail_length elems entries
+    | RPat.QNil, _ :: _ ->
+      fail_length pat_t entries
+    | (RPat.QCore _ | RPat.QLog _ | RPat.QRes _ | RPat.QDepRes _), [] ->
+      fail_length pat_t entries
+    | (RPat.QCore _ | RPat.QLog _ | RPat.QRes _ | RPat.QDepRes _),
+      entry :: _ ->
+      fail_kind pat_shape entry
   in
-  let* (typed_qbs, delta', ct) = go pat_elems pf delta [] (Constraint.top pos) in
-  let typed_pat_info = mk_rinfo pos delta' bool_sort eff in
-  let typed_pat = RPat.mk typed_pat_info typed_qbs in
-  return (typed_pat, delta', ct)
+  go pat pf delta (Constraint.top pos)
 (* ---------- Program checking ---------- *)
 
 let elab_fundecl_body rs param arg_sort ret_sort eff body_se =
@@ -2214,23 +2234,23 @@ and collect_errors_rpat_inner (rpat : (RProg.typed_rinfo, Var.t) RPat.rpat)
   in
   here @ inner
 
-and collect_errors_qbase (qb : (RProg.typed_rinfo, Var.t) RPat.qbase)
-    : Error.t list =
-  let here = rinfo_error (RPat.qbase_info qb) in
-  let inner =
-    match RPat.qbase_shape qb with
-    | RPat.QCore cp -> collect_errors_cpat cp
-    | RPat.QLog lp -> collect_errors_lpat lp
-    | RPat.QRes rp -> collect_errors_rpat_inner rp
-    | RPat.QDepRes (cp, rp) ->
-      collect_errors_cpat cp @ collect_errors_rpat_inner rp
-  in
-  here @ inner
-
-let collect_errors_rpat (pat : (RProg.typed_rinfo, Var.t) RPat.t)
+let rec collect_errors_rpat (pat : (RProg.typed_rinfo, Var.t) RPat.t)
     : Error.t list =
   let here = rinfo_error (RPat.info pat) in
-  here @ List.concat_map collect_errors_qbase (RPat.elems pat)
+  let rest = match RPat.shape pat with
+    | RPat.QNil -> []
+    | RPat.QCore (cp, rest) ->
+      collect_errors_cpat cp @ collect_errors_rpat rest
+    | RPat.QLog (lp, rest) ->
+      collect_errors_lpat lp @ collect_errors_rpat rest
+    | RPat.QRes (rp, rest) ->
+      collect_errors_rpat_inner rp @ collect_errors_rpat rest
+    | RPat.QDepRes (cp, rp, rest) ->
+      collect_errors_cpat cp
+      @ collect_errors_rpat_inner rp
+      @ collect_errors_rpat rest
+  in
+  here @ rest
 
 let rec collect_errors_lpf (lpf : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.lpf)
     : Error.t list =

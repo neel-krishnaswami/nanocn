@@ -20,11 +20,12 @@ type ('cpat, 'lpat, 'rpat, 'var) rpatF =
   | RUnfold of 'rpat
   | RAnnot of 'rpat
 
-type ('cpat, 'lpat, 'rpat) qbaseF =
-  | QCore of 'cpat
-  | QLog of 'lpat
-  | QRes of 'rpat
-  | QDepRes of 'cpat * 'rpat
+type ('cpat, 'lpat, 'rpat, 'q) q_shapeF =
+  | QNil
+  | QCore of 'cpat * 'q
+  | QLog of 'lpat * 'q
+  | QRes of 'rpat * 'q
+  | QDepRes of 'cpat * 'rpat * 'q
 
 (* ===== Mapper ===== *)
 
@@ -57,11 +58,12 @@ let map_rpatF m = function
   | RUnfold rp -> RUnfold (m.rpat rp)
   | RAnnot rp -> RAnnot (m.rpat rp)
 
-let map_qbaseF m = function
-  | QCore cp -> QCore (m.cpat cp)
-  | QLog lp -> QLog (m.lpat lp)
-  | QRes rp -> QRes (m.rpat rp)
-  | QDepRes (cp, rp) -> QDepRes (m.cpat cp, m.rpat rp)
+let map_q_shapeF f = function
+  | QNil -> QNil
+  | QCore (cp, q) -> QCore (cp, f q)
+  | QLog (lp, q) -> QLog (lp, f q)
+  | QRes (rp, q) -> QRes (rp, f q)
+  | QDepRes (cp, rp, q) -> QDepRes (cp, rp, f q)
 
 (* ===== Knot-tied types ===== *)
 
@@ -69,31 +71,28 @@ type ('b, 'var) cpat = CIn of 'b * (('b, 'var) cpat, 'var) cpatF
 and  ('b, 'var) lpat = LIn of 'b * 'var lpatF
 and  ('b, 'var) rpat = RIn of 'b * (('b, 'var) cpat, ('b, 'var) lpat, ('b, 'var) rpat, 'var) rpatF
 
-type ('b, 'var) qbase = QIn of 'b * (('b, 'var) cpat, ('b, 'var) lpat, ('b, 'var) rpat) qbaseF
-
-type ('b, 'var) t = 'b * ('b, 'var) qbase list
+type ('b, 'var) t =
+  TIn of 'b *
+    (('b, 'var) cpat, ('b, 'var) lpat, ('b, 'var) rpat, ('b, 'var) t) q_shapeF
 
 (* ===== Constructors ===== *)
 
 let mk_cpat b s = CIn (b, s)
 let mk_lpat b s = LIn (b, s)
 let mk_rpat b s = RIn (b, s)
-let mk_qbase b s = QIn (b, s)
-let mk b elems = (b, elems)
+let mk b s = TIn (b, s)
 
 (* ===== Accessors ===== *)
 
 let cpat_info (CIn (b, _)) = b
 let lpat_info (LIn (b, _)) = b
 let rpat_info (RIn (b, _)) = b
-let qbase_info (QIn (b, _)) = b
-let info (b, _) = b
-let elems (_, es) = es
+let info (TIn (b, _)) = b
 
 let cpat_shape (CIn (_, s)) = s
 let lpat_shape (LIn (_, s)) = s
 let rpat_shape (RIn (_, s)) = s
-let qbase_shape (QIn (_, s)) = s
+let shape (TIn (_, s)) = s
 
 (* ===== Whole-tree info mapping ===== *)
 
@@ -110,13 +109,15 @@ and map_info_rpat f (RIn (b, shape)) =
             rpat = map_info_rpat f; var = Fun.id } in
   RIn (f b, map_rpatF m shape)
 
-let map_info_qbase f (QIn (b, shape)) =
-  let m = { cpat = map_info_cpat f; lpat = map_info_lpat f;
-            rpat = map_info_rpat f; var = Fun.id } in
-  QIn (f b, map_qbaseF m shape)
-
-let map_info f (b, elems) =
-  (f b, List.map (map_info_qbase f) elems)
+let rec map_info f (TIn (b, shape)) =
+  let shape' = match shape with
+    | QNil -> QNil
+    | QCore (cp, q) -> QCore (map_info_cpat f cp, map_info f q)
+    | QLog (lp, q) -> QLog (map_info_lpat f lp, map_info f q)
+    | QRes (rp, q) -> QRes (map_info_rpat f rp, map_info f q)
+    | QDepRes (cp, rp, q) -> QDepRes (map_info_cpat f cp, map_info_rpat f rp, map_info f q)
+  in
+  TIn (f b, shape')
 
 (* ===== Whole-tree variable mapping ===== *)
 
@@ -133,13 +134,15 @@ and map_var_rpat f (RIn (b, shape)) =
             rpat = map_var_rpat f; var = f } in
   RIn (b, map_rpatF m shape)
 
-let map_var_qbase f (QIn (b, shape)) =
-  let m = { cpat = map_var_cpat f; lpat = map_var_lpat f;
-            rpat = map_var_rpat f; var = f } in
-  QIn (b, map_qbaseF m shape)
-
-let map_var f (b, elems) =
-  (b, List.map (map_var_qbase f) elems)
+let rec map_var f (TIn (b, shape)) =
+  let shape' = match shape with
+    | QNil -> QNil
+    | QCore (cp, q) -> QCore (map_var_cpat f cp, map_var f q)
+    | QLog (lp, q) -> QLog (map_var_lpat f lp, map_var f q)
+    | QRes (rp, q) -> QRes (map_var_rpat f rp, map_var f q)
+    | QDepRes (cp, rp, q) -> QDepRes (map_var_cpat f cp, map_var_rpat f rp, map_var f q)
+  in
+  TIn (b, shape')
 
 (* ===== Printing ===== *)
 
@@ -176,22 +179,31 @@ let rec print_rpat pp_var fmt rp =
   | RUnfold rp' -> Format.fprintf fmt "@[unfold;@ %a@]" (print_rpat pp_var) rp'
   | RAnnot rp' -> Format.fprintf fmt "@[annot;@ %a@]" (print_rpat pp_var) rp'
 
-let print_qbase pp_var fmt qb =
-  match qbase_shape qb with
-  | QCore cp -> print_cpat pp_var fmt cp
-  | QLog lp -> Format.fprintf fmt "log %a" (print_lpat pp_var) lp
-  | QRes rp -> Format.fprintf fmt "res %a" (print_rpat pp_var) rp
-  | QDepRes (cp, rp) ->
-    Format.fprintf fmt "do %a = %a" (print_cpat pp_var) cp (print_rpat pp_var) rp
-
 let print_gen pp_var fmt t =
-  match elems t with
-  | [] -> Format.fprintf fmt "()"
-  | es ->
-    Format.fprintf fmt "(%a)"
-      (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ")
-         (print_qbase pp_var))
-      es
+  let rec print_seq fmt t =
+    match shape t with
+    | QNil -> ()
+    | QCore (cp, rest) ->
+      print_cpat pp_var fmt cp;
+      print_sep_and_rest fmt rest
+    | QLog (lp, rest) ->
+      Format.fprintf fmt "log %a" (print_lpat pp_var) lp;
+      print_sep_and_rest fmt rest
+    | QRes (rp, rest) ->
+      Format.fprintf fmt "res %a" (print_rpat pp_var) rp;
+      print_sep_and_rest fmt rest
+    | QDepRes (cp, rp, rest) ->
+      Format.fprintf fmt "do %a = %a"
+        (print_cpat pp_var) cp (print_rpat pp_var) rp;
+      print_sep_and_rest fmt rest
+  and print_sep_and_rest fmt rest =
+    match shape rest with
+    | QNil -> ()
+    | _ -> Format.fprintf fmt ",@ "; print_seq fmt rest
+  in
+  match shape t with
+  | QNil -> Format.fprintf fmt "()"
+  | _ -> Format.fprintf fmt "(%a)" print_seq t
 
 let print fmt t = print_gen Var.print fmt t
 let to_string t = Format.asprintf "%a" (print_gen Var.print_unique) t
