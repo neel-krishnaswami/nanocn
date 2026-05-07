@@ -381,7 +381,9 @@ let start_smt_run oc _doc (r : CompileFile.rfile_outcome) =
    | None -> ());
   (* Encode constraints and write to a temp SMT file *)
   match SmtEncode.encode r.final_rsig r.constraints with
-  | Error _msg -> ()
+  | Error msg ->
+    Printf.eprintf
+      "[nanocn-lsp] SMT encode failed: %s\n%!" msg
   | Ok (prelude, constraints) ->
     let smt_path = Filename.temp_file "nanocn" ".smt2" in
     let oc_smt = Out_channel.open_text smt_path in
@@ -391,7 +393,10 @@ let start_smt_run oc _doc (r : CompileFile.rfile_outcome) =
     let z3 = Option.value (Sys.getenv_opt "Z3") ~default:"z3" in
     match SmtAsync.start ~exe:z3 ~smt_path ~query_positions:positions
             ~on_event:(fun _ev -> ()) with
-    | Error _msg -> ()
+    | Error msg ->
+      Printf.eprintf
+        "[nanocn-lsp] SMT solver launch failed (exe=%s, smt_path=%s): %s\n%!"
+        z3 smt_path msg
     | Ok run_id ->
       current_smt_run := Some run_id;
       ignore (oc : out_channel)  (* used by event handler via drain *)
@@ -423,7 +428,8 @@ let handle_smt_events oc =
       (match !current_smt_run with
        | Some id when Int.equal id run -> current_smt_run := None
        | _ -> ())
-    | SmtAsync.Run_failed { run; msg = _ } ->
+    | SmtAsync.Run_failed { run; msg } ->
+      Printf.eprintf "[nanocn-lsp] SMT run %d failed: %s\n%!" run msg;
       (match !current_smt_run with
        | Some id when Int.equal id run -> current_smt_run := None
        | _ -> ())
