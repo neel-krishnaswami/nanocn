@@ -647,9 +647,11 @@ changes take effect without reloading."
                 (when (derived-mode-p 'nanocn-ts-mode)
                   ;; Ensure eldoc is active so the buffer exists.
                   (eldoc-mode 1)
-                  ;; Trigger an initial eldoc cycle to create the buffer.
-                  (when (fboundp 'eldoc--invoke-strategy)
-                    (eldoc--invoke-strategy))
+                  ;; Display the eldoc buffer.  [eldoc-doc-buffer]
+                  ;; creates it on first call; we don't need to
+                  ;; force a cycle via the internal
+                  ;; [eldoc--invoke-strategy] (whose arity has
+                  ;; varied across Emacs versions).
                   (condition-case nil
                       (let ((buf (eldoc-doc-buffer)))
                         (display-buffer buf '(display-buffer-in-side-window
