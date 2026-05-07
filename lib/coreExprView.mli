@@ -26,6 +26,12 @@ module Get : sig
   val fail   : 'b CoreExpr.t t -> unit t
   val take   : 'b CoreExpr.t t -> (Var.t * 'b CoreExpr.t * 'b CoreExpr.t) t
   val let_   : 'b CoreExpr.t t -> (Var.t * 'b CoreExpr.t * 'b CoreExpr.t) t
+  val let_tuple : 'b CoreExpr.t t ->
+                  (Var.t list * 'b CoreExpr.t * 'b CoreExpr.t) t
+  (** [let_tuple e] returns [Some (xs, rhs, body)] when [e] is
+      [Some (LetTuple (xs, rhs, body))], otherwise [None].  The
+      per-binder info on the [LetTuple] constructor is dropped (callers
+      reading sub-sorts go through [rhs]'s sort). *)
   val if_    : 'b CoreExpr.t t
             -> ('b CoreExpr.t * 'b CoreExpr.t * 'b CoreExpr.t) t
   val case   : 'b CoreExpr.t t

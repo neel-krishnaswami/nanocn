@@ -113,6 +113,13 @@ let[@warning "-32"] view_get_let_ce ~construct (ce : CoreExpr.typed_ce)
     ~none:(mismatch_ce_kind ~construct ~expected_shape:"let _ = _; _" ce)
     (CoreExprView.Get.let_ (Some ce))
 
+let[@warning "-32"] view_get_let_tuple_ce ~construct (ce : CoreExpr.typed_ce)
+    : (Var.t list * CoreExpr.typed_ce * CoreExpr.typed_ce, Error.kind) result =
+  Option.to_result
+    ~none:(mismatch_ce_kind ~construct
+             ~expected_shape:"let (_, ..., _) = _; _" ce)
+    (CoreExprView.Get.let_tuple (Some ce))
+
 let[@warning "-32"] view_get_if_ce ~construct (ce : CoreExpr.typed_ce)
     : (CoreExpr.typed_ce * CoreExpr.typed_ce * CoreExpr.typed_ce,
        Error.kind) result =
@@ -2235,32 +2242,100 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
        displays the raw form (alias-lets preserved), so we use
        [strip_annots_shallow] here to keep [Let (y, Var x, body)]
        wrappers visible — [strip_annots] would inline them and the
-       rpat would falsely fail to match. *)
+       rpat would falsely fail to match.
+
+       Two predicate shapes apply (matching [doc/syntax.ott]'s
+       RPM_let and RPM_let_tuple):
+         - [Let x = ce; ce']: single-binder let.
+         - [LetTuple (x1,..,xn) = ce; ce']: tuple-destructuring let.
+       Dispatch on the predicate shape; the cpat is whatever the
+       user wrote (CVar or CTuple), and cpat_match handles both. *)
     let pred_for_let = strip_annots_shallow pred in
-    (match view_get_let_ce ~construct:"let pattern" pred_for_let with
-     | Error k ->
+    (match CoreExpr.shape pred_for_let with
+     | CoreExpr.Let _ ->
+       (match view_get_let_ce ~construct:"let pattern" pred_for_let with
+        | Error k ->
+          let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+          return (typed_rp, delta', Constraint.top pos)
+        | Ok (x, ce1, ce2) ->
+          let sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
+          let* (typed_cp, delta1, ce_w) =
+            cpat_match rs delta (Ok eff) cpat (Ok sort) in
+          let eq_ce = CoreExpr.mk pred_info (CoreExpr.Eq (ce_w, ce1)) in
+          let* (typed_lp, delta2, ct1) =
+            lpat_match rs delta1 lpat (Ok eq_ce) in
+          (* Substitute (ce_w : sort) / x into ce2 *)
+          let arg_typed_sort = Elaborate.lift_sort sort in
+          let ce_w_annot =
+            CoreExpr.mk (mk_info sort) (CoreExpr.Annot (ce_w, arg_typed_sort)) in
+          let sub = Subst.extend_var x ce_w_annot Subst.empty in
+          let ce2_subst = Subst.apply_ce sub ce2 in
+          let* (typed_inner, delta3, ct2) =
+            rpat_match rs delta2 eff rp_inner (Ok ce2_subst) (Ok value) in
+          let ct = Constraint.conj pos ct1 ct2 in
+          let info = mk_rinfo pos delta3 bool_sort eff in
+          let typed_rp =
+            RPat.mk_rpat info (RPat.RLet (typed_lp, typed_cp, typed_inner)) in
+          return (typed_rp, delta3, ct))
+     | CoreExpr.LetTuple _ ->
+       (match view_get_let_tuple_ce ~construct:"let-tuple pattern" pred_for_let with
+        | Error k ->
+          let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+          return (typed_rp, delta', Constraint.top pos)
+        | Ok (xs, ce, ce') ->
+          let n = List.length xs in
+          let ce_sort = (CoreExpr.sort_of_info (CoreExpr.info ce)) in
+          (* Match cpat (typically CTuple of arity n) against ce's
+             record sort.  cpat_match handles arity mismatch / CVar
+             via its existing CTuple/CVar branches and the
+             view_get_record_sorts contract. *)
+          let* (typed_cp, delta1, ce_w) =
+            cpat_match rs delta (Ok eff) cpat (Ok ce_sort) in
+          (* Extract per-component witnesses and sorts.  cpat_match's
+             CTuple branch returns ce_w = Tuple [ce1; ...; cen].  If
+             cpat was a CVar (or arity-mismatched CTuple), fall back
+             to placeholders. *)
+          let sub_ces =
+            match CoreExpr.shape ce_w with
+            | CoreExpr.Tuple ces when List.length ces = n -> ces
+            | _ ->
+              List.init n
+                (fun _ -> CoreExpr.mk (mk_info bool_sort)
+                            (CoreExpr.Hole "let-tuple-cpat-mismatch")) in
+          let sub_taus =
+            match Sort.shape ce_sort with
+            | Sort.Record taus when List.compare_length_with taus n = 0 ->
+              taus
+            | _ -> List.init n (fun _ -> bool_sort) in
+          let eq_ce = CoreExpr.mk pred_info (CoreExpr.Eq (ce_w, ce)) in
+          let* (typed_lp, delta2, ct1) =
+            lpat_match rs delta1 lpat (Ok eq_ce) in
+          (* Build parallel substitution: xi -> (cei : taui) *)
+          let sub =
+            try
+              List.fold_left2
+                (fun acc xi (cei, taui) ->
+                  let arg_typed_sort = Elaborate.lift_sort taui in
+                  let cei_annot =
+                    CoreExpr.mk (mk_info taui)
+                      (CoreExpr.Annot (cei, arg_typed_sort)) in
+                  Subst.extend_var xi cei_annot acc)
+                Subst.empty xs (List.combine sub_ces sub_taus)
+            with Invalid_argument _ -> Subst.empty in
+          let ce'_subst = Subst.apply_ce sub ce' in
+          let* (typed_inner, delta3, ct2) =
+            rpat_match rs delta2 eff rp_inner (Ok ce'_subst) (Ok value) in
+          let ct = Constraint.conj pos ct1 ct2 in
+          let info = mk_rinfo pos delta3 bool_sort eff in
+          let typed_rp =
+            RPat.mk_rpat info (RPat.RLet (typed_lp, typed_cp, typed_inner)) in
+          return (typed_rp, delta3, ct))
+     | _ ->
+       let k = mismatch_ce_kind ~construct:"let pattern"
+                 ~expected_shape:"let _ = _; _ or let (_, ..., _) = _; _"
+                 pred_for_let in
        let (typed_rp, delta') = error_rp_blanket rp delta eff k in
-       return (typed_rp, delta', Constraint.top pos)
-     | Ok (x, ce1, ce2) ->
-       let sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
-       let* (typed_cp, delta1, ce_w) =
-         cpat_match rs delta (Ok eff) cpat (Ok sort) in
-       let eq_ce = CoreExpr.mk pred_info (CoreExpr.Eq (ce_w, ce1)) in
-       let* (typed_lp, delta2, ct1) =
-         lpat_match rs delta1 lpat (Ok eq_ce) in
-       (* Substitute (ce_w : sort) / x into ce2 *)
-       let arg_typed_sort = Elaborate.lift_sort sort in
-       let ce_w_annot =
-         CoreExpr.mk (mk_info sort) (CoreExpr.Annot (ce_w, arg_typed_sort)) in
-       let sub = Subst.extend_var x ce_w_annot Subst.empty in
-       let ce2_subst = Subst.apply_ce sub ce2 in
-       let* (typed_inner, delta3, ct2) =
-         rpat_match rs delta2 eff rp_inner (Ok ce2_subst) (Ok value) in
-       let ct = Constraint.conj pos ct1 ct2 in
-       let info = mk_rinfo pos delta3 bool_sort eff in
-       let typed_rp =
-         RPat.mk_rpat info (RPat.RLet (typed_lp, typed_cp, typed_inner)) in
-       return (typed_rp, delta3, ct))
+       return (typed_rp, delta', Constraint.top pos))
 
   | RPat.RIfTrue rp_inner ->
     (match view_get_if_ce ~construct:"iftrue pattern" pred' with

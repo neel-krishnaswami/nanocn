@@ -29,6 +29,14 @@ module Get = struct
        | CoreExpr.Let ((x, _), e1, e2) -> Some (x, e1, e2)
        | _ -> None)
 
+  let let_tuple = function
+    | None -> None
+    | Some ce ->
+      (match CoreExpr.shape ce with
+       | CoreExpr.LetTuple (xs, e1, e2) ->
+         Some (List.map fst xs, e1, e2)
+       | _ -> None)
+
   let if_ = function
     | None -> None
     | Some ce ->
