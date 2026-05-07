@@ -211,9 +211,16 @@ let smt_check_file filename =
         Format.eprintf "@[<v>Solver error:@ %s@]@." msg;
         exit 1
       | Ok answers ->
+        (* Z3 produces one answer per [(check-sat)] command; line up
+           [answers] with the positions of those commands only. *)
+        let check_sat_positions =
+          constraints
+          |> List.filter SmtConstraint.is_check_sat
+          |> List.map (fun c -> c.SmtConstraint.pos)
+        in
         List.iteri (fun i a ->
-          match List.nth_opt constraints i with
-          | Some { SmtConstraint.pos; _ } ->
+          match List.nth_opt check_sat_positions i with
+          | Some pos ->
             Format.printf "%a: %a@."
               SourcePos.print pos SolverInvoke.print_answer a
           | None ->

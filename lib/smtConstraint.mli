@@ -22,3 +22,10 @@ val default_config : config
 val of_ct :
   ?config:config -> Constraint.typed_ct ->
   (located_cmd list, string) result
+
+val is_check_sat : located_cmd -> bool
+(** [is_check_sat c] is [true] iff [c.cmd] is the bare s-expression
+    [(check-sat)]. Used by callers that pair Z3's per-query answers with
+    the originating constraint's source position: only [(check-sat)]
+    commands produce answers, so the positions list passed to the
+    solver driver must be restricted to those. *)

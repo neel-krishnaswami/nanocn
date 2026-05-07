@@ -352,8 +352,18 @@ let handle_request : type a. doc_state option -> a Lsp.Client_request.t -> a =
    Async SMT
    ================================================================== *)
 
-let current_smt_run : SmtAsync.run_id option ref = ref None
+type smt_run_state = {
+  id : SmtAsync.run_id;
+  uri : Lsp.Types.DocumentUri.t;
+  mutable diags : Lsp.Types.Diagnostic.t list;  (* in arrival order *)
+}
 
+let current_smt_run : smt_run_state option ref = ref None
+
+(* [smt_pos_to_diagnostic] returns [None] for [unsat] — the obligation
+   is valid, so there's nothing to flag. The encoder asserts the
+   negation of each obligation, so [unsat] = obligation provable,
+   [sat] = counterexample exists. *)
 let smt_pos_to_diagnostic pos answer =
   let start_line = max 0 (SourcePos.start_line pos - 1) in
   let end_line = max 0 (SourcePos.end_line pos - 1) in
@@ -361,25 +371,40 @@ let smt_pos_to_diagnostic pos answer =
                   { line = start_line; character = SourcePos.start_col pos };
                 end_ =
                   { line = end_line; character = SourcePos.end_col pos } } in
-  let severity, message = match answer with
-    | SolverOutput.Sat ->
-      Lsp.Types.DiagnosticSeverity.Hint, "sat (constraint satisfied)"
-    | SolverOutput.Unsat ->
-      Lsp.Types.DiagnosticSeverity.Error, "unsat (constraint violated)"
-    | SolverOutput.Unknown ->
-      Lsp.Types.DiagnosticSeverity.Warning, "unknown (solver timeout or incomplete)"
-    | SolverOutput.Error msg ->
-      Lsp.Types.DiagnosticSeverity.Error, "solver error: " ^ msg
+  let mk severity message =
+    Some (Lsp.Types.Diagnostic.create ~range ~severity ~source:"nanocn-smt"
+            ~message:(`String message) ())
   in
-  Lsp.Types.Diagnostic.create ~range ~severity ~source:"nanocn-smt"
-    ~message:(`String message) ()
+  match answer with
+  | SolverOutput.Unsat -> None
+  | SolverOutput.Sat ->
+    mk Lsp.Types.DiagnosticSeverity.Error
+      "constraint not provable (counterexample exists)"
+  | SolverOutput.Unknown ->
+    mk Lsp.Types.DiagnosticSeverity.Warning
+      "constraint unresolved (solver timeout or incomplete)"
+  | SolverOutput.Error msg ->
+    mk Lsp.Types.DiagnosticSeverity.Error ("solver error: " ^ msg)
 
-let start_smt_run oc _doc (r : CompileFile.rfile_outcome) =
-  (* Cancel any previous run *)
+let publish_with_smt oc (doc : doc_state) (smt : Lsp.Types.Diagnostic.t list) =
+  let base = diagnostics_of_doc doc in
+  let params = Lsp.Types.PublishDiagnosticsParams.create
+    ~uri:doc.uri ~diagnostics:(base @ smt) () in
+  let notif = Lsp.Server_notification.to_jsonrpc
+    (Lsp.Server_notification.PublishDiagnostics params) in
+  Io.write oc (Jsonrpc.Packet.Notification notif)
+
+let start_smt_run oc (doc : doc_state) (r : CompileFile.rfile_outcome) =
+  (* Cancel any previous run, and clear its diagnostics by republishing
+     the doc's persistent (type-error) diagnostics on its URI. *)
   (match !current_smt_run with
-   | Some id -> SmtAsync.cancel id; current_smt_run := None
+   | Some prev ->
+     SmtAsync.cancel prev.id;
+     (match find_doc prev.uri with
+      | Some d -> publish_with_smt oc d []
+      | None -> ());
+     current_smt_run := None
    | None -> ());
-  (* Encode constraints and write to a temp SMT file *)
   match SmtEncode.encode r.final_rsig r.constraints with
   | Error msg ->
     Printf.eprintf
@@ -389,7 +414,14 @@ let start_smt_run oc _doc (r : CompileFile.rfile_outcome) =
     let oc_smt = Out_channel.open_text smt_path in
     SmtEncode.write_file oc_smt ~prelude ~constraints;
     Out_channel.close oc_smt;
-    let positions = List.map (fun c -> c.SmtConstraint.pos) constraints in
+    (* Z3 emits one answer per [(check-sat)] command, so the positions
+       list must be filtered to those — pairing answer N with command N
+       across all encoded commands gives wrong positions. *)
+    let positions =
+      constraints
+      |> List.filter SmtConstraint.is_check_sat
+      |> List.map (fun c -> c.SmtConstraint.pos)
+    in
     let z3 = Option.value (Sys.getenv_opt "Z3") ~default:"z3" in
     match SmtAsync.start ~exe:z3 ~smt_path ~query_positions:positions
             ~on_event:(fun _ev -> ()) with
@@ -398,8 +430,7 @@ let start_smt_run oc _doc (r : CompileFile.rfile_outcome) =
         "[nanocn-lsp] SMT solver launch failed (exe=%s, smt_path=%s): %s\n%!"
         z3 smt_path msg
     | Ok run_id ->
-      current_smt_run := Some run_id;
-      ignore (oc : out_channel)  (* used by event handler via drain *)
+      current_smt_run := Some { id = run_id; uri = doc.uri; diags = [] }
 
 let handle_smt_events oc =
   let events = SmtAsync.drain_events () in
@@ -407,31 +438,23 @@ let handle_smt_events oc =
     match ev with
     | SmtAsync.Query_result { run; pos; answer; _ } ->
       (match !current_smt_run with
-       | Some id when Int.equal id run ->
-         (* Find the doc this run belongs to — for now, publish
-            individual diagnostics by accumulating them. *)
-         let diag = smt_pos_to_diagnostic pos answer in
-         (* We'd need to know the URI to publish. For now, broadcast
-            to all .rcn docs. *)
-         List.iter (fun (uri, doc) ->
-           if is_rcn doc.file then begin
-             let existing = diagnostics_of_doc doc in
-             let params = Lsp.Types.PublishDiagnosticsParams.create
-               ~uri ~diagnostics:(existing @ [diag]) () in
-             let notif = Lsp.Server_notification.to_jsonrpc
-               (Lsp.Server_notification.PublishDiagnostics params) in
-             Io.write oc (Jsonrpc.Packet.Notification notif)
-           end
-         ) state.docs
+       | Some st when Int.equal st.id run ->
+         (match smt_pos_to_diagnostic pos answer with
+          | None -> ()
+          | Some diag ->
+            st.diags <- st.diags @ [diag];
+            (match find_doc st.uri with
+             | Some doc -> publish_with_smt oc doc st.diags
+             | None -> ()))
        | _ -> ())  (* stale run *)
     | SmtAsync.Run_finished run ->
       (match !current_smt_run with
-       | Some id when Int.equal id run -> current_smt_run := None
+       | Some st when Int.equal st.id run -> current_smt_run := None
        | _ -> ())
     | SmtAsync.Run_failed { run; msg } ->
       Printf.eprintf "[nanocn-lsp] SMT run %d failed: %s\n%!" run msg;
       (match !current_smt_run with
-       | Some id when Int.equal id run -> current_smt_run := None
+       | Some st when Int.equal st.id run -> current_smt_run := None
        | _ -> ())
   ) events
 
