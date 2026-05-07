@@ -8,9 +8,6 @@ type 'a t
 val return : 'a -> 'a t
 val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
 
-val fail : Error.t -> 'a t
-(** [fail e] aborts the computation with the given structured error. *)
-
 val lift : ('a, Error.t) result -> 'a t
 (** [lift r] promotes a plain result into the monad. *)
 

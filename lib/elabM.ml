@@ -16,8 +16,6 @@ let ( let* ) m f s =
   | Error e -> Error e
   | Ok (a, s') -> f a s'
 
-let fail err _s = Error err
-
 let lift r s =
   match r with
   | Ok x -> Ok (x, s)
@@ -68,20 +66,6 @@ module Test = struct
            ) with
            | Ok (b, _) -> b
            | Error _ -> false);
-
-      QCheck.Test.make ~name:"elabM fail propagates the error"
-        ~count:1
-        QCheck.unit
-        (fun () ->
-           let err =
-             Error.parse_error ~loc:None ~msg:"test error"
-           in
-           match run Var.empty_supply (
-             let* _ = fail err in
-             return 42
-           ) with
-           | Ok _ -> false
-           | Error _ -> true);
 
       QCheck.Test.make
         ~name:"elabM record_warning surfaces in run_full output"

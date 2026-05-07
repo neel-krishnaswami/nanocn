@@ -145,9 +145,7 @@ let ( &&& ) (gate : (unit, Error.t) result) (x : ('a, Error.t) result)
 (** [unsynth ~construct r] — same as [Typecheck.unsynth].  Converts a
     typed-info answer ([(Sort.sort, Error.t) result]) into the
     [Error.kind] expected by [check]'s expected-sort argument when the
-    typechecker can't synthesize a prior subterm.  Reserved for the
-    upcoming clause-by-clause migration of synth's user-error
-    [ElabM.fail] sites. *)
+    typechecker can't synthesize a prior subterm. *)
 let[@warning "-32"] unsynth ~construct r =
   Result.map_error (fun _ -> Error.K_cannot_synthesize { construct }) r
 

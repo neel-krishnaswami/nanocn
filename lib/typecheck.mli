@@ -52,9 +52,8 @@ val check_decl_multi : Var.supply -> _ Sig.t ->
 (** Multi-error variant of [check_decl]: returns the typed
     declaration alongside every error recorded on its body's tree
     (via [collect_errors]).  The outer [Error _] is reserved for
-    structural failures (e.g. sig validation, internal invariants
-    that fire through [ElabM.fail] and short-circuit elaboration
-    before any tree is produced). *)
+    structural failures (sig validation, etc.) that prevent any
+    typed tree from being produced. *)
 
 val initial_sig : typed_ce Sig.t
 (** The initial signature with built-in types (step). *)
