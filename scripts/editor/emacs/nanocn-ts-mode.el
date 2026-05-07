@@ -622,12 +622,24 @@ changes take effect without reloading."
 ;; Auto-start Eglot and configure eldoc rendering
 ;; ---------------------------------------------------------------------------
 
+(defface nanocn-error-highlight-face
+  '((((background light)) :background "#ffd6d6" :underline nil)
+    (((background dark))  :background "#5a2828" :underline nil))
+  "Face for highlighting code spans flagged as errors by the nanoCN
+typechecker.  Replaces Flymake's default wavy underline with a light
+pink (light-background) or muted dark-red (dark-background) wash."
+  :group 'nanocn)
+
 (defun nanocn-ts--setup ()
   "Configure buffer-local settings and start Eglot for nanoCN."
   ;; Enable native fontification of fenced code blocks in eldoc
   ;; markdown rendering (requires markdown-mode).
   (when (boundp 'markdown-fontify-code-blocks-natively)
     (setq-local markdown-fontify-code-blocks-natively t))
+  ;; Remap Flymake's error face so error spans get a light pink
+  ;; wash instead of a wavy underline.  Buffer-local — only nanoCN
+  ;; buffers are affected.
+  (face-remap-add-relative 'flymake-error 'nanocn-error-highlight-face)
   ;; Start Eglot if available.
   (when (fboundp 'eglot-ensure)
     (eglot-ensure))
