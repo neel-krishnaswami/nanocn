@@ -1700,12 +1700,20 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let n = RCtx.length delta in
     let (delta1, _) = RCtx.split n delta1_ext in
     let (delta2, _) = RCtx.split n delta2_ext in
-    let* delta_merged = lift_at pos (RCtx.merge delta1 delta2) in
+    (* Branch-context merge: when the two branches' deltas don't match
+       (kind/length mismatch), fall back to the affinized input delta
+       and attach the merge error to the typed CIf so downstream
+       processing (and the LSP hover index) keeps working. *)
+    let merge_r = RCtx.merge delta1 delta2 in
+    let (delta_merged, merge_errs) = match merge_r with
+      | Ok d -> (d, [])
+      | Error k -> (RCtx.affinize delta, [Error.structured ~loc:pos k]) in
     let ct = Constraint.conj pos
       (Constraint.impl pos (mk_eq ce mk_true) ct1)
       (Constraint.impl pos (mk_eq ce mk_false) ct2) in
     let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
     let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CIf (eq_var, ce, checked_crt1, checked_crt2)) in
+    let checked = prepend_subterm_errors_crt merge_errs checked in
     return (checked, delta_merged, ct)
 
   | RefinedExpr.CCase (_y, se, branches) ->
@@ -1737,10 +1745,11 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
          | Sig.LTypeDecl decl ->
            instantiate_ctors decl.DtypeDecl.params decl.DtypeDecl.ctors
        in
-       let* (checked_branches, delta', ct) =
+       let* (checked_branches, delta', ct, merge_errs) =
          check_case_branches pos rs delta eff _y ce ce_sort ctors branches pf in
        let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
        let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CCase (_y, ce, checked_branches)) in
+       let checked = prepend_subterm_errors_crt merge_errs checked in
        return (checked, delta', ct)
      | _ ->
        let err = Error.scrutinee_not_data ~loc:pos ~got:ce_sort in
@@ -1962,13 +1971,24 @@ and _check_tuple rs delta eff spine pf =
     let checked = RefinedExpr.mk_spine rinfo RefinedExpr.SNil in
     return (checked, delta, Constraint.top pos)
 
-(* Case branch checking *)
+(* Case branch checking.
+
+   Returns [(checked_branches, delta_merged, ct, merge_errs)].
+   On a successful branch-context merge, [merge_errs = []].  When the
+   branches' deltas don't match (length / kind / usage mismatch),
+   [merge_errs] carries the structural error and [delta_merged] falls
+   back to the affinized input [delta] so downstream processing
+   continues — the caller folds [merge_errs] into the typed CCase's
+   subterm_errors via [prepend_subterm_errors_crt]. *)
 and check_case_branches pos rs delta eff eq_var ce ce_sort ctors branches pf =
   let* (checked_branches, branch_results) = check_branches_list pos rs delta eff eq_var ce ce_sort ctors branches pf in
   let (deltas, cts) = List.split branch_results in
-  let* delta_merged = lift_at pos (RCtx.merge_n deltas) in
+  let merge_r = RCtx.merge_n deltas in
+  let (delta_merged, merge_errs) = match merge_r with
+    | Ok d -> (d, [])
+    | Error k -> (RCtx.affinize delta, [Error.structured ~loc:pos k]) in
   let ct = List.fold_left (Constraint.conj pos) (Constraint.top pos) cts in
-  return (checked_branches, delta_merged, ct)
+  return (checked_branches, delta_merged, ct, merge_errs)
 
 and check_branches_list pos rs delta eff eq_var ce _ce_sort ctors branches pf =
   (* Payload binders bind at the purified effect (they are
