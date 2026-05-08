@@ -8,16 +8,6 @@ type 'a t
 val return : 'a -> 'a t
 val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
 
-val lift : ('a, Error.t) result -> 'a t
-(** [lift r] promotes a plain result into the monad. *)
-
-val lift_at : SourcePos.t -> ('a, Error.kind) result -> 'a t
-(** [lift_at pos r] forwards a submodule-structured
-    [(_, Error.kind) result] into the monad, attaching [pos] via
-    [Error.at]. Used at the boundary between elaboration/typechecking
-    and helper modules ([Sig], [RSig], [CtorLookup], [Subst], [RCtx],
-    [ProofSort], etc.). *)
-
 val fresh : SourcePos.t -> Var.t t
 (** [fresh pos] generates a fresh variable with binding site [pos]. *)
 

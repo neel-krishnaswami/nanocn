@@ -20,9 +20,10 @@ val extend : string -> 'a entry -> 'a t -> 'a t
 
 (** {1 Lookups}
 
-    All lookups return [(_, Error.kind) result]. Failure produces the
-    canonical "not found" error for that kind of name; lift to the
-    elaboration monad with [ElabM.lift_at]. *)
+    All lookups return [(_, Error.kind) result].  Failure produces
+    the canonical "not found" error for that kind of name; callers
+    thread the result through the typechecker's errkind plumbing
+    rather than failing the elaboration monad. *)
 
 val lookup_fun :
   string -> 'a t -> (Sort.sort * Sort.sort * Effect.t, Error.kind) result

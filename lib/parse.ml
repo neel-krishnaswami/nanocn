@@ -55,8 +55,11 @@ let parse_sort      s ~file = parse_raw Parser.Incremental.sort_eof  s ~file
 
 let parse_and_resolve entry resolve s ~file =
   let open ElabM in
-  let* raw = lift (parse_raw entry s ~file) in
-  resolve raw
+  match parse_raw entry s ~file with
+  | Error e -> return (Error e)
+  | Ok raw ->
+    let* resolved = resolve raw in
+    return (Ok resolved)
 
 let parse_expr ?(env=[]) s ~file =
   parse_and_resolve Parser.Incremental.program (Resolve.resolve_expr env) s ~file
@@ -66,16 +69,20 @@ let parse_prog ?(env=[]) s ~file =
 
 let parse_decl ?(env=[]) s ~file =
   let open ElabM in
-  let* raw = lift (parse_raw Parser.Incremental.repl_decl s ~file) in
-  let* (d, _env) = Resolve.resolve_decl env raw in
-  return d
+  match parse_raw Parser.Incremental.repl_decl s ~file with
+  | Error e -> return (Error e)
+  | Ok raw ->
+    let* (d, _env) = Resolve.resolve_decl env raw in
+    return (Ok d)
 
 let parse_let ?(env=[]) s ~file =
   let open ElabM in
-  let* (name, pos, raw_se) = lift (parse_raw Parser.Incremental.repl_let s ~file) in
-  let* v = mk_var name pos in
-  let* se = Resolve.resolve_expr env raw_se in
-  return (v, se)
+  match parse_raw Parser.Incremental.repl_let s ~file with
+  | Error e -> return (Error e)
+  | Ok (name, pos, raw_se) ->
+    let* v = mk_var name pos in
+    let* se = Resolve.resolve_expr env raw_se in
+    return (Ok (v, se))
 
 let parse_rprog ?(env=[]) s ~file =
   parse_and_resolve Parser.Incremental.rprog_eof (Resolve.resolve_rprog env) s ~file

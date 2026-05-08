@@ -16,13 +16,6 @@ let ( let* ) m f s =
   | Error e -> Error e
   | Ok (a, s') -> f a s'
 
-let lift r s =
-  match r with
-  | Ok x -> Ok (x, s)
-  | Error e -> Error e
-
-let lift_at pos r = lift (Error.at ~loc:pos r)
-
 let fresh pos s =
   let (v, supply') = Var.fresh pos s.supply in
   Ok (v, { s with supply = supply' })

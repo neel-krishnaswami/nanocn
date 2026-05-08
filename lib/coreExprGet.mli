@@ -3,8 +3,10 @@
     Each extractor inspects [CoreExpr.shape] and either returns the
     sub-components of the matching constructor or fails with
     [Error.K_wrong_pred_shape] carrying the [~construct] label and an
-    [expected_shape] hint. The [got] field is the pretty-printed input
-    expression. Lift via [ElabM.lift_at] at the call site. *)
+    [expected_shape] hint.  The [got] field is the pretty-printed
+    input expression.  Callers thread the [(_, Error.kind) result]
+    through the View pipeline (e.g. via [Result.map] /
+    [Constraint.atom']) rather than failing the elaboration monad. *)
 
 val get_return : construct:string -> 'b CoreExpr.t -> ('b CoreExpr.t, Error.kind) result
 val get_fail   : construct:string -> 'b CoreExpr.t -> (unit, Error.kind) result

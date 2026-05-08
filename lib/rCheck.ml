@@ -15,12 +15,7 @@ open ElabM
      [Error.K_internal_invariant] carrying the rule identifier
      and the specific failed check.
    - [invariant ~rule msg]: same, but for sites with no source
-     position in scope (uses [SourcePos.dummy]).
-   - [ElabM.lift_at]: forwards a submodule-structured
-     [(_, Error.kind) result] into the monad, attaching a [SourcePos.t]
-     via [Error.at]. Used at the boundary between the refined checker
-     and its helper modules ([CtorLookup], [Subst], [RCtx],
-     [ProofSort], [rpat_match]). *)
+     position in scope (uses [SourcePos.dummy]). *)
 let invariant_at pos ~rule msg =
   Util.raise_invariant ~loc:pos ~rule msg
 let invariant ~rule msg =
@@ -746,8 +741,7 @@ let lift_to_rf arg ret eff =
    refined function type; we try [RFunSig] first, fall back to
    lifting a plain [FunSig]/[FunDef], and propagate
    [K_unknown_function] on all three components when neither is
-   bound.  Replaces the old [lift_at]-based [lookup_rf_m] so the
-   spine checker can stay errkind-flow throughout. *)
+   bound — letting the spine checker stay errkind-flow throughout. *)
 let lookup_rf_m (rs : RSig.t) (f : string)
     : (((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
         Error.kind) result
@@ -3356,11 +3350,16 @@ module Test = struct
       QCheck.Test.make ~name ~count:1 QCheck.unit (fun () ->
         with_delta_check (fun () ->
           match ElabM.run Var.empty_supply (
-            let* prog = Parse.parse_rprog src ~file:"test" in
-            check_rprog prog
+            let* parsed = Parse.parse_rprog src ~file:"test" in
+            match parsed with
+            | Error e -> return (Error e)
+            | Ok prog ->
+              let* checked = check_rprog prog in
+              return (Ok checked)
           ) with
-          | Error msg -> QCheck.Test.fail_reportf "check: %s" (Error.to_string msg)
-          | Ok _ -> true))
+          | Error msg | Ok (Error msg, _) ->
+            QCheck.Test.fail_reportf "check: %s" (Error.to_string msg)
+          | Ok (Ok _, _) -> true))
     in
     [ check_program "delta monotonicity: incr (new/get/set/del)"
         {|

@@ -93,11 +93,35 @@ let sort_of te = (CoreExpr.sort_of_info (CoreExpr.info te))
 let eff_of te = (CoreExpr.info te)#eff
 let ctx_of te = (CoreExpr.info te)#ctx
 
-(** Run an ElabM computation with a fresh supply, discarding the final supply *)
-let run_m m =
+(** Run an ElabM computation that returns a parse [result], flattening
+    the parse error and the runner error into a single [Error.t].  Lets
+    test sites that previously matched [Ok value | Error msg] keep
+    that shape after parse_* started returning [(_, Error.t) result
+    ElabM.t]. *)
+let run_parse_m m =
   match ElabM.run Var.empty_supply m with
-  | Ok (result, _supply) -> Ok result
-  | Error msg -> Error msg
+  | Ok (Ok x, _supply) -> Ok x
+  | Ok (Error e, _) | Error e -> Error e
+
+(** [run_parse_supply supply m] is [ElabM.run supply m] with the inner
+    parse [result] flattened into the outer error.  Same shape as
+    [ElabM.run]: returns [Ok (value, supply')] on success. *)
+let run_parse_supply supply m =
+  match ElabM.run supply m with
+  | Ok (Ok x, supply') -> Ok (x, supply')
+  | Ok (Error e, _) | Error e -> Error e
+
+(** Parse an rprog source then refined-check it; returns the inner
+    check result on success, or the parse error on failure.  Used by
+    the rcheck test group's "parse src then RCheck.check_rprog" sites. *)
+let parse_and_check src =
+  let open ElabM in
+  let* parsed = Parse.parse_rprog src ~file:"test" in
+  match parsed with
+  | Error e -> return (Error e)
+  | Ok prog ->
+    let* result = RCheck.check_rprog prog in
+    return (Ok result)
 
 (** Helper: elaborate a surface expr then synthesize (for pre-parsed exprs).
 
@@ -191,7 +215,7 @@ let () =
         | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "parse int literal" `Quick (fun () ->
-        match run_m (Parse.parse_expr "42" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "42" ~file:"test") with
         | Ok e ->
           (match SurfExpr.shape e with
            | SurfExpr.IntLit 42 -> ()
@@ -199,7 +223,7 @@ let () =
         | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "parse let" `Quick (fun () ->
-        match run_m (Parse.parse_expr "let x = 1; x" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "let x = 1; x" ~file:"test") with
         | Ok e ->
           (match SurfExpr.shape e with
            | SurfExpr.Let (_, _, _) -> ()
@@ -207,7 +231,7 @@ let () =
         | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "parse tuple" `Quick (fun () ->
-        match run_m (Parse.parse_expr "(1, 2, 3)" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "(1, 2, 3)" ~file:"test") with
         | Ok e ->
           (match SurfExpr.shape e with
            | SurfExpr.Tuple [_; _; _] -> ()
@@ -261,7 +285,7 @@ let () =
         | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "parse iter" `Quick (fun () ->
-        match run_m (Parse.parse_expr "iter (x = 0) { Done x }" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "iter (x = 0) { Done x }" ~file:"test") with
         | Ok e ->
           (match SurfExpr.shape e with
            | SurfExpr.Iter (_, _, _) -> ()
@@ -278,7 +302,7 @@ let () =
 
       Alcotest.test_case "parse type decl" `Quick (fun () ->
         let src = "type Option(a) = { Some : a | None : () }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Ok (Prog.TypeDecl d, _supply) ->
           if List.length d.DtypeDecl.ctors <> 2 then
             Alcotest.fail "expected 2 constructors";
@@ -289,7 +313,7 @@ let () =
 
       Alcotest.test_case "parse type decl no params" `Quick (fun () ->
         let src = "type Color = { Red : () | Blue : () }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Ok (Prog.TypeDecl d, _supply) ->
           if List.length d.DtypeDecl.params <> 0 then
             Alcotest.fail "expected 0 params"
@@ -299,7 +323,7 @@ let () =
 
     ("typecheck", [
       Alcotest.test_case "synth int literal" `Quick (fun () ->
-        match run_m (Parse.parse_expr "42" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "42" ~file:"test") with
         | Error msg -> Alcotest.fail (Error.to_string msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -312,7 +336,7 @@ let () =
           | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "check tuple" `Quick (fun () ->
-        match run_m (Parse.parse_expr "(1, 2)" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "(1, 2)" ~file:"test") with
         | Error msg -> Alcotest.fail (Error.to_string msg)
         | Ok e ->
           let mk s = Sort.mk (object method loc = SourcePos.dummy end) s in
@@ -325,7 +349,7 @@ let () =
           | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "check let + Add" `Quick (fun () ->
-        match run_m (Parse.parse_expr "let x = 1; x + x" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "let x = 1; x + x" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           let int_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Int in
@@ -341,7 +365,7 @@ let () =
            it generates a fresh [Var.t] so the rest of the file can
            still elaborate.  The unbound diagnostic now comes from
            [Context.lookup] at typecheck time as [K_unbound_var]. *)
-        match run_m (Parse.parse_expr "x" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "x" ~file:"test") with
         | Error msg ->
           Alcotest.fail
             ("expected resolve to succeed (returning a fresh Var.t \
@@ -362,14 +386,14 @@ let () =
 
       Alcotest.test_case "check inject into declared type" `Quick (fun () ->
         let src = "type Option = { Some : Int | None : () }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse decl: " ^ Error.to_string msg)
         | Ok (d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig d with
           | Error msg -> Alcotest.fail ("typecheck decl: " ^ Error.to_string msg)
           | Ok (_supply', sig_) ->
             let expr_src = "Some 1 : Option" in
-            match run_m (Parse.parse_expr expr_src ~file:"test") with
+            match run_parse_m (Parse.parse_expr expr_src ~file:"test") with
             | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
             | Ok e ->
               match elab_synth sig_ Context.empty Effect.Pure e with
@@ -380,14 +404,14 @@ let () =
 
       Alcotest.test_case "check case with declared type" `Quick (fun () ->
         let src = "type Option = { Some : Int | None : () }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse decl: " ^ Error.to_string msg)
         | Ok (d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig d with
           | Error msg -> Alcotest.fail ("typecheck decl: " ^ Error.to_string msg)
           | Ok (_supply', sig_) ->
             let expr_src = "let x = (Some 1 : Option); case x of { Some y -> y | None u -> 0 } : Int" in
-            match run_m (Parse.parse_expr expr_src ~file:"test") with
+            match run_parse_m (Parse.parse_expr expr_src ~file:"test") with
             | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
             | Ok e ->
               match elab_synth sig_ Context.empty Effect.Pure e with
@@ -398,7 +422,7 @@ let () =
               | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "Div is effectful" `Quick (fun () ->
-        match run_m (Parse.parse_expr "1 / 2" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "1 / 2" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Impure e with
@@ -408,7 +432,7 @@ let () =
           | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "let-tuple destructuring" `Quick (fun () ->
-        match run_m (Parse.parse_expr "let (a, b) = ((1, 2) : (Int * Int)); a + b" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "let (a, b) = ((1, 2) : (Int * Int)); a + b" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           let int_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Int in
@@ -417,7 +441,7 @@ let () =
           | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "New synthesizes ptr sort" `Quick (fun () ->
-        match run_m (Parse.parse_expr "New[Int] 1" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "New[Int] 1" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Impure e with
@@ -434,7 +458,7 @@ let () =
 
       Alcotest.test_case "Get with explicit type" `Quick (fun () ->
         let src = "let p = New[Int] 42; Get[Int] p" in
-        match run_m (Parse.parse_expr src ~file:"test") with
+        match run_parse_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           let int_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Int in
@@ -444,7 +468,7 @@ let () =
 
       Alcotest.test_case "Set with explicit type" `Quick (fun () ->
         let src = "let p = New[Int] 0; Set[Int] (p, 42)" in
-        match run_m (Parse.parse_expr src ~file:"test") with
+        match run_parse_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           let unit_sort = Sort.mk (object method loc = SourcePos.dummy end) (Sort.Record []) in
@@ -453,7 +477,7 @@ let () =
           | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "annotation effect mismatch fails" `Quick (fun () ->
-        match run_m (Parse.parse_expr "1 / 2 : Int" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "1 / 2 : Int" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -462,7 +486,7 @@ let () =
 
       Alcotest.test_case "typed output carries context" `Quick (fun () ->
         let src = "let x = 1; x : Int" in
-        match run_m (Parse.parse_expr src ~file:"test") with
+        match run_parse_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -490,7 +514,7 @@ let () =
             | _ -> Alcotest.fail "expected Annot at root");
 
       Alcotest.test_case "typed output carries sorts on subterms" `Quick (fun () ->
-        match run_m (Parse.parse_expr "1 + 2" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "1 + 2" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -513,7 +537,7 @@ let () =
 
       Alcotest.test_case "typecheck type decl" `Quick (fun () ->
         let src = "type Color = { Red : () | Blue : () }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok (d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig d with
@@ -522,7 +546,7 @@ let () =
 
       Alcotest.test_case "typecheck parameterized type decl" `Quick (fun () ->
         let src = "type Option(a) = { Some : a | None : () }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok (d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig d with
@@ -531,7 +555,7 @@ let () =
 
       Alcotest.test_case "typecheck inject with step (built-in)" `Quick (fun () ->
         let src = "Done 1 : Step(Int, Int)" in
-        match run_m (Parse.parse_expr src ~file:"test") with
+        match run_parse_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           match elab_synth Typecheck.initial_sig Context.empty Effect.Pure e with
@@ -551,7 +575,7 @@ let () =
         | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "parse true" `Quick (fun () ->
-        match run_m (Parse.parse_expr "true" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "true" ~file:"test") with
         | Ok e ->
           (match SurfExpr.shape e with
            | SurfExpr.BoolLit true -> ()
@@ -559,7 +583,7 @@ let () =
         | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "parse false" `Quick (fun () ->
-        match run_m (Parse.parse_expr "false" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "false" ~file:"test") with
         | Ok e ->
           (match SurfExpr.shape e with
            | SurfExpr.BoolLit false -> ()
@@ -567,7 +591,7 @@ let () =
         | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "parse if-then-else" `Quick (fun () ->
-        match run_m (Parse.parse_expr "if true then 1 else 2 : Int" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "if true then 1 else 2 : Int" ~file:"test") with
         | Ok e ->
           (match SurfExpr.shape e with
            | SurfExpr.Annot (inner, _) ->
@@ -578,7 +602,7 @@ let () =
         | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "parse and" `Quick (fun () ->
-        match run_m (Parse.parse_expr "true && false" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "true && false" ~file:"test") with
         | Ok e ->
           (match SurfExpr.shape e with
            | SurfExpr.And (_, _) -> ()
@@ -586,7 +610,7 @@ let () =
         | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "parse or" `Quick (fun () ->
-        match run_m (Parse.parse_expr "true || false" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "true || false" ~file:"test") with
         | Ok e ->
           (match SurfExpr.shape e with
            | SurfExpr.App (Prim.Or, _) -> ()
@@ -594,7 +618,7 @@ let () =
         | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "parse not" `Quick (fun () ->
-        match run_m (Parse.parse_expr "not true" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "not true" ~file:"test") with
         | Ok e ->
           (match SurfExpr.shape e with
            | SurfExpr.Not _ -> ()
@@ -604,7 +628,7 @@ let () =
 
     ("typecheck-bool", [
       Alcotest.test_case "synth true" `Quick (fun () ->
-        match run_m (Parse.parse_expr "true" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "true" ~file:"test") with
         | Error msg -> Alcotest.fail (Error.to_string msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -618,7 +642,7 @@ let () =
 
       Alcotest.test_case "check if-then-else" `Quick (fun () ->
         let src = "if true then 1 else 2 : Int" in
-        match run_m (Parse.parse_expr src ~file:"test") with
+        match run_parse_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -629,7 +653,7 @@ let () =
           | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "not true is pure bool" `Quick (fun () ->
-        match run_m (Parse.parse_expr "not true" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "not true" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -642,7 +666,7 @@ let () =
           | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "and is pure" `Quick (fun () ->
-        match run_m (Parse.parse_expr "true && false" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "true && false" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -656,7 +680,7 @@ let () =
 
       Alcotest.test_case "if with non-bool condition fails" `Quick (fun () ->
         let src = "if 1 then 2 else 3 : Int" in
-        match run_m (Parse.parse_expr src ~file:"test") with
+        match run_parse_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -666,7 +690,7 @@ let () =
 
     ("typecheck-eq", [
       Alcotest.test_case "Eq[Int] synth bool pure" `Quick (fun () ->
-        match run_m (Parse.parse_expr "Eq[Int] (1, 2)" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "Eq[Int] (1, 2)" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -679,7 +703,7 @@ let () =
           | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "Eq[Bool] synth bool pure" `Quick (fun () ->
-        match run_m (Parse.parse_expr "Eq[Bool] (true, false)" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "Eq[Bool] (true, false)" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -690,7 +714,7 @@ let () =
           | Error msg -> Alcotest.fail (Error.to_string msg));
 
       Alcotest.test_case "Eq on record sort fails" `Quick (fun () ->
-        match run_m (Parse.parse_expr "Eq[(Int * Int)] ((1,2), (3,4))" ~file:"test") with
+        match run_parse_m (Parse.parse_expr "Eq[(Int * Int)] ((1,2), (3,4))" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           match elab_synth Sig.empty Context.empty Effect.Pure e with
@@ -709,7 +733,7 @@ let () =
 
       Alcotest.test_case "parse simple program" `Quick (fun () ->
         let src = "main : () [impure] = ()" in
-        match run_m (Parse.parse_prog src ~file:"test") with
+        match run_parse_m (Parse.parse_prog src ~file:"test") with
         | Ok p ->
           if List.length p.Prog.decls <> 0 then
             Alcotest.fail "expected no decls"
@@ -717,7 +741,7 @@ let () =
 
       Alcotest.test_case "parse program with function" `Quick (fun () ->
         let src = "fun double : Int -> Int [pure] = { x -> x + x } main : () [impure] = ()" in
-        match run_m (Parse.parse_prog src ~file:"test") with
+        match run_parse_m (Parse.parse_prog src ~file:"test") with
         | Ok p ->
           if List.length p.Prog.decls <> 1 then
             Alcotest.fail "expected 1 decl"
@@ -727,7 +751,7 @@ let () =
     ("typecheck-prog", [
       Alcotest.test_case "typecheck trivial program" `Quick (fun () ->
         let src = "main : () [impure] = ()" in
-        match ElabM.run Var.empty_supply (Parse.parse_prog src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_prog src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok (p, supply) ->
           match Typecheck.check_prog supply p with
@@ -736,7 +760,7 @@ let () =
 
       Alcotest.test_case "typecheck program with function" `Quick (fun () ->
         let src = "fun double : Int -> Int [pure] = { x -> x + x } main : () [impure] = ()" in
-        match ElabM.run Var.empty_supply (Parse.parse_prog src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_prog src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok (p, supply) ->
           match Typecheck.check_prog supply p with
@@ -745,7 +769,7 @@ let () =
 
       Alcotest.test_case "typecheck function call" `Quick (fun () ->
         let src = "fun double : Int -> Int [pure] = { x -> x + x } main : () [impure] = (let r = double 21; ())" in
-        match ElabM.run Var.empty_supply (Parse.parse_prog src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_prog src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok (p, supply) ->
           match Typecheck.check_prog supply p with
@@ -759,7 +783,7 @@ let () =
           }
           main : () [impure] = iter (x = 10) { countdown x }
         |} in
-        match ElabM.run Var.empty_supply (Parse.parse_prog src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_prog src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok (p, supply) ->
           match Typecheck.check_prog supply p with
@@ -773,7 +797,7 @@ let () =
           }
           main : () [impure] = ()
         |} in
-        match ElabM.run Var.empty_supply (Parse.parse_prog src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_prog src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok (p, supply) ->
           match Typecheck.check_prog supply p with
@@ -782,7 +806,7 @@ let () =
 
       Alcotest.test_case "unknown function fails" `Quick (fun () ->
         let src = "main : () [impure] = (unknown 1 : Int)" in
-        match ElabM.run Var.empty_supply (Parse.parse_prog src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_prog src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok (p, supply) ->
           match Typecheck.check_prog supply p with
@@ -797,7 +821,7 @@ let () =
           }
           main : () [impure] = (let r = unwrap (Some 42 : Option(Int)); ())
         |} in
-        match ElabM.run Var.empty_supply (Parse.parse_prog src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_prog src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok (p, supply) ->
           match Typecheck.check_prog supply p with
@@ -808,7 +832,7 @@ let () =
     ("parse-sort", [
       Alcotest.test_case "parse sort decl" `Quick (fun () ->
         let src = "sort List(a) = { Nil : () | Cons : (a * List(a)) }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Ok (Prog.SortDecl d, _supply) ->
           if List.length d.DsortDecl.ctors <> 2 then
             Alcotest.fail "expected 2 constructors"
@@ -817,7 +841,7 @@ let () =
 
       Alcotest.test_case "parse sort decl no params" `Quick (fun () ->
         let src = "sort Color = { Red : () | Blue : () }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Ok (Prog.SortDecl d, _supply) ->
           if List.length d.DsortDecl.params <> 0 then
             Alcotest.fail "expected 0 params"
@@ -826,7 +850,7 @@ let () =
 
       Alcotest.test_case "parse spec fun decl" `Quick (fun () ->
         let src = "fun length : List(Int) -> Int [spec] = { Nil () -> 0 | Cons (x, xs) -> 1 + length xs }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Ok (Prog.FunDecl d, _supply) ->
           if List.length d.branches <> 2 then
             Alcotest.fail "expected 2 branches"
@@ -845,7 +869,7 @@ let () =
     ("typecheck-spec", [
       Alcotest.test_case "typecheck sort decl" `Quick (fun () ->
         let src = "sort Color = { Red : () | Blue : () }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok (d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig d with
@@ -879,7 +903,7 @@ let () =
 
       Alcotest.test_case "sort referencing undeclared sort fails" `Quick (fun () ->
         let src = "sort Bad = { Mk : Unknown }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok (d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig d with
@@ -888,14 +912,14 @@ let () =
 
       Alcotest.test_case "sort with wrong arity fails" `Quick (fun () ->
         let sort_src = "sort Pair(a, b) = { Mk : (a * b) }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl sort_src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl sort_src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse sort: " ^ Error.to_string msg)
         | Ok (sort_d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig sort_d with
           | Error msg -> Alcotest.fail ("typecheck sort: " ^ Error.to_string msg)
           | Ok (_supply', sig1) ->
             let bad_src = "sort Bad = { Mk : Pair(Int) }" in
-            match ElabM.run Var.empty_supply (Parse.parse_decl bad_src ~file:"test") with
+            match run_parse_supply Var.empty_supply (Parse.parse_decl bad_src ~file:"test") with
             | Error msg -> Alcotest.fail ("parse bad: " ^ Error.to_string msg)
             | Ok (bad_d, supply2) ->
               match Typecheck.check_spec_decl supply2 sig1 bad_d with
@@ -904,7 +928,7 @@ let () =
 
       Alcotest.test_case "self-referential sort succeeds" `Quick (fun () ->
         let src = "sort List(a) = { Nil : () | Cons : (a * List(a)) }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok (d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig d with
@@ -913,7 +937,7 @@ let () =
 
       Alcotest.test_case "type referencing undeclared type fails" `Quick (fun () ->
         let src = "type Bad = { Mk : Unknown }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok (d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig d with
@@ -922,14 +946,14 @@ let () =
 
       Alcotest.test_case "type with wrong arity fails" `Quick (fun () ->
         let type_src = "type Pair(a, b) = { Mk : (a * b) }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl type_src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl type_src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse type: " ^ Error.to_string msg)
         | Ok (type_d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig type_d with
           | Error msg -> Alcotest.fail ("typecheck type: " ^ Error.to_string msg)
           | Ok (_supply', sig1) ->
             let bad_src = "type Bad = { Mk : Pair(Int) }" in
-            match ElabM.run Var.empty_supply (Parse.parse_decl bad_src ~file:"test") with
+            match run_parse_supply Var.empty_supply (Parse.parse_decl bad_src ~file:"test") with
             | Error msg -> Alcotest.fail ("parse bad: " ^ Error.to_string msg)
             | Ok (bad_d, supply2) ->
               match Typecheck.check_spec_decl supply2 sig1 bad_d with
@@ -938,7 +962,7 @@ let () =
 
       Alcotest.test_case "bare self-referential type rejected" `Quick (fun () ->
         let src = "type List(a) = { Nil : () | Cons : (a * List(a)) }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok (d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig d with
@@ -947,7 +971,7 @@ let () =
 
       Alcotest.test_case "ptr self-referential type succeeds" `Quick (fun () ->
         let src = "type List(a) = { Nil : () | Cons : (a * Ptr List(a)) }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok (d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig d with
@@ -957,14 +981,14 @@ let () =
       Alcotest.test_case "typecheck spec fun" `Quick (fun () ->
         (* First register a sort, then a spec function using it *)
         let sort_src = "sort Color = { Red : () | Blue : () }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl sort_src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl sort_src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse sort: " ^ Error.to_string msg)
         | Ok (sort_d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig sort_d with
           | Error msg -> Alcotest.fail ("typecheck sort: " ^ Error.to_string msg)
           | Ok (_supply', sig1) ->
             let fun_src = "fun isRed : Color -> Int [spec] = { Red () -> 1 | Blue () -> 0 }" in
-            match ElabM.run Var.empty_supply (Parse.parse_decl fun_src ~file:"test") with
+            match run_parse_supply Var.empty_supply (Parse.parse_decl fun_src ~file:"test") with
             | Error msg -> Alcotest.fail ("parse fun: " ^ Error.to_string msg)
             | Ok (fun_d, supply2) ->
               match Typecheck.check_spec_decl supply2 sig1 fun_d with
@@ -973,14 +997,14 @@ let () =
 
       Alcotest.test_case "typecheck spec fun with arithmetic" `Quick (fun () ->
         let sort_src = "sort Color = { Red : () | Blue : () }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl sort_src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl sort_src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse sort: " ^ Error.to_string msg)
         | Ok (sort_d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig sort_d with
           | Error msg -> Alcotest.fail ("typecheck sort: " ^ Error.to_string msg)
           | Ok (_supply', sig1) ->
             let fun_src = "fun toNum : Color -> Int [spec] = { Red () -> 2 + 3 | Blue () -> 0 }" in
-            match ElabM.run Var.empty_supply (Parse.parse_decl fun_src ~file:"test") with
+            match run_parse_supply Var.empty_supply (Parse.parse_decl fun_src ~file:"test") with
             | Error msg -> Alcotest.fail ("parse fun: " ^ Error.to_string msg)
             | Ok (fun_d, supply2) ->
               match Typecheck.check_spec_decl supply2 sig1 fun_d with
@@ -990,7 +1014,7 @@ let () =
       Alcotest.test_case "pure function callable from spec" `Quick (fun () ->
         (* Register a pure function: fun inc : int -> int [pure] *)
         let fun_src = "fun inc : Int -> Int [pure] = { x -> x + 1 }" in
-        match ElabM.run Var.empty_supply (Parse.parse_decl fun_src ~file:"test") with
+        match run_parse_supply Var.empty_supply (Parse.parse_decl fun_src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse fun: " ^ Error.to_string msg)
         | Ok (fun_d, supply) ->
           match Typecheck.check_spec_decl supply Typecheck.initial_sig fun_d with
@@ -998,7 +1022,7 @@ let () =
           | Ok (_supply', sig1) ->
             (* Now use inc in a spec function *)
             let spec_src = "fun three : () -> Int [spec] = { () -> inc 2 }" in
-            match ElabM.run Var.empty_supply (Parse.parse_decl spec_src ~file:"test") with
+            match run_parse_supply Var.empty_supply (Parse.parse_decl spec_src ~file:"test") with
             | Error msg -> Alcotest.fail ("parse spec: " ^ Error.to_string msg)
             | Ok (spec_d, supply2) ->
               match Typecheck.check_spec_decl supply2 sig1 spec_d with
@@ -1204,7 +1228,7 @@ let () =
          must produce ≥2 errors. *)
       Alcotest.test_case "elaborate multi-error: tuple component mismatches" `Quick (fun () ->
         let src = "((true, false) : (Int * Int))" in
-        match run_m (Parse.parse_expr src ~file:"test") with
+        match run_parse_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
           (match ElabM.run Var.empty_supply
@@ -1480,11 +1504,7 @@ main : Int [pure] = example(Both (1, 2) : Pair)
             let (do x' = r') = incr(p, res r);
             Del[Int](p, x', res r')
         |} in
-        match run_m (
-          let open ElabM in
-          let* prog = Parse.parse_rprog src ~file:"test" in
-          RCheck.check_rprog prog
-        ) with
+        match run_parse_m (parse_and_check src) with
         | Error msg -> Alcotest.fail ("check: " ^ Error.to_string msg)
           | Ok (_typed_prog, _rs, ct) ->
             (* The constraint must not be trivially Top — it should contain
@@ -1507,11 +1527,7 @@ main : Int [pure] = example(Both (1, 2) : Pair)
             let (do x' = r') = incr(p, res r);
             Del[Int](p, x', res r')
         |} in
-        match run_m (
-          let open ElabM in
-          let* prog = Parse.parse_rprog src ~file:"test" in
-          RCheck.check_rprog prog
-        ) with
+        match run_parse_m (parse_and_check src) with
         | Error msg -> Alcotest.fail ("check: " ^ Error.to_string msg)
           | Ok _ -> ());
 
@@ -1543,11 +1559,7 @@ main : Int [pure] = example(Both (1, 2) : Pair)
         let src = {|
           main : () [impure] = ()
         |} in
-        match run_m (
-          let open ElabM in
-          let* prog = Parse.parse_rprog src ~file:"test" in
-          RCheck.check_rprog prog
-        ) with
+        match run_parse_m (parse_and_check src) with
         | Error msg -> Alcotest.fail ("check: " ^ Error.to_string msg)
           | Ok (_, rs, _) ->
             let rsig = rs in
@@ -1570,11 +1582,7 @@ main : Int [pure] = example(Both (1, 2) : Pair)
             case xs of { Nil u -> 0 | Cons p -> let (x, t) = p; 1 + length t }
           main : () [impure] = ()
         |} in
-        match run_m (
-          let open ElabM in
-          let* prog = Parse.parse_rprog src ~file:"test" in
-          RCheck.check_rprog prog
-        ) with
+        match run_parse_m (parse_and_check src) with
         | Error msg -> Alcotest.fail ("check: " ^ Error.to_string msg)
           | Ok _ -> ());
 
@@ -1587,11 +1595,7 @@ main : Int [pure] = example(Both (1, 2) : Pair)
             (res r)
           main : () [impure] = ()
         |} in
-        match run_m (
-          let open ElabM in
-          let* prog = Parse.parse_rprog src ~file:"test" in
-          RCheck.check_rprog prog
-        ) with
+        match run_parse_m (parse_and_check src) with
         | Error msg -> Alcotest.fail ("check: " ^ Error.to_string msg)
         | Ok _ -> ());
 
