@@ -91,6 +91,29 @@ let payload_of_pred s =
   | Sort.Pred t -> Ok t
   | _ -> Error "expected a Pred sort"
 
+(* Wrap a constructor symbol with [(as ctor (D τ1 ... τn))] iff its
+   result sort is parameterized. Z3's polymorphic-constructor
+   inference is bidirectional and fragile — once two instantiations
+   of the same datatype are in scope (e.g. [Lst Int] and [Lst Bool],
+   or [Tuple-2 Int (Lst Int)] and [Tuple-2 (Lst Int) (Lst Int)]), it
+   gives up resolving the bare constructor name with "ambiguous
+   constant reference". The fix is unambiguous explicit
+   instantiation; SMT-LIB's [as] form requires its head to be a
+   symbol, so this can only be used at the constructor position, not
+   on arbitrary subterms. Monad-op symbols ([return-τ], [bind-τ-σ],
+   ...) are monomorphised by [SmtPrelude] and don't need this. *)
+let qualified_ctor loc ctor_sym result_sort =
+  match Sort.shape result_sort with
+  | Sort.App (_, _ :: _)
+  | Sort.Record (_ :: _ :: _) ->
+    list_at loc [
+      res_at loc SmtAtom.R_as;
+      ctor_sym;
+      of_sort result_sort;
+    ]
+  | _ ->
+    ctor_sym
+
 let rec of_ce ce =
   let loc = ce_loc ce in
   match CoreExpr.shape ce with
@@ -120,7 +143,12 @@ let rec of_ce ce =
   | CoreExpr.Tuple es ->
     let n = List.length es in
     let* args = map_result of_ce es in
-    Ok (list_at loc (sym_at loc (SmtSym.tuple_ctor n) :: args))
+    let ctor =
+      qualified_ctor loc
+        (sym_at loc (SmtSym.tuple_ctor n))
+        (CoreExpr.sort_of_info (CoreExpr.info ce))
+    in
+    Ok (list_at loc (ctor :: args))
 
   | CoreExpr.LetTuple ([], _, body) ->
     (* No bindings, pure in SMT: emit body. *)
@@ -167,17 +195,27 @@ let rec of_ce ce =
     (* Constructor references use the datatype-prefixed name [D-L]
        per [doc/smt-encoding.md] §Datatype declarations. We recover
        [D] from the enclosing expression's sort, which the
-       typechecker has already determined to be [App(D, _)]. *)
-    (match Sort.shape (CoreExpr.sort_of_info (CoreExpr.info ce)) with
+       typechecker has already determined to be [App(D, _)]. The
+       constructor symbol is [as]-qualified iff [D] is parameterized
+       — see [qualified_ctor]. *)
+    let result_sort = CoreExpr.sort_of_info (CoreExpr.info ce) in
+    (match Sort.shape result_sort with
      | Sort.App (dsort, _) ->
-       let label_sym = sym_at loc (SmtSym.ctor_name dsort l) in
+       let ctor =
+         qualified_ctor loc
+           (sym_at loc (SmtSym.ctor_name dsort l))
+           result_sort
+       in
        (match Sort.shape (CoreExpr.sort_of_info (CoreExpr.info payload)) with
         | Sort.Record [] ->
-          (* Nullary constructor: emit bare label per plan decision Q3. *)
-          Ok label_sym
+          (* Nullary constructor: no payload — emit just the
+             (possibly [as]-qualified) label, e.g. [Lst-Nil] for a
+             monomorphic [List] or [(as Lst-Nil (Lst Int))] for [Lst]
+             at the [Int] instantiation. *)
+          Ok ctor
         | _ ->
           let* p = of_ce payload in
-          Ok (list_at loc [label_sym; p]))
+          Ok (list_at loc [ctor; p]))
      | _ ->
        Error (Format.asprintf
                 "inject of label %s requires enclosing sort App(D, _)"
