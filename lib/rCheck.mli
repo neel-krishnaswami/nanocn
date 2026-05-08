@@ -193,25 +193,29 @@ val q_match :
 val check_spine :
   RSig.t -> RCtx.t -> Effect.t ->
   RefinedExpr.parsed_spine ->
-  (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RFunType.t ->
+  ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
+   Error.kind) result ->
+  ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
+   Error.kind) result ->
   (checked_spine
-   * (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t
+   * ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
+      Error.kind) result
    * RCtx.t
    * Constraint.typed_ct) ElabM.t
-(** [check_spine rs delta eff spine rf] checks [spine] against the
-    refined-function type [rf], walking [spine] entries
-    ([SCore]/[SLog]/[SRes]/[SNil]) in lockstep with [rf.domain] via
-    the entry-tag comparison and substituting [rf.codomain] as
-    binders are matched.  Returns the typed spine, the (instantiated)
-    codomain, the output context, and the rule's constraint.
+(** [check_spine rs delta eff spine domain codomain] checks [spine]
+    against an rfun's [domain] and [codomain] (each errkind),
+    walking [spine] entries ([SCore]/[SLog]/[SRes]/[SNil]) in
+    lockstep with [domain] via the entry-tag comparison and
+    substituting [codomain] as binders are matched.  Returns the
+    typed spine, the (instantiated) codomain, the output context,
+    and the rule's constraint.
 
     Spec: [RS; Δ ⊢_eff rsp : Pf₁ ⊸ Pf₂ ⊃ Pf ⊣ Δ' ↝ Ct].
 
-    [rf] is currently plain (not errkind); when [lookup_rf_m]
-    eventually returns errkind, [check_spine] will follow.  The
-    returned [ProofSort.t] is also plain — its consumers
-    ([synth_crt CCall], [synth_crt CPrimApp]) wrap it in [Ok] for the
-    errkind output of [synth_crt]. *)
+    Both inputs are errkind so callers can pass the components of
+    [lookup_rf_m]'s triple straight through; an [Error] domain is
+    treated as "no entries to match", and an [Error] codomain
+    returns an [Error] codomain unchanged. *)
 
 (** {1 Helper judgement: core patterns} *)
 

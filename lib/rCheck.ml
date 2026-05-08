@@ -729,28 +729,40 @@ let mk_not ce = CoreExpr.mk (mk_info bool_sort) (CoreExpr.Not ce)
 (** Errkind-propagating [mk_not]. *)
 let[@warning "-32"] mk_not' ce_r = Result.map mk_not ce_r
 
-(* Lift a plain FunSig/FunDef to an RF, creating fresh variables *)
+(* Lift a plain FunSig/FunDef to a (domain, codomain, eff) triple,
+   creating fresh variables. *)
 let lift_to_rf arg ret eff =
   let* x = fresh SourcePos.dummy in
   let* y = fresh SourcePos.dummy in
-  return RFunType.{
-    domain = [ProofSort.Comp { info = rinfo_dummy; var = x; sort = arg; eff }];
-    codomain = [ProofSort.Comp { info = rinfo_dummy; var = y; sort = ret; eff }];
-    eff;
-  }
+  let domain =
+    [ProofSort.Comp { info = rinfo_dummy; var = x; sort = arg; eff }] in
+  let codomain =
+    [ProofSort.Comp { info = rinfo_dummy; var = y; sort = ret; eff }] in
+  return (domain, codomain, eff)
 
-(* Monadic lookup for refined function types, lifting plain entries.
+(* Errkind triple lookup for refined function types: returns
+   (domain, codomain, eff) all wrapped in [(_, Error.kind) result].
    Spec rule [:: call] (syntax.ott:1758-1761) demands that [f] have a
-   refined function type; if no [RFunSig] is registered we fall back
-   to lifting a plain [FunSig]/[FunDef], and only fail (with
-   [K_unknown_function]) if neither is bound. *)
-let lookup_rf_m ~loc (rs : RSig.t) (f : string)
-    : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RFunType.t ElabM.t =
+   refined function type; we try [RFunSig] first, fall back to
+   lifting a plain [FunSig]/[FunDef], and propagate
+   [K_unknown_function] on all three components when neither is
+   bound.  Replaces the old [lift_at]-based [lookup_rf_m] so the
+   spine checker can stay errkind-flow throughout. *)
+let lookup_rf_m (rs : RSig.t) (f : string)
+    : (((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
+        Error.kind) result
+       * ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
+          Error.kind) result
+       * (Effect.t, Error.kind) result) ElabM.t =
   match RSig.lookup_rf f rs with
-  | Ok rf -> return rf
+  | Ok rf -> return (Ok rf.domain, Ok rf.codomain, Ok rf.eff)
   | Error _ ->
-    let* (arg, ret, eff) = ElabM.lift_at loc (RSig.lookup_fun f rs) in
-    lift_to_rf arg ret eff
+    (match RSig.lookup_fun f rs with
+     | Ok (arg, ret, eff) ->
+       let* (domain, codomain, eff) = lift_to_rf arg ret eff in
+       return (Ok domain, Ok codomain, Ok eff)
+     | Error e ->
+       return (Error e, Error e, Error e))
 
 (** Refined function type for a primitive, following the spec in refinement-types.md. *)
 let rprim_signature (p : Prim.t) : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RFunType.t ElabM.t =
@@ -1736,36 +1748,54 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     return (checked, Ok pf, delta', ct)
 
   | RefinedExpr.CCall (f, spine) ->
-    let* rf = lookup_rf_m ~loc:pos rs f in
+    let* (domain_r, codomain_r, eff_r) = lookup_rf_m rs f in
     let eff'' = Effect.purify eff in
-    let* (checked_spine, pf, delta', ct) = check_spine rs delta eff'' spine rf in
-    if not (Effect.sub rf.eff eff) then begin
-      let err = Error.fun_effect_mismatch
-                  ~loc:pos ~name:f ~declared:rf.eff ~required:eff in
-      let rinfo = mk_rinfo_err ~goal:(RProg.CrtGoal pf) pos delta
-                    (ProofSort.comp pf) eff err in
-      let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CCall (f, checked_spine)) in
-      return (checked, Ok pf, delta', Constraint.top pos)
-    end else
-      let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
-      let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CCall (f, checked_spine)) in
-      return (checked, Ok pf, delta', ct)
+    let* (checked_spine, pf_r, delta', ct) =
+      check_spine rs delta eff'' spine domain_r codomain_r in
+    let eff_check_r =
+      let err_k = Error.K_unknown_function { name = f } in
+      let _ = err_k in
+      let err_k =
+        match eff_r with
+        | Ok e ->
+          if Effect.sub e eff then Ok ()
+          else Error (Error.K_fun_effect_mismatch
+                        { name = f; declared = e; required = eff })
+        | Error e -> Error e
+      in
+      err_k
+    in
+    let rinfo =
+      match eff_check_r with
+      | Ok () -> mk_crt_rinfo ~loc:pos delta pf_r eff
+      | Error k ->
+        let err_t = Error.structured ~loc:pos k in
+        let pf_p = Result.value pf_r ~default:[] in
+        mk_rinfo_err ~goal:(RProg.CrtGoal pf_p) pos delta
+          (ProofSort.comp pf_p) eff err_t
+    in
+    let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CCall (f, checked_spine)) in
+    let final_ct = match eff_check_r with
+      | Ok () -> ct | Error _ -> Constraint.top pos in
+    return (checked, pf_r, delta', final_ct)
 
   | RefinedExpr.CPrimApp (prim, spine) ->
     let* rf = rprim_signature prim in
     let eff'' = Effect.purify eff in
-    let* (checked_spine, pf, delta', ct) = check_spine rs delta eff'' spine rf in
+    let* (checked_spine, pf_r, delta', ct) =
+      check_spine rs delta eff'' spine (Ok rf.domain) (Ok rf.codomain) in
     if not (Effect.sub rf.eff eff) then begin
       let err = Error.prim_effect_mismatch
                   ~loc:pos ~prim ~declared:rf.eff ~required:eff in
-      let rinfo = mk_rinfo_err ~goal:(RProg.CrtGoal pf) pos delta
-                    (ProofSort.comp pf) eff err in
+      let pf_p = Result.value pf_r ~default:[] in
+      let rinfo = mk_rinfo_err ~goal:(RProg.CrtGoal pf_p) pos delta
+                    (ProofSort.comp pf_p) eff err in
       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CPrimApp (prim, checked_spine)) in
-      return (checked, Ok pf, delta', Constraint.top pos)
+      return (checked, pf_r, delta', Constraint.top pos)
     end else
-      let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
+      let rinfo = mk_crt_rinfo ~loc:pos delta pf_r eff in
       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CPrimApp (prim, checked_spine)) in
-      return (checked, Ok pf, delta', ct)
+      return (checked, pf_r, delta', ct)
 
   | RefinedExpr.CIter (se_pred, pat, crt1, crt2) ->
     let iter_pos = binfo#loc in
@@ -2201,14 +2231,29 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     return (checked_crt, delta', Constraint.conj pos ct ct')
 
 (* Spine checking: RS; Delta |-[eff] rsp : Pf1 -o Pf2 >> Pf -| Delta' ~> Ct *)
-and check_spine (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (spine : RefinedExpr.parsed_spine) (rf : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RFunType.t) : (checked_spine * (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t * RCtx.t * Constraint.typed_ct) ElabM.t =
-  check_spine_inner rs delta eff spine rf.domain rf.codomain
-
-and check_spine_inner rs delta eff spine domain codomain =
+and check_spine
+    (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
+    (spine : RefinedExpr.parsed_spine)
+    (domain : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
+               Error.kind) result)
+    (codomain : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
+                 Error.kind) result)
+  : (checked_spine
+     * ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
+        Error.kind) result
+     * RCtx.t
+     * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.spine_info spine in
   let pos = binfo#loc in
-  let spine_rinfo = mk_rinfo ~goal:(RProg.CrtGoal codomain) pos delta (ProofSort.comp codomain) eff in
-  match RefinedExpr.spine_shape spine, domain with
+  (* Goal-display + sort placeholders fall back to an empty pf when
+     [codomain] is [Error _]; the rinfo's answer captures the
+     errkind verdict. *)
+  let codomain_p = Result.value codomain ~default:[] in
+  let spine_rinfo =
+    mk_crt_rinfo ~loc:pos delta codomain eff in
+  let domain_p = Result.value domain ~default:[] in
+  let _ = codomain_p in
+  match RefinedExpr.spine_shape spine, domain_p with
   | RefinedExpr.SNil, [] ->
     let checked = RefinedExpr.mk_spine spine_rinfo RefinedExpr.SNil in
     return (checked, codomain, delta, Constraint.top pos)
@@ -2217,8 +2262,9 @@ and check_spine_inner rs delta eff spine domain codomain =
     let gamma = RCtx.erase delta in
     let* ce = elab_se_check rs gamma se sort eff in
     let pf_rest' = ProofSort.subst var ce pf_rest in
-    let codomain' = ProofSort.subst var ce codomain in
-    let* (checked_rest, result_pf, delta', ct) = check_spine_inner rs delta eff rest pf_rest' codomain' in
+    let codomain' = Result.map (ProofSort.subst var ce) codomain in
+    let* (checked_rest, result_pf, delta', ct) =
+      check_spine rs delta eff rest (Ok pf_rest') codomain' in
     let checked = RefinedExpr.mk_spine spine_rinfo (RefinedExpr.SCore (ce, checked_rest)) in
     return (checked, result_pf, delta', ct)
 
@@ -2226,8 +2272,9 @@ and check_spine_inner rs delta eff spine domain codomain =
     let gamma = RCtx.erase delta in
     let* ce = elab_se_check rs gamma se sort Effect.Spec in
     let pf_rest' = ProofSort.subst var ce pf_rest in
-    let codomain' = ProofSort.subst var ce codomain in
-    let* (checked_rest, result_pf, delta', ct) = check_spine_inner rs delta eff rest pf_rest' codomain' in
+    let codomain' = Result.map (ProofSort.subst var ce) codomain in
+    let* (checked_rest, result_pf, delta', ct) =
+      check_spine rs delta eff rest (Ok pf_rest') codomain' in
     let checked = RefinedExpr.mk_spine spine_rinfo (RefinedExpr.SCore (ce, checked_rest)) in
     return (checked, result_pf, delta', ct)
 
@@ -2242,13 +2289,15 @@ and check_spine_inner rs delta eff spine domain codomain =
 
   | RefinedExpr.SLog (lpf, rest), (ProofSort.Log { info = _; prop } :: pf_rest) ->
     let* (checked_lpf, delta', ct) = check_lpf rs delta lpf (Ok prop) in
-    let* (checked_rest, result_pf, delta'', ct') = check_spine_inner rs delta' eff rest pf_rest codomain in
+    let* (checked_rest, result_pf, delta'', ct') =
+      check_spine rs delta' eff rest (Ok pf_rest) codomain in
     let checked = RefinedExpr.mk_spine spine_rinfo (RefinedExpr.SLog (checked_lpf, checked_rest)) in
     return (checked, result_pf, delta'', Constraint.conj pos ct ct')
 
   | RefinedExpr.SRes (rpf, rest), (ProofSort.Res { info = _; pred; value } :: pf_rest) ->
     let* (checked_rpf, delta', ct) = check_rpf rs delta rpf (Ok pred) (Ok value) in
-    let* (checked_rest, result_pf, delta'', ct') = check_spine_inner rs delta' eff rest pf_rest codomain in
+    let* (checked_rest, result_pf, delta'', ct') =
+      check_spine rs delta' eff rest (Ok pf_rest) codomain in
     let checked = RefinedExpr.mk_spine spine_rinfo (RefinedExpr.SRes (checked_rpf, checked_rest)) in
     return (checked, result_pf, delta'', Constraint.conj pos ct ct')
 
@@ -2259,8 +2308,9 @@ and check_spine_inner rs delta eff spine domain codomain =
       CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole tag) in
     let ce_value = Result.value ce_value_r ~default:(placeholder_hole "depres-value") in
     let pf_rest' = ProofSort.subst bound_var ce_value pf_rest in
-    let codomain' = ProofSort.subst bound_var ce_value codomain in
-    let* (checked_rest, result_pf, delta'', ct') = check_spine_inner rs delta' eff rest pf_rest' codomain' in
+    let codomain' = Result.map (ProofSort.subst bound_var ce_value) codomain in
+    let* (checked_rest, result_pf, delta'', ct') =
+      check_spine rs delta' eff rest (Ok pf_rest') codomain' in
     let checked = RefinedExpr.mk_spine spine_rinfo (RefinedExpr.SRes (checked_rpf, checked_rest)) in
     return (checked, result_pf, delta'', Constraint.conj pos (Constraint.conj pos ct eq_ct) ct')
 
