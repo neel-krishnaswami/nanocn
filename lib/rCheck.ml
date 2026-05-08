@@ -2196,11 +2196,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
 
   | _ ->
     let* (checked_crt, pf'_r, delta', ct) = synth_crt rs delta eff crt in
-    let* (ct', pf_errs) =
-      match pf'_r, pf with
-      | Ok pf', Ok pf -> pf_eq pos rs delta' pf' pf
-      | _ -> return (Constraint.top pos, [])
-    in
+    let* (ct', pf_errs) = pf_eq_e pos rs delta' pf'_r pf in
     let checked_crt = prepend_subterm_errors_crt pf_errs checked_crt in
     return (checked_crt, delta', Constraint.conj pos ct ct')
 
@@ -2418,6 +2414,16 @@ and check_branches_list pos rs delta eff eq_var ce _ce_sort ctors branches pf =
    for the mismatched portion).  The single caller folds the errors
    into the synthesizing crt's outer rinfo via
    prepend_subterm_errors_crt. *)
+and pf_eq_e (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t)
+    (pf1_r : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
+              Error.kind) result)
+    (pf2_r : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
+              Error.kind) result)
+  : (Constraint.typed_ct * Error.t list) ElabM.t =
+  match pf1_r, pf2_r with
+  | Ok pf1, Ok pf2 -> pf_eq pos rs delta pf1 pf2
+  | _ -> return (Constraint.top pos, [])
+
 and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t)
     (pf1 : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t)
     (pf2 : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t)
