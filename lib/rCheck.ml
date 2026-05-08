@@ -1131,74 +1131,72 @@ let pf_entry_to_string entry =
   Format.asprintf "%a" ProofSort.print_ce [entry]
 
 (* Logical fact synthesis: RS; Delta |- lpf => ce -| Delta' ~> Ct *)
-let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) : (checked_lpf * CoreExpr.typed_ce * RCtx.t * Constraint.typed_ct) ElabM.t =
+let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) : (checked_lpf * (CoreExpr.typed_ce, Error.kind) result * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.lpf_info lpf in
   let pos = binfo#loc in
+  let placeholder_hole tag =
+    CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole tag) in
   match RefinedExpr.lpf_shape lpf with
   | RefinedExpr.LVar x ->
-    (match RCtx.lookup_log x delta with
-     | Ok ce ->
-       let rinfo = mk_rinfo ~goal:(RProg.LpfGoal ce) pos delta bool_sort Effect.Spec in
-       let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LVar x) in
-       return (checked, ce, delta, Constraint.top pos)
-     | Error _ ->
-       let err = Error.log_var_not_found ~loc:pos ~name:x in
-       let placeholder_ce =
-         CoreExpr.mk (mk_info bool_sort)
-           (CoreExpr.Hole "lpf-unbound-log-var") in
-       let rinfo =
-         mk_rinfo_err ~goal:(RProg.LpfGoal placeholder_ce)
-           pos delta bool_sort Effect.Spec err in
-       let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LVar x) in
-       return (checked, placeholder_ce, delta, Constraint.top pos))
+    let prop_r = RCtx.lookup_log x delta in
+    let goal_ce = Result.value prop_r ~default:(placeholder_hole "lpf-unbound-log-var") in
+    let answer = answer_of_sort_kind_r ~loc:pos
+                   (Result.map (fun _ -> bool_sort) prop_r) in
+    let rinfo =
+      mk_rinfo_with_answer ~goal:(RProg.LpfGoal goal_ce)
+        pos delta bool_sort Effect.Spec answer in
+    let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LVar x) in
+    return (checked, prop_r, delta, Constraint.top pos)
 
   | RefinedExpr.LAuto ->
-    let err = Error.cannot_synthesize ~loc:pos ~construct:"auto" in
-    let placeholder_ce =
-      CoreExpr.mk (mk_info bool_sort)
-        (CoreExpr.Hole "lpf-auto-unsynth") in
+    let err_t = Error.cannot_synthesize ~loc:pos ~construct:"auto" in
+    let err_k = Error.kind err_t in
+    let placeholder_ce = placeholder_hole "lpf-auto-unsynth" in
     let rinfo =
       mk_rinfo_err ~goal:(RProg.LpfGoal placeholder_ce)
-        pos delta bool_sort Effect.Spec err in
+        pos delta bool_sort Effect.Spec err_t in
     let checked = RefinedExpr.mk_lpf rinfo RefinedExpr.LAuto in
-    return (checked, placeholder_ce, delta, Constraint.top pos)
+    return (checked, Error err_k, delta, Constraint.top pos)
 
   | RefinedExpr.LHole h ->
-    let err = Error.cannot_synthesize ~loc:pos ~construct:"hole" in
-    let placeholder_ce =
-      CoreExpr.mk (mk_info bool_sort)
-        (CoreExpr.Hole "lpf-hole-unsynth") in
+    let err_t = Error.cannot_synthesize ~loc:pos ~construct:"hole" in
+    let err_k = Error.kind err_t in
+    let placeholder_ce = placeholder_hole "lpf-hole-unsynth" in
     let rinfo =
       mk_rinfo_err ~goal:(RProg.LpfGoal placeholder_ce)
-        pos delta bool_sort Effect.Spec err in
+        pos delta bool_sort Effect.Spec err_t in
     let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LHole h) in
-    return (checked, placeholder_ce, delta, Constraint.top pos)
+    return (checked, Error err_k, delta, Constraint.top pos)
 
   | RefinedExpr.LUnfold (f, se_arg) ->
+    (* :: unfold (lpf side) — synthesize [f arg == body[arg/param]]
+       when f is spec.  Errkind threads through lookup, eff check,
+       substitution, equality construction. *)
     let* (ce_arg, _sort) = elab_and_synth rs delta Effect.Spec se_arg in
     let cs = RSig.comp rs in
-    let* (param, arg_sort, ret_sort, eff, body) =
-      ElabM.lift_at pos (Sig.lookup_fundef f cs) in
-    if not (Effect.sub eff Effect.Spec) then begin
-      let err = Error.unfold_not_spec ~loc:pos ~name:f in
-      let placeholder_ce =
-        CoreExpr.mk (mk_info bool_sort)
-          (CoreExpr.Hole "lpf-unfold-not-spec") in
-      let rinfo =
-        mk_rinfo_err ~goal:(RProg.LpfGoal placeholder_ce)
-          pos delta bool_sort Effect.Spec err in
-      let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LUnfold (f, ce_arg)) in
-      return (checked, placeholder_ce, delta, Constraint.top pos)
-    end else
-      let call_result = CoreExpr.mk (mk_info ret_sort) (CoreExpr.Call (f, ce_arg)) in
-      let arg_typed_sort = Elaborate.lift_sort arg_sort in
-      let ce_arg_annot =
-        CoreExpr.mk (mk_info arg_sort) (CoreExpr.Annot (ce_arg, arg_typed_sort)) in
-      let subst_body = Subst.apply_ce (Subst.extend_var param ce_arg_annot Subst.empty) body in
-      let prop = mk_eq call_result subst_body in
-      let rinfo = mk_rinfo ~goal:(RProg.LpfGoal prop) pos delta bool_sort Effect.Spec in
-      let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LUnfold (f, ce_arg)) in
-      return (checked, prop, delta, Constraint.top pos)
+    let (param_r, arg_sort_r, ret_sort_r, eff_r, body_r) =
+      sig_lookup_fundef_e cs (Ok f) in
+    let eff_check_r =
+      let err_k = Error.K_unfold_not_spec { name = f } in
+      check_eff_subseteq_e eff_r Effect.Spec ~err_k in
+    let call_result_r =
+      Result.map
+        (fun ret_sort -> CoreExpr.mk (mk_info ret_sort) (CoreExpr.Call (f, ce_arg)))
+        ret_sort_r in
+    let ce_arg_annot_r = mk_annot_e (Ok ce_arg) arg_sort_r in
+    let sub_r = Subst.extend_var' param_r ce_arg_annot_r Subst.empty' in
+    let sub_r = Result.bind eff_check_r (fun () -> sub_r) in
+    let subst_body_r = Subst.apply_ce' sub_r body_r in
+    let prop_r = mk_eq' call_result_r subst_body_r in
+    let goal_ce = Result.value prop_r ~default:(placeholder_hole "lpf-unfold-prop") in
+    let answer = answer_of_sort_kind_r ~loc:pos
+                   (Result.map (fun _ -> bool_sort)
+                      (errs_first [erase_ok prop_r; eff_check_r])) in
+    let rinfo =
+      mk_rinfo_with_answer ~goal:(RProg.LpfGoal goal_ce)
+        pos delta bool_sort Effect.Spec answer in
+    let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LUnfold (f, ce_arg)) in
+    return (checked, prop_r, delta, Constraint.top pos)
 
   | RefinedExpr.LAnnot (lpf', se) ->
     let gamma = RCtx.erase delta in
@@ -1206,7 +1204,7 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
     let* (checked_lpf', delta', ct) = check_lpf rs delta lpf' (Ok ce) in
     let rinfo = mk_rinfo ~goal:(RProg.LpfGoal ce) pos delta bool_sort Effect.Spec in
     let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LAnnot (checked_lpf', ce)) in
-    return (checked, ce, delta', ct)
+    return (checked, Ok ce, delta', ct)
 
 (* Logical fact checking: RS; Delta |- lpf <= ce -| Delta' ~> Ct *)
 and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce : (CoreExpr.typed_ce, Error.kind) result) : (checked_lpf * RCtx.t * Constraint.typed_ct) ElabM.t =
@@ -1234,7 +1232,7 @@ and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce 
     let* (checked_lpf, ce_synth, delta', ct) = synth_lpf rs delta lpf in
     return (checked_lpf, delta',
             Constraint.conj pos ct
-              (Constraint.impl' pos (Ok ce_synth) (Constraint.atom' pos ce)))
+              (Constraint.impl' pos ce_synth (Constraint.atom' pos ce)))
 
 (* Resource fact synthesis: RS; Delta |- rpf => ce @ ce' -| Delta' ~> Ct *)
 and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (checked_rpf * (CoreExpr.typed_ce, Error.kind) result * (CoreExpr.typed_ce, Error.kind) result * RCtx.t * Constraint.typed_ct) ElabM.t =
@@ -1957,8 +1955,11 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     (* Per [doc/extended-resource-terms.md] let-log rule:
        Synthesize lpf to get ce, pattern-match lpat against ce[log],
        check body, close (Δ'' ⇒ (C_pat ∧ C_body)). *)
-    let* (checked_lpf, ce, delta1, ct) = synth_lpf rs delta lpf in
+    let* (checked_lpf, ce_r, delta1, ct) = synth_lpf rs delta lpf in
     let eff_pat = Effect.purify eff in
+    let placeholder_hole tag =
+      CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole tag) in
+    let ce = Result.value ce_r ~default:(placeholder_hole "letlog-prop") in
     let pf_log = [ProofSort.Log { info = rinfo_dummy; prop = ce }] in
     let lp_b = RPat.lpat_info lp in
     let* (typed_q, delta2, ct_pat) =
