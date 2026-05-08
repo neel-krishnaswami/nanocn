@@ -50,6 +50,8 @@ type checked_rpf =
   (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.rpf
 type checked_crt =
   (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.crt
+type checked_spine =
+  (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.spine
 
 (** {1 Typing judgements: logical proof facts} *)
 
@@ -185,6 +187,31 @@ val q_match :
     Used by [check_crt CLet] / [CLetLog] / [CLetRes] / [CLetCore] and
     by [check_one_rdecl] to pattern-match against an rfun's
     domain. *)
+
+(** {1 Typing judgement: spines (refined-call argument lists)} *)
+
+val check_spine :
+  RSig.t -> RCtx.t -> Effect.t ->
+  RefinedExpr.parsed_spine ->
+  (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RFunType.t ->
+  (checked_spine
+   * (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t
+   * RCtx.t
+   * Constraint.typed_ct) ElabM.t
+(** [check_spine rs delta eff spine rf] checks [spine] against the
+    refined-function type [rf], walking [spine] entries
+    ([SCore]/[SLog]/[SRes]/[SNil]) in lockstep with [rf.domain] via
+    the entry-tag comparison and substituting [rf.codomain] as
+    binders are matched.  Returns the typed spine, the (instantiated)
+    codomain, the output context, and the rule's constraint.
+
+    Spec: [RS; Δ ⊢_eff rsp : Pf₁ ⊸ Pf₂ ⊃ Pf ⊣ Δ' ↝ Ct].
+
+    [rf] is currently plain (not errkind); when [lookup_rf_m]
+    eventually returns errkind, [check_spine] will follow.  The
+    returned [ProofSort.t] is also plain — its consumers
+    ([synth_crt CCall], [synth_crt CPrimApp]) wrap it in [Ok] for the
+    errkind output of [synth_crt]. *)
 
 (** {1 Helper judgement: core patterns} *)
 
