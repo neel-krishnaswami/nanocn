@@ -1804,7 +1804,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let* (checked_crt1, delta', ct) = check_crt rs delta Effect.Pure crt1 init_pf in
     (* Build body input context: delta' + pattern bindings from init_pf *)
     let* (typed_pat_init, delta_pat, _ct_pat) =
-      q_match rs delta' (Effect.purify eff) pat init_pf in
+      q_match rs delta' (Effect.purify eff) pat (Ok init_pf) in
     let delta_body = RCtx.concat delta' delta_pat in
     (* Build body proof sort: z:D(A,B) [pure], y2:ce @ z [res], pfnil *)
     let* z_var = fresh SourcePos.dummy in
@@ -1919,7 +1919,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
        as hypotheses for subsequent atoms. *)
     let* (checked_crt1, pf', delta1, ct) = synth_crt rs delta eff crt1 in
     let eff_pat = Effect.purify eff in
-    let* (typed_pat, delta2, ct_pat) = q_match rs delta1 eff_pat pat pf' in
+    let* (typed_pat, delta2, ct_pat) = q_match rs delta1 eff_pat pat (Ok pf') in
     let* (checked_crt2, delta3, ct2) = check_crt rs delta2 eff crt2 pf in
     let n = RCtx.length delta1 in
     let (delta_out, delta_pat_out) = RCtx.split n delta3 in
@@ -1957,14 +1957,12 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
        check body, close (Δ'' ⇒ (C_pat ∧ C_body)). *)
     let* (checked_lpf, ce_r, delta1, ct) = synth_lpf rs delta lpf in
     let eff_pat = Effect.purify eff in
-    let placeholder_hole tag =
-      CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole tag) in
-    let ce = Result.value ce_r ~default:(placeholder_hole "letlog-prop") in
-    let pf_log = [ProofSort.Log { info = rinfo_dummy; prop = ce }] in
+    let pf_log_r = Result.map
+      (fun ce -> [ProofSort.Log { info = rinfo_dummy; prop = ce }]) ce_r in
     let lp_b = RPat.lpat_info lp in
     let* (typed_q, delta2, ct_pat) =
       q_match rs delta1 eff_pat
-        (RPat.mk lp_b (RPat.QLog (lp, RPat.mk lp_b RPat.QNil))) pf_log in
+        (RPat.mk lp_b (RPat.QLog (lp, RPat.mk lp_b RPat.QNil))) pf_log_r in
     let* (checked_body, delta3, ct_body) = check_crt rs delta2 eff body pf in
     let n = RCtx.length delta1 in
     let (delta_out, delta_close) = RCtx.split n delta3 in
@@ -1987,15 +1985,16 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
        check body, verify resource consumption, close constraints. *)
     let* (checked_rpf, ce_pred_r, ce_val_r, delta1, ct) = synth_rpf rs delta rpf in
     let eff_pat = Effect.purify eff in
-    let placeholder_hole tag =
-      CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole tag) in
-    let ce_pred = Result.value ce_pred_r ~default:(placeholder_hole "letres-pred") in
-    let ce_val = Result.value ce_val_r ~default:(placeholder_hole "letres-value") in
-    let pf_res = [ProofSort.Res { info = rinfo_dummy; pred = ce_pred; value = ce_val }] in
+    let pf_res_r =
+      match ce_pred_r, ce_val_r with
+      | Ok pred, Ok value ->
+        Ok [ProofSort.Res { info = rinfo_dummy; pred; value }]
+      | Error e, _ | _, Error e -> Error e
+    in
     let rp_b = RPat.rpat_info rp in
     let* (typed_q, delta2, ct_pat) =
       q_match rs delta1 eff_pat
-        (RPat.mk rp_b (RPat.QRes (rp, RPat.mk rp_b RPat.QNil))) pf_res in
+        (RPat.mk rp_b (RPat.QRes (rp, RPat.mk rp_b RPat.QNil))) pf_res_r in
     let* (checked_body, delta3, ct_body) = check_crt rs delta2 eff body pf in
     let n = RCtx.length delta1 in
     let (delta_out, delta_close) = RCtx.split n delta3 in
@@ -2127,14 +2126,12 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let eff_pure = Effect.purify eff in
     let gamma = RCtx.erase delta in
     let* (ce, sort_r) = elab_se rs gamma eff_pure se_ce in
-    let sort = Result.value sort_r ~default:bool_sort in
     let* y = fresh pos in
-    let ce_y = ce_of_var y sort in
-    let prop = mk_eq ce_y ce in
-    let pf_core = [
-      ProofSort.Comp { info = rinfo_dummy; var = y; sort; eff = eff_pure };
-      ProofSort.Log { info = rinfo_dummy; prop }
-    ] in
+    let pf_core_r = Result.map (fun sort ->
+      let ce_y = ce_of_var y sort in
+      let prop = mk_eq ce_y ce in
+      [ProofSort.Comp { info = rinfo_dummy; var = y; sort; eff = eff_pure };
+       ProofSort.Log { info = rinfo_dummy; prop }]) sort_r in
     let cp_b = RPat.cpat_info cp in
     let lp_b = RPat.lpat_info lp in
     let pat =
@@ -2142,7 +2139,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
         (RPat.QCore (cp,
           RPat.mk lp_b
             (RPat.QLog (lp, RPat.mk lp_b RPat.QNil)))) in
-    let* (typed_q, delta1, ct_pat) = q_match rs delta eff_pure pat pf_core in
+    let* (typed_q, delta1, ct_pat) = q_match rs delta eff_pure pat pf_core_r in
     let* (checked_body, delta2, ct_body) = check_crt rs delta1 eff body pf in
     let n = RCtx.length delta in
     let (delta_out, delta_close) = RCtx.split n delta2 in
@@ -2161,6 +2158,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
             RPat.map_info_lpat
               (fun b -> mk_rinfo b#loc RCtx.empty bool_sort eff) lp))
       | _ ->
+        let sort = Result.value sort_r ~default:bool_sort in
         (RPat.map_info_cpat
            (fun b -> mk_rinfo b#loc RCtx.empty sort eff) cp,
          RPat.map_info_lpat
@@ -2871,7 +2869,8 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
    rpat_match into the typed AST without halting. *)
 and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
     (pat : (_, Var.t) RPat.t)
-    (pf : (CoreExpr.typed_ce, _, Var.t) ProofSort.t)
+    (pf_r : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
+             Error.kind) result)
   : ((RProg.typed_rinfo, Var.t) RPat.t * RCtx.t * Constraint.typed_ct) ElabM.t =
   let pos = (RPat.info pat)#loc in
   let cs = RSig.comp rs in
@@ -2879,6 +2878,11 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   let answer_ok = Ok bool_sort in
   let answer_of_kind ~loc kind_r : (Sort.sort, Error.t) result =
     Result.map_error (Error.structured ~loc) kind_r in
+  (* The existing [view_get_pf_*] family takes a [pf option] (where
+     [None] indicates "no expected pf available").  Map errkind to
+     option at the boundary; per-component view extraction handles
+     missingness uniformly. *)
+  let pf_initial = Result.to_option pf_r in
   let rec go pat_t pf_opt delta ct_acc =
     let b = RPat.info pat_t in
     match RPat.shape pat_t with
@@ -2953,7 +2957,7 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
       return (RPat.mk info (RPat.QDepRes (typed_cp, typed_rp, typed_rest)),
               delta3, ct)
   in
-  go pat (Some pf) delta (Constraint.top pos)
+  go pat pf_initial delta (Constraint.top pos)
 (* ---------- Program checking ---------- *)
 
 let elab_fundecl_body rs param arg_sort ret_sort eff body_se =
@@ -2995,7 +2999,7 @@ let check_rdecl rs ct_acc = function
     let* codomain = elab_pf rs gamma' eff se_codomain in
     let rf = RFunType.{ domain; codomain; eff } in
     let pat_eff = match eff with Effect.Spec -> Effect.Spec | _ -> Effect.Pure in
-    let* (typed_pat, delta, ct_pat) = q_match rs RCtx.empty pat_eff pat domain in
+    let* (typed_pat, delta, ct_pat) = q_match rs RCtx.empty pat_eff pat (Ok domain) in
     let rs' = match eff with
       | Effect.Pure -> rs
       | _ -> RSig.extend name (RSig.RFunSig rf) rs
