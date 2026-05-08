@@ -16,54 +16,54 @@ module Get = struct
        | _ -> None)
 
   let take = function
-    | None -> None
     | Some ce ->
       (match CoreExpr.shape ce with
-       | CoreExpr.Take ((x, _), e1, e2) -> Some (x, e1, e2)
-       | _ -> None)
+       | CoreExpr.Take ((x, _), e1, e2) -> (Some x, Some e1, Some e2)
+       | _ -> (None, None, None))
+    | None -> (None, None, None)
 
   let let_ = function
-    | None -> None
     | Some ce ->
       (match CoreExpr.shape ce with
-       | CoreExpr.Let ((x, _), e1, e2) -> Some (x, e1, e2)
-       | _ -> None)
+       | CoreExpr.Let ((x, _), e1, e2) -> (Some x, Some e1, Some e2)
+       | _ -> (None, None, None))
+    | None -> (None, None, None)
 
   let let_tuple = function
-    | None -> None
     | Some ce ->
       (match CoreExpr.shape ce with
        | CoreExpr.LetTuple (xs, e1, e2) ->
-         Some (List.map fst xs, e1, e2)
-       | _ -> None)
+         (Some (List.map fst xs), Some e1, Some e2)
+       | _ -> (None, None, None))
+    | None -> (None, None, None)
 
   let if_ = function
-    | None -> None
     | Some ce ->
       (match CoreExpr.shape ce with
-       | CoreExpr.If (c, t, e) -> Some (c, t, e)
-       | _ -> None)
+       | CoreExpr.If (c, t, e) -> (Some c, Some t, Some e)
+       | _ -> (None, None, None))
+    | None -> (None, None, None)
 
   let case = function
-    | None -> None
     | Some ce ->
       (match CoreExpr.shape ce with
-       | CoreExpr.Case (scrut, branches) -> Some (scrut, branches)
-       | _ -> None)
+       | CoreExpr.Case (scrut, branches) -> (Some scrut, Some branches)
+       | _ -> (None, None))
+    | None -> (None, None)
 
   let call = function
-    | None -> None
     | Some ce ->
       (match CoreExpr.shape ce with
-       | CoreExpr.Call (f, arg) -> Some (f, arg)
-       | _ -> None)
+       | CoreExpr.Call (f, arg) -> (Some f, Some arg)
+       | _ -> (None, None))
+    | None -> (None, None)
 
   let inject = function
-    | None -> None
     | Some ce ->
       (match CoreExpr.shape ce with
-       | CoreExpr.Inject (l, inner) -> Some (l, inner)
-       | _ -> None)
+       | CoreExpr.Inject (l, inner) -> (Some l, Some inner)
+       | _ -> (None, None))
+    | None -> (None, None)
 end
 
 module Build = struct

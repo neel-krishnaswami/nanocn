@@ -102,36 +102,58 @@ let[@warning "-32"] view_get_return_ce ~construct (ce : CoreExpr.typed_ce)
     (CoreExprView.Get.return (Some ce))
 
 let[@warning "-32"] view_get_take_ce ~construct (ce : CoreExpr.typed_ce)
-    : (Var.t * CoreExpr.typed_ce * CoreExpr.typed_ce, Error.kind) result =
-  Option.to_result
-    ~none:(mismatch_ce_kind ~construct ~expected_shape:"take _ = _; _" ce)
-    (CoreExprView.Get.take (Some ce))
+    : (Var.t, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result =
+  let mismatch =
+    mismatch_ce_kind ~construct ~expected_shape:"take _ = _; _" ce in
+  let (x, e1, e2) = CoreExprView.Get.take (Some ce) in
+  (Option.to_result ~none:mismatch x,
+   Option.to_result ~none:mismatch e1,
+   Option.to_result ~none:mismatch e2)
 
 let[@warning "-32"] view_get_let_ce ~construct (ce : CoreExpr.typed_ce)
-    : (Var.t * CoreExpr.typed_ce * CoreExpr.typed_ce, Error.kind) result =
-  Option.to_result
-    ~none:(mismatch_ce_kind ~construct ~expected_shape:"let _ = _; _" ce)
-    (CoreExprView.Get.let_ (Some ce))
+    : (Var.t, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result =
+  let mismatch =
+    mismatch_ce_kind ~construct ~expected_shape:"let _ = _; _" ce in
+  let (x, e1, e2) = CoreExprView.Get.let_ (Some ce) in
+  (Option.to_result ~none:mismatch x,
+   Option.to_result ~none:mismatch e1,
+   Option.to_result ~none:mismatch e2)
 
 let[@warning "-32"] view_get_let_tuple_ce ~construct (ce : CoreExpr.typed_ce)
-    : (Var.t list * CoreExpr.typed_ce * CoreExpr.typed_ce, Error.kind) result =
-  Option.to_result
-    ~none:(mismatch_ce_kind ~construct
-             ~expected_shape:"let (_, ..., _) = _; _" ce)
-    (CoreExprView.Get.let_tuple (Some ce))
+    : (Var.t list, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result =
+  let mismatch =
+    mismatch_ce_kind ~construct
+      ~expected_shape:"let (_, ..., _) = _; _" ce in
+  let (xs, e1, e2) = CoreExprView.Get.let_tuple (Some ce) in
+  (Option.to_result ~none:mismatch xs,
+   Option.to_result ~none:mismatch e1,
+   Option.to_result ~none:mismatch e2)
 
 let[@warning "-32"] view_get_if_ce ~construct (ce : CoreExpr.typed_ce)
-    : (CoreExpr.typed_ce * CoreExpr.typed_ce * CoreExpr.typed_ce,
-       Error.kind) result =
-  Option.to_result
-    ~none:(mismatch_ce_kind ~construct ~expected_shape:"if _ then _ else _" ce)
-    (CoreExprView.Get.if_ (Some ce))
+    : (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result =
+  let mismatch =
+    mismatch_ce_kind ~construct ~expected_shape:"if _ then _ else _" ce in
+  let (c, t, e) = CoreExprView.Get.if_ (Some ce) in
+  (Option.to_result ~none:mismatch c,
+   Option.to_result ~none:mismatch t,
+   Option.to_result ~none:mismatch e)
 
 let[@warning "-32"] view_get_call_ce ~construct (ce : CoreExpr.typed_ce)
-    : (string * CoreExpr.typed_ce, Error.kind) result =
-  Option.to_result
-    ~none:(mismatch_ce_kind ~construct ~expected_shape:"f(_)" ce)
-    (CoreExprView.Get.call (Some ce))
+    : (string, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result =
+  let mismatch =
+    mismatch_ce_kind ~construct ~expected_shape:"f(_)" ce in
+  let (f, arg) = CoreExprView.Get.call (Some ce) in
+  (Option.to_result ~none:mismatch f,
+   Option.to_result ~none:mismatch arg)
 
 let[@warning "-32"] view_get_fail_ce ~construct (ce : CoreExpr.typed_ce)
     : (unit, Error.kind) result =
@@ -140,12 +162,27 @@ let[@warning "-32"] view_get_fail_ce ~construct (ce : CoreExpr.typed_ce)
     (CoreExprView.Get.fail (Some ce))
 
 let[@warning "-32"] view_get_case_ce ~construct (ce : CoreExpr.typed_ce)
-    : (CoreExpr.typed_ce
-       * (Label.t * Var.t * CoreExpr.typed_ce * CoreExpr.typed_info) list,
+    : (CoreExpr.typed_ce, Error.kind) result
+    * ((Label.t * Var.t * CoreExpr.typed_ce * CoreExpr.typed_info) list,
        Error.kind) result =
-  Option.to_result
-    ~none:(mismatch_ce_kind ~construct ~expected_shape:"case _ of { ... }" ce)
-    (CoreExprView.Get.case (Some ce))
+  let mismatch =
+    mismatch_ce_kind ~construct ~expected_shape:"case _ of { ... }" ce in
+  let (scrut, branches) = CoreExprView.Get.case (Some ce) in
+  (Option.to_result ~none:mismatch scrut,
+   Option.to_result ~none:mismatch branches)
+
+(** Re-bundle per-component errkind tuples into a single errkind tuple,
+    short-circuiting on the first [Error].  Adapter for callers that
+    haven't yet been refactored to consume per-component output. *)
+let[@warning "-32"] zip2_kind (a, b) =
+  match a, b with
+  | Ok a, Ok b -> Ok (a, b)
+  | Error e, _ | _, Error e -> Error e
+
+let[@warning "-32"] zip3_kind (a, b, c) =
+  match a, b, c with
+  | Ok a, Ok b, Ok c -> Ok (a, b, c)
+  | Error e, _, _ | _, Error e, _ | _, _, Error e -> Error e
 
 (** {2 ProofSortView wrappers — local option→result helpers}
 
@@ -1059,7 +1096,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
        only the surface keyword shape changed. *)
     let* (f, ce_arg) =
       ElabM.lift_at pos
-        (view_get_call_ce ~construct:"unfold" (strip_annots ce1)) in
+        (zip2_kind (view_get_call_ce ~construct:"unfold" (strip_annots ce1))) in
     let cs = RSig.comp rs in
     let* (param, arg_sort, _ret_sort, eff, body) =
       ElabM.lift_at pos (Sig.lookup_fundef f cs) in
@@ -1114,7 +1151,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
     let ce1' = strip_annots ce1 in
     let* (x, ce_a, ce_b) =
       ElabM.lift_at pos
-        (view_get_take_ce ~construct:"take rpf" ce1') in
+        (zip3_kind (view_get_take_ce ~construct:"take rpf" ce1')) in
     let* (checked_rpf1, ce_a_synth, ce_w, delta1, ct1) =
       synth_rpf rs delta rpf1 in
     let ct_a_eq =
@@ -1158,7 +1195,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
     let ce1' = strip_annots_shallow ce1 in
     (match CoreExpr.shape ce1' with
      | CoreExpr.Let _ ->
-       (match view_get_let_ce ~construct:"let rpf" ce1' with
+       (match zip3_kind (view_get_let_ce ~construct:"let rpf" ce1' )with
         | Error k ->
           let err = Error.structured ~loc:pos k in
           let rinfo = mk_rinfo_err ~goal:(RProg.RpfGoal (ce1, ce2))
@@ -1208,7 +1245,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
           let final_ct = if leak then Constraint.top pos else ct_closed in
           return (checked, delta3, final_ct))
      | CoreExpr.LetTuple _ ->
-       (match view_get_let_tuple_ce ~construct:"let-tuple rpf" ce1' with
+       (match zip3_kind (view_get_let_tuple_ce ~construct:"let-tuple rpf" ce1' )with
         | Error k ->
           let err = Error.structured ~loc:pos k in
           let rinfo = mk_rinfo_err ~goal:(RProg.RpfGoal (ce1, ce2))
@@ -1382,7 +1419,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
     let ce1' = strip_annots ce1 in
     let* (ce_cond, ce_t, _ce_e) =
       ElabM.lift_at pos
-        (view_get_if_ce ~construct:"iftrue rpf" ce1') in
+        (zip3_kind (view_get_if_ce ~construct:"iftrue rpf" ce1')) in
     let* (checked_rpf', delta', ct) =
       check_rpf rs delta rpf' ce_t ce2 in
     let ct_full =
@@ -1398,7 +1435,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
     let ce1' = strip_annots ce1 in
     let* (ce_cond, _ce_t, ce_e) =
       ElabM.lift_at pos
-        (view_get_if_ce ~construct:"iffalse rpf" ce1') in
+        (zip3_kind (view_get_if_ce ~construct:"iffalse rpf" ce1')) in
     let* (checked_rpf', delta', ct) =
       check_rpf rs delta rpf' ce_e ce2 in
     let not_ce = CoreExpr.mk (CoreExpr.info ce_cond)
@@ -2313,7 +2350,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
        return (typed_rp, delta', ct))
 
   | RPat.RTake (cpat, rp1, rp2) ->
-    (match view_get_take_ce ~construct:"take pattern" pred' with
+    (match zip3_kind (view_get_take_ce ~construct:"take pattern" pred' )with
      | Error k ->
        let (typed_rp, delta') = error_rp_blanket rp delta eff k in
        return (typed_rp, delta', Constraint.top pos)
@@ -2369,7 +2406,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
     let pred_for_let = strip_annots_shallow pred in
     (match CoreExpr.shape pred_for_let with
      | CoreExpr.Let _ ->
-       (match view_get_let_ce ~construct:"let pattern" pred_for_let with
+       (match zip3_kind (view_get_let_ce ~construct:"let pattern" pred_for_let )with
         | Error k ->
           let (typed_rp, delta') = error_rp_blanket rp delta eff k in
           return (typed_rp, delta', Constraint.top pos)
@@ -2394,7 +2431,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
             RPat.mk_rpat info (RPat.RLet (typed_lp, typed_cp, typed_inner)) in
           return (typed_rp, delta3, ct))
      | CoreExpr.LetTuple _ ->
-       (match view_get_let_tuple_ce ~construct:"let-tuple pattern" pred_for_let with
+       (match zip3_kind (view_get_let_tuple_ce ~construct:"let-tuple pattern" pred_for_let )with
         | Error k ->
           let (typed_rp, delta') = error_rp_blanket rp delta eff k in
           return (typed_rp, delta', Constraint.top pos)
@@ -2454,7 +2491,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
        return (typed_rp, delta', Constraint.top pos))
 
   | RPat.RIfTrue rp_inner ->
-    (match view_get_if_ce ~construct:"iftrue pattern" pred' with
+    (match zip3_kind (view_get_if_ce ~construct:"iftrue pattern" pred' )with
      | Error k ->
        let (typed_rp, delta') = error_rp_blanket rp delta eff k in
        return (typed_rp, delta', Constraint.top pos)
@@ -2467,7 +2504,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
        return (typed_rp, delta', ct))
 
   | RPat.RIfFalse rp_inner ->
-    (match view_get_if_ce ~construct:"iffalse pattern" pred' with
+    (match zip3_kind (view_get_if_ce ~construct:"iffalse pattern" pred' )with
      | Error k ->
        let (typed_rp, delta') = error_rp_blanket rp delta eff k in
        return (typed_rp, delta', Constraint.top pos)
@@ -2482,7 +2519,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
        return (typed_rp, delta', ct))
 
   | RPat.RCase (lpat, label, cpat, rp_inner) ->
-    (match view_get_case_ce ~construct:"case pattern" pred' with
+    (match zip2_kind (view_get_case_ce ~construct:"case pattern" pred' )with
      | Error k ->
        let (typed_rp, delta') = error_rp_blanket rp delta eff k in
        return (typed_rp, delta', Constraint.top pos)
@@ -2540,7 +2577,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
           return (typed_rp, delta3, ct)))
 
   | RPat.RUnfold rp_inner ->
-    (match view_get_call_ce ~construct:"unfold pattern" pred' with
+    (match zip2_kind (view_get_call_ce ~construct:"unfold pattern" pred' )with
      | Error k ->
        let (typed_rp, delta') = error_rp_blanket rp delta eff k in
        return (typed_rp, delta', Constraint.top pos)

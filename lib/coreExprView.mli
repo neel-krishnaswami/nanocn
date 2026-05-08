@@ -22,22 +22,33 @@
 type 'a t = 'a option
 
 module Get : sig
+  (** Per-component shape extractors.  When the input shape doesn't
+      match (or the input is [None]), each output component is [None];
+      callers consume them individually so a missing component flows
+      naturally to its first downstream consumer. *)
+
   val return : 'b CoreExpr.t t -> 'b CoreExpr.t t
   val fail   : 'b CoreExpr.t t -> unit t
-  val take   : 'b CoreExpr.t t -> (Var.t * 'b CoreExpr.t * 'b CoreExpr.t) t
-  val let_   : 'b CoreExpr.t t -> (Var.t * 'b CoreExpr.t * 'b CoreExpr.t) t
-  val let_tuple : 'b CoreExpr.t t ->
-                  (Var.t list * 'b CoreExpr.t * 'b CoreExpr.t) t
-  (** [let_tuple e] returns [Some (xs, rhs, body)] when [e] is
-      [Some (LetTuple (xs, rhs, body))], otherwise [None].  The
-      per-binder info on the [LetTuple] constructor is dropped (callers
-      reading sub-sorts go through [rhs]'s sort). *)
-  val if_    : 'b CoreExpr.t t
-            -> ('b CoreExpr.t * 'b CoreExpr.t * 'b CoreExpr.t) t
-  val case   : 'b CoreExpr.t t
-            -> ('b CoreExpr.t * (Label.t * Var.t * 'b CoreExpr.t * 'b) list) t
-  val call   : 'b CoreExpr.t t -> (string * 'b CoreExpr.t) t
-  val inject : 'b CoreExpr.t t -> (Label.t * 'b CoreExpr.t) t
+
+  val take : 'b CoreExpr.t t
+          -> Var.t t * 'b CoreExpr.t t * 'b CoreExpr.t t
+
+  val let_ : 'b CoreExpr.t t
+          -> Var.t t * 'b CoreExpr.t t * 'b CoreExpr.t t
+
+  val let_tuple : 'b CoreExpr.t t
+               -> Var.t list t * 'b CoreExpr.t t * 'b CoreExpr.t t
+
+  val if_ : 'b CoreExpr.t t
+         -> 'b CoreExpr.t t * 'b CoreExpr.t t * 'b CoreExpr.t t
+
+  val case : 'b CoreExpr.t t
+          -> 'b CoreExpr.t t
+           * (Label.t * Var.t * 'b CoreExpr.t * 'b) list t
+
+  val call : 'b CoreExpr.t t -> string t * 'b CoreExpr.t t
+
+  val inject : 'b CoreExpr.t t -> Label.t t * 'b CoreExpr.t t
 end
 
 module Build : sig
