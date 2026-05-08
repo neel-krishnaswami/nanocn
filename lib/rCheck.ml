@@ -258,6 +258,61 @@ let[@warning "-32"] view_get_case_ce' ~construct
   | Error e -> (Error e, Error e)
   | Ok ce -> view_get_case_ce ~construct ce
 
+(** {2 Errkind-input wrappers for the bundled lookup helpers}
+
+    Each takes an errkind input and returns a tuple of errkinds (one
+    per output component).  When any input is [Error], every output
+    component is [Error] of the same kind.  Lets typechecker rule
+    bodies thread errkinds through lookups without ever pattern-
+    matching on a [(_, Error.kind) result]. *)
+
+let[@warning "-32"] sig_lookup_fundef_e
+    (cs : CoreExpr.typed_ce Sig.t)
+    (f_r : (string, Error.kind) result)
+    : (Var.t, Error.kind) result
+    * (Sort.sort, Error.kind) result
+    * (Sort.sort, Error.kind) result
+    * (Effect.t, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result =
+  match f_r with
+  | Error e -> (Error e, Error e, Error e, Error e, Error e)
+  | Ok f ->
+    (match Sig.lookup_fundef f cs with
+     | Error e -> (Error e, Error e, Error e, Error e, Error e)
+     | Ok (param, arg, ret, eff, body) ->
+       (Ok param, Ok arg, Ok ret, Ok eff, Ok body))
+
+let[@warning "-32"] ctor_lookup_e
+    (cs : CoreExpr.typed_ce Sig.t)
+    (d_r : (Dsort.t, Error.kind) result)
+    (label : Label.t)
+    (args_r : (Sort.sort list, Error.kind) result)
+    : (Sort.sort, Error.kind) result =
+  match d_r, args_r with
+  | Error e, _ | _, Error e -> Error e
+  | Ok d, Ok args -> CtorLookup.lookup cs d label args
+
+let[@warning "-32"] sig_lookup_dsort_or_type_e
+    (cs : CoreExpr.typed_ce Sig.t)
+    (d_r : (Dsort.t, Error.kind) result)
+    : (Sig.sort_or_type, Error.kind) result =
+  match d_r with
+  | Error e -> Error e
+  | Ok d -> Sig.lookup_dsort_or_type d cs
+
+let[@warning "-32"] rctx_use_resource_e
+    (x_r : (Var.t, Error.kind) result)
+    (delta : RCtx.t)
+    : (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result
+    * RCtx.t =
+  match x_r with
+  | Error e -> (Error e, Error e, RCtx.affinize delta)
+  | Ok x ->
+    (match RCtx.use_resource x delta with
+     | Error e -> (Error e, Error e, RCtx.affinize delta)
+     | Ok (pred, value, delta') -> (Ok pred, Ok value, delta'))
+
 (** {2 ProofSortView wrappers — local option→result helpers}
 
     Lift [ProofSortView.Get.*] from option-typed to result-typed, using
