@@ -584,6 +584,36 @@ let[@warning "-32"] mk_inject_e
   | Error e -> Error e
   | Ok payload -> Ok (CoreExpr.mk info (CoreExpr.Inject (label, payload)))
 
+(** Replace a constraint with [Constraint.top pos] when an associated
+    errkind is [Error _].  Used by rules that build a constraint over
+    a placeholder when an upstream errkind tainted the inputs — the
+    placeholder constraint can't be sent to SMT (it would mention a
+    [Hole]), so drop it on the [Error] path. *)
+let[@warning "-32"] ct_unless_err
+    (r : (_, _) result)
+    (ct : Constraint.typed_ct)
+    (pos : SourcePos.t) : Constraint.typed_ct =
+  match r with
+  | Ok _ -> ct
+  | Error _ -> Constraint.top pos
+
+(** Combine a list of [(unit, 'e) result] values: returns [Ok ()] when
+    every input is [Ok]; the first [Error] otherwise.  Used by rule
+    bodies to taint a rinfo's answer with the first errkind that
+    flowed through. *)
+let[@warning "-32"] errs_first : 'e. (unit, 'e) result list -> (unit, 'e) result =
+  fun rs ->
+  let rec go = function
+    | [] -> Ok ()
+    | Error e :: _ -> Error e
+    | Ok () :: rest -> go rest
+  in
+  go rs
+
+(** Lift a [(_, 'e) result] to [(unit, 'e) result] by discarding the
+    [Ok] payload — convenient input for [errs_first]. *)
+let[@warning "-32"] erase_ok r = Result.map (fun _ -> ()) r
+
 (** Errkind-propagating effect subseteq check.  When [eff_r] is [Ok eff]
     and [Effect.sub eff ub], returns [Ok ()]; when [eff_r] is [Ok eff]
     but the subsumption fails, returns [Error err_k] using the
@@ -1221,7 +1251,7 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (c
       Sort.mk (object method loc = SourcePos.dummy end) (Sort.Pred sort2)
     in
     let* ce1 = elab_se_check rs gamma se1 pred_sort Effect.Spec in
-    let* (checked_rpf', delta', ct) = check_rpf rs delta rpf' ce1 ce2 in
+    let* (checked_rpf', delta', ct) = check_rpf rs delta rpf' (Ok ce1) (Ok ce2) in
     let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2)) pos delta bool_sort Effect.Spec in
     let checked = RefinedExpr.mk_rpf rinfo (RefinedExpr.RAnnot (checked_rpf', ce1, ce2)) in
     return (checked, ce1, ce2, delta', ct)
@@ -1282,329 +1312,265 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (c
             Constraint.top pos)
 
 (* Resource fact checking: RS; Delta |- rpf <= ce @ ce' -| Delta' ~> Ct *)
-and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1 : CoreExpr.typed_ce) (ce2 : CoreExpr.typed_ce) : (checked_rpf * RCtx.t * Constraint.typed_ct) ElabM.t =
+and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1 : (CoreExpr.typed_ce, Error.kind) result) (ce2 : (CoreExpr.typed_ce, Error.kind) result) : (checked_rpf * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.rpf_info rpf in
   let pos = binfo#loc in
+  (* Goal-display placeholders: when ce1/ce2 are [Error _], the rinfo's
+     [goal] field still gets a syntactically-formed pair so hover and
+     LSP queries don't crash; the error itself rides on the rinfo's
+     [#answer]. *)
+  let placeholder_hole =
+    CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole "rpf-arg-hole") in
+  let ce1_p = Result.value ce1 ~default:placeholder_hole in
+  let ce2_p = Result.value ce2 ~default:placeholder_hole in
+  let goal = RProg.RpfGoal (ce1_p, ce2_p) in
   match RefinedExpr.rpf_shape rpf with
   | RefinedExpr.RHole h ->
+    let sort = CoreExpr.sort_of_info (CoreExpr.info ce1_p) in
     let delta' = RCtx.affinize delta in
-    let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2)) pos delta (CoreExpr.sort_of_info (CoreExpr.info ce1)) Effect.Spec in
+    let rinfo = mk_rinfo ~goal pos delta sort Effect.Spec in
     let checked = RefinedExpr.mk_rpf rinfo (RefinedExpr.RHole h) in
     return (checked, delta', Constraint.top pos)
 
   | RefinedExpr.RUnfold rpf' ->
-    (* Old [unfold rpf] semantics, preserved for Phase A.
-       Phase E will rewrite this rule to match the new spec, where
-       [unfold ; rpf] strips a function-call predicate and recurses
-       on the body's substitution.  The body's logic is identical;
-       only the surface keyword shape changed.
-
-       [view_get_call_ce] returns the function name and argument as
-       per-component errkinds; both must be Ok to look up the body
-       and substitute.  When the predicate isn't a [Call], we emit
-       a placeholder RHole rather than aborting elaboration.  The
-       [Sig.lookup_fundef] [lift_at] on the [Ok] path is a deferred
-       Phase 5 site. *)
-    (match view_get_call_ce ~construct:"unfold" (strip_annots ce1) with
-     | (Error k, _) | (_, Error k) ->
-       let err = Error.structured ~loc:pos k in
-       let rinfo =
-         mk_rinfo_err ~goal:(RProg.RpfGoal (ce1, ce2))
-           pos delta bool_sort Effect.Spec err in
-       let inner_rinfo =
-         mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2))
-           pos delta bool_sort Effect.Spec in
-       let inner_rpf = RefinedExpr.mk_rpf inner_rinfo
-         (RefinedExpr.RHole "unfold-shape-mismatch") in
-       let _ = rpf' in
-       let checked =
-         RefinedExpr.mk_rpf rinfo (RefinedExpr.RUnfold inner_rpf) in
-       return (checked, delta, Constraint.top pos)
-     | (Ok f, Ok ce_arg) ->
-       let cs = RSig.comp rs in
-       let* (param, arg_sort, _ret_sort, eff, body) =
-         ElabM.lift_at pos (Sig.lookup_fundef f cs) in
-       if not (Effect.sub eff Effect.Spec) then begin
-         let err = Error.unfold_not_spec ~loc:pos ~name:f in
-         let rinfo =
-           mk_rinfo_err ~goal:(RProg.RpfGoal (ce1, ce2))
-             pos delta bool_sort Effect.Spec err in
-         let inner_rinfo =
-           mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2))
-             pos delta bool_sort Effect.Spec in
-         let inner_rpf = RefinedExpr.mk_rpf inner_rinfo
-           (RefinedExpr.RHole "unfold-not-spec") in
-         let checked =
-           RefinedExpr.mk_rpf rinfo (RefinedExpr.RUnfold inner_rpf) in
-         let _ = rpf' in
-         return (checked, delta, Constraint.top pos)
-       end else
-         let arg_typed_sort = Elaborate.lift_sort arg_sort in
-         let ce_arg_annot =
-           CoreExpr.mk (mk_info arg_sort)
-             (CoreExpr.Annot (ce_arg, arg_typed_sort)) in
-         let subst_body =
-           Subst.apply_ce
-             (Subst.extend_var param ce_arg_annot Subst.empty) body in
-         let* (checked_rpf', delta', ct) =
-           check_rpf rs delta rpf' subst_body ce2 in
-         let rinfo =
-           mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2))
-             pos delta bool_sort Effect.Spec in
-         let checked =
-           RefinedExpr.mk_rpf rinfo (RefinedExpr.RUnfold checked_rpf') in
-         return (checked, delta', ct))
+    (* :: unfold — RS;Δ |- unfold; rpf r<== ce1 @ ce2 ↝ Ct
+       where ce1 = f arg, f's body substitutes arg for param, and
+       rpf r<== body[arg/param] @ ce2 ↝ Ct.  Errkind threads through
+       view, lookup, effect-check, substitution, recursion. *)
+    let cs = RSig.comp rs in
+    let (f_r, ce_arg_r) =
+      view_get_call_ce' ~construct:"unfold" (strip_annots' ce1) in
+    let (param_r, arg_sort_r, _ret_sort_r, eff_r, body_r) =
+      sig_lookup_fundef_e cs f_r in
+    let eff_check_r =
+      let err_k =
+        Error.K_unfold_not_spec
+          { name = Result.value f_r ~default:"<unknown>" } in
+      check_eff_subseteq_e eff_r Effect.Spec ~err_k in
+    let ce_arg_annot_r = mk_annot_e ce_arg_r arg_sort_r in
+    let sub_r = Subst.extend_var' param_r ce_arg_annot_r Subst.empty' in
+    let sub_r = Result.bind eff_check_r (fun () -> sub_r) in
+    let subst_body_r = Subst.apply_ce' sub_r body_r in
+    let* (checked_rpf', delta', ct) =
+      check_rpf rs delta rpf' subst_body_r ce2 in
+    let answer = answer_of_sort_kind_r ~loc:pos
+                   (Result.map (fun _ -> bool_sort)
+                      (errs_first [erase_ok subst_body_r; eff_check_r])) in
+    let rinfo =
+      mk_rinfo_with_answer ~goal pos delta bool_sort Effect.Spec answer in
+    let checked =
+      RefinedExpr.mk_rpf rinfo (RefinedExpr.RUnfold checked_rpf') in
+    return (checked, delta', ct)
 
   | RefinedExpr.RReturn lpf ->
     (* :: return — RS;Δ |- return lpf r<== return ce1 @ ce2 ↝ Ct
-       requires lpf l<== ce1 == ce2.
-
-       When the predicate isn't a [Return _], substitute a placeholder
-       [Hole] for [ret_ce] so [check_lpf] still runs against a
-       syntactically well-formed [eq_prop]; the shape error rides on
-       this node's [info#answer], and we drop the constraint on the
-       Error path (the equation is meaningless when one side is a
-       hole). *)
-    let ce1' = strip_annots ce1 in
-    let ret_ce_r = view_get_return_ce ~construct:"return rpf" ce1' in
-    let ret_ce =
-      Result.value ret_ce_r
-        ~default:(CoreExpr.mk (CoreExpr.info ce1)
-                    (CoreExpr.Hole "return-shape")) in
-    let eq_prop =
-      CoreExpr.mk (CoreExpr.info ce1) (CoreExpr.Eq (ret_ce, ce2)) in
+       requires lpf l<== ce1 == ce2. *)
+    let ret_ce_r =
+      view_get_return_ce' ~construct:"return rpf" (strip_annots' ce1) in
+    let eq_prop_r = mk_eq' ret_ce_r ce2 in
+    let placeholder_eq =
+      CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole "return-eq-prop") in
+    let eq_prop = Result.value eq_prop_r ~default:placeholder_eq in
     let* (checked_lpf, delta', ct) = check_lpf rs delta lpf eq_prop in
-    let ct =
-      match ret_ce_r with Ok _ -> ct | Error _ -> Constraint.top pos in
+    let ct = ct_unless_err eq_prop_r ct pos in
     let answer = answer_of_sort_kind_r ~loc:pos
-                   (Result.map (fun _ -> bool_sort) ret_ce_r) in
+                   (Result.map (fun _ -> bool_sort) eq_prop_r) in
     let rinfo =
-      mk_rinfo_with_answer ~goal:(RProg.RpfGoal (ce1, ce2))
-        pos delta bool_sort Effect.Spec answer in
+      mk_rinfo_with_answer ~goal pos delta bool_sort Effect.Spec answer in
     let checked =
       RefinedExpr.mk_rpf rinfo (RefinedExpr.RReturn checked_lpf) in
     return (checked, delta', ct)
 
   | RefinedExpr.RTake (rpf1, rpf2) ->
     (* :: take — RS;Δ1 |- take(rpf1, rpf2) r<== (take x = ce_a; ce_b) @ ce2 ↝ Ct
-       rpf1 r==> ce_a' @ ce_w (synth);  rpf2 r<== ce_b[ce_w/x] @ ce2 (check).
-
-       The three components ([x], [ce_a], [ce_b]) all flow into
-       downstream consumers that need real values (substitution and
-       recursive [check_rpf]); when the view doesn't match they share
-       fate and we emit a placeholder. *)
-    let ce1' = strip_annots ce1 in
-    (match view_get_take_ce ~construct:"take rpf" ce1' with
-     | (Error k, _, _) | (_, Error k, _) | (_, _, Error k) ->
-       let err = Error.structured ~loc:pos k in
-       let rinfo =
-         mk_rinfo_err ~goal:(RProg.RpfGoal (ce1, ce2))
-           pos delta bool_sort Effect.Spec err in
-       let checked =
-         RefinedExpr.mk_rpf rinfo (RefinedExpr.RHole "take-shape-mismatch") in
-       let _ = rpf1 and _ = rpf2 in
-       return (checked, delta, Constraint.top pos)
-     | (Ok x, Ok ce_a, Ok ce_b) ->
-       let* (checked_rpf1, ce_a_synth, ce_w, delta1, ct1) =
-         synth_rpf rs delta rpf1 in
-       let ct_a_eq =
-         Constraint.atom pos (mk_eq ce_a_synth ce_a) in
-       let ce_w_sort = (CoreExpr.sort_of_info (CoreExpr.info ce_w)) in
-       let arg_typed_sort = Elaborate.lift_sort ce_w_sort in
-       let ce_w_annot =
-         CoreExpr.mk (mk_info ce_w_sort)
-           (CoreExpr.Annot (ce_w, arg_typed_sort)) in
-       let sub = Subst.extend_var x ce_w_annot Subst.empty in
-       let ce_b_subst = Subst.apply_ce sub ce_b in
-       let* (checked_rpf2, delta2, ct2) =
-         check_rpf rs delta1 rpf2 ce_b_subst ce2 in
-       let ct = Constraint.conj pos ct_a_eq (Constraint.conj pos ct1 ct2) in
-       let rinfo =
-         mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2))
-           pos delta bool_sort Effect.Spec in
-       let checked =
-         RefinedExpr.mk_rpf rinfo
-           (RefinedExpr.RTake (checked_rpf1, checked_rpf2)) in
-       return (checked, delta2, ct))
+       rpf1 r==> ce_a' @ ce_w (synth);  rpf2 r<== ce_b[ce_w/x] @ ce2 (check). *)
+    let (x_r, ce_a_r, ce_b_r) =
+      view_get_take_ce' ~construct:"take rpf" (strip_annots' ce1) in
+    let* (checked_rpf1, ce_a_synth, ce_w, delta1, ct1) =
+      synth_rpf rs delta rpf1 in
+    let ct_a_eq = Constraint.atom' pos (mk_eq' (Ok ce_a_synth) ce_a_r) in
+    let ce_w_sort = (CoreExpr.sort_of_info (CoreExpr.info ce_w)) in
+    let ce_w_annot_r = mk_annot_e (Ok ce_w) (Ok ce_w_sort) in
+    let sub_r = Subst.extend_var' x_r ce_w_annot_r Subst.empty' in
+    let ce_b_subst_r = Subst.apply_ce' sub_r ce_b_r in
+    let* (checked_rpf2, delta2, ct2) =
+      check_rpf rs delta1 rpf2 ce_b_subst_r ce2 in
+    let ct = Constraint.conj pos ct_a_eq (Constraint.conj pos ct1 ct2) in
+    let answer = answer_of_sort_kind_r ~loc:pos
+                   (Result.map (fun _ -> bool_sort)
+                      (errs_first
+                         [erase_ok x_r; erase_ok ce_a_r; erase_ok ce_b_r])) in
+    let rinfo =
+      mk_rinfo_with_answer ~goal pos delta bool_sort Effect.Spec answer in
+    let checked =
+      RefinedExpr.mk_rpf rinfo
+        (RefinedExpr.RTake (checked_rpf1, checked_rpf2)) in
+    return (checked, delta2, ct)
 
   | RefinedExpr.RFail lpf ->
     (* :: fail — RS;Δ |- fail[lpf] r<== fail @ ce ↝ Ct
-       requires lpf l<== false; output Δ'' = affinize Δ'.
-
-       [check_lpf] takes a real [false_ce] regardless of the shape
-       check, so we run it unconditionally and ride the predicate-
-       not-Fail error on this node's [info#answer]. *)
-    let ce1' = strip_annots ce1 in
-    let fail_check = view_get_fail_ce ~construct:"fail rpf" ce1' in
+       requires lpf l<== false; output Δ'' = affinize Δ'. *)
+    let fail_check =
+      view_get_fail_ce' ~construct:"fail rpf" (strip_annots' ce1) in
     let false_ce =
-      CoreExpr.mk (CoreExpr.info ce1) (CoreExpr.BoolLit false) in
+      CoreExpr.mk (mk_info bool_sort) (CoreExpr.BoolLit false) in
     let* (checked_lpf, delta', ct) = check_lpf rs delta lpf false_ce in
     let delta'' = RCtx.affinize delta' in
     let answer = answer_of_sort_kind_r ~loc:pos
                    (Result.map (fun () -> bool_sort) fail_check) in
     let rinfo =
-      mk_rinfo_with_answer ~goal:(RProg.RpfGoal (ce1, ce2))
-        pos delta bool_sort Effect.Spec answer in
+      mk_rinfo_with_answer ~goal pos delta bool_sort Effect.Spec answer in
     let checked = RefinedExpr.mk_rpf rinfo (RefinedExpr.RFail checked_lpf) in
     return (checked, delta'', ct)
 
   | RefinedExpr.RLet (lpat, cpat, rpf') ->
     (* :: let / let_tuple — RS;Δ0 |- let[lpat] cpat; rpf r<== ... ↝ Ct.
-       Like rpat_match's RLet, dispatch on the predicate's shape after
-       a shallow strip (alias-lets preserved) so the user's pattern
-       matches the structural form they read from hover.  Two cases:
-         - Let x = ce_a; ce_b   → single-binder, RChk_let.
-         - LetTuple xs = ce; ce' → tuple-destructure, RChk_let_tuple. *)
-    let ce1' = strip_annots_shallow ce1 in
-    (match CoreExpr.shape ce1' with
+       Dispatch on the (errkind-extracted) predicate's shape after a
+       shallow strip; alias-lets are preserved so the user's pattern
+       matches the structural form they read from hover. *)
+    let ce1_stripped_r = strip_annots_shallow' ce1 in
+    let placeholder_hole =
+      CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole "let-rpf-arg-hole") in
+    let ce1_stripped = Result.value ce1_stripped_r ~default:placeholder_hole in
+    (match CoreExpr.shape ce1_stripped with
      | CoreExpr.Let _ ->
-       (match zip3_kind (view_get_let_ce ~construct:"let rpf" ce1' )with
-        | Error k ->
-          let err = Error.structured ~loc:pos k in
-          let rinfo = mk_rinfo_err ~goal:(RProg.RpfGoal (ce1, ce2))
-                        pos delta bool_sort Effect.Spec err in
-          let checked = RefinedExpr.mk_rpf rinfo
-            (RefinedExpr.RHole "let-rpf-shape-mismatch") in
-          return (checked, delta, Constraint.top pos)
-        | Ok (x, ce_a, ce_b) ->
-          let tau = (CoreExpr.sort_of_info (CoreExpr.info ce_a)) in
-          let* (typed_cp, delta1, ce_w) =
-            cpat_match rs delta (Ok Effect.Spec) cpat (Ok tau) in
-          let eq_prop =
-            CoreExpr.mk (CoreExpr.info ce1) (CoreExpr.Eq (ce_w, ce_a)) in
-          let* (typed_lp, delta2, ct1) =
-            lpat_match rs delta1 lpat (Ok eq_prop) in
-          let arg_typed_sort = Elaborate.lift_sort tau in
-          let ce_w_annot =
-            CoreExpr.mk (mk_info tau)
-              (CoreExpr.Annot (ce_w, arg_typed_sort)) in
-          let sub = Subst.extend_var x ce_w_annot Subst.empty in
-          let ce_b_subst = Subst.apply_ce sub ce_b in
-          let* (checked_rpf', delta_full, ct2) =
-            check_rpf rs delta2 rpf' ce_b_subst ce2 in
-          let n0 = RCtx.length delta in
-          let (delta3, delta_pop) = RCtx.split n0 delta_full in
-          let ct_pat_body = Constraint.conj pos ct1 ct2 in
-          let ct_closed = close_ctx pos delta_pop ct_pat_body in
-          let leak = not (RCtx.zero delta_pop) in
-          let rinfo =
-            if leak then
-              let leftovers =
-                List.filter_map (function
-                  | RCtx.Res { var; pred; value; usage } when not (Usage.is_zero usage) ->
-                    Some (Format.asprintf "@[<hov 2>%a : %a @@ %a [%a]@]"
-                            Var.print var CoreExpr.print pred
-                            CoreExpr.print value Usage.print usage)
-                  | _ -> None) (RCtx.entries delta_pop) in
-              let err = Error.let_pattern_resource_leak ~loc:pos ~leftovers in
-              mk_rinfo_err ~goal:(RProg.RpfGoal (ce1, ce2))
-                pos delta bool_sort Effect.Spec err
-            else
-              mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2))
-                pos delta bool_sort Effect.Spec
-          in
-          let checked = RefinedExpr.mk_rpf rinfo
-            (RefinedExpr.RLet (typed_lp, typed_cp, checked_rpf')) in
-          let final_ct = if leak then Constraint.top pos else ct_closed in
-          return (checked, delta3, final_ct))
+       let (x_r, ce_a_r, ce_b_r) =
+         view_get_let_ce' ~construct:"let rpf" ce1_stripped_r in
+       let tau_r = Result.map
+         (fun ce -> CoreExpr.sort_of_info (CoreExpr.info ce)) ce_a_r in
+       let* (typed_cp, delta1, ce_w) =
+         cpat_match rs delta (Ok Effect.Spec) cpat tau_r in
+       let eq_prop_r = mk_eq' (Ok ce_w) ce_a_r in
+       let* (typed_lp, delta2, ct1) =
+         lpat_match rs delta1 lpat eq_prop_r in
+       let ce_w_annot_r = mk_annot_e (Ok ce_w) tau_r in
+       let sub_r = Subst.extend_var' x_r ce_w_annot_r Subst.empty' in
+       let ce_b_subst_r = Subst.apply_ce' sub_r ce_b_r in
+       let* (checked_rpf', delta_full, ct2) =
+         check_rpf rs delta2 rpf' ce_b_subst_r ce2 in
+       let n0 = RCtx.length delta in
+       let (delta3, delta_pop) = RCtx.split n0 delta_full in
+       let ct_pat_body = Constraint.conj pos ct1 ct2 in
+       let ct_closed = close_ctx pos delta_pop ct_pat_body in
+       let leak = not (RCtx.zero delta_pop) in
+       let view_err_r =
+         errs_first
+           [erase_ok x_r; erase_ok ce_a_r; erase_ok ce_b_r] in
+       let rinfo =
+         if leak then
+           let leftovers =
+             List.filter_map (function
+               | RCtx.Res { var; pred; value; usage } when not (Usage.is_zero usage) ->
+                 Some (Format.asprintf "@[<hov 2>%a : %a @@ %a [%a]@]"
+                         Var.print var CoreExpr.print pred
+                         CoreExpr.print value Usage.print usage)
+               | _ -> None) (RCtx.entries delta_pop) in
+           let err = Error.let_pattern_resource_leak ~loc:pos ~leftovers in
+           mk_rinfo_err ~goal pos delta bool_sort Effect.Spec err
+         else
+           let answer = answer_of_sort_kind_r ~loc:pos
+                          (Result.map (fun () -> bool_sort) view_err_r) in
+           mk_rinfo_with_answer ~goal pos delta bool_sort Effect.Spec answer
+       in
+       let checked = RefinedExpr.mk_rpf rinfo
+         (RefinedExpr.RLet (typed_lp, typed_cp, checked_rpf')) in
+       let final_ct = if leak then Constraint.top pos else ct_closed in
+       return (checked, delta3, final_ct)
      | CoreExpr.LetTuple _ ->
-       (match zip3_kind (view_get_let_tuple_ce ~construct:"let-tuple rpf" ce1' )with
-        | Error k ->
-          let err = Error.structured ~loc:pos k in
-          let rinfo = mk_rinfo_err ~goal:(RProg.RpfGoal (ce1, ce2))
-                        pos delta bool_sort Effect.Spec err in
-          let checked = RefinedExpr.mk_rpf rinfo
-            (RefinedExpr.RHole "let-tuple-rpf-shape-mismatch") in
-          return (checked, delta, Constraint.top pos)
-        | Ok (xs, ce_a, ce_b) ->
-          let n = List.length xs in
-          let ce_a_sort = (CoreExpr.sort_of_info (CoreExpr.info ce_a)) in
-          let* (typed_cp, delta1, ce_w) =
-            cpat_match rs delta (Ok Effect.Spec) cpat (Ok ce_a_sort) in
-          (* Extract per-component witnesses + sorts.  cpat_match's
-             CTuple branch produces ce_w = Tuple [ce1; ...; cen]; for
-             other shapes (CVar against a record sort, or arity
-             mismatch) fall back to placeholder Holes. *)
-          let sub_ces =
-            match CoreExpr.shape ce_w with
-            | CoreExpr.Tuple ces when List.length ces = n -> ces
-            | _ ->
-              List.init n
-                (fun _ -> CoreExpr.mk (mk_info bool_sort)
-                            (CoreExpr.Hole "let-tuple-rpf-cpat-mismatch")) in
-          let sub_taus =
-            match Sort.shape ce_a_sort with
-            | Sort.Record taus when List.compare_length_with taus n = 0 ->
-              taus
-            | _ -> List.init n (fun _ -> bool_sort) in
-          let eq_prop =
-            CoreExpr.mk (CoreExpr.info ce1) (CoreExpr.Eq (ce_w, ce_a)) in
-          let* (typed_lp, delta2, ct1) =
-            lpat_match rs delta1 lpat (Ok eq_prop) in
-          let sub =
-            try
-              List.fold_left2
-                (fun acc xi (cei, taui) ->
-                  let arg_typed_sort = Elaborate.lift_sort taui in
-                  let cei_annot =
-                    CoreExpr.mk (mk_info taui)
-                      (CoreExpr.Annot (cei, arg_typed_sort)) in
-                  Subst.extend_var xi cei_annot acc)
-                Subst.empty xs (List.combine sub_ces sub_taus)
-            with Invalid_argument _ -> Subst.empty in
-          let ce_b_subst = Subst.apply_ce sub ce_b in
-          let* (checked_rpf', delta_full, ct2) =
-            check_rpf rs delta2 rpf' ce_b_subst ce2 in
-          let n0 = RCtx.length delta in
-          let (delta3, delta_pop) = RCtx.split n0 delta_full in
-          let ct_pat_body = Constraint.conj pos ct1 ct2 in
-          let ct_closed = close_ctx pos delta_pop ct_pat_body in
-          let leak = not (RCtx.zero delta_pop) in
-          let rinfo =
-            if leak then
-              let leftovers =
-                List.filter_map (function
-                  | RCtx.Res { var; pred; value; usage } when not (Usage.is_zero usage) ->
-                    Some (Format.asprintf "@[<hov 2>%a : %a @@ %a [%a]@]"
-                            Var.print var CoreExpr.print pred
-                            CoreExpr.print value Usage.print usage)
-                  | _ -> None) (RCtx.entries delta_pop) in
-              let err = Error.let_pattern_resource_leak ~loc:pos ~leftovers in
-              mk_rinfo_err ~goal:(RProg.RpfGoal (ce1, ce2))
-                pos delta bool_sort Effect.Spec err
-            else
-              mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2))
-                pos delta bool_sort Effect.Spec
-          in
-          let checked = RefinedExpr.mk_rpf rinfo
-            (RefinedExpr.RLet (typed_lp, typed_cp, checked_rpf')) in
-          let final_ct = if leak then Constraint.top pos else ct_closed in
-          return (checked, delta3, final_ct))
+       let (xs_r, ce_a_r, ce_b_r) =
+         view_get_let_tuple_ce' ~construct:"let-tuple rpf" ce1_stripped_r in
+       let n = List.length (Result.value xs_r ~default:[]) in
+       let ce_a_sort_r = Result.map
+         (fun ce -> CoreExpr.sort_of_info (CoreExpr.info ce)) ce_a_r in
+       let* (typed_cp, delta1, ce_w) =
+         cpat_match rs delta (Ok Effect.Spec) cpat ce_a_sort_r in
+       (* Extract per-component witnesses + sorts.  Same fallback logic
+          as before (CTuple/Record arity match → use components; else
+          placeholders). *)
+       let sub_ces =
+         match CoreExpr.shape ce_w with
+         | CoreExpr.Tuple ces when List.length ces = n -> ces
+         | _ ->
+           List.init n
+             (fun _ -> CoreExpr.mk (mk_info bool_sort)
+                         (CoreExpr.Hole "let-tuple-rpf-cpat-mismatch")) in
+       let sub_taus =
+         match Result.map Sort.shape ce_a_sort_r with
+         | Ok (Sort.Record taus) when List.compare_length_with taus n = 0 ->
+           taus
+         | _ -> List.init n (fun _ -> bool_sort) in
+       let eq_prop_r = mk_eq' (Ok ce_w) ce_a_r in
+       let* (typed_lp, delta2, ct1) =
+         lpat_match rs delta1 lpat eq_prop_r in
+       let xs = Result.value xs_r ~default:[] in
+       let sub =
+         try
+           List.fold_left2
+             (fun acc xi (cei, taui) ->
+               let arg_typed_sort = Elaborate.lift_sort taui in
+               let cei_annot =
+                 CoreExpr.mk (mk_info taui)
+                   (CoreExpr.Annot (cei, arg_typed_sort)) in
+               Subst.extend_var xi cei_annot acc)
+             Subst.empty xs (List.combine sub_ces sub_taus)
+         with Invalid_argument _ -> Subst.empty in
+       let sub_r = Result.bind xs_r (fun _ -> Ok sub) in
+       let ce_b_subst_r = Subst.apply_ce' sub_r ce_b_r in
+       let* (checked_rpf', delta_full, ct2) =
+         check_rpf rs delta2 rpf' ce_b_subst_r ce2 in
+       let n0 = RCtx.length delta in
+       let (delta3, delta_pop) = RCtx.split n0 delta_full in
+       let ct_pat_body = Constraint.conj pos ct1 ct2 in
+       let ct_closed = close_ctx pos delta_pop ct_pat_body in
+       let leak = not (RCtx.zero delta_pop) in
+       let view_err_r =
+         errs_first
+           [erase_ok xs_r; erase_ok ce_a_r; erase_ok ce_b_r] in
+       let rinfo =
+         if leak then
+           let leftovers =
+             List.filter_map (function
+               | RCtx.Res { var; pred; value; usage } when not (Usage.is_zero usage) ->
+                 Some (Format.asprintf "@[<hov 2>%a : %a @@ %a [%a]@]"
+                         Var.print var CoreExpr.print pred
+                         CoreExpr.print value Usage.print usage)
+               | _ -> None) (RCtx.entries delta_pop) in
+           let err = Error.let_pattern_resource_leak ~loc:pos ~leftovers in
+           mk_rinfo_err ~goal pos delta bool_sort Effect.Spec err
+         else
+           let answer = answer_of_sort_kind_r ~loc:pos
+                          (Result.map (fun () -> bool_sort) view_err_r) in
+           mk_rinfo_with_answer ~goal pos delta bool_sort Effect.Spec answer
+       in
+       let checked = RefinedExpr.mk_rpf rinfo
+         (RefinedExpr.RLet (typed_lp, typed_cp, checked_rpf')) in
+       let final_ct = if leak then Constraint.top pos else ct_closed in
+       return (checked, delta3, final_ct)
      | _ ->
        let k = mismatch_ce_kind ~construct:"let rpf"
                  ~expected_shape:"let _ = _; _ or let (_, ..., _) = _; _"
-                 ce1' in
+                 ce1_stripped in
        let err = Error.structured ~loc:pos k in
-       let rinfo = mk_rinfo_err ~goal:(RProg.RpfGoal (ce1, ce2))
-                     pos delta bool_sort Effect.Spec err in
+       let rinfo = mk_rinfo_err ~goal pos delta bool_sort Effect.Spec err in
        let checked = RefinedExpr.mk_rpf rinfo
          (RefinedExpr.RHole "let-rpf-wrong-shape") in
        return (checked, delta, Constraint.top pos))
 
   | RefinedExpr.RCase (lpat, label, cpat, rpf') ->
     (* :: case — RS;Δ0 |- case[lpat] L cpat; rpf r<== ce''' @ ce2 ↝ (is ce L) cand Ct
-       where ce''' = case ce of {Li xi -> cei}.  Looks up branch L,
-       takes its body cek.  Pattern bindings as in :: let. *)
-    let ce1' = strip_annots ce1 in
-    (match CoreExpr.shape ce1' with
+       where ce''' = case ce of {Li xi -> cei}. *)
+    let ce1_stripped_r = strip_annots' ce1 in
+    let placeholder_hole =
+      CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole "case-rpf-arg-hole") in
+    let ce1_stripped = Result.value ce1_stripped_r ~default:placeholder_hole in
+    (match CoreExpr.shape ce1_stripped with
      | CoreExpr.Case (scrutinee, branches) ->
        (match List.find_opt (fun (l, _, _, _) -> Label.compare l label = 0) branches with
         | None ->
           let case_labels = List.map (fun (l, _, _, _) -> l) branches in
           let err = Error.rcase_label_not_in_branches
                       ~loc:pos ~label ~case_labels in
-          let rinfo = mk_rinfo_err ~goal:(RProg.RpfGoal (ce1, ce2))
-                        pos delta bool_sort Effect.Spec err in
+          let rinfo = mk_rinfo_err ~goal pos delta bool_sort Effect.Spec err in
           let checked = RefinedExpr.mk_rpf rinfo
             (RefinedExpr.RHole "case-label-not-in-branches") in
           let delta' = RCtx.affinize delta in
@@ -1612,34 +1578,29 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
         | Some (_l, x_br, ce_br, _bi) ->
           let scrut_sort = (CoreExpr.sort_of_info (CoreExpr.info scrutinee)) in
           let cs = RSig.comp rs in
-          (* Compose the sort projection and ctor lookup as a single
-             errkind chain.  [payload_sort] is a placeholder when the
-             chain errs; [cpat_match] handles errkind sort directly so
-             the binders stay in scope for the body.  [CtorLookup] is
-             still bundled — Phase 5 will refactor it. *)
+          (* Compose [SortGet.get_app] and [CtorLookup.lookup] as a
+             single errkind chain (both still bundled — Phase 5 will
+             refactor them).  [payload_sort_r] flows into [cpat_match]
+             which accepts errkind. *)
           let payload_sort_r =
             Result.bind
               (SortGet.get_app ~construct:"case rpf scrutinee" scrut_sort)
               (fun (d, args) -> CtorLookup.lookup cs d label args) in
-          let payload_sort = Result.value payload_sort_r ~default:bool_sort in
           let* (typed_cp, delta1, ce_w) =
             cpat_match rs delta (Ok Effect.Spec) cpat payload_sort_r in
           let inject_ce =
             CoreExpr.mk (CoreExpr.info scrutinee)
               (CoreExpr.Inject (label, ce_w)) in
           let eq_prop =
-            CoreExpr.mk (CoreExpr.info ce1)
+            CoreExpr.mk (CoreExpr.info scrutinee)
               (CoreExpr.Eq (inject_ce, scrutinee)) in
           let* (typed_lp, delta2, ct1) =
             lpat_match rs delta1 lpat (Ok eq_prop) in
-          let payload_typed_sort = Elaborate.lift_sort payload_sort in
-          let ce_w_annot =
-            CoreExpr.mk (mk_info payload_sort)
-              (CoreExpr.Annot (ce_w, payload_typed_sort)) in
-          let sub = Subst.extend_var x_br ce_w_annot Subst.empty in
-          let ce_br_subst = Subst.apply_ce sub ce_br in
+          let ce_w_annot_r = mk_annot_e (Ok ce_w) payload_sort_r in
+          let sub_r = Subst.extend_var' (Ok x_br) ce_w_annot_r Subst.empty' in
+          let ce_br_subst_r = Subst.apply_ce' sub_r (Ok ce_br) in
           let* (checked_rpf', delta_full, ct2) =
-            check_rpf rs delta2 rpf' ce_br_subst ce2 in
+            check_rpf rs delta2 rpf' ce_br_subst_r ce2 in
           let n0 = RCtx.length delta in
           let (delta3, delta_pop) = RCtx.split n0 delta_full in
           let ct_pat_body = Constraint.conj pos ct1 ct2 in
@@ -1649,6 +1610,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
             Constraint.conj pos
               (Constraint.is_ pos label scrutinee)
               (if leak then Constraint.top pos else ct_closed) in
+          let view_err_r = erase_ok payload_sort_r in
           let rinfo =
             if leak then
               let leftovers =
@@ -1659,11 +1621,11 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
                             CoreExpr.print value Usage.print usage)
                   | _ -> None) (RCtx.entries delta_pop) in
               let err = Error.let_pattern_resource_leak ~loc:pos ~leftovers in
-              mk_rinfo_err ~goal:(RProg.RpfGoal (ce1, ce2))
-                pos delta bool_sort Effect.Spec err
+              mk_rinfo_err ~goal pos delta bool_sort Effect.Spec err
             else
-              mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2))
-                pos delta bool_sort Effect.Spec
+              let answer = answer_of_sort_kind_r ~loc:pos
+                             (Result.map (fun () -> bool_sort) view_err_r) in
+              mk_rinfo_with_answer ~goal pos delta bool_sort Effect.Spec answer
           in
           let checked = RefinedExpr.mk_rpf rinfo
             (RefinedExpr.RCase (typed_lp, label, typed_cp, checked_rpf')) in
@@ -1673,81 +1635,63 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
          (Error.K_wrong_pred_shape
             { construct = "case rpf";
               expected_shape = "case _ of { ... }";
-              got = CoreExpr.to_string ce1' }) in
-       let rinfo = mk_rinfo_err ~goal:(RProg.RpfGoal (ce1, ce2))
-                     pos delta bool_sort Effect.Spec err in
+              got = CoreExpr.to_string ce1_stripped }) in
+       let rinfo = mk_rinfo_err ~goal pos delta bool_sort Effect.Spec err in
        let checked = RefinedExpr.mk_rpf rinfo
          (RefinedExpr.RHole "case-pred-shape") in
        let delta' = RCtx.affinize delta in
        return (checked, delta', Constraint.top pos))
 
   | RefinedExpr.RIfTrue rpf' ->
-    (* :: iftrue — RS;Δ |- iftrue; rpf r<== (if ce1 then ce2 else ce3) @ ce4
-       ↝ Ct_ce ce1 cand Ct  where rpf' r<== ce2 @ ce4 ↝ Ct *)
-    let ce1' = strip_annots ce1 in
-    (match view_get_if_ce ~construct:"iftrue rpf" ce1' with
-     | (Error k, _, _) | (_, Error k, _) | (_, _, Error k) ->
-       let err = Error.structured ~loc:pos k in
-       let rinfo =
-         mk_rinfo_err ~goal:(RProg.RpfGoal (ce1, ce2))
-           pos delta bool_sort Effect.Spec err in
-       let checked =
-         RefinedExpr.mk_rpf rinfo (RefinedExpr.RHole "iftrue-shape-mismatch") in
-       let _ = rpf' in
-       return (checked, delta, Constraint.top pos)
-     | (Ok ce_cond, Ok ce_t, Ok _ce_e) ->
-       let* (checked_rpf', delta', ct) =
-         check_rpf rs delta rpf' ce_t ce2 in
-       let ct_full =
-         Constraint.conj pos (Constraint.atom pos ce_cond) ct in
-       let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2))
-                     pos delta bool_sort Effect.Spec in
-       let checked = RefinedExpr.mk_rpf rinfo
-         (RefinedExpr.RIfTrue checked_rpf') in
-       return (checked, delta', ct_full))
+    (* :: iftrue — RS;Δ |- iftrue; rpf r<== (if c then t else e) @ ce2
+       ↝ Ct_c cand Ct  where rpf' r<== t @ ce2 ↝ Ct *)
+    let (cond_r, t_r, _e_r) =
+      view_get_if_ce' ~construct:"iftrue rpf" (strip_annots' ce1) in
+    let* (checked_rpf', delta', ct) =
+      check_rpf rs delta rpf' t_r ce2 in
+    let ct_full =
+      Constraint.conj pos (Constraint.atom' pos cond_r) ct in
+    let answer = answer_of_sort_kind_r ~loc:pos
+                   (Result.map (fun _ -> bool_sort) cond_r) in
+    let rinfo =
+      mk_rinfo_with_answer ~goal pos delta bool_sort Effect.Spec answer in
+    let checked = RefinedExpr.mk_rpf rinfo
+      (RefinedExpr.RIfTrue checked_rpf') in
+    return (checked, delta', ct_full)
 
   | RefinedExpr.RIfFalse rpf' ->
-    (* :: iffalse — symmetric to iftrue *)
-    let ce1' = strip_annots ce1 in
-    (match view_get_if_ce ~construct:"iffalse rpf" ce1' with
-     | (Error k, _, _) | (_, Error k, _) | (_, _, Error k) ->
-       let err = Error.structured ~loc:pos k in
-       let rinfo =
-         mk_rinfo_err ~goal:(RProg.RpfGoal (ce1, ce2))
-           pos delta bool_sort Effect.Spec err in
-       let checked =
-         RefinedExpr.mk_rpf rinfo (RefinedExpr.RHole "iffalse-shape-mismatch") in
-       let _ = rpf' in
-       return (checked, delta, Constraint.top pos)
-     | (Ok ce_cond, Ok _ce_t, Ok ce_e) ->
-       let* (checked_rpf', delta', ct) =
-         check_rpf rs delta rpf' ce_e ce2 in
-       let not_ce = CoreExpr.mk (CoreExpr.info ce_cond)
-                      (CoreExpr.App (Prim.Not, ce_cond)) in
-       let ct_full =
-         Constraint.conj pos (Constraint.atom pos not_ce) ct in
-       let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2))
-                     pos delta bool_sort Effect.Spec in
-       let checked = RefinedExpr.mk_rpf rinfo
-         (RefinedExpr.RIfFalse checked_rpf') in
-       return (checked, delta', ct_full))
+    (* :: iffalse — symmetric to iftrue. *)
+    let (cond_r, _t_r, e_r) =
+      view_get_if_ce' ~construct:"iffalse rpf" (strip_annots' ce1) in
+    let* (checked_rpf', delta', ct) =
+      check_rpf rs delta rpf' e_r ce2 in
+    let not_cond_r = mk_not' cond_r in
+    let ct_full =
+      Constraint.conj pos (Constraint.atom' pos not_cond_r) ct in
+    let answer = answer_of_sort_kind_r ~loc:pos
+                   (Result.map (fun _ -> bool_sort) cond_r) in
+    let rinfo =
+      mk_rinfo_with_answer ~goal pos delta bool_sort Effect.Spec answer in
+    let checked = RefinedExpr.mk_rpf rinfo
+      (RefinedExpr.RIfFalse checked_rpf') in
+    return (checked, delta', ct_full)
 
   | RefinedExpr.RAnnotStrip rpf' ->
     (* :: annot — RS;Δ |- annot; rpf r<== (ce:τ) @ ce' ↝ Ct
        where rpf r<== ce @ ce' ↝ Ct *)
-    let ce1' = strip_annots ce1 in
     let* (checked_rpf', delta', ct) =
-      check_rpf rs delta rpf' ce1' ce2 in
-    let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2))
-                  pos delta bool_sort Effect.Spec in
+      check_rpf rs delta rpf' (strip_annots' ce1) ce2 in
+    let rinfo = mk_rinfo ~goal pos delta bool_sort Effect.Spec in
     let checked = RefinedExpr.mk_rpf rinfo
       (RefinedExpr.RAnnotStrip checked_rpf') in
     return (checked, delta', ct)
 
   | _ ->
     let* (checked_rpf, ce1_synth, ce2_synth, delta', ct) = synth_rpf rs delta rpf in
-    let eq_ct = Constraint.conj pos (Constraint.atom pos (mk_eq ce1_synth ce1))
-                                    (Constraint.atom pos (mk_eq ce2_synth ce2)) in
+    let eq_ct =
+      Constraint.conj pos
+        (Constraint.atom' pos (mk_eq' (Ok ce1_synth) ce1))
+        (Constraint.atom' pos (mk_eq' (Ok ce2_synth) ce2)) in
     return (checked_rpf, delta', Constraint.conj pos ct eq_ct)
 
 (* Core refined term synthesis: RS; Delta |-[eff] crt => Pf -| Delta' ~> Ct *)
@@ -2270,7 +2214,7 @@ and check_spine_inner rs delta eff spine domain codomain =
     return (checked, result_pf, delta'', Constraint.conj pos ct ct')
 
   | RefinedExpr.SRes (rpf, rest), (ProofSort.Res { info = _; pred; value } :: pf_rest) ->
-    let* (checked_rpf, delta', ct) = check_rpf rs delta rpf pred value in
+    let* (checked_rpf, delta', ct) = check_rpf rs delta rpf (Ok pred) (Ok value) in
     let* (checked_rest, result_pf, delta'', ct') = check_spine_inner rs delta' eff rest pf_rest codomain in
     let checked = RefinedExpr.mk_spine spine_rinfo (RefinedExpr.SRes (checked_rpf, checked_rest)) in
     return (checked, result_pf, delta'', Constraint.conj pos ct ct')
@@ -2327,7 +2271,7 @@ and _check_tuple rs delta eff spine pf =
     return (checked, delta'', Constraint.conj pos ct ct')
 
   | RefinedExpr.SRes (rpf, rest), (ProofSort.Res { info = _; pred; value } :: pf_rest) ->
-    let* (checked_rpf, delta', ct) = check_rpf rs delta rpf pred value in
+    let* (checked_rpf, delta', ct) = check_rpf rs delta rpf (Ok pred) (Ok value) in
     let* (checked_rest, delta'', ct') = _check_tuple rs delta' eff rest pf_rest in
     let checked = RefinedExpr.mk_spine tuple_rinfo (RefinedExpr.SRes (checked_rpf, checked_rest)) in
     return (checked, delta'', Constraint.conj pos ct ct')
