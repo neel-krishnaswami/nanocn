@@ -7,25 +7,24 @@ type state = {
   warnings_rev : Warning.t list;
 }
 
-type 'a t = state -> ('a * state, Error.t) result
+type 'a t = state -> 'a * state
 
-let return x s = Ok (x, s)
+let return x s = (x, s)
 
 let ( let* ) m f s =
-  match m s with
-  | Error e -> Error e
-  | Ok (a, s') -> f a s'
+  let (a, s') = m s in
+  f a s'
 
 let fresh pos s =
   let (v, supply') = Var.fresh pos s.supply in
-  Ok (v, { s with supply = supply' })
+  (v, { s with supply = supply' })
 
 let mk_var name pos s =
   let (v, supply') = Var.mk name pos s.supply in
-  Ok (v, { s with supply = supply' })
+  (v, { s with supply = supply' })
 
 let record_warning w s =
-  Ok ((), { s with warnings_rev = w :: s.warnings_rev })
+  ((), { s with warnings_rev = w :: s.warnings_rev })
 
 let rec sequence = function
   | [] -> return []
@@ -36,15 +35,13 @@ let rec sequence = function
 
 let run supply m =
   let s0 = { supply; warnings_rev = [] } in
-  match m s0 with
-  | Ok (a, s') -> Ok (a, s'.supply)
-  | Error e -> Error e
+  let (a, s') = m s0 in
+  (a, s'.supply)
 
 let run_full supply m =
   let s0 = { supply; warnings_rev = [] } in
-  match m s0 with
-  | Ok (a, s') -> Ok (a, s'.supply, List.rev s'.warnings_rev)
-  | Error e -> Error e
+  let (a, s') = m s0 in
+  (a, s'.supply, List.rev s'.warnings_rev)
 
 module Test = struct
   let test =
@@ -52,13 +49,12 @@ module Test = struct
         ~count:1
         QCheck.unit
         (fun () ->
-           match run Var.empty_supply (
+           let (b, _) = run Var.empty_supply (
              let* v1 = fresh SourcePos.dummy in
              let* v2 = fresh SourcePos.dummy in
              return (Var.compare v1 v2 <> 0)
-           ) with
-           | Ok (b, _) -> b
-           | Error _ -> false);
+           ) in
+           b);
 
       QCheck.Test.make
         ~name:"elabM record_warning surfaces in run_full output"
@@ -74,7 +70,7 @@ module Test = struct
              let* () = record_warning w2 in
              return ()
            ) with
-           | Ok ((), _, [w1'; w2']) ->
+           | ((), _, [w1'; w2']) ->
              Warning.to_string w1 = Warning.to_string w1'
              && Warning.to_string w2 = Warning.to_string w2'
            | _ -> false);

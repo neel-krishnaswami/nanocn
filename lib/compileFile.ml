@@ -34,29 +34,27 @@ type decl_acc = {
 
 let resolve_and_check_decl acc raw_decl =
   try
-    match ElabM.run_full acc.supply (Resolve.resolve_decl [] raw_decl) with
+    let ((resolved, _env), supply, ws) =
+      ElabM.run_full acc.supply (Resolve.resolve_decl [] raw_decl) in
+    let warns_rev = List.rev_append ws acc.warns_rev in
+    (* Header: extend sig before checking body *)
+    match Typecheck.extend_sig_with_header acc.sig_ resolved with
     | Error e ->
-      { acc with diags_rev = e :: acc.diags_rev }
-    | Ok ((resolved, _env), supply, ws) ->
-      let warns_rev = List.rev_append ws acc.warns_rev in
-      (* Header: extend sig before checking body *)
-      match Typecheck.extend_sig_with_header acc.sig_ resolved with
+      { acc with supply; warns_rev; diags_rev = e :: acc.diags_rev }
+    | Ok sig1 ->
+      (* Body — use the multi-error variant so every diagnostic
+         recorded on the typed body's tree reaches LSP, not just
+         the first. *)
+      match Typecheck.check_decl_multi supply sig1 resolved with
       | Error e ->
-        { acc with supply; warns_rev; diags_rev = e :: acc.diags_rev }
-      | Ok sig1 ->
-        (* Body — use the multi-error variant so every diagnostic
-           recorded on the typed body's tree reaches LSP, not just
-           the first. *)
-        match Typecheck.check_decl_multi supply sig1 resolved with
-        | Error e ->
-          (* sig1 keeps the header extension *)
-          { acc with supply; sig_ = sig1; warns_rev;
-            diags_rev = e :: acc.diags_rev }
-        | Ok (supply', core_decl, body_errs) ->
-          { supply = supply'; sig_ = sig1;
-            decls_rev = core_decl :: acc.decls_rev;
-            diags_rev = List.rev_append body_errs acc.diags_rev;
-            warns_rev }
+        (* sig1 keeps the header extension *)
+        { acc with supply; sig_ = sig1; warns_rev;
+          diags_rev = e :: acc.diags_rev }
+      | Ok (supply', core_decl, body_errs) ->
+        { supply = supply'; sig_ = sig1;
+          decls_rev = core_decl :: acc.decls_rev;
+          diags_rev = List.rev_append body_errs acc.diags_rev;
+          warns_rev }
   with Util.Invariant_failure info ->
     { acc with diags_rev = invariant_to_error info :: acc.diags_rev }
 
@@ -79,21 +77,18 @@ let compile_file source ~file =
     try
       match parsed.main with
       | Some (Ok prog) ->
-        begin match ElabM.run_full acc.supply (
+        let (typed_e, _supply, ws) = ElabM.run_full acc.supply (
           let open ElabM in
           let* resolved = Resolve.resolve_prog [] prog in
           Elaborate.check acc.sig_ Context.empty resolved.Prog.main
             (Ok resolved.Prog.main_sort) resolved.Prog.main_eff
-        ) with
-        | Error e -> (e :: acc.diags_rev, acc.warns_rev)
-        | Ok (typed_e, _supply, ws) ->
-          (* Multi-error: prepend every error recorded on the typed
-             tree so LSP shows them all.  [collect_errors] reads
-             [info#subterm_errors] which is populated live during
-             elaboration. *)
-          (List.rev_append (Typecheck.collect_errors typed_e) acc.diags_rev,
-           List.rev_append ws acc.warns_rev)
-        end
+        ) in
+        (* Multi-error: prepend every error recorded on the typed
+           tree so LSP shows them all.  [collect_errors] reads
+           [info#subterm_errors] which is populated live during
+           elaboration. *)
+        (List.rev_append (Typecheck.collect_errors typed_e) acc.diags_rev,
+         List.rev_append ws acc.warns_rev)
       | Some (Error _) | None -> (acc.diags_rev, acc.warns_rev)
     with Util.Invariant_failure info ->
       (invariant_to_error info :: acc.diags_rev, acc.warns_rev)
@@ -142,16 +137,14 @@ type rdecl_acc = {
     decls extend [rsig] for downstream consumers. *)
 let check_one_rdecl acc resolved_decl : rdecl_acc =
   try
-    match ElabM.run acc.rsupply
-            (RCheck.check_rdecl acc.rsig acc.ct_acc resolved_decl) with
-    | Error e ->
-      { acc with rdiags_rev = e :: acc.rdiags_rev }
-    | Ok ((typed_decl, rsig', ct_acc'), supply') ->
-      { rsupply = supply';
-        rsig = rsig';
-        ct_acc = ct_acc';
-        rdecls_rev = typed_decl :: acc.rdecls_rev;
-        rdiags_rev = acc.rdiags_rev }
+    let ((typed_decl, rsig', ct_acc'), supply') =
+      ElabM.run acc.rsupply
+        (RCheck.check_rdecl acc.rsig acc.ct_acc resolved_decl) in
+    { rsupply = supply';
+      rsig = rsig';
+      ct_acc = ct_acc';
+      rdecls_rev = typed_decl :: acc.rdecls_rev;
+      rdiags_rev = acc.rdiags_rev }
   with Util.Invariant_failure info ->
     { acc with rdiags_rev = invariant_to_error info :: acc.rdiags_rev }
 
@@ -184,59 +177,53 @@ let compile_rfile source ~file =
            resolve.ml, scope resolution doesn't halt on unbound
            names — it generates fresh Vars and the typechecker
            reports K_unbound_var at use sites. *)
-        match ElabM.run Var.empty_supply
-                (Resolve.resolve_rprog [] full_prog) with
-        | Error e -> empty_rfile_outcome [e]
-        | Ok (resolved, supply0) ->
-          (* Per-decl iteration: each decl gets its own
-             [check_rdecl] invocation, which catches that decl's
-             errors so a typo in one decl doesn't blank out the
-             rest of the file. *)
-          let init : rdecl_acc = {
-            rsupply = supply0;
-            rsig = RSig.empty;
-            ct_acc = Constraint.top resolved.RProg.loc;
-            rdecls_rev = [];
-            rdiags_rev = [];
-          } in
-          let acc =
-            List.fold_left check_one_rdecl init resolved.RProg.decls
-          in
-          if acc.rdiags_rev <> [] then
-            (* Some decl failed.  Surface every collected diagnostic,
-               skip main-checking (we'd just confuse the user with
-               cascading errors against an incomplete RSig).  The
-               typed program is empty (no hover for now); refining
-               this to keep partial typed output is slice C.3+
-               work. *)
-            { final_rsig = acc.rsig;
-              constraints = acc.ct_acc;
-              diagnostics = List.rev acc.rdiags_rev;
-              hover = HoverIndex.empty }
-          else begin
-            (* All decls succeeded.  Run the existing check_rprog
-               for main + typed_prog assembly. *)
-            match ElabM.run Var.empty_supply (
+        let (resolved, supply0) =
+          ElabM.run Var.empty_supply
+            (Resolve.resolve_rprog [] full_prog) in
+        (* Per-decl iteration: each decl gets its own
+           [check_rdecl] invocation, which catches that decl's
+           errors so a typo in one decl doesn't blank out the
+           rest of the file. *)
+        let init : rdecl_acc = {
+          rsupply = supply0;
+          rsig = RSig.empty;
+          ct_acc = Constraint.top resolved.RProg.loc;
+          rdecls_rev = [];
+          rdiags_rev = [];
+        } in
+        let acc =
+          List.fold_left check_one_rdecl init resolved.RProg.decls
+        in
+        if acc.rdiags_rev <> [] then
+          (* Some decl failed.  Surface every collected diagnostic,
+             skip main-checking (we'd just confuse the user with
+             cascading errors against an incomplete RSig).  The
+             typed program is empty (no hover for now); refining
+             this to keep partial typed output is slice C.3+
+             work. *)
+          { final_rsig = acc.rsig;
+            constraints = acc.ct_acc;
+            diagnostics = List.rev acc.rdiags_rev;
+            hover = HoverIndex.empty }
+        else begin
+          (* All decls succeeded.  Run the existing check_rprog
+             for main + typed_prog assembly. *)
+          let ((typed_prog, rsig, ct), _supply) =
+            ElabM.run Var.empty_supply (
               let open ElabM in
               let* resolved = Resolve.resolve_rprog [] full_prog in
               RCheck.check_rprog resolved
-            ) with
-            | Error e ->
-              { final_rsig = acc.rsig;
-                constraints = acc.ct_acc;
-                diagnostics = [e];
-                hover = HoverIndex.empty }
-            | Ok ((typed_prog, rsig, ct), _supply) ->
-              (* Multi-error: harvest any errors that rCheck
-                 attached to typed_rinfo answer fields (slices
-                 C.2-C.5 produce them; for now this list is empty
-                 on successful runs). *)
-              let rprog_errs = RCheck.collect_errors_rprog typed_prog in
-              { final_rsig = rsig;
-                constraints = ct;
-                diagnostics = rprog_errs;
-                hover = HoverIndex.of_typed_rprog typed_prog }
-          end
+            ) in
+          (* Multi-error: harvest any errors that rCheck
+             attached to typed_rinfo answer fields (slices
+             C.2-C.5 produce them; for now this list is empty
+             on successful runs). *)
+          let rprog_errs = RCheck.collect_errors_rprog typed_prog in
+          { final_rsig = rsig;
+            constraints = ct;
+            diagnostics = rprog_errs;
+            hover = HoverIndex.of_typed_rprog typed_prog }
+        end
   with Util.Invariant_failure info ->
     empty_rfile_outcome [invariant_to_error info]
 

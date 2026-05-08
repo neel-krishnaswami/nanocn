@@ -1,7 +1,9 @@
-(** State+error monad for elaboration.
+(** State monad for elaboration.
 
     Threads a fresh variable supply and an accumulating list of
-    [Warning.t]s, and may fail with a structured [Error.t]. *)
+    [Warning.t]s.  The monad has no failure mode: callers that need to
+    surface errors do so as ordinary values (typically a [Result] in
+    the carrier type). *)
 
 type 'a t
 
@@ -23,14 +25,13 @@ val record_warning : Warning.t -> unit t
 val sequence : 'a t list -> 'a list t
 (** [sequence ms] runs each computation in order, collecting results. *)
 
-val run : Var.supply -> 'a t -> ('a * Var.supply, Error.t) result
+val run : Var.supply -> 'a t -> 'a * Var.supply
 (** [run supply m] executes [m] starting from [supply], returning the
     result and the final supply.  Discards any accumulated warnings;
     use [run_full] when warnings should be surfaced. *)
 
 val run_full :
-  Var.supply -> 'a t ->
-  ('a * Var.supply * Warning.t list, Error.t) result
+  Var.supply -> 'a t -> 'a * Var.supply * Warning.t list
 (** [run_full supply m] is like [run] but also returns the warnings
     accumulated by [record_warning] during the run, in source order
     (first recorded → first in the list). *)

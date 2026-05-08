@@ -823,7 +823,7 @@ let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
       | Effect.Pure -> sig_
       | Effect.Impure | Effect.Spec -> Sig.extend d.name entry sig_
     in
-    let result = ElabM.run supply (
+    let ((y, typed_body), supply') = ElabM.run supply (
       let open ElabM in
       let param_pos = match d.branches with
         | (pat, _, _) :: _ -> (Pat.info pat)#loc
@@ -848,7 +848,6 @@ let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
           ~cov_loc:d.loc rebuilder in
       return (y, typed_body)
     ) in
-    let* ((y, typed_body), supply') = result in
     (* Multi-error: surface the first error recorded on the typed
        body's tree as a structured failure, preserving the
        fail-fast contract for legacy callers.  Resilient drivers
@@ -894,7 +893,7 @@ let check_decl_multi supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
       | Effect.Pure -> sig_
       | Effect.Impure | Effect.Spec -> Sig.extend d.name entry sig_
     in
-    let result = ElabM.run supply (
+    let ((y, typed_body), supply') = ElabM.run supply (
       let open ElabM in
       let param_pos = match d.branches with
         | (pat, _, _) :: _ -> (Pat.info pat)#loc
@@ -919,7 +918,6 @@ let check_decl_multi supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
           ~cov_loc:d.loc rebuilder in
       return (y, typed_body)
     ) in
-    let* ((y, typed_body), supply') = result in
     let errs = collect_errors typed_body in
     Ok (supply',
         Prog.CoreFunDecl { name = d.name; param = y;
@@ -1001,10 +999,9 @@ let check_prog supply (p : (SurfExpr.se, _, Var.t) Prog.t) : (typed_ce Sig.t * t
   in
   let* (supply', final_sig, decls') = check_decls supply initial_sig p.decls in
   (* Elaborate main — produces typed_ce directly *)
-  let result = ElabM.run supply' (
+  let (main', _supply'') = ElabM.run supply' (
     Elaborate.check final_sig Context.empty p.main (Ok p.main_sort) p.main_eff
   ) in
-  let* (main', _supply'') = result in
   (* Multi-error: same fail-fast surface as elaborate_fun. *)
   match collect_errors main' with
   | e :: _ -> Error e

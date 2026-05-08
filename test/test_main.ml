@@ -93,23 +93,20 @@ let sort_of te = (CoreExpr.sort_of_info (CoreExpr.info te))
 let eff_of te = (CoreExpr.info te)#eff
 let ctx_of te = (CoreExpr.info te)#ctx
 
-(** Run an ElabM computation that returns a parse [result], flattening
-    the parse error and the runner error into a single [Error.t].  Lets
-    test sites that previously matched [Ok value | Error msg] keep
-    that shape after parse_* started returning [(_, Error.t) result
-    ElabM.t]. *)
+(** Run an ElabM computation that returns a parse [result], surfacing
+    the parse error to test sites that match [Ok value | Error msg]. *)
 let run_parse_m m =
-  match ElabM.run Var.empty_supply m with
-  | Ok (Ok x, _supply) -> Ok x
-  | Ok (Error e, _) | Error e -> Error e
+  let (result, _supply) = ElabM.run Var.empty_supply m in
+  result
 
-(** [run_parse_supply supply m] is [ElabM.run supply m] with the inner
-    parse [result] flattened into the outer error.  Same shape as
-    [ElabM.run]: returns [Ok (value, supply')] on success. *)
+(** [run_parse_supply supply m] is [ElabM.run supply m] for
+    parse-style computations: returns the parse result alongside the
+    final supply. *)
 let run_parse_supply supply m =
-  match ElabM.run supply m with
-  | Ok (Ok x, supply') -> Ok (x, supply')
-  | Ok (Error e, _) | Error e -> Error e
+  let (result, supply') = ElabM.run supply m in
+  match result with
+  | Ok x -> Ok (x, supply')
+  | Error e -> Error e
 
 (** Parse an rprog source then refined-check it; returns the inner
     check result on success, or the parse error on failure.  Used by
@@ -131,22 +128,20 @@ let parse_and_check src =
     fail-fast contract: it surfaces the first collected error
     (in source-position order) as [Error]. *)
 let elab_synth ?(supply = Var.empty_supply) sig_ ctx eff se =
-  match ElabM.run supply (Elaborate.synth sig_ ctx eff se) with
-  | Error msg -> Error msg
-  | Ok (typed_e, _supply) ->
-    (match Typecheck.collect_errors typed_e with
-     | [] -> Ok typed_e
-     | e :: _ -> Error e)
+  let (typed_e, _supply) =
+    ElabM.run supply (Elaborate.synth sig_ ctx eff se) in
+  match Typecheck.collect_errors typed_e with
+  | [] -> Ok typed_e
+  | e :: _ -> Error e
 
 (** Helper: elaborate a surface expr then check (for pre-parsed exprs).
     Same fail-fast contract as [elab_synth]. *)
 let elab_check ?(supply = Var.empty_supply) sig_ ctx se sort eff =
-  match ElabM.run supply (Elaborate.check sig_ ctx se (Ok sort) eff) with
-  | Error msg -> Error msg
-  | Ok (typed_e, _supply) ->
-    (match Typecheck.collect_errors typed_e with
-     | [] -> Ok typed_e
-     | e :: _ -> Error e)
+  let (typed_e, _supply) =
+    ElabM.run supply (Elaborate.check sig_ ctx se (Ok sort) eff) in
+  match Typecheck.collect_errors typed_e with
+  | [] -> Ok typed_e
+  | e :: _ -> Error e
 
 let () =
   let suite =
@@ -1231,16 +1226,12 @@ let () =
         match run_parse_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
-          (match ElabM.run Var.empty_supply
-                   (Elaborate.synth Sig.empty Context.empty Effect.Pure e) with
-           | Error _ ->
-             (* If ElabM still fails fast, the test framework hasn't
-                yet seen the new behavior — accept that for now. *)
-             ()
-           | Ok (typed_e, _) ->
-             let errs = Typecheck.collect_errors typed_e in
-             if List.length errs < 2 then
-               Alcotest.failf "expected ≥2 errors, got %d" (List.length errs)));
+          let (typed_e, _) =
+            ElabM.run Var.empty_supply
+              (Elaborate.synth Sig.empty Context.empty Effect.Pure e) in
+          let errs = Typecheck.collect_errors typed_e in
+          if List.length errs < 2 then
+            Alcotest.failf "expected ≥2 errors, got %d" (List.length errs));
 
       (* File-driven fixtures: the three halt-on-first-error bugs in
          elaborate.ml's coverage_check are now fixed.  Each fixture
@@ -1563,16 +1554,13 @@ main : Int [pure] = example(Both (1, 2) : Pair)
         | Error msg -> Alcotest.fail ("check: " ^ Error.to_string msg)
           | Ok (_, rs, _) ->
             let rsig = rs in
-            let result = ElabM.run Var.empty_supply (
+            let ((_, errs), _supply) = ElabM.run Var.empty_supply (
               RCheck.Test.pf_eq SourcePos.dummy rsig RCtx.empty pf1 pf2
             ) in
-            match result with
-            | Error msg ->
-              Alcotest.fail ("pf_eq should not fail the monad: "
-                             ^ Error.to_string msg)
-            | Ok ((_, []), _) ->
+            match errs with
+            | [] ->
               Alcotest.fail "should report mismatched proof sort lengths"
-            | Ok ((_, _ :: _), _) -> ());
+            | _ :: _ -> ());
 
       (* Fix 5: spec recursive core functions have self-reference *)
       Alcotest.test_case "spec recursive function succeeds" `Quick (fun () ->

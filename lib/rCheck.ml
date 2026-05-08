@@ -3349,17 +3349,18 @@ module Test = struct
     let check_program name src =
       QCheck.Test.make ~name ~count:1 QCheck.unit (fun () ->
         with_delta_check (fun () ->
-          match ElabM.run Var.empty_supply (
+          let (result, _supply) = ElabM.run Var.empty_supply (
             let* parsed = Parse.parse_rprog src ~file:"test" in
             match parsed with
             | Error e -> return (Error e)
             | Ok prog ->
               let* checked = check_rprog prog in
               return (Ok checked)
-          ) with
-          | Error msg | Ok (Error msg, _) ->
+          ) in
+          match result with
+          | Error msg ->
             QCheck.Test.fail_reportf "check: %s" (Error.to_string msg)
-          | Ok (Ok _, _) -> true))
+          | Ok _ -> true))
     in
     [ check_program "delta monotonicity: incr (new/get/set/del)"
         {|

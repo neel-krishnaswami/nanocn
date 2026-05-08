@@ -88,9 +88,11 @@ let toplevel () =
           handle_expr supply sig_ ctx line
       end
   and handle_decl supply sig_ ctx line =
-    match ElabM.run supply (Parse.parse_decl line ~file:"<toplevel>") with
-    | Error err | Ok (Error err, _) -> print_err err; loop supply sig_ ctx
-    | Ok (Ok d, parse_supply) ->
+    let (parsed, parse_supply) =
+      ElabM.run supply (Parse.parse_decl line ~file:"<toplevel>") in
+    match parsed with
+    | Error err -> print_err err; loop supply sig_ ctx
+    | Ok d ->
       match Typecheck.check_spec_decl parse_supply sig_ d with
       | Error err -> print_err err; loop supply sig_ ctx
       | Ok (supply', sig') ->
@@ -115,7 +117,7 @@ let toplevel () =
                   Tvar.print) dd.DtypeDecl.params;
            loop supply' sig' ctx)
   and handle_let supply sig_ ctx line =
-    match ElabM.run supply (
+    let (result, supply') = ElabM.run supply (
       let open ElabM in
       let* parsed = Parse.parse_let line ~file:"<toplevel>" in
       match parsed with
@@ -124,15 +126,16 @@ let toplevel () =
         let* typed_e = Elaborate.synth sig_ ctx Effect.Impure se in
         let sort = CoreExpr.sort_of_info (CoreExpr.info typed_e) in
         return (Ok (x, sort))
-    ) with
-    | Error err | Ok (Error err, _) -> print_err err; loop supply sig_ ctx
-    | Ok (Ok (x, sort), supply') ->
+    ) in
+    match result with
+    | Error err -> print_err err; loop supply sig_ ctx
+    | Ok (x, sort) ->
       let eff = Effect.Impure in
       let ctx' = Context.extend x sort (Effect.purify eff) ctx in
       Format.printf "%a : %a [%a]@." Var.print x Sort.print sort Effect.print eff;
       loop supply' sig_ ctx'
   and handle_expr supply sig_ ctx line =
-    match ElabM.run supply (
+    let (result, supply') = ElabM.run supply (
       let open ElabM in
       let* parsed = Parse.parse_expr line ~file:"<toplevel>" in
       match parsed with
@@ -140,9 +143,10 @@ let toplevel () =
       | Ok se ->
         let* core_e = Elaborate.synth sig_ ctx Effect.Impure se in
         return (Ok core_e)
-    ) with
-    | Error err | Ok (Error err, _) -> print_err err; loop supply sig_ ctx
-    | Ok (Ok core_e, supply') ->
+    ) in
+    match result with
+    | Error err -> print_err err; loop supply sig_ ctx
+    | Ok core_e ->
       let sort = CoreExpr.sort_of_info (CoreExpr.info core_e) in
       Format.printf "_ : %a [impure]@." Sort.print sort;
       loop supply' sig_ ctx
@@ -151,9 +155,11 @@ let toplevel () =
 
 let elaborate_file filename =
   let input = read_file filename in
-  match ElabM.run Var.empty_supply (Parse.parse_prog input ~file:filename) with
-  | Error err | Ok (Error err, _) -> print_err err; exit 1
-  | Ok (Ok prog, supply) ->
+  let (parsed, supply) =
+    ElabM.run Var.empty_supply (Parse.parse_prog input ~file:filename) in
+  match parsed with
+  | Error err -> print_err err; exit 1
+  | Ok prog ->
     match Typecheck.check_prog supply prog with
     | Error err -> print_err err; exit 1
     | Ok (_sig, cprog) ->
@@ -161,9 +167,11 @@ let elaborate_file filename =
 
 let json_file filename =
   let input = read_file filename in
-  match ElabM.run Var.empty_supply (Parse.parse_prog input ~file:filename) with
-  | Error err | Ok (Error err, _) -> print_err err; exit 1
-  | Ok (Ok prog, supply) ->
+  let (parsed, supply) =
+    ElabM.run Var.empty_supply (Parse.parse_prog input ~file:filename) in
+  match parsed with
+  | Error err -> print_err err; exit 1
+  | Ok prog ->
     match Typecheck.check_prog supply prog with
     | Error err -> print_err err; exit 1
     | Ok (_sig, cprog) ->
@@ -201,9 +209,10 @@ let smt_check_file filename =
       let* checked = RCheck.check_rprog rprog in
       return (Ok checked)
   in
-  match ElabM.run Var.empty_supply run with
-  | Error err | Ok (Error err, _) -> print_err err; exit 1
-  | Ok (Ok (_typed_prog, rsig, ct), _supply) ->
+  let (result, _supply) = ElabM.run Var.empty_supply run in
+  match result with
+  | Error err -> print_err err; exit 1
+  | Ok (_typed_prog, rsig, ct) ->
     match SmtEncode.encode rsig ct with
     | Error msg ->
       Format.eprintf "@[<v>SMT encode error:@ %s@]@." msg;
