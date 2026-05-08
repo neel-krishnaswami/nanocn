@@ -530,6 +530,75 @@ let mk_false = mk_bool false
 (* Make ce1 == ce2 as a typed core expression *)
 let mk_eq ce1 ce2 = CoreExpr.mk (mk_info bool_sort) (CoreExpr.Eq (ce1, ce2))
 
+(** Errkind-propagating [mk_eq]: if either side is [Error], the result
+    is [Error] of the same kind. *)
+let[@warning "-32"] mk_eq' ce1_r ce2_r =
+  match ce1_r, ce2_r with
+  | Error e, _ | _, Error e -> Error e
+  | Ok ce1, Ok ce2 -> Ok (mk_eq ce1 ce2)
+
+(** Errkind-propagating [mk_info]: builds a [typed_info] whose
+    [answer] field carries the input sort's [Result] verdict.  When
+    [sort_r] is [Error _], a [bool_sort] placeholder is used for the
+    [#sort] method (consumers reading the structural sort still see
+    something well-typed); the truth-of-record lives on [#answer]. *)
+let[@warning "-32"] mk_info_r (sort_r : (Sort.sort, Error.kind) result)
+    : CoreExpr.typed_info =
+  let placeholder = bool_sort in
+  let sort = Result.value sort_r ~default:placeholder in
+  let answer = match sort_r with
+    | Ok s -> Ok s
+    | Error k -> Error (Error.structured ~loc:SourcePos.dummy k) in
+  let _ = sort in
+  (object
+    method loc = SourcePos.dummy
+    method ctx = Context.empty
+    method answer = answer
+    method eff = Effect.Spec
+    method subterm_errors = []
+  end : CoreExpr.typed_info)
+
+(** Errkind-propagating [CoreExpr.Annot] wrapping: builds
+    [(ce : sort_t)] when both inputs are [Ok], propagates [Error]
+    otherwise.  The wrapper's [info] is derived from [sort_r] so the
+    annotated expression's [#answer] reflects the sort's verdict. *)
+let[@warning "-32"] mk_annot_e
+    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
+    (sort_r : (Sort.sort, Error.kind) result)
+    : (CoreExpr.typed_ce, Error.kind) result =
+  match ce_r, sort_r with
+  | Error e, _ | _, Error e -> Error e
+  | Ok ce, Ok sort ->
+    let info = mk_info sort in
+    let sort_t = Elaborate.lift_sort sort in
+    Ok (CoreExpr.mk info (CoreExpr.Annot (ce, sort_t)))
+
+(** Errkind-propagating [CoreExpr.Inject]: builds [Ctor payload]
+    when both inputs are [Ok]. *)
+let[@warning "-32"] mk_inject_e
+    (label : Label.t)
+    (payload_r : (CoreExpr.typed_ce, Error.kind) result)
+    (info : CoreExpr.typed_info)
+    : (CoreExpr.typed_ce, Error.kind) result =
+  match payload_r with
+  | Error e -> Error e
+  | Ok payload -> Ok (CoreExpr.mk info (CoreExpr.Inject (label, payload)))
+
+(** Errkind-propagating effect subseteq check.  When [eff_r] is [Ok eff]
+    and [Effect.sub eff ub], returns [Ok ()]; when [eff_r] is [Ok eff]
+    but the subsumption fails, returns [Error err_k] using the
+    caller-supplied error kind; otherwise propagates [eff_r]'s error. *)
+let[@warning "-32"] check_eff_subseteq_e
+    (eff_r : (Effect.t, Error.kind) result)
+    (ub : Effect.t)
+    ~(err_k : Error.kind)
+    : (unit, Error.kind) result =
+  match eff_r with
+  | Error e -> Error e
+  | Ok eff ->
+    if Effect.sub eff ub then Ok ()
+    else Error err_k
+
 (* The [close] auxiliary from [doc/refinement-types.md:157-162]:
 
       ·                          ⇒ C  =  C
@@ -597,6 +666,11 @@ let rec strip_annots_shallow ce =
   | CoreExpr.Annot (inner, _) -> strip_annots_shallow inner
   | _ -> ce
 
+(** Errkind-propagating [strip_annots] / [strip_annots_shallow]. *)
+let[@warning "-32"] strip_annots' ce_r = Result.map strip_annots ce_r
+let[@warning "-32"] strip_annots_shallow' ce_r =
+  Result.map strip_annots_shallow ce_r
+
 (* ---------- refined primitive signatures ---------- *)
 
 (* Dummy rinfo for manually-built proof sorts (e.g. rprim_signature)
@@ -621,6 +695,9 @@ let mk_prim_app p args =
   let (arg_sort, ret_sort, _eff) = Typecheck.prim_signature p in
   CoreExpr.mk (mk_info ret_sort) (CoreExpr.App (p, CoreExpr.mk (mk_info arg_sort) (CoreExpr.Tuple args)))
 let mk_not ce = CoreExpr.mk (mk_info bool_sort) (CoreExpr.Not ce)
+
+(** Errkind-propagating [mk_not]. *)
+let[@warning "-32"] mk_not' ce_r = Result.map mk_not ce_r
 
 (* Lift a plain FunSig/FunDef to an RF, creating fresh variables *)
 let lift_to_rf arg ret eff =
