@@ -1718,12 +1718,12 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
     return (checked_rpf, delta', Constraint.conj pos ct eq_ct)
 
 (* Core refined term synthesis: RS; Delta |-[eff] crt => Pf -| Delta' ~> Ct *)
-and synth_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : (checked_crt * (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t * RCtx.t * Constraint.typed_ct) ElabM.t =
+and synth_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : (checked_crt * ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t, Error.kind) result * RCtx.t * Constraint.typed_ct) ElabM.t =
   let* (checked, pf, delta', ct) = synth_crt_impl rs delta eff crt in
   let* () = assert_delta_below delta delta' in
   return (checked, pf, delta', ct)
 
-and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : (checked_crt * (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t * RCtx.t * Constraint.typed_ct) ElabM.t =
+and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : (checked_crt * ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t, Error.kind) result * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.crt_info crt in
   let pos = binfo#loc in
   match RefinedExpr.crt_shape crt with
@@ -1733,7 +1733,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let* (checked_crt', delta', ct) = check_crt rs delta eff crt' (Ok pf) in
     let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
     let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CAnnot (checked_crt', pf)) in
-    return (checked, pf, delta', ct)
+    return (checked, Ok pf, delta', ct)
 
   | RefinedExpr.CCall (f, spine) ->
     let* rf = lookup_rf_m ~loc:pos rs f in
@@ -1745,11 +1745,11 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       let rinfo = mk_rinfo_err ~goal:(RProg.CrtGoal pf) pos delta
                     (ProofSort.comp pf) eff err in
       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CCall (f, checked_spine)) in
-      return (checked, pf, delta', Constraint.top pos)
+      return (checked, Ok pf, delta', Constraint.top pos)
     end else
       let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CCall (f, checked_spine)) in
-      return (checked, pf, delta', ct)
+      return (checked, Ok pf, delta', ct)
 
   | RefinedExpr.CPrimApp (prim, spine) ->
     let* rf = rprim_signature prim in
@@ -1761,11 +1761,11 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       let rinfo = mk_rinfo_err ~goal:(RProg.CrtGoal pf) pos delta
                     (ProofSort.comp pf) eff err in
       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CPrimApp (prim, checked_spine)) in
-      return (checked, pf, delta', Constraint.top pos)
+      return (checked, Ok pf, delta', Constraint.top pos)
     end else
       let rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
       let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CPrimApp (prim, checked_spine)) in
-      return (checked, pf, delta', ct)
+      return (checked, Ok pf, delta', ct)
 
   | RefinedExpr.CIter (se_pred, pat, crt1, crt2) ->
     let iter_pos = binfo#loc in
@@ -1897,13 +1897,13 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let checked =
       RefinedExpr.mk_crt rinfo
         (RefinedExpr.CIter (ce_pred, typed_pat, checked_crt1, checked_crt2)) in
-    return (checked, result_pf, delta', result_ct)
+    return (checked, Ok result_pf, delta', result_ct)
 
   | RefinedExpr.CTuple spine ->
     let* (checked_spine, delta', ct) = _check_tuple rs delta eff spine [] in
     let rinfo = mk_rinfo pos delta (ProofSort.comp []) eff in
     let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CTuple checked_spine) in
-    return (checked, [], delta', ct)
+    return (checked, Ok [], delta', ct)
 
   | _ ->
     let err = Error.cannot_synthesize ~loc:binfo#loc
@@ -1911,11 +1911,12 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let placeholder_pf = [] in
     let placeholder_sort =
       Sort.mk (object method loc = binfo#loc end) Sort.Bool in
+    let err_k = Error.kind err in
     let rinfo = mk_rinfo_err ~goal:(RProg.CrtGoal placeholder_pf)
                   pos delta placeholder_sort eff err in
     let checked = RefinedExpr.mk_crt rinfo
       (RefinedExpr.CHole "crt-cannot-synthesize") in
-    return (checked, placeholder_pf, delta, Constraint.top pos)
+    return (checked, Error err_k, delta, Constraint.top pos)
 
 (* Core refined term checking: RS; Delta |-[eff] crt <= Pf -| Delta' ~> Ct *)
 and check_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t, Error.kind) result) : (checked_crt * RCtx.t * Constraint.typed_ct) ElabM.t =
@@ -1936,7 +1937,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
        as hypotheses for subsequent atoms. *)
     let* (checked_crt1, pf', delta1, ct) = synth_crt rs delta eff crt1 in
     let eff_pat = Effect.purify eff in
-    let* (typed_pat, delta2, ct_pat) = q_match rs delta1 eff_pat pat (Ok pf') in
+    let* (typed_pat, delta2, ct_pat) = q_match rs delta1 eff_pat pat pf' in
     let* (checked_crt2, delta3, ct2) = check_crt rs delta2 eff crt2 pf in
     let n = RCtx.length delta1 in
     let (delta_out, delta_pat_out) = RCtx.split n delta3 in
@@ -2194,11 +2195,11 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     return (checked, delta_out, ct_closed)
 
   | _ ->
-    let* (checked_crt, pf', delta', ct) = synth_crt rs delta eff crt in
+    let* (checked_crt, pf'_r, delta', ct) = synth_crt rs delta eff crt in
     let* (ct', pf_errs) =
-      match pf with
-      | Ok pf -> pf_eq pos rs delta' pf' pf
-      | Error _ -> return (Constraint.top pos, [])
+      match pf'_r, pf with
+      | Ok pf', Ok pf -> pf_eq pos rs delta' pf' pf
+      | _ -> return (Constraint.top pos, [])
     in
     let checked_crt = prepend_subterm_errors_crt pf_errs checked_crt in
     return (checked_crt, delta', Constraint.conj pos ct ct')
