@@ -1228,22 +1228,30 @@ and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce 
     return (checked_lpf, delta', Constraint.conj pos ct (Constraint.impl pos ce_synth (Constraint.atom pos ce)))
 
 (* Resource fact synthesis: RS; Delta |- rpf => ce @ ce' -| Delta' ~> Ct *)
-and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (checked_rpf * CoreExpr.typed_ce * CoreExpr.typed_ce * RCtx.t * Constraint.typed_ct) ElabM.t =
+and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (checked_rpf * (CoreExpr.typed_ce, Error.kind) result * (CoreExpr.typed_ce, Error.kind) result * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.rpf_info rpf in
   let pos = binfo#loc in
+  let placeholder_hole tag =
+    CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole tag) in
   match RefinedExpr.rpf_shape rpf with
   | RefinedExpr.RVar x ->
-    let* (pred, value, delta') = lift_at pos (RCtx.use_resource x delta) in
-    let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (pred, value)) pos delta bool_sort Effect.Spec in
+    let (pred_r, value_r, delta') = rctx_use_resource_e (Ok x) delta in
+    let goal_pred = Result.value pred_r ~default:(placeholder_hole "rvar-pred") in
+    let goal_value = Result.value value_r ~default:(placeholder_hole "rvar-value") in
+    let answer = answer_of_sort_kind_r ~loc:pos
+                   (Result.map (fun _ -> bool_sort)
+                      (errs_first [erase_ok pred_r; erase_ok value_r])) in
+    let rinfo =
+      mk_rinfo_with_answer
+        ~goal:(RProg.RpfGoal (goal_pred, goal_value))
+        pos delta bool_sort Effect.Spec answer in
     let checked = RefinedExpr.mk_rpf rinfo (RefinedExpr.RVar x) in
-    return (checked, pred, value, delta', Constraint.top pos)
+    return (checked, pred_r, value_r, delta', Constraint.top pos)
 
   | RefinedExpr.RAnnot (rpf', se1, se2) ->
     (* Per the [res] well-formedness rule (doc/syntax.ott:1325-1327):
        synth the value [ce2] to obtain τ, then check the predicate
-       [ce1] against sort [Pred τ]. Checking (not synth) gives
-       constructs like [take]/[case]/[return] enough context to
-       elaborate inside the annotation. *)
+       [ce1] against sort [Pred τ]. *)
     let gamma = RCtx.erase delta in
     let* (ce2, sort2_r) = elab_se rs gamma Effect.Spec se2 in
     let sort2 = Result.value sort2_r ~default:bool_sort in
@@ -1254,7 +1262,7 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (c
     let* (checked_rpf', delta', ct) = check_rpf rs delta rpf' (Ok ce1) (Ok ce2) in
     let rinfo = mk_rinfo ~goal:(RProg.RpfGoal (ce1, ce2)) pos delta bool_sort Effect.Spec in
     let checked = RefinedExpr.mk_rpf rinfo (RefinedExpr.RAnnot (checked_rpf', ce1, ce2)) in
-    return (checked, ce1, ce2, delta', ct)
+    return (checked, Ok ce1, Ok ce2, delta', ct)
 
   | RefinedExpr.RReturn _
   | RefinedExpr.RTake _
@@ -1278,37 +1286,31 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (c
       | RefinedExpr.RAnnotStrip _ -> "annot;"
       | _ -> "rpf"
     in
-    let err = Error.cannot_synthesize ~loc:pos
-                ~construct:(construct ^ " (add a : pred @ value annotation)") in
-    let placeholder_pred =
-      CoreExpr.mk (mk_info bool_sort)
-        (CoreExpr.Hole ("rpf-" ^ construct ^ "-unsynth-pred")) in
-    let placeholder_value =
-      CoreExpr.mk (mk_info bool_sort)
-        (CoreExpr.Hole ("rpf-" ^ construct ^ "-unsynth-value")) in
+    let err_t = Error.cannot_synthesize ~loc:pos
+                  ~construct:(construct ^ " (add a : pred @ value annotation)") in
+    let err_k = Error.kind err_t in
+    let placeholder_pred = placeholder_hole ("rpf-" ^ construct ^ "-unsynth-pred") in
+    let placeholder_value = placeholder_hole ("rpf-" ^ construct ^ "-unsynth-value") in
     let rinfo = mk_rinfo_err
       ~goal:(RProg.RpfGoal (placeholder_pred, placeholder_value))
-      pos delta bool_sort Effect.Spec err in
+      pos delta bool_sort Effect.Spec err_t in
     let placeholder =
       RefinedExpr.mk_rpf rinfo
         (RefinedExpr.RHole (construct ^ "-unsynth")) in
-    return (placeholder, placeholder_pred, placeholder_value, delta,
+    return (placeholder, Error err_k, Error err_k, delta,
             Constraint.top pos)
   | RefinedExpr.RHole h ->
-    let err = Error.cannot_synthesize ~loc:pos
-                ~construct:"hole (add a : pred @ value annotation)" in
-    let placeholder_pred =
-      CoreExpr.mk (mk_info bool_sort)
-        (CoreExpr.Hole "rpf-hole-unsynth-pred") in
-    let placeholder_value =
-      CoreExpr.mk (mk_info bool_sort)
-        (CoreExpr.Hole "rpf-hole-unsynth-value") in
+    let err_t = Error.cannot_synthesize ~loc:pos
+                  ~construct:"hole (add a : pred @ value annotation)" in
+    let err_k = Error.kind err_t in
+    let placeholder_pred = placeholder_hole "rpf-hole-unsynth-pred" in
+    let placeholder_value = placeholder_hole "rpf-hole-unsynth-value" in
     let rinfo = mk_rinfo_err
       ~goal:(RProg.RpfGoal (placeholder_pred, placeholder_value))
-      pos delta bool_sort Effect.Spec err in
+      pos delta bool_sort Effect.Spec err_t in
     let checked =
       RefinedExpr.mk_rpf rinfo (RefinedExpr.RHole h) in
-    return (checked, placeholder_pred, placeholder_value, delta,
+    return (checked, Error err_k, Error err_k, delta,
             Constraint.top pos)
 
 (* Resource fact checking: RS; Delta |- rpf <= ce @ ce' -| Delta' ~> Ct *)
@@ -1386,11 +1388,12 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
        rpf1 r==> ce_a' @ ce_w (synth);  rpf2 r<== ce_b[ce_w/x] @ ce2 (check). *)
     let (x_r, ce_a_r, ce_b_r) =
       view_get_take_ce' ~construct:"take rpf" (strip_annots' ce1) in
-    let* (checked_rpf1, ce_a_synth, ce_w, delta1, ct1) =
+    let* (checked_rpf1, ce_a_synth_r, ce_w_r, delta1, ct1) =
       synth_rpf rs delta rpf1 in
-    let ct_a_eq = Constraint.atom' pos (mk_eq' (Ok ce_a_synth) ce_a_r) in
-    let ce_w_sort = (CoreExpr.sort_of_info (CoreExpr.info ce_w)) in
-    let ce_w_annot_r = mk_annot_e (Ok ce_w) (Ok ce_w_sort) in
+    let ct_a_eq = Constraint.atom' pos (mk_eq' ce_a_synth_r ce_a_r) in
+    let ce_w_sort_r = Result.map
+      (fun ce -> CoreExpr.sort_of_info (CoreExpr.info ce)) ce_w_r in
+    let ce_w_annot_r = mk_annot_e ce_w_r ce_w_sort_r in
     let sub_r = Subst.extend_var' x_r ce_w_annot_r Subst.empty' in
     let ce_b_subst_r = Subst.apply_ce' sub_r ce_b_r in
     let* (checked_rpf2, delta2, ct2) =
@@ -1687,11 +1690,11 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
     return (checked, delta', ct)
 
   | _ ->
-    let* (checked_rpf, ce1_synth, ce2_synth, delta', ct) = synth_rpf rs delta rpf in
+    let* (checked_rpf, ce1_synth_r, ce2_synth_r, delta', ct) = synth_rpf rs delta rpf in
     let eq_ct =
       Constraint.conj pos
-        (Constraint.atom' pos (mk_eq' (Ok ce1_synth) ce1))
-        (Constraint.atom' pos (mk_eq' (Ok ce2_synth) ce2)) in
+        (Constraint.atom' pos (mk_eq' ce1_synth_r ce1))
+        (Constraint.atom' pos (mk_eq' ce2_synth_r ce2)) in
     return (checked_rpf, delta', Constraint.conj pos ct eq_ct)
 
 (* Core refined term synthesis: RS; Delta |-[eff] crt => Pf -| Delta' ~> Ct *)
@@ -1976,8 +1979,12 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     (* Per [doc/extended-resource-terms.md] let-res rule:
        Synthesize rpf to get ce@ce', pattern-match rpat against ce@ce'[res],
        check body, verify resource consumption, close constraints. *)
-    let* (checked_rpf, ce_pred, ce_val, delta1, ct) = synth_rpf rs delta rpf in
+    let* (checked_rpf, ce_pred_r, ce_val_r, delta1, ct) = synth_rpf rs delta rpf in
     let eff_pat = Effect.purify eff in
+    let placeholder_hole tag =
+      CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole tag) in
+    let ce_pred = Result.value ce_pred_r ~default:(placeholder_hole "letres-pred") in
+    let ce_val = Result.value ce_val_r ~default:(placeholder_hole "letres-value") in
     let pf_res = [ProofSort.Res { info = rinfo_dummy; pred = ce_pred; value = ce_val }] in
     let rp_b = RPat.rpat_info rp in
     let* (typed_q, delta2, ct_pat) =
@@ -2220,8 +2227,11 @@ and check_spine_inner rs delta eff spine domain codomain =
     return (checked, result_pf, delta'', Constraint.conj pos ct ct')
 
   | RefinedExpr.SRes (rpf, rest), (ProofSort.DepRes { info = _; bound_var; pred } :: pf_rest) ->
-    let* (checked_rpf, ce_pred_synth, ce_value, delta', ct) = synth_rpf rs delta rpf in
-    let eq_ct = Constraint.atom pos (mk_eq pred ce_pred_synth) in
+    let* (checked_rpf, ce_pred_synth_r, ce_value_r, delta', ct) = synth_rpf rs delta rpf in
+    let eq_ct = Constraint.atom' pos (mk_eq' (Ok pred) ce_pred_synth_r) in
+    let placeholder_hole tag =
+      CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole tag) in
+    let ce_value = Result.value ce_value_r ~default:(placeholder_hole "depres-value") in
     let pf_rest' = ProofSort.subst bound_var ce_value pf_rest in
     let codomain' = ProofSort.subst bound_var ce_value codomain in
     let* (checked_rest, result_pf, delta'', ct') = check_spine_inner rs delta' eff rest pf_rest' codomain' in
@@ -2277,8 +2287,11 @@ and _check_tuple rs delta eff spine pf =
     return (checked, delta'', Constraint.conj pos ct ct')
 
   | RefinedExpr.SRes (rpf, rest), (ProofSort.DepRes { info = _; bound_var; pred } :: pf_rest) ->
-    let* (checked_rpf, ce_pred_synth, ce_value, delta', ct) = synth_rpf rs delta rpf in
-    let eq_ct = Constraint.atom pos (mk_eq pred ce_pred_synth) in
+    let* (checked_rpf, ce_pred_synth_r, ce_value_r, delta', ct) = synth_rpf rs delta rpf in
+    let eq_ct = Constraint.atom' pos (mk_eq' (Ok pred) ce_pred_synth_r) in
+    let placeholder_hole tag =
+      CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole tag) in
+    let ce_value = Result.value ce_value_r ~default:(placeholder_hole "tuple-depres-value") in
     let pf_rest' = ProofSort.subst bound_var ce_value pf_rest in
     let* (checked_rest, delta'', ct') = _check_tuple rs delta' eff rest pf_rest' in
     let checked = RefinedExpr.mk_spine tuple_rinfo (RefinedExpr.SRes (checked_rpf, checked_rest)) in
