@@ -18,6 +18,7 @@ fun length (xs : Lst(Int)) -> Int [spec] =
     | Cons p -> let (x, xs') = p; 1 + length(xs')
   }
 
+
 // Sequence the heap-allocated list into a spec Lst.
 fun sequence (p : Ptr(List(Int))) -> Pred Lst(Int) [spec] =
   take v = Own[List(Int)](p);
@@ -27,6 +28,8 @@ fun sequence (p : Ptr(List(Int))) -> Pred Lst(Int) [spec] =
                    take xs = sequence(q);
                    return (Cons (x, xs))
   }
+
+
 
 // Refined length: walks the heap list, returns (len, proof, resource).
 //
