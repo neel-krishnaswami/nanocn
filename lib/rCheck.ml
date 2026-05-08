@@ -2090,23 +2090,23 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let ce_sort = Result.value ce_sort_r ~default:bool_sort in
     (match Sort.shape ce_sort with
      | Sort.App (dsort_name, args) ->
-       let* decl =
-         ElabM.lift_at pos (Sig.lookup_dsort_or_type dsort_name cs) in
-       (* Instantiate the declared ctor sorts with the scrutinee's type
-          arguments so [Cons : (a * List(a))] on a [List(Int)] scrutinee
-          binds its payload at [(Int * List(Int))], not the generic
-          [(a * List(a))]. *)
-       let instantiate_ctors params ctors =
-         let* subst = ElabM.lift_at pos (Subst.of_lists params args) in
-         return (List.map (fun (l, s) -> (l, Subst.apply subst s)) ctors)
+       (* Look up the datatype declaration (errkind), then instantiate
+          its ctor sorts with the scrutinee's type arguments so
+          [Cons : (a * List(a))] on a [List(Int)] scrutinee binds its
+          payload at [(Int * List(Int))], not the generic
+          [(a * List(a))].  Errkind threads through both lookups; on
+          [Error] [ctors] is empty and [check_case_branches] reports
+          a per-branch label-not-found cascade. *)
+       let decl_r = sig_lookup_dsort_or_type_e cs (Ok dsort_name) in
+       let ctors_r =
+         Result.bind decl_r (fun decl ->
+           let (params, ctors) = match decl with
+             | Sig.LSortDecl d -> (d.DsortDecl.params, d.DsortDecl.ctors)
+             | Sig.LTypeDecl d -> (d.DtypeDecl.params, d.DtypeDecl.ctors) in
+           Result.bind (Subst.of_lists params args) (fun subst ->
+             Ok (List.map (fun (l, s) -> (l, Subst.apply subst s)) ctors)))
        in
-       let* ctors =
-         match decl with
-         | Sig.LSortDecl decl ->
-           instantiate_ctors decl.DsortDecl.params decl.DsortDecl.ctors
-         | Sig.LTypeDecl decl ->
-           instantiate_ctors decl.DtypeDecl.params decl.DtypeDecl.ctors
-       in
+       let ctors = Result.value ctors_r ~default:[] in
        let* (checked_branches, delta', ct, merge_errs) =
          check_case_branches pos rs delta eff _y ce ce_sort ctors branches pf in
        let rinfo = mk_crt_rinfo ~loc:pos delta pf eff in
