@@ -30,22 +30,16 @@ fun sequence (p : Ptr(List(Int))) -> Pred Lst(Int) [spec] =
 
 // Refined length: walks the heap list, returns (len, proof, resource).
 //
-// This example is being rewritten for the new resource-term syntax
-// (return / take / unfold; / annot; replacing make-ret / make-take /
-// unfold rpf).  The new [take(rpf1, rpf2)] form takes two rpfs (the
-// witness and the body) where the OLD [make-take] took a CRT tuple.
-// The proof needs reconstruction in the new style — for now [len2]
-// uses [res unfold; take(v, own); rest = r] (the rpat side, which
-// destructures), and the rpf side of the proof still has $holes
-// where the new [take(_,_)] reconstruction goes.
-rfun len2
+rfun len
     (p : Ptr(List(Int)),
      [res] r : (do xs : Lst(Int) = sequence(p)))
   -> (n : Int,
       [log] (n == length(xs)),
-      [res] sequence(p)@xs)
+      [res] sequence(p)@xs
+     )
   [impure] =
   let res unfold; take(v, own); rest = r;
+  let log unfold_axiom = unfold length(xs); 
   let (val, log pf, res own) = Get[List(Int)] (p, res own);
   case[val_eq] val of {
     Nil u -> let res case[foo] Nil(); let[u_eq] y; return[eq] = rest;
@@ -69,7 +63,7 @@ rfun len2
 		      let[b0] xs4;
 		      return[b1]
                = rest; 
-              let (m, log pf, res seq') = len2(q, res seq);
+              let (m, log pf, res seq') = len(q, res seq);
 	      (m+1, log auto, res unfold; 
                                   take(own,
 	                               let[a1] v1;
@@ -78,7 +72,9 @@ rfun len2
                                        let[a4] v3;
                                        let[a5] v4;
                                        let[a6] (v5, v6);
-                                       $hole) )
+                                       let[a7] x3;
+                                       let[a8] q'';
+                                       take(seq', let[a9] xs5; return auto)) )
   }
 
 
