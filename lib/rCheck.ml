@@ -184,6 +184,80 @@ let[@warning "-32"] zip3_kind (a, b, c) =
   | Ok a, Ok b, Ok c -> Ok (a, b, c)
   | Error e, _, _ | _, Error e, _ | _, _, Error e -> Error e
 
+(** {2 Errkind-input view wrappers}
+
+    Same shape as [view_get_X_ce] but accept a [ce errkind] instead of
+    a plain [ce] — when the input is [Error], every component is
+    [Error] (same kind).  Used in typechecker rules that thread
+    errkinds through; consumers stay match-free. *)
+
+let[@warning "-32"] view_get_return_ce' ~construct
+    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
+    : (CoreExpr.typed_ce, Error.kind) result =
+  match ce_r with
+  | Error e -> Error e
+  | Ok ce -> view_get_return_ce ~construct ce
+
+let[@warning "-32"] view_get_take_ce' ~construct
+    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
+    : (Var.t, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result =
+  match ce_r with
+  | Error e -> (Error e, Error e, Error e)
+  | Ok ce -> view_get_take_ce ~construct ce
+
+let[@warning "-32"] view_get_let_ce' ~construct
+    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
+    : (Var.t, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result =
+  match ce_r with
+  | Error e -> (Error e, Error e, Error e)
+  | Ok ce -> view_get_let_ce ~construct ce
+
+let[@warning "-32"] view_get_let_tuple_ce' ~construct
+    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
+    : (Var.t list, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result =
+  match ce_r with
+  | Error e -> (Error e, Error e, Error e)
+  | Ok ce -> view_get_let_tuple_ce ~construct ce
+
+let[@warning "-32"] view_get_if_ce' ~construct
+    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
+    : (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result =
+  match ce_r with
+  | Error e -> (Error e, Error e, Error e)
+  | Ok ce -> view_get_if_ce ~construct ce
+
+let[@warning "-32"] view_get_call_ce' ~construct
+    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
+    : (string, Error.kind) result
+    * (CoreExpr.typed_ce, Error.kind) result =
+  match ce_r with
+  | Error e -> (Error e, Error e)
+  | Ok ce -> view_get_call_ce ~construct ce
+
+let[@warning "-32"] view_get_fail_ce' ~construct
+    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
+    : (unit, Error.kind) result =
+  match ce_r with
+  | Error e -> Error e
+  | Ok ce -> view_get_fail_ce ~construct ce
+
+let[@warning "-32"] view_get_case_ce' ~construct
+    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
+    : (CoreExpr.typed_ce, Error.kind) result
+    * ((Label.t * Var.t * CoreExpr.typed_ce * CoreExpr.typed_info) list,
+       Error.kind) result =
+  match ce_r with
+  | Error e -> (Error e, Error e)
+  | Ok ce -> view_get_case_ce ~construct ce
+
 (** {2 ProofSortView wrappers — local option→result helpers}
 
     Lift [ProofSortView.Get.*] from option-typed to result-typed, using

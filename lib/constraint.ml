@@ -44,6 +44,28 @@ let forall_ pos x sort ct = In (loc pos, Forall (x, sort, ct))
 let atom pos ce = In (loc pos, Atom ce)
 let is_ pos label ce = In (loc pos, Is (label, ce))
 
+(* Error-propagating smart constructors: an [Error] payload collapses
+   the constraint to its semantic identity (no new obligation, no new
+   binder/antecedent). *)
+
+let atom' pos = function
+  | Ok ce -> atom pos ce
+  | Error _ -> top pos
+
+let is_' pos label = function
+  | Ok ce -> is_ pos label ce
+  | Error _ -> top pos
+
+let impl' pos ce_r body =
+  match ce_r with
+  | Ok ce -> impl pos ce body
+  | Error _ -> body
+
+let forall_' pos x_r tau_r body =
+  match x_r, tau_r with
+  | Ok x, Ok tau -> forall_ pos x tau body
+  | _ -> body
+
 let rec print_gen pp_var fmt ct =
   match shape ct with
   | Top -> Format.fprintf fmt "⊤"

@@ -43,6 +43,37 @@ val forall_ : SourcePos.t -> Var.t -> Sort.sort -> ('e, < loc : SourcePos.t >) t
 val atom : SourcePos.t -> 'e -> ('e, < loc : SourcePos.t >) t
 val is_ : SourcePos.t -> Label.t -> 'e -> ('e, < loc : SourcePos.t >) t
 
+(** {1 Error-propagating smart constructors}
+
+    Same shape as the unprimed forms but accept errkind inputs.  When
+    a key payload is [Error _], the constructor folds to a constraint
+    that contributes nothing — typically [Top] for [Atom]/[Is] and
+    "drop the binder/antecedent" for [Forall]/[Impl] — so error
+    propagation never invents a spurious obligation.  Polymorphic in
+    the [Result]'s error type. *)
+
+val atom' :
+  SourcePos.t -> ('e_ce, _) result -> ('e_ce, < loc : SourcePos.t >) t
+(** [atom' pos ce_r] is [atom pos ce] when [ce_r = Ok ce], else [top pos]. *)
+
+val is_' :
+  SourcePos.t -> Label.t -> ('e_ce, _) result ->
+  ('e_ce, < loc : SourcePos.t >) t
+(** [is_' pos l ce_r] is [is_ pos l ce] when [ce_r = Ok ce], else [top pos]. *)
+
+val impl' :
+  SourcePos.t -> ('e_ce, _) result ->
+  ('e_ce, < loc : SourcePos.t >) t -> ('e_ce, < loc : SourcePos.t >) t
+(** [impl' pos ce_r body] is [impl pos ce body] when [ce_r = Ok ce],
+    else [body] — a missing antecedent collapses to its consequent. *)
+
+val forall_' :
+  SourcePos.t -> (Var.t, _) result -> (Sort.sort, _) result ->
+  ('e, < loc : SourcePos.t >) t -> ('e, < loc : SourcePos.t >) t
+(** [forall_' pos x_r tau_r body] is [forall_ pos x tau body] when both
+    [x_r] and [tau_r] are [Ok]; else [body] — a missing binder or sort
+    collapses to its body. *)
+
 (** {1 Printing} *)
 
 val print_gen : (Format.formatter -> Var.t -> unit) -> Format.formatter -> (_ CoreExpr.t, _) t -> unit

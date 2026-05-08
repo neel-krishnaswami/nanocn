@@ -132,6 +132,30 @@ let compose gamma0 gamma1 =
     | TM (x, e) -> TM (x, apply_ce gamma0 e))
     gamma1
 
+(* ---------- Error-propagating variants ---------- *)
+
+let empty' = Ok empty
+
+let extend_tvar' tvar_r sort_r sub_r =
+  match tvar_r, sort_r, sub_r with
+  | Error e, _, _ | _, Error e, _ | _, _, Error e -> Error e
+  | Ok tvar, Ok sort, Ok sub -> Ok (extend_tvar tvar sort sub)
+
+let extend_var' var_r ce_r sub_r =
+  match var_r, ce_r, sub_r with
+  | Error e, _, _ | _, Error e, _ | _, _, Error e -> Error e
+  | Ok var, Ok ce, Ok sub -> Ok (extend_var var ce sub)
+
+let apply' sub_r sort_r =
+  match sub_r, sort_r with
+  | Error e, _ | _, Error e -> Error e
+  | Ok sub, Ok sort -> Ok (apply sub sort)
+
+let apply_ce' sub_r ce_r =
+  match sub_r, ce_r with
+  | Error e, _ | _, Error e -> Error e
+  | Ok sub, Ok ce -> Ok (apply_ce sub ce)
+
 let compare s1 s2 =
   let compare_entry e1 e2 =
     match e1, e2 with
