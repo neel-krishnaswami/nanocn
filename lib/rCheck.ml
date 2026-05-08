@@ -1203,29 +1203,38 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
   | RefinedExpr.LAnnot (lpf', se) ->
     let gamma = RCtx.erase delta in
     let* ce = elab_se_check rs gamma se bool_sort Effect.Spec in
-    let* (checked_lpf', delta', ct) = check_lpf rs delta lpf' ce in
+    let* (checked_lpf', delta', ct) = check_lpf rs delta lpf' (Ok ce) in
     let rinfo = mk_rinfo ~goal:(RProg.LpfGoal ce) pos delta bool_sort Effect.Spec in
     let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LAnnot (checked_lpf', ce)) in
     return (checked, ce, delta', ct)
 
 (* Logical fact checking: RS; Delta |- lpf <= ce -| Delta' ~> Ct *)
-and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce : CoreExpr.typed_ce) : (checked_lpf * RCtx.t * Constraint.typed_ct) ElabM.t =
+and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce : (CoreExpr.typed_ce, Error.kind) result) : (checked_lpf * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.lpf_info lpf in
   let pos = binfo#loc in
+  let placeholder_hole =
+    CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole "lpf-arg-hole") in
+  let ce_p = Result.value ce ~default:placeholder_hole in
+  let goal = RProg.LpfGoal ce_p in
   match RefinedExpr.lpf_shape lpf with
   | RefinedExpr.LAuto ->
-    let rinfo = mk_rinfo ~goal:(RProg.LpfGoal ce) pos delta bool_sort Effect.Spec in
+    let answer = answer_of_sort_kind_r ~loc:pos
+                   (Result.map (fun _ -> bool_sort) ce) in
+    let rinfo =
+      mk_rinfo_with_answer ~goal pos delta bool_sort Effect.Spec answer in
     let checked = RefinedExpr.mk_lpf rinfo RefinedExpr.LAuto in
-    return (checked, delta, Constraint.atom pos ce)
+    return (checked, delta, Constraint.atom' pos ce)
 
   | RefinedExpr.LHole h ->
-    let rinfo = mk_rinfo ~goal:(RProg.LpfGoal ce) pos delta bool_sort Effect.Spec in
+    let rinfo = mk_rinfo ~goal pos delta bool_sort Effect.Spec in
     let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LHole h) in
     return (checked, delta, Constraint.top pos)
 
   | _ ->
     let* (checked_lpf, ce_synth, delta', ct) = synth_lpf rs delta lpf in
-    return (checked_lpf, delta', Constraint.conj pos ct (Constraint.impl pos ce_synth (Constraint.atom pos ce)))
+    return (checked_lpf, delta',
+            Constraint.conj pos ct
+              (Constraint.impl' pos (Ok ce_synth) (Constraint.atom' pos ce)))
 
 (* Resource fact synthesis: RS; Delta |- rpf => ce @ ce' -| Delta' ~> Ct *)
 and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (checked_rpf * (CoreExpr.typed_ce, Error.kind) result * (CoreExpr.typed_ce, Error.kind) result * RCtx.t * Constraint.typed_ct) ElabM.t =
@@ -1370,11 +1379,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
     let ret_ce_r =
       view_get_return_ce' ~construct:"return rpf" (strip_annots' ce1) in
     let eq_prop_r = mk_eq' ret_ce_r ce2 in
-    let placeholder_eq =
-      CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole "return-eq-prop") in
-    let eq_prop = Result.value eq_prop_r ~default:placeholder_eq in
-    let* (checked_lpf, delta', ct) = check_lpf rs delta lpf eq_prop in
-    let ct = ct_unless_err eq_prop_r ct pos in
+    let* (checked_lpf, delta', ct) = check_lpf rs delta lpf eq_prop_r in
     let answer = answer_of_sort_kind_r ~loc:pos
                    (Result.map (fun _ -> bool_sort) eq_prop_r) in
     let rinfo =
@@ -1417,7 +1422,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
       view_get_fail_ce' ~construct:"fail rpf" (strip_annots' ce1) in
     let false_ce =
       CoreExpr.mk (mk_info bool_sort) (CoreExpr.BoolLit false) in
-    let* (checked_lpf, delta', ct) = check_lpf rs delta lpf false_ce in
+    let* (checked_lpf, delta', ct) = check_lpf rs delta lpf (Ok false_ce) in
     let delta'' = RCtx.affinize delta' in
     let answer = answer_of_sort_kind_r ~loc:pos
                    (Result.map (fun () -> bool_sort) fail_check) in
@@ -2215,7 +2220,7 @@ and check_spine_inner rs delta eff spine domain codomain =
     return (checked, codomain, delta, Constraint.top pos)
 
   | RefinedExpr.SLog (lpf, rest), (ProofSort.Log { info = _; prop } :: pf_rest) ->
-    let* (checked_lpf, delta', ct) = check_lpf rs delta lpf prop in
+    let* (checked_lpf, delta', ct) = check_lpf rs delta lpf (Ok prop) in
     let* (checked_rest, result_pf, delta'', ct') = check_spine_inner rs delta' eff rest pf_rest codomain in
     let checked = RefinedExpr.mk_spine spine_rinfo (RefinedExpr.SLog (checked_lpf, checked_rest)) in
     return (checked, result_pf, delta'', Constraint.conj pos ct ct')
@@ -2275,7 +2280,7 @@ and _check_tuple rs delta eff spine pf =
     return (checked, delta', ct)
 
   | RefinedExpr.SLog (lpf, rest), (ProofSort.Log { info = _; prop } :: pf_rest) ->
-    let* (checked_lpf, delta', ct) = check_lpf rs delta lpf prop in
+    let* (checked_lpf, delta', ct) = check_lpf rs delta lpf (Ok prop) in
     let* (checked_rest, delta'', ct') = _check_tuple rs delta' eff rest pf_rest in
     let checked = RefinedExpr.mk_spine tuple_rinfo (RefinedExpr.SLog (checked_lpf, checked_rest)) in
     return (checked, delta'', Constraint.conj pos ct ct')
