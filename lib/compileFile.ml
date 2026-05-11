@@ -107,13 +107,17 @@ type rfile_outcome = {
   constraints : Constraint.typed_ct;
   diagnostics : Error.t list;
   hover       : HoverIndex.t;
+  decls       : RProg.raw_parsed_decl list;
+  main_loc    : SourcePos.t option;
 }
 
-let empty_rfile_outcome diags =
+let empty_rfile_outcome ?(decls = []) ?main_loc diags =
   { final_rsig = RSig.empty;
     constraints = Constraint.top SourcePos.dummy;
     diagnostics = diags;
-    hover = HoverIndex.empty }
+    hover = HoverIndex.empty;
+    decls;
+    main_loc }
 
 (** Per-decl accumulator for refined-program compilation.  Threads
     [Var.supply] (since rCheck judgements still allocate fresh
@@ -149,25 +153,29 @@ let check_one_rdecl acc resolved_decl : rdecl_acc =
     { acc with rdiags_rev = invariant_to_error info :: acc.rdiags_rev }
 
 let compile_rfile source ~file =
+  let parsed = ParseResilient.parse_rprog_resilient source ~file in
+  let parsed_decls = List.filter_map (function
+    | ParseResilient.Parsed d -> Some d
+    | ParseResilient.Failed _ -> None
+  ) parsed.rdecls in
+  let main_loc = match parsed.rmain with
+    | Some (Ok p) -> Some p.RProg.loc
+    | Some (Error _) | None -> None
+  in
   try
-    let parsed = ParseResilient.parse_rprog_resilient source ~file in
     match parsed.errors with
     | _ :: _ ->
-      empty_rfile_outcome parsed.errors
+      empty_rfile_outcome ~decls:parsed_decls ?main_loc parsed.errors
     | [] ->
-      let decls = List.filter_map (function
-        | ParseResilient.Parsed d -> Some d
-        | ParseResilient.Failed _ -> None
-      ) parsed.rdecls in
       match parsed.rmain with
       | None ->
-        empty_rfile_outcome
+        empty_rfile_outcome ~decls:parsed_decls ?main_loc
           [Error.parse_error ~loc:None ~msg:"missing `main` declaration"]
       | Some (Error e) ->
-        empty_rfile_outcome [e]
+        empty_rfile_outcome ~decls:parsed_decls ?main_loc [e]
       | Some (Ok main_prog) ->
         let full_prog : RProg.raw_parsed = {
-          decls;
+          decls = parsed_decls;
           main_pf = main_prog.RProg.main_pf;
           main_eff = main_prog.RProg.main_eff;
           main_body = main_prog.RProg.main_body;
@@ -204,7 +212,9 @@ let compile_rfile source ~file =
           { final_rsig = acc.rsig;
             constraints = acc.ct_acc;
             diagnostics = List.rev acc.rdiags_rev;
-            hover = HoverIndex.empty }
+            hover = HoverIndex.empty;
+            decls = parsed_decls;
+            main_loc }
         else begin
           (* All decls succeeded.  Run the existing check_rprog
              for main + typed_prog assembly. *)
@@ -222,10 +232,13 @@ let compile_rfile source ~file =
           { final_rsig = rsig;
             constraints = ct;
             diagnostics = rprog_errs;
-            hover = HoverIndex.of_typed_rprog typed_prog }
+            hover = HoverIndex.of_typed_rprog typed_prog;
+            decls = parsed_decls;
+            main_loc }
         end
   with Util.Invariant_failure info ->
-    empty_rfile_outcome [invariant_to_error info]
+    empty_rfile_outcome ~decls:parsed_decls ?main_loc
+      [invariant_to_error info]
 
 module Test = struct
   let test = []

@@ -350,7 +350,28 @@ let handle_document_symbol (doc : doc_state) _params : Lsp.Types.DocumentSymbol.
         Some (mk_symbol (Format.asprintf "%a" Dsort.print d.DtypeDecl.name)
                 Lsp.Types.SymbolKind.Class d.DtypeDecl.loc)
     ) o.typed_decls
-  | None -> []
+  | None ->
+    match doc.rfile with
+    | None -> []
+    | Some r ->
+      let decl_syms = List.filter_map (fun decl ->
+        match decl with
+        | RProg.FunDecl { name; loc; _ } ->
+          Some (mk_symbol name Lsp.Types.SymbolKind.Function loc)
+        | RProg.RFunDecl { name; loc; _ } ->
+          Some (mk_symbol name Lsp.Types.SymbolKind.Function loc)
+        | RProg.SortDecl d ->
+          Some (mk_symbol (Format.asprintf "%a" Dsort.print d.DsortDecl.name)
+                  Lsp.Types.SymbolKind.Struct d.DsortDecl.loc)
+        | RProg.TypeDecl d ->
+          Some (mk_symbol (Format.asprintf "%a" Dsort.print d.DtypeDecl.name)
+                  Lsp.Types.SymbolKind.Class d.DtypeDecl.loc)
+      ) r.decls in
+      let main_syms = match r.main_loc with
+        | Some loc -> [mk_symbol "main" Lsp.Types.SymbolKind.Function loc]
+        | None -> []
+      in
+      decl_syms @ main_syms
 
 (* ==================================================================
    Main loop

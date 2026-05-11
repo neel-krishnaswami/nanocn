@@ -32,6 +32,12 @@ type rfile_outcome = {
   constraints : Constraint.typed_ct;
   diagnostics : Error.t list;
   hover       : HoverIndex.t;
+  decls       : RProg.raw_parsed_decl list;
+    (** Successfully-parsed top-level declarations, in source order.
+        Populated regardless of typechecking outcome so consumers like
+        [documentSymbol] can locate decls even in broken files. *)
+  main_loc    : SourcePos.t option;
+    (** Source location of the [main] block, if it parsed. *)
 }
 
 val compile_rfile :
