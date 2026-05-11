@@ -109,6 +109,7 @@ type rfile_outcome = {
   hover       : HoverIndex.t;
   decls       : RProg.raw_parsed_decl list;
   main_loc    : SourcePos.t option;
+  typed_rprog : RProg.typed option;
 }
 
 let empty_rfile_outcome ?(decls = []) ?main_loc diags =
@@ -117,7 +118,8 @@ let empty_rfile_outcome ?(decls = []) ?main_loc diags =
     diagnostics = diags;
     hover = HoverIndex.empty;
     decls;
-    main_loc }
+    main_loc;
+    typed_rprog = None }
 
 (** Per-decl accumulator for refined-program compilation.  Threads
     [Var.supply] (since rCheck judgements still allocate fresh
@@ -214,7 +216,8 @@ let compile_rfile source ~file =
             diagnostics = List.rev acc.rdiags_rev;
             hover = HoverIndex.empty;
             decls = parsed_decls;
-            main_loc }
+            main_loc;
+            typed_rprog = None }
         else begin
           (* All decls succeeded.  Run the existing check_rprog
              for main + typed_prog assembly. *)
@@ -234,7 +237,8 @@ let compile_rfile source ~file =
             diagnostics = rprog_errs;
             hover = HoverIndex.of_typed_rprog typed_prog;
             decls = parsed_decls;
-            main_loc }
+            main_loc;
+            typed_rprog = Some typed_prog }
         end
   with Util.Invariant_failure info ->
     empty_rfile_outcome ~decls:parsed_decls ?main_loc

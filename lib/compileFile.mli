@@ -38,6 +38,10 @@ type rfile_outcome = {
         [documentSymbol] can locate decls even in broken files. *)
   main_loc    : SourcePos.t option;
     (** Source location of the [main] block, if it parsed. *)
+  typed_rprog : RProg.typed option;
+    (** Fully typed refined program, when the file typechecked
+        cleanly.  Consumers such as [PatternExpand] walk this AST
+        to drive type-directed code actions. *)
 }
 
 val compile_rfile :

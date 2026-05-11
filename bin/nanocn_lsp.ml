@@ -263,6 +263,7 @@ let handle_initialize _params : Lsp.Types.InitializeResult.t =
     ~hoverProvider:(`Bool true)
     ~definitionProvider:(`Bool true)
     ~documentSymbolProvider:(`Bool true)
+    ~codeActionProvider:(`Bool true)
     ()
   in
   Lsp.Types.InitializeResult.create ~capabilities ()
@@ -383,6 +384,56 @@ let handle_document_symbol (doc : doc_state) _params : Lsp.Types.DocumentSymbol.
    Main loop
    ================================================================== *)
 
+(** Convert a [SourcePos.t] to an LSP [Range.t].
+    [SourcePos] is 1-based on lines and 0-based on columns; LSP is
+    0-based on both.  Same convention as [error_to_lsp_diagnostic]. *)
+let range_of_pos (loc : SourcePos.t) : Lsp.Types.Range.t =
+  let start_line = max 0 (SourcePos.start_line loc - 1) in
+  let end_line   = max 0 (SourcePos.end_line   loc - 1) in
+  { Lsp.Types.Range.start =
+      { line = start_line; character = SourcePos.start_col loc };
+    end_ =
+      { line = end_line; character = SourcePos.end_col loc } }
+
+let to_lsp_code_action uri (a : PatternExpand.action) : Lsp.Types.CodeAction.t =
+  let text_edits =
+    List.map (fun (e : PatternExpand.edit) ->
+      Lsp.Types.TextEdit.create
+        ~newText:e.new_text
+        ~range:(range_of_pos e.range)
+    ) a.edits
+  in
+  let workspace_edit =
+    Lsp.Types.WorkspaceEdit.create
+      ~changes:[ (uri, text_edits) ]
+      ()
+  in
+  Lsp.Types.CodeAction.create
+    ~title:a.title
+    ~kind:Lsp.Types.CodeActionKind.RefactorRewrite
+    ~edit:workspace_edit
+    ()
+
+let handle_code_action
+    (doc_opt : doc_state option)
+    (params : Lsp.Types.CodeActionParams.t) =
+  let line = params.range.start.line + 1 in
+  let col  = params.range.start.character in
+  let uri = params.textDocument.uri in
+  match doc_opt with
+  | None -> []
+  | Some doc ->
+    (match doc.rfile with
+     | None -> []
+     | Some r ->
+       (match r.typed_rprog with
+        | None -> []
+        | Some prog ->
+          let actions =
+            PatternExpand.actions_at prog ~file:doc.file ~line ~col
+          in
+          List.map (fun a -> `CodeAction (to_lsp_code_action uri a)) actions))
+
 let handle_request : type a. doc_state option -> a Lsp.Client_request.t -> a =
   fun doc_opt req ->
   match req with
@@ -401,6 +452,9 @@ let handle_request : type a. doc_state option -> a Lsp.Client_request.t -> a =
        let syms = handle_document_symbol doc params in
        Some (`DocumentSymbol syms)
      | None -> None)
+  | Lsp.Client_request.CodeAction params ->
+    let doc_opt = find_doc params.textDocument.uri in
+    Some (handle_code_action doc_opt params)
   | Lsp.Client_request.Shutdown -> ()
   | _ -> raise Exit  (* unhandled request *)
 
