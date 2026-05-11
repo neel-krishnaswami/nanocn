@@ -79,25 +79,50 @@ let of_typed_decls decls =
 let node_of_rinfo (b : RProg.typed_rinfo) : node =
   { loc = b#loc; ctx = b#ctx; rctx = Some b#rctx; sort = b#sort; eff = b#eff; goal = b#goal }
 
-(** Collect typed nodes from refined pattern elements.  Walks
-    [RPat.shape] and emits one hover node per head element
-    (cpat / lpat / rpat).  The wrapper [t]'s info at each cons
-    level represents the "rest of pattern" position, not a per-qbase
-    position, so we use the head element's info instead. *)
+(** Collect typed nodes from a core sub-pattern.  Recurses through
+    tuple structure so every cpat node in the subtree contributes a
+    hover entry. *)
+let rec collect_cpat acc cp =
+  let acc = node_of_rinfo (RPat.cpat_info cp) :: acc in
+  match RPat.cpat_shape cp with
+  | RPat.CVar _ -> acc
+  | RPat.CTuple cps -> List.fold_left collect_cpat acc cps
+
+(** Collect typed nodes from a logical sub-pattern.  Leaves only. *)
+let collect_lpat acc lp =
+  node_of_rinfo (RPat.lpat_info lp) :: acc
+
+(** Collect typed nodes from a resource sub-pattern.  Recurses
+    through every nested cpat/lpat/rpat constructor so each subterm's
+    goal is visible at hover. *)
+let rec collect_rpat_sub acc rp =
+  let acc = node_of_rinfo (RPat.rpat_info rp) :: acc in
+  match RPat.rpat_shape rp with
+  | RPat.RVar _ -> acc
+  | RPat.RReturn lp | RPat.RFail lp -> collect_lpat acc lp
+  | RPat.RTake (cp, rp1, rp2) ->
+    collect_rpat_sub (collect_rpat_sub (collect_cpat acc cp) rp1) rp2
+  | RPat.RLet (lp, cp, rp') ->
+    collect_rpat_sub (collect_cpat (collect_lpat acc lp) cp) rp'
+  | RPat.RCase (lp, _, cp, rp') ->
+    collect_rpat_sub (collect_cpat (collect_lpat acc lp) cp) rp'
+  | RPat.RIfTrue rp' | RPat.RIfFalse rp'
+  | RPat.RUnfold rp' | RPat.RAnnot rp' ->
+    collect_rpat_sub acc rp'
+
+(** Collect typed nodes from a q-level pattern.  Walks
+    [RPat.shape] and recurses into each head element so subterm
+    goals (CorePatGoal / LPatGoal / RPatGoal) are visible. *)
 let collect_rpat acc pat =
   let rec go acc t =
+    let acc = node_of_rinfo (RPat.info t) :: acc in
     match RPat.shape t with
     | RPat.QNil -> acc
-    | RPat.QCore (cp, rest) ->
-      go (node_of_rinfo (RPat.cpat_info cp) :: acc) rest
-    | RPat.QLog (lp, rest) ->
-      go (node_of_rinfo (RPat.lpat_info lp) :: acc) rest
-    | RPat.QRes (rp, rest) ->
-      go (node_of_rinfo (RPat.rpat_info rp) :: acc) rest
+    | RPat.QCore (cp, rest) -> go (collect_cpat acc cp) rest
+    | RPat.QLog (lp, rest) -> go (collect_lpat acc lp) rest
+    | RPat.QRes (rp, rest) -> go (collect_rpat_sub acc rp) rest
     | RPat.QDepRes (cp, rp, rest) ->
-      let acc = node_of_rinfo (RPat.rpat_info rp) :: acc in
-      let acc = node_of_rinfo (RPat.cpat_info cp) :: acc in
-      go acc rest
+      go (collect_rpat_sub (collect_cpat acc cp) rp) rest
   in
   go acc pat
 
@@ -156,12 +181,12 @@ let rec collect_crt acc crt =
   match RefinedExpr.crt_shape crt with
   | RefinedExpr.CLet (pat, crt1, crt2) ->
     collect_crt (collect_crt (collect_rpat acc pat) crt1) crt2
-  | RefinedExpr.CLetLog (_, lpf, crt') ->
-    collect_crt (collect_lpf acc lpf) crt'
-  | RefinedExpr.CLetRes (_, rpf, crt') ->
-    collect_crt (collect_rpf acc rpf) crt'
-  | RefinedExpr.CLetCore (_, _, e, crt') ->
-    collect_crt (collect_enriched ri acc e) crt'
+  | RefinedExpr.CLetLog (lp, lpf, crt') ->
+    collect_crt (collect_lpf (collect_lpat acc lp) lpf) crt'
+  | RefinedExpr.CLetRes (rp, rpf, crt') ->
+    collect_crt (collect_rpf (collect_rpat_sub acc rp) rpf) crt'
+  | RefinedExpr.CLetCore (lp, cp, e, crt') ->
+    collect_crt (collect_enriched ri (collect_cpat (collect_lpat acc lp) cp) e) crt'
   | RefinedExpr.CAnnot (crt', pf) ->
     collect_pf (collect_crt acc crt') pf
   | RefinedExpr.CPrimApp (_, spine) ->
@@ -223,9 +248,10 @@ let of_typed_rprog (prog : RProg.typed) =
     match decl with
     | RProg.SortDecl _ | RProg.TypeDecl _ -> acc
     | RProg.FunDecl { body; _ } -> collect acc body
-    | RProg.RFunDecl { body; domain; codomain; _ } ->
+    | RProg.RFunDecl { body; pat; domain; codomain; _ } ->
       let acc = collect_pf acc domain in
       let acc = collect_pf acc codomain in
+      let acc = collect_rpat acc pat in
       collect_crt acc body
   ) empty prog.decls in
   let acc = collect_pf acc prog.main_pf in

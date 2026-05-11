@@ -280,6 +280,12 @@ let handle_hover (doc : doc_state) (params : Lsp.Types.HoverParams.t) : Lsp.Type
       | RProg.RpfGoal (pred, value) ->
         Format.asprintf "[res] %a @@ %a" CoreExpr.print pred CoreExpr.print value
       | RProg.PatGoal pf -> Format.asprintf "pat: %a" ProofSort.print_ce pf
+      | RProg.RPatGoal (pred, value) ->
+        Format.asprintf "rpat: %a @@ %a" CoreExpr.print pred CoreExpr.print value
+      | RProg.LPatGoal prop ->
+        Format.asprintf "lpat: %a" CoreExpr.print prop
+      | RProg.CorePatGoal s ->
+        Format.asprintf "cpat: %a" Sort.print s
       | RProg.SpineGoal { current; position; _ } ->
         (match List.nth_opt current position with
          | Some entry -> Format.asprintf "%a" ProofSort.print_ce [entry]

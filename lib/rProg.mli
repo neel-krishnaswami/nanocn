@@ -54,6 +54,14 @@ type goal =
   | LpfGoal of CoreExpr.typed_ce
   | RpfGoal of CoreExpr.typed_ce * CoreExpr.typed_ce
   | PatGoal of (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t
+    (** Whole-pattern goal: the full remaining proof sort at a
+        q-wrapper splice point ([QNil]/[QCore]/[QLog]/[QRes]/[QDepRes]). *)
+  | RPatGoal of CoreExpr.typed_ce * CoreExpr.typed_ce
+    (** Per-subterm goal for resource patterns matching [pred @ value]. *)
+  | LPatGoal of CoreExpr.typed_ce
+    (** Per-subterm goal for logical patterns matching a proposition. *)
+  | CorePatGoal of Sort.sort
+    (** Per-subterm goal for core patterns matching a sort. *)
   | SpineGoal of {
       original : (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t;
       current  : (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t;

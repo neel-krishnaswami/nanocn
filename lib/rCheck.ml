@@ -1072,6 +1072,7 @@ let extend_delta_with_rp_unknowns rp delta =
     so LSP context queries downstream of the rpat see [a1, x, xs,
     rest2 : ?] rather than dropping them entirely. *)
 let[@warning "-32"] error_rp_blanket
+    ?(goal = RProg.NoGoal)
     (rp : (_, Var.t) RPat.rpat)
     (delta : RCtx.t)
     (eff : Effect.t)
@@ -1081,7 +1082,7 @@ let[@warning "-32"] error_rp_blanket
   let typed_rp =
     RPat.map_info_rpat
       (fun b ->
-        mk_rinfo_with_answer b#loc delta' bool_sort eff
+        mk_rinfo_with_answer ~goal b#loc delta bool_sort eff
           (Error (Error.structured ~loc:b#loc k)))
       rp in
   (typed_rp, delta')
@@ -2583,12 +2584,13 @@ and cpat_match (rs : RSig.t) (delta : RCtx.t)
   let placeholder_sort = Result.value sort ~default:bool_sort in
   let placeholder_eff = Result.value eff' ~default:Effect.Pure in
   let answer = answer_of_sort_kind_r ~loc:pos sort in
+  let goal = RProg.CorePatGoal placeholder_sort in
   match RPat.cpat_shape cp with
   | RPat.CVar x ->
     let delta' = extend_comp_opt (Some x) sort eff' delta in
     let ce_x = ce_of_var x placeholder_sort in
     let info =
-      mk_rinfo_with_answer pos delta' placeholder_sort placeholder_eff answer in
+      mk_rinfo_with_answer ~goal pos delta placeholder_sort placeholder_eff answer in
     let typed_cp = RPat.mk_cpat info (RPat.CVar x) in
     return (typed_cp, delta', ce_x)
   | RPat.CTuple cps ->
@@ -2609,7 +2611,7 @@ and cpat_match (rs : RSig.t) (delta : RCtx.t)
     let tuple_ce =
       CoreExpr.mk (mk_info placeholder_sort) (CoreExpr.Tuple ces) in
     let info =
-      mk_rinfo_with_answer pos delta' placeholder_sort placeholder_eff answer in
+      mk_rinfo_with_answer ~goal pos delta placeholder_sort placeholder_eff answer in
     let typed_tuple = RPat.mk_cpat info (RPat.CTuple typed_cps) in
     return (typed_tuple, delta', tuple_ce)
 
@@ -2620,14 +2622,17 @@ and lpat_match (rs : RSig.t) (delta : RCtx.t)
   let _ = rs in
   let binfo = RPat.lpat_info lp in
   let pos = binfo#loc in
+  let placeholder_prop = Result.value prop
+    ~default:(CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole "lpat-no-prop")) in
+  let goal = RProg.LPatGoal placeholder_prop in
   match RPat.lpat_shape lp with
   | RPat.LVar x ->
     let delta' = extend_log_opt (Some x) prop delta in
-    let info = mk_rinfo pos delta' bool_sort Effect.Spec in
+    let info = mk_rinfo ~goal pos delta bool_sort Effect.Spec in
     let typed_lp = RPat.mk_lpat info (RPat.LVar x) in
     return (typed_lp, delta', Constraint.top pos)
   | RPat.LAuto ->
-    let info = mk_rinfo pos delta bool_sort Effect.Spec in
+    let info = mk_rinfo ~goal pos delta bool_sort Effect.Spec in
     let typed_lp = RPat.mk_lpat info RPat.LAuto in
     let ct = match prop with
       | Ok p -> Constraint.atom pos p
@@ -2641,11 +2646,16 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   : ((RProg.typed_rinfo, Var.t) RPat.rpat * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RPat.rpat_info rp in
   let pos = binfo#loc in
+  let placeholder_pred = Result.value pred
+    ~default:(CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole "rpat-no-pred")) in
+  let placeholder_value = Result.value value
+    ~default:(CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole "rpat-no-value")) in
+  let goal = RProg.RPatGoal (placeholder_pred, placeholder_value) in
   match pred, value with
   | (Error e, _) | (_, Error e) ->
     (* Input cascade: pred or value is fundamentally Error.  Build
        typed_rp with Error annotations throughout. *)
-    let (typed_rp, delta') = error_rp_blanket rp delta eff e in
+    let (typed_rp, delta') = error_rp_blanket ~goal rp delta eff e in
     return (typed_rp, delta', Constraint.top pos)
   | Ok pred, Ok value ->
   let cs = RSig.comp rs in
@@ -2654,26 +2664,26 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   match RPat.rpat_shape rp with
   | RPat.RVar x ->
     let delta' = RCtx.extend_res x pred value Usage.Avail delta in
-    let info = mk_rinfo pos delta' bool_sort eff in
+    let info = mk_rinfo ~goal pos delta bool_sort eff in
     let typed_rp = RPat.mk_rpat info (RPat.RVar x) in
     return (typed_rp, delta', Constraint.top pos)
 
   | RPat.RReturn lpat ->
     (match view_get_return_ce ~construct:"return pattern" pred' with
      | Error k ->
-       let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+       let (typed_rp, delta') = error_rp_blanket ~goal rp delta eff k in
        return (typed_rp, delta', Constraint.top pos)
      | Ok ret_ce ->
        let eq_ce = CoreExpr.mk pred_info (CoreExpr.Eq (ret_ce, value)) in
        let* (typed_lp, delta', ct) = lpat_match rs delta lpat (Ok eq_ce) in
-       let info = mk_rinfo pos delta' bool_sort eff in
+       let info = mk_rinfo ~goal pos delta bool_sort eff in
        let typed_rp = RPat.mk_rpat info (RPat.RReturn typed_lp) in
        return (typed_rp, delta', ct))
 
   | RPat.RTake (cpat, rp1, rp2) ->
     (match zip3_kind (view_get_take_ce ~construct:"take pattern" pred' )with
      | Error k ->
-       let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+       let (typed_rp, delta') = error_rp_blanket ~goal rp delta eff k in
        return (typed_rp, delta', Constraint.top pos)
      | Ok (x, ce1, ce2) ->
        let ce1_sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
@@ -2691,7 +2701,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
        let answer = answer_of_sort_kind_r ~loc:pos
                       (Result.map (fun _ -> bool_sort) inner_sort_r) in
        let info =
-         mk_rinfo_with_answer pos delta3 bool_sort eff answer in
+         mk_rinfo_with_answer ~goal pos delta bool_sort eff answer in
        let typed_rp =
          RPat.mk_rpat info (RPat.RTake (typed_cp, typed_rp1, typed_rp2)) in
        return (typed_rp, delta3, ct))
@@ -2706,7 +2716,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
       | Error _ -> Constraint.top pos in
     let answer = answer_of_sort_kind_r ~loc:pos
                    (Result.map (fun () -> bool_sort) fail_check) in
-    let info = mk_rinfo_with_answer pos delta' bool_sort eff answer in
+    let info = mk_rinfo_with_answer ~goal pos delta bool_sort eff answer in
     let typed_rp = RPat.mk_rpat info (RPat.RFail typed_lp) in
     return (typed_rp, delta', ct)
 
@@ -2729,7 +2739,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
      | CoreExpr.Let _ ->
        (match zip3_kind (view_get_let_ce ~construct:"let pattern" pred_for_let )with
         | Error k ->
-          let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+          let (typed_rp, delta') = error_rp_blanket ~goal rp delta eff k in
           return (typed_rp, delta', Constraint.top pos)
         | Ok (x, ce1, ce2) ->
           let sort = (CoreExpr.sort_of_info (CoreExpr.info ce1)) in
@@ -2747,14 +2757,14 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
           let* (typed_inner, delta3, ct2) =
             rpat_match rs delta2 eff rp_inner (Ok ce2_subst) (Ok value) in
           let ct = Constraint.conj pos ct1 ct2 in
-          let info = mk_rinfo pos delta3 bool_sort eff in
+          let info = mk_rinfo ~goal pos delta bool_sort eff in
           let typed_rp =
             RPat.mk_rpat info (RPat.RLet (typed_lp, typed_cp, typed_inner)) in
           return (typed_rp, delta3, ct))
      | CoreExpr.LetTuple _ ->
        (match zip3_kind (view_get_let_tuple_ce ~construct:"let-tuple pattern" pred_for_let )with
         | Error k ->
-          let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+          let (typed_rp, delta') = error_rp_blanket ~goal rp delta eff k in
           return (typed_rp, delta', Constraint.top pos)
         | Ok (xs, ce, ce') ->
           let n = List.length xs in
@@ -2800,7 +2810,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
           let* (typed_inner, delta3, ct2) =
             rpat_match rs delta2 eff rp_inner (Ok ce'_subst) (Ok value) in
           let ct = Constraint.conj pos ct1 ct2 in
-          let info = mk_rinfo pos delta3 bool_sort eff in
+          let info = mk_rinfo ~goal pos delta bool_sort eff in
           let typed_rp =
             RPat.mk_rpat info (RPat.RLet (typed_lp, typed_cp, typed_inner)) in
           return (typed_rp, delta3, ct))
@@ -2808,18 +2818,18 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
        let k = mismatch_ce_kind ~construct:"let pattern"
                  ~expected_shape:"let _ = _; _ or let (_, ..., _) = _; _"
                  pred_for_let in
-       let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+       let (typed_rp, delta') = error_rp_blanket ~goal rp delta eff k in
        return (typed_rp, delta', Constraint.top pos))
 
   | RPat.RIfTrue rp_inner ->
     (match zip3_kind (view_get_if_ce ~construct:"iftrue pattern" pred' )with
      | Error k ->
-       let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+       let (typed_rp, delta') = error_rp_blanket ~goal rp delta eff k in
        return (typed_rp, delta', Constraint.top pos)
      | Ok (ce_cond, ce_t, _ce_e) ->
        let* (typed_inner, delta', ct_inner) =
          rpat_match rs delta eff rp_inner (Ok ce_t) (Ok value) in
-       let info = mk_rinfo pos delta' bool_sort eff in
+       let info = mk_rinfo ~goal pos delta bool_sort eff in
        let typed_rp = RPat.mk_rpat info (RPat.RIfTrue typed_inner) in
        let ct = Constraint.conj pos (Constraint.atom pos ce_cond) ct_inner in
        return (typed_rp, delta', ct))
@@ -2827,12 +2837,12 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   | RPat.RIfFalse rp_inner ->
     (match zip3_kind (view_get_if_ce ~construct:"iffalse pattern" pred' )with
      | Error k ->
-       let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+       let (typed_rp, delta') = error_rp_blanket ~goal rp delta eff k in
        return (typed_rp, delta', Constraint.top pos)
      | Ok (ce_cond, _ce_t, ce_e) ->
        let* (typed_inner, delta', ct_inner) =
          rpat_match rs delta eff rp_inner (Ok ce_e) (Ok value) in
-       let info = mk_rinfo pos delta' bool_sort eff in
+       let info = mk_rinfo ~goal pos delta bool_sort eff in
        let typed_rp = RPat.mk_rpat info (RPat.RIfFalse typed_inner) in
        let not_ce =
          CoreExpr.mk (CoreExpr.info ce_cond) (CoreExpr.App (Prim.Not, ce_cond)) in
@@ -2842,7 +2852,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   | RPat.RCase (lpat, label, cpat, rp_inner) ->
     (match zip2_kind (view_get_case_ce ~construct:"case pattern" pred' )with
      | Error k ->
-       let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+       let (typed_rp, delta') = error_rp_blanket ~goal rp delta eff k in
        return (typed_rp, delta', Constraint.top pos)
      | Ok (scrutinee, branches) ->
        (match List.find_opt
@@ -2854,7 +2864,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
               ~loc:pos ~label ~case_labels in
           let typed_rp =
             RPat.map_info_rpat
-              (fun b -> mk_rinfo_with_answer b#loc delta bool_sort eff
+              (fun b -> mk_rinfo_with_answer ~goal b#loc delta bool_sort eff
                           (Error err_t))
               rp in
           return (typed_rp, delta, Constraint.top pos)
@@ -2891,7 +2901,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
           let answer = answer_of_sort_kind_r ~loc:pos
                          (Result.map (fun _ -> bool_sort) payload_sort_r) in
           let info =
-            mk_rinfo_with_answer pos delta3 bool_sort eff answer in
+            mk_rinfo_with_answer ~goal pos delta bool_sort eff answer in
           let typed_rp =
             RPat.mk_rpat info
               (RPat.RCase (typed_lp, label, typed_cp, typed_inner)) in
@@ -2900,20 +2910,20 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
   | RPat.RUnfold rp_inner ->
     (match zip2_kind (view_get_call_ce ~construct:"unfold pattern" pred' )with
      | Error k ->
-       let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+       let (typed_rp, delta') = error_rp_blanket ~goal rp delta eff k in
        return (typed_rp, delta', Constraint.top pos)
      | Ok (f, ce_arg) ->
        (match Sig.lookup_fundef f cs with
         | Error k ->
-          let (typed_rp, delta') = error_rp_blanket rp delta eff k in
+          let (typed_rp, delta') = error_rp_blanket ~goal rp delta eff k in
           return (typed_rp, delta', Constraint.top pos)
         | Ok (param, arg_sort, _ret_sort, eff', body) ->
           if not (Effect.sub eff' Effect.Spec) then
             let err = Error.unfold_not_spec ~loc:pos ~name:f in
-            let info = mk_rinfo_err pos delta bool_sort eff err in
+            let info = mk_rinfo_err ~goal pos delta bool_sort eff err in
             let typed_inner =
               RPat.map_info_rpat (fun b ->
-                mk_rinfo b#loc delta bool_sort eff) rp_inner in
+                mk_rinfo ~goal b#loc delta bool_sort eff) rp_inner in
             let typed_rp = RPat.mk_rpat info (RPat.RUnfold typed_inner) in
             return (typed_rp, delta, Constraint.top pos)
           else
@@ -2925,14 +2935,14 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
             let unfolded = Subst.apply_ce sub body in
             let* (typed_inner, delta', ct) =
               rpat_match rs delta eff rp_inner (Ok unfolded) (Ok value) in
-            let info = mk_rinfo pos delta' bool_sort eff in
+            let info = mk_rinfo ~goal pos delta bool_sort eff in
             let typed_rp = RPat.mk_rpat info (RPat.RUnfold typed_inner) in
             return (typed_rp, delta', ct)))
 
   | RPat.RAnnot rp_inner ->
     let* (typed_inner, delta', ct) =
       rpat_match rs delta eff rp_inner (Ok pred') (Ok value) in
-    let info = mk_rinfo pos delta' bool_sort eff in
+    let info = mk_rinfo ~goal pos delta bool_sort eff in
     let typed_rp = RPat.mk_rpat info (RPat.RAnnot typed_inner) in
     return (typed_rp, delta', ct)
 
@@ -2959,8 +2969,13 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
      option at the boundary; per-component view extraction handles
      missingness uniformly. *)
   let pf_initial = Result.to_option pf_r in
+  let goal_of_pf_opt = function
+    | Some pf -> RProg.PatGoal pf
+    | None -> RProg.NoGoal
+  in
   let rec go pat_t pf_opt delta ct_acc =
     let b = RPat.info pat_t in
+    let goal = goal_of_pf_opt pf_opt in
     match RPat.shape pat_t with
     | RPat.QNil ->
       let nil_check = view_get_pf_nil pf_opt in
@@ -2968,7 +2983,7 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
         | Ok () -> answer_ok
         | Error k -> answer_of_kind ~loc:b#loc (Error k) in
       let info =
-        mk_rinfo_with_answer b#loc delta bool_sort eff answer in
+        mk_rinfo_with_answer ~goal b#loc delta bool_sort eff answer in
       return (RPat.mk info RPat.QNil, delta, ct_acc)
 
     | RPat.QCore (cp, rest_pat) ->
@@ -2980,7 +2995,7 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
         | None -> tail_o in
       let* (typed_rest, delta'', ct) =
         go rest_pat tail_o' delta' ct_acc in
-      let info = mk_rinfo b#loc delta'' bool_sort eff in
+      let info = mk_rinfo ~goal b#loc delta bool_sort eff in
       return (RPat.mk info (RPat.QCore (typed_cp, typed_rest)), delta'', ct)
 
     | RPat.QLog (lp, rest_pat) ->
@@ -2989,7 +3004,7 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
       let ct_acc' = Constraint.conj pos ct_acc ct1 in
       let* (typed_rest, delta'', ct) =
         go rest_pat tail_o delta' ct_acc' in
-      let info = mk_rinfo b#loc delta'' bool_sort eff in
+      let info = mk_rinfo ~goal b#loc delta bool_sort eff in
       return (RPat.mk info (RPat.QLog (typed_lp, typed_rest)), delta'', ct)
 
     | RPat.QRes (rp, rest_pat) ->
@@ -2999,7 +3014,7 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
       let ct_acc' = Constraint.conj pos ct_acc ct1 in
       let* (typed_rest, delta'', ct) =
         go rest_pat tail_o delta' ct_acc' in
-      let info = mk_rinfo b#loc delta'' bool_sort eff in
+      let info = mk_rinfo ~goal b#loc delta bool_sort eff in
       return (RPat.mk info (RPat.QRes (typed_rp, typed_rest)), delta'', ct)
 
     | RPat.QDepRes (cp, rp, rest_pat) ->
@@ -3029,7 +3044,7 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
       let ct_acc' = Constraint.conj pos ct_acc ct1 in
       let* (typed_rest, delta3, ct) =
         go rest_pat tail_o' delta2 ct_acc' in
-      let info = mk_rinfo b#loc delta3 bool_sort eff in
+      let info = mk_rinfo ~goal b#loc delta bool_sort eff in
       return (RPat.mk info (RPat.QDepRes (typed_cp, typed_rp, typed_rest)),
               delta3, ct)
   in

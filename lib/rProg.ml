@@ -37,6 +37,9 @@ type goal =
   | LpfGoal of CoreExpr.typed_ce
   | RpfGoal of CoreExpr.typed_ce * CoreExpr.typed_ce
   | PatGoal of (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t
+  | RPatGoal of CoreExpr.typed_ce * CoreExpr.typed_ce
+  | LPatGoal of CoreExpr.typed_ce
+  | CorePatGoal of Sort.sort
   | SpineGoal of {
       original : (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t;
       current  : (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t;
