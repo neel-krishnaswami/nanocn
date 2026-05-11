@@ -395,13 +395,20 @@ let range_of_pos (loc : SourcePos.t) : Lsp.Types.Range.t =
     end_ =
       { line = end_line; character = SourcePos.end_col loc } }
 
-let to_lsp_code_action uri (a : PatternExpand.action) : Lsp.Types.CodeAction.t =
+(** [mk_lsp_code_action uri ~title edits] builds an LSP CodeAction
+    wrapping a single-file WorkspaceEdit.  Each [(loc, new_text)]
+    pair becomes a [TextEdit] in the [uri] file's changes.  Both
+    [PatternExpand] and [HoleExpand] feed this — their [edit]
+    records are structurally identical, so we collapse to a raw
+    list of pairs at the boundary. *)
+let mk_lsp_code_action uri ~title (edits : (SourcePos.t * string) list)
+  : Lsp.Types.CodeAction.t =
   let text_edits =
-    List.map (fun (e : PatternExpand.edit) ->
+    List.map (fun (loc, new_text) ->
       Lsp.Types.TextEdit.create
-        ~newText:e.new_text
-        ~range:(range_of_pos e.range)
-    ) a.edits
+        ~newText:new_text
+        ~range:(range_of_pos loc)
+    ) edits
   in
   let workspace_edit =
     Lsp.Types.WorkspaceEdit.create
@@ -409,10 +416,18 @@ let to_lsp_code_action uri (a : PatternExpand.action) : Lsp.Types.CodeAction.t =
       ()
   in
   Lsp.Types.CodeAction.create
-    ~title:a.title
+    ~title
     ~kind:Lsp.Types.CodeActionKind.RefactorRewrite
     ~edit:workspace_edit
     ()
+
+let pattern_action_to_lsp uri (a : PatternExpand.action) =
+  mk_lsp_code_action uri ~title:a.title
+    (List.map (fun (e : PatternExpand.edit) -> (e.range, e.new_text)) a.edits)
+
+let hole_action_to_lsp uri (a : HoleExpand.action) =
+  mk_lsp_code_action uri ~title:a.title
+    (List.map (fun (e : HoleExpand.edit) -> (e.range, e.new_text)) a.edits)
 
 let handle_code_action
     (doc_opt : doc_state option)
@@ -429,10 +444,17 @@ let handle_code_action
        (match r.typed_rprog with
         | None -> []
         | Some prog ->
-          let actions =
-            PatternExpand.actions_at prog ~file:doc.file ~line ~col
-          in
-          List.map (fun a -> `CodeAction (to_lsp_code_action uri a)) actions))
+          let pat_actions =
+            PatternExpand.actions_at prog ~file:doc.file ~line ~col in
+          let hole_actions =
+            HoleExpand.actions_at prog ~line ~col in
+          let pat_lsp =
+            List.map (fun a -> `CodeAction (pattern_action_to_lsp uri a))
+              pat_actions in
+          let hole_lsp =
+            List.map (fun a -> `CodeAction (hole_action_to_lsp uri a))
+              hole_actions in
+          pat_lsp @ hole_lsp))
 
 let handle_request : type a. doc_state option -> a Lsp.Client_request.t -> a =
   fun doc_opt req ->
