@@ -13,9 +13,9 @@ type action = {
 type body_crt =
   (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.crt
 
-(** The pattern walker keeps the tightest enclosing CVar candidate
-    found so far.  [scope] is the crt body in whose scope the bound
-    variable lives.  *)
+(** [scope] is the crt body in whose scope the pattern's bound
+    variable lives.  Distinct candidate kinds let the dispatcher
+    apply the right expansion rule. *)
 type core_var_candidate = {
   var : Var.t;
   info : RProg.typed_rinfo;
@@ -23,6 +23,23 @@ type core_var_candidate = {
   sort : Sort.sort;
   scope : body_crt;
 }
+
+type resource_var_candidate = {
+  var : Var.t;
+  info : RProg.typed_rinfo;
+  pat_loc : SourcePos.t;
+  pred : CoreExpr.typed_ce;
+  value : CoreExpr.typed_ce;
+  scope : body_crt;
+}
+
+type candidate =
+  | Cand_core of core_var_candidate
+  | Cand_resource of resource_var_candidate
+
+let candidate_loc = function
+  | Cand_core c -> c.pat_loc
+  | Cand_resource c -> c.pat_loc
 
 (* ================================================================== *)
 (* Cursor / span helpers                                              *)
@@ -54,16 +71,17 @@ let tighter a b =
 (* Pattern walker                                                     *)
 (* ================================================================== *)
 
-(** [walk_for_core_var prog ~line ~col] descends through [prog] looking
-    for the tightest [CVar v] pattern whose source loc covers the
-    cursor.  Records the enclosing crt body so we know the scope in
-    which [v] is used. *)
-let walk_for_core_var (prog : RProg.typed) ~line ~col : core_var_candidate option =
-  let best : core_var_candidate option ref = ref None in
+(** [walk_for_pattern prog ~line ~col] descends through [prog] looking
+    for the tightest variable-binding pattern subterm whose source loc
+    covers the cursor.  Records the enclosing crt body so we know the
+    scope in which the bound variable is used. *)
+let walk_for_pattern (prog : RProg.typed) ~line ~col : candidate option =
+  let best : candidate option ref = ref None in
   let consider cand =
     match !best with
     | None -> best := Some cand
-    | Some b when tighter cand.pat_loc b.pat_loc -> best := Some cand
+    | Some b when tighter (candidate_loc cand) (candidate_loc b) ->
+      best := Some cand
     | _ -> ()
   in
 
@@ -73,13 +91,13 @@ let walk_for_core_var (prog : RProg.typed) ~line ~col : core_var_candidate optio
     else
       match RPat.cpat_shape cp with
       | RPat.CVar v ->
-        consider {
+        consider (Cand_core {
           var = v;
           info = b;
           pat_loc = b#loc;
           sort = b#sort;
           scope;
-        }
+        })
       | RPat.CTuple cps ->
         List.iter (go_cpat ~scope) cps
 
@@ -90,7 +108,18 @@ let walk_for_core_var (prog : RProg.typed) ~line ~col : core_var_candidate optio
     if not (covers b#loc ~line ~col) then ()
     else
       match RPat.rpat_shape rp with
-      | RPat.RVar _ -> ()  (* Resource patterns: phase 2. *)
+      | RPat.RVar v ->
+        (match b#goal with
+         | RProg.RPatGoal (pred, value) ->
+           consider (Cand_resource {
+             var = v;
+             info = b;
+             pat_loc = b#loc;
+             pred;
+             value;
+             scope;
+           })
+         | _ -> ())
       | RPat.RReturn lp | RPat.RFail lp -> go_lpat ~scope lp
       | RPat.RTake (cp, rp1, rp2) ->
         go_cpat ~scope cp; go_rpat ~scope rp1; go_rpat ~scope rp2
@@ -247,9 +276,8 @@ let occurrences_in_ce (target : Var.t) (e : CoreExpr.typed_ce) : SourcePos.t lis
   List.rev !acc
 
 (** Recurse through every embedded typed_ce in a typed crt, collecting
-    [target]-occurrences.  Phase 1 only needs core-var occurrences;
-    rpf_var occurrences are deferred to phase 2 (resource cases). *)
-let occurrences_in_crt (target : Var.t) (crt : body_crt) : SourcePos.t list =
+    core-variable [target]-occurrences. *)
+let occurrences_of_cvar_in_crt (target : Var.t) (crt : body_crt) : SourcePos.t list =
   let acc = ref [] in
   let add locs = acc := List.rev_append locs !acc in
   let rec go_crt c =
@@ -301,6 +329,53 @@ let occurrences_in_crt (target : Var.t) (crt : body_crt) : SourcePos.t list =
   go_crt crt;
   List.rev !acc
 
+(** Recurse through a typed crt, collecting resource-variable
+    [target]-occurrences — every [rpf_var v] node where [v = target].
+    Variable identity is by [Var.compare] (unique IDs from scope
+    resolution); shadowing isn't possible because inner binders
+    receive fresh [Var.t]s. *)
+let occurrences_of_rvar_in_crt (target : Var.t) (crt : body_crt) : SourcePos.t list =
+  let acc = ref [] in
+  let same v = Int.equal (Var.compare v target) 0 in
+  let rec go_crt c =
+    match RefinedExpr.crt_shape c with
+    | RefinedExpr.CLet (_pat, c1, c2) -> go_crt c1; go_crt c2
+    | RefinedExpr.CLetLog (_, _, c') -> go_crt c'
+    | RefinedExpr.CLetRes (_, rpf, c') -> go_rpf rpf; go_crt c'
+    | RefinedExpr.CLetCore (_, _, _, c') -> go_crt c'
+    | RefinedExpr.CAnnot (c', _) -> go_crt c'
+    | RefinedExpr.CPrimApp (_, sp) | RefinedExpr.CCall (_, sp)
+    | RefinedExpr.CTuple sp -> go_spine sp
+    | RefinedExpr.CIter (_, _, c1, c2) -> go_crt c1; go_crt c2
+    | RefinedExpr.CIf (_, _, c1, c2) -> go_crt c1; go_crt c2
+    | RefinedExpr.CCase (_, _, branches) ->
+      List.iter (fun (_, _, _, body) -> go_crt body) branches
+    | RefinedExpr.CExfalso | RefinedExpr.CHole _ -> ()
+  and go_rpf rpf =
+    let b = RefinedExpr.rpf_info rpf in
+    match RefinedExpr.rpf_shape rpf with
+    | RefinedExpr.RVar v ->
+      if same v then acc := b#loc :: !acc
+    | RefinedExpr.RHole _ -> ()
+    | RefinedExpr.RAnnot (rpf', _, _) -> go_rpf rpf'
+    | RefinedExpr.RReturn _ | RefinedExpr.RFail _ -> ()
+    | RefinedExpr.RTake (r1, r2) -> go_rpf r1; go_rpf r2
+    | RefinedExpr.RLet (_, _, rpf')
+    | RefinedExpr.RCase (_, _, _, rpf')
+    | RefinedExpr.RIfTrue rpf'
+    | RefinedExpr.RIfFalse rpf'
+    | RefinedExpr.RUnfold rpf'
+    | RefinedExpr.RAnnotStrip rpf' -> go_rpf rpf'
+  and go_spine sp =
+    match RefinedExpr.spine_shape sp with
+    | RefinedExpr.SNil -> ()
+    | RefinedExpr.SCore (_, rest) -> go_spine rest
+    | RefinedExpr.SLog (_, rest) -> go_spine rest
+    | RefinedExpr.SRes (rpf, rest) -> go_rpf rpf; go_spine rest
+  in
+  go_crt crt;
+  List.rev !acc
+
 (* ================================================================== *)
 (* Core-tuple expansion                                               *)
 (* ================================================================== *)
@@ -323,7 +398,7 @@ let core_tuple_action (cand : core_var_candidate) : action option =
     let pat_edit = { range = cand.pat_loc; new_text = witness_text } in
     let use_edits =
       List.map (fun pos -> { range = pos; new_text = witness_text })
-        (occurrences_in_crt cand.var cand.scope)
+        (occurrences_of_cvar_in_crt cand.var cand.scope)
     in
     let title =
       Printf.sprintf "Expand pattern \"%s\" to \"%s\"" base witness_text
@@ -332,13 +407,111 @@ let core_tuple_action (cand : core_var_candidate) : action option =
   | _ -> None
 
 (* ================================================================== *)
+(* Resource-pattern expansion                                         *)
+(* ================================================================== *)
+
+(** Strip leading [Annot] wrappers from a typed core expression so we
+    can pattern-match on the underlying shape.  [rCheck.strip_annots]
+    is the same idea but inlines [Let] aliases too — for code-action
+    UX we want the structural form the user sees in hover, which
+    matches [strip_annots_shallow]'s convention. *)
+let rec strip_annots ce =
+  match CoreExpr.shape ce with
+  | CoreExpr.Annot (inner, _) -> strip_annots inner
+  | _ -> ce
+
+(** Format a [(string * string)] list of (lpat_text, rpat_text)
+    fragments and produce the new-pattern source text plus the
+    witness rpf source text.  Each resource-case helper computes
+    these and feeds [resource_action] for the rest. *)
+let resource_action
+    (cand : resource_var_candidate)
+    ~(pattern_text : string)
+    ~(witness_text : string) : action =
+  let base = Var.name cand.var in
+  let pat_edit = { range = cand.pat_loc; new_text = pattern_text } in
+  let use_edits =
+    List.map (fun pos -> { range = pos; new_text = witness_text })
+      (occurrences_of_rvar_in_crt cand.var cand.scope)
+  in
+  let title =
+    Printf.sprintf "Expand resource pattern \"%s\" to \"%s\""
+      base pattern_text
+  in
+  { title; edits = pat_edit :: use_edits }
+
+(** Best-effort display name for a typed predicate binder: prefer the
+    user's name, fall back to a [v_N] derived form for generated
+    [_vNN] supply names. *)
+let display_binder_name (v : Var.t) ~default : string =
+  let n = Var.name v in
+  if String.length n > 0 && n.[0] = '_' then default else n
+
+let resource_var_action (cand : resource_var_candidate) : action option =
+  let base = Var.name cand.var in
+  let taken =
+    ref (names_in_scope (cand.info)#ctx (cand.info)#rctx) in
+  let fresh_from suffix = fresh ~taken (base ^ suffix) in
+  let pred = strip_annots cand.pred in
+  match CoreExpr.shape pred with
+  | CoreExpr.Return _ ->
+    let xeq = fresh_from "eq" in
+    let pattern_text = Printf.sprintf "return [%s]" xeq in
+    let witness_text = Printf.sprintf "return %s" xeq in
+    Some (resource_action cand ~pattern_text ~witness_text)
+  | CoreExpr.Take ((y, _), _ce1, _ce2) ->
+    let y_name = display_binder_name y ~default:(base ^ "_y") in
+    let y' = fresh ~taken y_name in
+    let x1 = fresh_from "1" in
+    let x2 = fresh_from "2" in
+    let pattern_text = Printf.sprintf "take(%s, %s); %s" y' x1 x2 in
+    let witness_text = Printf.sprintf "take(%s, %s)" x1 x2 in
+    Some (resource_action cand ~pattern_text ~witness_text)
+  | CoreExpr.Let ((y, _), _ce1, _ce2) ->
+    let xeq = fresh_from "eq" in
+    let y_name = display_binder_name y ~default:(base ^ "_y") in
+    let y' = fresh ~taken y_name in
+    let x1 = fresh_from "1" in
+    let xeq_w = fresh ~taken (xeq ^ "_w") in
+    let pattern_text = Printf.sprintf "let[%s] %s; %s" xeq y' x1 in
+    let witness_text = Printf.sprintf "let[%s] %s; %s" xeq_w y' x1 in
+    Some (resource_action cand ~pattern_text ~witness_text)
+  | CoreExpr.LetTuple (ys, _ce1, _ce2) ->
+    let xeq = fresh_from "eq" in
+    let y_names =
+      List.mapi (fun i (y, _) ->
+        let default = Printf.sprintf "%s_y%d" base (i + 1) in
+        let n = display_binder_name y ~default in
+        fresh ~taken n
+      ) ys
+    in
+    let x1 = fresh_from "1" in
+    let xeq_w = fresh ~taken (xeq ^ "_w") in
+    let ys_text = String.concat ", " y_names in
+    let pattern_text =
+      Printf.sprintf "let[%s] (%s); %s" xeq ys_text x1 in
+    let witness_text =
+      Printf.sprintf "let[%s] (%s); %s" xeq_w ys_text x1 in
+    Some (resource_action cand ~pattern_text ~witness_text)
+  | CoreExpr.Call (_, _) ->
+    let x1 = fresh_from "1" in
+    let pattern_text = Printf.sprintf "unfold; %s" x1 in
+    let witness_text = pattern_text in
+    Some (resource_action cand ~pattern_text ~witness_text)
+  | _ -> None
+
+(* ================================================================== *)
 (* Entry point                                                        *)
 (* ================================================================== *)
 
 let actions_at prog ~file:_ ~line ~col : action list =
-  match walk_for_core_var prog ~line ~col with
+  match walk_for_pattern prog ~line ~col with
   | None -> []
-  | Some cand ->
+  | Some (Cand_core cand) ->
     (match core_tuple_action cand with
+     | Some a -> [a]
+     | None -> [])
+  | Some (Cand_resource cand) ->
+    (match resource_var_action cand with
      | Some a -> [a]
      | None -> [])
