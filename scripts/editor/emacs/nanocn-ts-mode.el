@@ -478,6 +478,8 @@ Three cases, checked in order:
      ((parent-is "tuple_expr") parent 1)
      ((parent-is "tuple_sort") parent 1)
      ((parent-is "tuple_pat") parent 1)
+     ((parent-is "rpat") parent 1)
+     ((parent-is "cpat_inner") parent 1)
      ((parent-is "spine") parent 1)
      ((parent-is "crt_spine") parent 1)
      ((parent-is "paren_expr") parent 1)
