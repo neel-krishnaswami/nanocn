@@ -196,8 +196,32 @@
 (defconst nanocn-ts--sequencing-types
   '("let_expr" "take_expr"
     "crt_let" "crt_let_log" "crt_let_log_annot"
-    "crt_let_res" "crt_let_res_annot" "crt_let_core")
-  "Node types whose `body' field should stay at the same indent level.")
+    "crt_let_res" "crt_let_res_annot" "crt_let_core"
+    ;; Resource patterns: `unfold; rpat`, `take(...); rpat2`,
+    ;; `iftrue; rpat`, `iffalse; rpat`, `let[...]...; rpat`,
+    ;; `case[...]...; rpat`, `annot; rpat` all collapse into
+    ;; a single rpat_res node type.
+    "rpat_res"
+    ;; Resource terms: each variant has its own node type.
+    "rpf_unfold" "rpf_iftrue" "rpf_iffalse" "rpf_annot_strip"
+    "rpf_let" "rpf_case")
+  "Node types whose trailing continuation should stay at the same indent level.")
+
+(defconst nanocn-ts--seq-body-fields
+  '("body" "rpat" "rpat2")
+  "Field names for a sequencing form's trailing continuation.
+`body' covers crt_* and rpf_* forms; `rpat'/`rpat2' cover rpat_res
+variants (rpat2 for the [take(...,...); rpat2] case, rpat for the rest).")
+
+(defun nanocn-ts--seq-body-child (node)
+  "Return the trailing continuation child of NODE, or nil.
+Tries every name in `nanocn-ts--seq-body-fields' in order."
+  (let ((fields nanocn-ts--seq-body-fields)
+        result)
+    (while (and fields (not result))
+      (setq result (treesit-node-child-by-field-name node (car fields)))
+      (setq fields (cdr fields)))
+    result))
 
 (defun nanocn-ts--seq-semicolon-end (seq-node)
   "Return the end position of the `;' token in SEQ-NODE, or nil."
@@ -227,7 +251,7 @@ be governed by the body's own indent rules."
     (catch 'found
       (while n
         (when (member (treesit-node-type n) nanocn-ts--sequencing-types)
-          (let ((body (treesit-node-child-by-field-name n "body")))
+          (let ((body (nanocn-ts--seq-body-child n)))
             ;; Complete parse: body exists, is non-empty, BOL is in
             ;; range, AND BOL is on the body's first line.
             (when (and body
@@ -374,7 +398,7 @@ node rather than directly under source_file."
 Walks from NODE into its `body' field recursively.  Returns the
 deepest sequencing form whose body is MISSING, or nil."
   (when (and node (member (treesit-node-type node) nanocn-ts--sequencing-types))
-    (let ((body (treesit-node-child-by-field-name node "body")))
+    (let ((body (nanocn-ts--seq-body-child node)))
       (if (or (null body)
               (= (treesit-node-start body) (treesit-node-end body)))
           ;; This node has an incomplete body — it's our target.
