@@ -613,6 +613,33 @@ Three cases, checked in order:
   (treesit-major-mode-setup))
 
 ;; ---------------------------------------------------------------------------
+;; Code actions: pattern destructuring
+;; ---------------------------------------------------------------------------
+
+(defun nanocn-ts-destructure-pattern ()
+  "Apply the type-directed pattern-expansion code action at point.
+
+Asks the LSP server (`nanocn-lsp') for any `refactor.rewrite' actions
+at point — the only such actions the server emits are the pattern
+destructurings described in `doc/lsp-improvements.md':
+
+  - a core pattern variable `x' whose sort is a record
+    `(τ1, …, τn)' becomes `(x1, …, xn)' and every use of `x' in
+    scope is rewritten to the tuple;
+  - a resource pattern variable `x : ce @ ce'' is rewritten
+    according to the shape of `ce' (`return' / `take' / `let' /
+    `let-tuple' / call-`unfold')."
+  (interactive)
+  (unless (bound-and-true-p eglot--managed-mode)
+    (user-error "Eglot is not connected to a nanoCN LSP server"))
+  (eglot-code-actions (point) nil "refactor.rewrite" t))
+
+;; `nanocn-ts-mode-map' is auto-created by `define-derived-mode'.
+;; Bind the destructuring command onto it directly so we don't
+;; race the (already-evaluated) defvar from `define-derived-mode'.
+(define-key nanocn-ts-mode-map (kbd "C-c C-r") #'nanocn-ts-destructure-pattern)
+
+;; ---------------------------------------------------------------------------
 ;; File associations
 ;; ---------------------------------------------------------------------------
 
