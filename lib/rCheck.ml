@@ -1194,12 +1194,19 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
 
   | RefinedExpr.LUnfold (f, se_arg) ->
     (* :: unfold (lpf side) — synthesize [f arg == body[arg/param]]
-       when f is spec.  Errkind threads through lookup, eff check,
-       substitution, equality construction. *)
-    let* (ce_arg, _sort) = elab_and_synth rs delta Effect.Spec se_arg in
+       when f is spec.  Look up f first so the argument is *checked*
+       against its parameter sort (mirrors the Call rule in
+       typecheck.ml/elaborate.ml); without this, non-synthesizable
+       forms like tuple literals would fail with cannot_synthesize. *)
     let cs = RSig.comp rs in
     let (param_r, arg_sort_r, ret_sort_r, eff_r, body_r) =
       sig_lookup_fundef_e cs (Ok f) in
+    let arg_expected =
+      Result.map_error
+        (fun _ -> Error.K_cannot_synthesize { construct = "unfold" })
+        arg_sort_r in
+    let gamma = RCtx.erase delta in
+    let* ce_arg = Elaborate.check cs gamma se_arg arg_expected Effect.Spec in
     let eff_check_r =
       let err_k = Error.K_unfold_not_spec { name = f } in
       check_eff_subseteq_e eff_r Effect.Spec ~err_k in
