@@ -86,16 +86,46 @@ rfun len
                                        take(seq', let[a9] xs5; return auto)) )
   }
 
+
+// refined list append
 rfun app
     (p : Ptr(List(Int)),
      q : Ptr(List(Int)),
      [res] rp : (do xs : Lst(Int) = sequence(p)),
      [res] rq : (do ys : Lst(Int) = sequence(q)))
   -> (x : Ptr(List(Int)),
-      [res] (do zs = sequence(x)),
-      [log] (zs == append(xs, ys))
-     ) [impure] = 
- $hole 
+      [res]  sequence(x) @ append(xs,ys) ) [impure] = 
+  let res unfold; take(y, own); let[r12eq] v; let[r121eq] v1; rest = rp;
+  let log append = unfold append ((xs, ys)); 
+  let (val, log pf, res own) = Get[List(Int)] (p, res own);
+  case[val_eq] val of {
+    Nil u -> let res case[pf1] Nil(); let[auto] (); return [rest1eq] = rest;
+	     let () = Del[List(Int)](p, v, res own);
+	     (q, res rq)
+  | Cons pair -> let core[eq] (x, p') = pair;
+		 let res case[pf2] Cons(z, zs);
+			 let[rest1eq] (z, zs);
+			 let[rest2eq] rest11_y;
+			 let[rest3eq] (z, zs);
+			 let[rest4eq] x;
+			 let[rest5eq] q';
+			 take(xs, seq);
+			 let[rest'eq] xs;
+			 return [rest_eq'] = rest;
+		 let (ptr, res tail_res) = app(p', q, res seq, res rq);
+		 let (res own) = Set[List(Int)](p, Cons(x, ptr), res own);
+		 (p, res unfold;
+                         take(own, 
+                              let[pf0] v';
+                              let[pf2] hole121_y;
+                              case[pf3] Cons(b, bs);
+                              let[pf4] pair;
+                              let[pf5] pair';
+                              let[pf6] (x, q);
+                              let[pf6] x';
+                              let[pf7] q'';
+                              take(tail_res, let[h12eq] xs'; return auto)))
+  }
 
 
 
