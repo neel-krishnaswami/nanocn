@@ -9,7 +9,7 @@ type ('a, 'b, 'var) decl =
       arg_sort : Sort.sort;
       ret_sort : Sort.sort;
       eff : Effect.t;
-      branches : ((< loc : SourcePos.t >, 'var) Pat.t * 'a * 'b) list;
+      branches : ((SourcePos.info, 'var) Pat.t * 'a * 'b) list;
       loc : SourcePos.t;
     }
   | SortDecl of DsortDecl.t

@@ -10,7 +10,7 @@
 
   let loc_info startpos endpos =
     let loc = mk_loc startpos endpos in
-    object method loc = loc end
+    SourcePos.{ loc }
 %}
 
 %token LPAREN RPAREN EOF

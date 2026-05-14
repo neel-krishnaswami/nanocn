@@ -28,20 +28,20 @@ val map : ('b -> 'c) -> ('e, 'b) t -> ('e, 'c) t
 
 (** {1 Concrete types} *)
 
-type ct = (CoreExpr.ce, < loc : SourcePos.t >) t
-type typed_ct = (CoreExpr.typed_ce, < loc : SourcePos.t >) t
+type ct = (CoreExpr.ce, SourcePos.info) t
+type typed_ct = (CoreExpr.typed_ce, SourcePos.info) t
 
 (** {1 Smart constructors}
 
     Each takes a [SourcePos.t] and simplifies trivial cases ([Top ∧ C = C]). *)
 
-val top : SourcePos.t -> ('e, < loc : SourcePos.t >) t
-val bot : SourcePos.t -> ('e, < loc : SourcePos.t >) t
-val conj : SourcePos.t -> ('e, < loc : SourcePos.t >) t -> ('e, < loc : SourcePos.t >) t -> ('e, < loc : SourcePos.t >) t
-val impl : SourcePos.t -> 'e -> ('e, < loc : SourcePos.t >) t -> ('e, < loc : SourcePos.t >) t
-val forall_ : SourcePos.t -> Var.t -> Sort.sort -> ('e, < loc : SourcePos.t >) t -> ('e, < loc : SourcePos.t >) t
-val atom : SourcePos.t -> 'e -> ('e, < loc : SourcePos.t >) t
-val is_ : SourcePos.t -> Label.t -> 'e -> ('e, < loc : SourcePos.t >) t
+val top : SourcePos.t -> ('e, SourcePos.info) t
+val bot : SourcePos.t -> ('e, SourcePos.info) t
+val conj : SourcePos.t -> ('e, SourcePos.info) t -> ('e, SourcePos.info) t -> ('e, SourcePos.info) t
+val impl : SourcePos.t -> 'e -> ('e, SourcePos.info) t -> ('e, SourcePos.info) t
+val forall_ : SourcePos.t -> Var.t -> Sort.sort -> ('e, SourcePos.info) t -> ('e, SourcePos.info) t
+val atom : SourcePos.t -> 'e -> ('e, SourcePos.info) t
+val is_ : SourcePos.t -> Label.t -> 'e -> ('e, SourcePos.info) t
 
 (** {1 Error-propagating smart constructors}
 
@@ -53,23 +53,23 @@ val is_ : SourcePos.t -> Label.t -> 'e -> ('e, < loc : SourcePos.t >) t
     the [Result]'s error type. *)
 
 val atom' :
-  SourcePos.t -> ('e_ce, _) result -> ('e_ce, < loc : SourcePos.t >) t
+  SourcePos.t -> ('e_ce, _) result -> ('e_ce, SourcePos.info) t
 (** [atom' pos ce_r] is [atom pos ce] when [ce_r = Ok ce], else [top pos]. *)
 
 val is_' :
   SourcePos.t -> Label.t -> ('e_ce, _) result ->
-  ('e_ce, < loc : SourcePos.t >) t
+  ('e_ce, SourcePos.info) t
 (** [is_' pos l ce_r] is [is_ pos l ce] when [ce_r = Ok ce], else [top pos]. *)
 
 val impl' :
   SourcePos.t -> ('e_ce, _) result ->
-  ('e_ce, < loc : SourcePos.t >) t -> ('e_ce, < loc : SourcePos.t >) t
+  ('e_ce, SourcePos.info) t -> ('e_ce, SourcePos.info) t
 (** [impl' pos ce_r body] is [impl pos ce body] when [ce_r = Ok ce],
     else [body] — a missing antecedent collapses to its consequent. *)
 
 val forall_' :
   SourcePos.t -> (Var.t, _) result -> (Sort.sort, _) result ->
-  ('e, < loc : SourcePos.t >) t -> ('e, < loc : SourcePos.t >) t
+  ('e, SourcePos.info) t -> ('e, SourcePos.info) t
 (** [forall_' pos x_r tau_r body] is [forall_ pos x tau body] when both
     [x_r] and [tau_r] are [Ok]; else [body] — a missing binder or sort
     collapses to its body. *)

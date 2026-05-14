@@ -27,7 +27,7 @@ val check_rprog :
 
 val check_rdecl :
   RSig.t -> Constraint.typed_ct ->
-  (SurfExpr.se, < loc : SourcePos.t >, Var.t) RProg.decl ->
+  (SurfExpr.se, SourcePos.info, Var.t) RProg.decl ->
   ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RProg.decl
    * RSig.t * Constraint.typed_ct) ElabM.t
 (** [check_rdecl rsig ct d] typechecks a single refined declaration
@@ -37,7 +37,7 @@ val check_rdecl :
 
 val collect_errors_rprog : RProg.typed -> Error.located list
 (** [collect_errors_rprog prog] returns every error recorded on
-    [info#answer] anywhere in the typed refined program — across
+    [info.answer] anywhere in the typed refined program — across
     typed_rinfo nodes (RPat, ProofSort, RefinedExpr.{lpf,rpf,crt,
     spine}) and embedded typed_ce sub-trees.  Pre-order over decls
     then main; within each tree, source order. *)
@@ -84,7 +84,7 @@ val check_lpf :
 
 val lpat_match :
   RSig.t -> RCtx.t ->
-  (< loc : SourcePos.t >, Var.t) RPat.lpat ->
+  (SourcePos.info, Var.t) RPat.lpat ->
   (CoreExpr.typed_ce, Error.t) result ->
   ((RProg.typed_rinfo, Var.t) RPat.lpat * RCtx.t * Constraint.typed_ct)
     ElabM.t
@@ -129,7 +129,7 @@ val check_rpf :
 
 val rpat_match :
   RSig.t -> RCtx.t -> Effect.t ->
-  (< loc : SourcePos.t >, Var.t) RPat.rpat ->
+  (SourcePos.info, Var.t) RPat.rpat ->
   (CoreExpr.typed_ce, Error.t) result ->   (* pred *)
   (CoreExpr.typed_ce, Error.t) result ->   (* value *)
   ((RProg.typed_rinfo, Var.t) RPat.rpat * RCtx.t * Constraint.typed_ct)
@@ -172,7 +172,7 @@ val check_crt :
 
 val q_match :
   RSig.t -> RCtx.t -> Effect.t ->
-  (< loc : SourcePos.t >, Var.t) RPat.t ->
+  (SourcePos.info, Var.t) RPat.t ->
   ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
    Error.t) result ->
   ((RProg.typed_rinfo, Var.t) RPat.t * RCtx.t * Constraint.typed_ct)
@@ -222,7 +222,7 @@ val check_spine :
 val cpat_match :
   RSig.t -> RCtx.t ->
   (Effect.t, Error.t) result ->
-  (< loc : SourcePos.t >, Var.t) RPat.cpat ->
+  (SourcePos.info, Var.t) RPat.cpat ->
   (Sort.sort, Error.t) result ->
   ((RProg.typed_rinfo, Var.t) RPat.cpat * RCtx.t * CoreExpr.typed_ce)
     ElabM.t

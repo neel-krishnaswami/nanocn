@@ -20,7 +20,7 @@ let classify_sexp sexp =
          List.map (function
            | SmtSexp.Atom (SmtAtom.String s) -> s
            | other ->
-             let sexp = SmtSexp.mk (object method loc = SourcePos.dummy end) other in
+             let sexp = SmtSexp.mk (SourcePos.{ loc = SourcePos.dummy }) other in
              SmtSexp.to_string sexp)
            rest
          |> String.concat " "

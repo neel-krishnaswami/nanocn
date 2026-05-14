@@ -30,7 +30,7 @@ let ( &&& )
 
 let sort_equal (a : Sort.sort) (b : Sort.sort) = Sort.compare a b = 0
 
-let dummy_info = object method loc = SourcePos.dummy end
+let dummy_info = SourcePos.{ loc = SourcePos.dummy }
 
 let mk_sort s = Sort.mk dummy_info s
 
@@ -38,35 +38,25 @@ type typed_info = CoreExpr.typed_info
 type typed_ce = typed_info CoreExpr.t
 
 let mk ctx pos answer eff shape : typed_ce =
-  CoreExpr.mk (object
-    method loc = pos
-    method ctx = ctx
-    method answer = answer
-    method eff = eff
-    method subterm_errors = Elaborate.collect_subtree_errors shape
-  end) shape
+  let info : typed_info =
+    { loc = pos; ctx; answer; eff;
+      subterm_errors = Elaborate.collect_subtree_errors shape } in
+  CoreExpr.mk info shape
 
 let mk_bind_info x answer eff ctx : typed_info =
-  object
-    method loc = Var.binding_site x
-    method ctx = ctx
-    method answer = answer
-    method eff = eff
-    method subterm_errors = []
-  end
+  { loc = Var.binding_site x; ctx; answer; eff;
+    subterm_errors = [] }
 
 (** Lift a [Sort.sort] into [typed_info Sort.t] so it can be embedded
     in a typed core-expression shape.  The extra fields (ctx, answer, eff)
     on each sort node are fillers — no client inspects them. *)
 let lift_sort (s : Sort.sort) : typed_info Sort.t =
-  Sort.map (fun loc_info ->
-    (object
-      method loc = loc_info#loc
-      method ctx = Context.empty
-      method answer = Ok s
-      method eff = Effect.Pure
-      method subterm_errors = []
-    end : typed_info)) s
+  Sort.map (fun (loc_info : SourcePos.info) ->
+    ({ loc = loc_info.loc;
+       ctx = Context.empty;
+       answer = Ok s;
+       eff = Effect.Pure;
+       subterm_errors = [] } : typed_info)) s
 
 (** Signature of a primitive (sort-level). *)
 let prim_signature (p : Prim.t) =
@@ -100,7 +90,7 @@ let prim_signature (p : Prim.t) =
   | Own a ->
     (mk_sort (Sort.Ptr a), mk_sort (Sort.Pred a), Effect.Spec)
 
-(** [unsynth ~construct r] converts an [info#answer] (a result over
+(** [unsynth ~construct r] converts an [info.answer] (a result over
     [Error.located]) into the [Error.t] expected by [check]'s expected-sort
     argument when the typechecker couldn't synthesize the prior subterm.
     The original error stays attached to the prior node; this lets the
@@ -117,7 +107,7 @@ let unsynth ~construct r =
     [SortView.Get.* ~construct:...]. *)
 let mismatch_kind ~construct ~expected_shape s =
   Error.construct_sort_mismatch
-    ~construct ~expected_shape ~got:(SortView.project s)
+    ~construct ~expected_shape ~got:(SortView.project (fun (i : SourcePos.info) -> i.loc) s)
 
 let view_get_pred ~construct (sr : (Sort.sort, Error.t) result)
     : (Sort.sort, Error.t) result =
@@ -161,7 +151,7 @@ let view_get_app ~construct (sr : (Sort.sort, Error.t) result)
     constructor list — used by [merge_branches] / [check_case_branches]
     to detect missing, redundant, and unknown ctors.  Each error
     variant carries the diagnostic to attach to its branch's
-    [info#answer] so the caller is a pure dispatcher. *)
+    [info.answer] so the caller is a pure dispatcher. *)
 type merged_branch =
   | M_present of Label.t * Var.t * CoreExpr.ce * Sort.sort
   | M_missing of Label.t * Sort.sort * Error.t
@@ -279,24 +269,15 @@ let merge_branches ~loc sig_ branches scrutinee_kind =
     cannot_synthesize error while preserving the inner elaboration. *)
 let replace_answer (ce : typed_ce) answer : typed_ce =
   let info = CoreExpr.info ce in
-  let new_info : typed_info =
-    object
-      method loc = info#loc
-      method ctx = info#ctx
-      method answer = answer
-      method eff = info#eff
-      method subterm_errors = info#subterm_errors
-    end
-  in
-  CoreExpr.mk new_info (CoreExpr.shape ce)
+  CoreExpr.mk { info with answer } (CoreExpr.shape ce)
 
 (** Synthesize: S; G |- [eff0] ce ==> tau
 
-    Returns a typed core expression whose [info#answer] is [Ok sort]
+    Returns a typed core expression whose [info.answer] is [Ok sort]
     on success and [Error e] on failure.  Errors are recorded on the
     offending node so siblings can still be elaborated. *)
-let rec synth sig_ ctx eff0 ce : typed_ce =
-  let pos = (CoreExpr.info ce)#loc in
+let rec synth sig_ ctx eff0 (ce : CoreExpr.ce) : typed_ce =
+  let pos = (CoreExpr.info ce).loc in
   match CoreExpr.shape ce with
   | CoreExpr.Var x ->
     let answer =
@@ -319,7 +300,7 @@ let rec synth sig_ ctx eff0 ce : typed_ce =
   | CoreExpr.Eq (ce1, ce2) ->
     let eff0' = Effect.purify eff0 in
     let ce1' = synth sig_ ctx eff0' ce1 in
-    let ce1_answer = (CoreExpr.info ce1')#answer in
+    let ce1_answer = (CoreExpr.info ce1').answer in
     let ce2' =
       check sig_ ctx ce2 (unsynth ~construct:"equality" ce1_answer) eff0' in
     let answer =
@@ -398,7 +379,7 @@ let rec synth sig_ ctx eff0 ce : typed_ce =
     unconditional) — the term's own [answer] inherits the failure
     reason from the View calls that consume [sort]. *)
 and check sig_ ctx ce sort eff0 : typed_ce =
-  let pos = (CoreExpr.info ce)#loc in
+  let pos = (CoreExpr.info ce).loc in
   match CoreExpr.shape ce with
   | CoreExpr.Return inner ->
     let eff_check = check_pred (Effect.sub Effect.Spec eff0)
@@ -423,7 +404,7 @@ and check sig_ ctx ce sort eff0 : typed_ce =
       (Error.spec_context_required ~construct:"take") in
     let _target_check = view_get_pred ~construct:"take target" sort in
     let ce1' = synth sig_ ctx eff0 ce1 in
-    let ce1_answer = (CoreExpr.info ce1')#answer in
+    let ce1_answer = (CoreExpr.info ce1').answer in
     let bound_kind =
       ce1_answer
       |> unsynth ~construct:"take scrutinee"
@@ -439,7 +420,7 @@ and check sig_ ctx ce sort eff0 : typed_ce =
 
   | CoreExpr.Let ((x, _), ce1, ce2) ->
     let ce1' = synth sig_ ctx eff0 ce1 in
-    let ce1_answer = (CoreExpr.info ce1')#answer in
+    let ce1_answer = (CoreExpr.info ce1').answer in
     let bind_eff = Effect.purify eff0 in
     let bound_kind = unsynth ~construct:"let binding" ce1_answer in
     let ctx' = Context.extend_or_unknown x bound_kind bind_eff ctx in
@@ -451,7 +432,7 @@ and check sig_ ctx ce sort eff0 : typed_ce =
   | CoreExpr.LetTuple (xs, ce1, ce2) ->
     let eff0' = Effect.purify eff0 in
     let ce1' = synth sig_ ctx eff0' ce1 in
-    let ce1_answer = (CoreExpr.info ce1')#answer in
+    let ce1_answer = (CoreExpr.info ce1').answer in
     let n = List.length xs in
     let scrut_record = unsynth ~construct:"let-tuple scrutinee" ce1_answer in
     let ts =
@@ -465,13 +446,9 @@ and check sig_ ctx ce sort eff0 : typed_ce =
     let ce2' = check sig_ ctx' ce2 sort eff0 in
     let typed_xs = List.map (fun ((x, _), s_result) ->
       let s_answer = s_result in
-      (x, (object
-        method loc = Var.binding_site x
-        method ctx = ctx'
-        method answer = s_answer
-        method eff = bind_eff
-        method subterm_errors = []
-      end : typed_info))
+      (x, ({ loc = Var.binding_site x; ctx = ctx';
+             answer = s_answer; eff = bind_eff;
+             subterm_errors = [] } : typed_info))
     ) (List.combine xs ts) in
     let answer = sort in
     mk ctx pos answer eff0 (CoreExpr.LetTuple (typed_xs, ce1', ce2'))
@@ -501,7 +478,7 @@ and check sig_ ctx ce sort eff0 : typed_ce =
   | CoreExpr.Case (scrut, branches) ->
     let eff0' = Effect.purify eff0 in
     let scrut' = synth sig_ ctx eff0' scrut in
-    let scrut_answer = (CoreExpr.info scrut')#answer in
+    let scrut_answer = (CoreExpr.info scrut').answer in
     let bind_eff = eff0' in
     let branches' =
       check_case_branches sig_ ctx branches scrut_answer sort eff0 bind_eff pos in
@@ -512,7 +489,7 @@ and check sig_ ctx ce sort eff0 : typed_ce =
     let eff_check = check_pred (Effect.sub Effect.Impure eff0)
       (Error.iter_requires_impure ~actual:eff0) in
     let e1' = synth sig_ ctx Effect.Pure e1 in
-    let e1_answer = (CoreExpr.info e1')#answer in
+    let e1_answer = (CoreExpr.info e1').answer in
     let bind_eff = Effect.purify Effect.Impure in
     let bound_kind = unsynth ~construct:"iter step source" e1_answer in
     let ctx' = Context.extend_or_unknown x bound_kind bind_eff ctx in
@@ -554,7 +531,7 @@ and check sig_ ctx ce sort eff0 : typed_ce =
 
   | _ ->
     let e' = synth sig_ ctx eff0 ce in
-    let syn_answer = (CoreExpr.info e')#answer in
+    let syn_answer = (CoreExpr.info e').answer in
     let answer =
       let* expected = sort in
       let* syn_sort = syn_answer in
@@ -573,13 +550,9 @@ and check_case_branches sig_ ctx branches scrut_answer result_sort eff0 bind_eff
     | M_present (l, x, body, ctor_sort) ->
       let ctx' = Context.extend x ctor_sort bind_eff ctx in
       let body' = check sig_ ctx' body result_sort eff0 in
-      let branch_info = (object
-        method loc = pos
-        method ctx = ctx'
-        method answer = Ok ctor_sort
-        method eff = bind_eff
-        method subterm_errors = []
-      end : typed_info) in
+      let branch_info : typed_info =
+        { loc = pos; ctx = ctx'; answer = Ok ctor_sort;
+          eff = bind_eff; subterm_errors = [] } in
       (l, x, body', branch_info)
 
     | M_redundant (l, x, body, ctor_sort, err) ->
@@ -588,13 +561,9 @@ and check_case_branches sig_ ctx branches scrut_answer result_sort eff0 bind_eff
          is recorded on the branch's [answer]. *)
       let ctx' = Context.extend x ctor_sort bind_eff ctx in
       let body' = check sig_ ctx' body result_sort eff0 in
-      let branch_info = (object
-        method loc = pos
-        method ctx = ctx'
-        method answer = Error err
-        method eff = bind_eff
-        method subterm_errors = []
-      end : typed_info) in
+      let branch_info : typed_info =
+        { loc = pos; ctx = ctx'; answer = Error err;
+          eff = bind_eff; subterm_errors = [] } in
       (l, x, body', branch_info)
 
     | M_unknown_label (l, x, body, err) ->
@@ -605,38 +574,26 @@ and check_case_branches sig_ ctx branches scrut_answer result_sort eff0 bind_eff
       let body_expected : (Sort.sort, Error.t) result =
         Error (Error.cannot_synthesize ~construct:"case branch payload") in
       let body' = check sig_ ctx' body body_expected eff0 in
-      let branch_info = (object
-        method loc = pos
-        method ctx = ctx'
-        method answer = Error err
-        method eff = bind_eff
-        method subterm_errors = []
-      end : typed_info) in
+      let branch_info : typed_info =
+        { loc = pos; ctx = ctx'; answer = Error err;
+          eff = bind_eff; subterm_errors = [] } in
       (l, x, body', branch_info)
 
     | M_missing (l, ctor_sort, err) ->
       (* Synthesize a branch with a Hole body and a fresh dummy var. *)
       let (x, _) = Var.mk "<missing>" pos Var.empty_supply in
       let ctx' = Context.extend x ctor_sort bind_eff ctx in
-      let hole_info : typed_info = object
-        method loc = pos
-        method ctx = ctx'
-        method answer = Ok ctor_sort
-        method eff = eff0
-        method subterm_errors = []
-      end in
+      let hole_info : typed_info =
+        { loc = pos; ctx = ctx'; answer = Ok ctor_sort;
+          eff = eff0; subterm_errors = [] } in
       let label_str = Format.asprintf "%a" Label.print l in
       let body' =
         CoreExpr.mk hole_info
           (CoreExpr.Hole ("missing-case-" ^ label_str))
       in
-      let branch_info = (object
-        method loc = pos
-        method ctx = ctx'
-        method answer = Error err
-        method eff = bind_eff
-        method subterm_errors = []
-      end : typed_info) in
+      let branch_info : typed_info =
+        { loc = pos; ctx = ctx'; answer = Error err;
+          eff = bind_eff; subterm_errors = [] } in
       (l, x, body', branch_info)
   ) merged
 
@@ -644,17 +601,17 @@ and check_case_branches sig_ ctx branches scrut_answer result_sort eff0 bind_eff
    populated live during typed_ce construction by
    [Elaborate.collect_subtree_errors]. *)
 
-(** Collect every [Error _] recorded on [info#answer] anywhere in the
-    typed tree.  Reads the live [info#subterm_errors] field at the
-    root plus the root's own [info#answer] — O(1).  The field is
+(** Collect every [Error _] recorded on [info.answer] anywhere in the
+    typed tree.  Reads the live [info.subterm_errors] field at the
+    root plus the root's own [info.answer] — O(1).  The field is
     populated during construction by [Elaborate.collect_subtree_errors]
     and is always current. *)
 let collect_errors (ce : typed_ce) : Error.located list =
   let info = CoreExpr.info ce in
-  let own = match info#answer with
+  let own = match info.answer with
     | Ok _ -> []
-    | Error k -> [Error.locate ~loc:info#loc k] in
-  own @ info#subterm_errors
+    | Error k -> [Error.locate ~loc:info.loc k] in
+  own @ info.subterm_errors
 
 (** Built-in step datatype: step(a, b) = { Next : a | Done : b } *)
 let step_decl =
@@ -678,8 +635,8 @@ let initial_sig : typed_ce Sig.t =
   Sig.extend_type Sig.empty step_decl
 
 (** Check kind well-formedness: CS ; G |- tau : kind *)
-let rec kind_wf sig_ ctx s kind =
-  let pos = (Sort.info s)#loc in
+let rec kind_wf sig_ ctx (s : Sort.sort) kind =
+  let pos = (Sort.info s).loc in
   match Sort.shape s with
   | Sort.Int | Sort.Bool -> Ok ()
   | Sort.TVar a ->
@@ -758,8 +715,8 @@ let validate_sort_decl sig_ (d : DsortDecl.t) =
 
 (** Check guarded well-formedness for datatype declarations:
     CS ; G ; D'(a1,...,an) |- tau guarded *)
-let rec type_guarded sig_ ctx (guard_name, guard_params) s =
-  let pos = (Sort.info s)#loc in
+let rec type_guarded sig_ ctx (guard_name, guard_params) (s : Sort.sort) =
+  let pos = (Sort.info s).loc in
   match Sort.shape s with
   | Sort.Int | Sort.Bool -> Ok ()
   | Sort.TVar a ->
@@ -835,7 +792,7 @@ let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
     let ((y, typed_body), supply') = ElabM.run supply (
       let open ElabM in
       let param_pos = match d.branches with
-        | (pat, _, _) :: _ -> (Pat.info pat)#loc
+        | (pat, _, _) :: _ -> (Pat.info pat).loc
         | [] -> d.loc
       in
       let* y = fresh param_pos in
@@ -861,7 +818,7 @@ let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
        body's tree as a structured failure, preserving the
        fail-fast contract for legacy callers.  Resilient drivers
        can call [collect_errors] directly to get every error.
-       [info#subterm_errors] is populated live during elaboration
+       [info.subterm_errors] is populated live during elaboration
        (see [Elaborate.collect_subtree_errors]). *)
     (match collect_errors typed_body with
      | e :: _ -> Error e
@@ -905,7 +862,7 @@ let check_decl_multi supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
     let ((y, typed_body), supply') = ElabM.run supply (
       let open ElabM in
       let param_pos = match d.branches with
-        | (pat, _, _) :: _ -> (Pat.info pat)#loc
+        | (pat, _, _) :: _ -> (Pat.info pat).loc
         | [] -> d.loc
       in
       let* y = fresh param_pos in

@@ -40,7 +40,7 @@ val shape : 'b t -> ('b t, 'b) ceF
 val map : ('b -> 'c) -> 'b t -> 'c t
 
 (** Concrete located core expression. *)
-type ce = < loc : SourcePos.t > t
+type ce = SourcePos.info t
 
 (** Typed core expression, carrying context, sort-or-error answer,
     and effect at every node.  The [answer] field is [Ok sort] for
@@ -48,25 +48,25 @@ type ce = < loc : SourcePos.t > t
     not be determined; the multi-error typechecker continues past the
     error so siblings still get full diagnostics.  [eff] is the
     ambient effect at the node and is always known. *)
-type typed_info = <
+type typed_info = {
   loc : SourcePos.t;
   ctx : Context.t;
   answer : (Sort.sort, Error.t) result;
   eff : Effect.t;
   subterm_errors : Error.located list;
-    (** Errors recorded on [info#answer] anywhere in the immediate
+    (** Errors recorded on [info.answer] anywhere in the immediate
         sub-trees of this node (i.e. NOT including this node's own
         answer), paired with the source position of the term they came
         from.  Populated live during construction by
         [Elaborate.collect_subtree_errors] / [Typecheck.mk] —
         every constructor walks one level of the shape and pairs each
-        child's [info#loc] with each error in [own_error_if_any
+        child's [info.loc] with each error in [own_error_if_any
         ++ subterm_errors]. *)
->
+}
 type typed_ce = typed_info t
 
 val sort_of_info : typed_info -> Sort.sort
-(** [sort_of_info i] reads [i]'s sort, asserting [i#answer] is [Ok _].
+(** [sort_of_info i] reads [i]'s sort, asserting [i.answer] is [Ok _].
     A Phase A migration shim — Phase B/C will rewrite read sites in
     View style so they thread the result without unwrapping.  Calling
     this on a node whose typechecker chose to record an error will

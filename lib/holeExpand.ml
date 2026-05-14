@@ -81,11 +81,11 @@ let walk_for_hole (prog : RProg.typed) ~line ~col : candidate option =
 
   let rec go_ce (e : CoreExpr.typed_ce) =
     let b = CoreExpr.info e in
-    if not (covers b#loc ~line ~col) then ()
+    if not (covers b.loc ~line ~col) then ()
     else
       match CoreExpr.shape e with
       | CoreExpr.Hole h ->
-        consider (Core_hole { name = h; loc = b#loc; info = b })
+        consider (Core_hole { name = h; loc = b.loc; info = b })
       | CoreExpr.Var _ | CoreExpr.IntLit _ | CoreExpr.BoolLit _
       | CoreExpr.Fail -> ()
       | CoreExpr.Let (_, e1, e2)
@@ -109,12 +109,12 @@ let walk_for_hole (prog : RProg.typed) ~line ~col : candidate option =
   in
 
   let rec go_crt c =
-    let b = RefinedExpr.crt_info c in
-    if not (covers b#loc ~line ~col) then ()
+    let b : RProg.typed_rinfo = RefinedExpr.crt_info c in
+    if not (covers b.loc ~line ~col) then ()
     else
       match RefinedExpr.crt_shape c with
       | RefinedExpr.CHole h ->
-        consider (C_hole { name = h; loc = b#loc; info = b })
+        consider (C_hole { name = h; loc = b.loc; info = b })
       | RefinedExpr.CLet (_pat, c1, c2) -> go_crt c1; go_crt c2
       | RefinedExpr.CLetLog (_, lpf, c') -> go_lpf lpf; go_crt c'
       | RefinedExpr.CLetRes (_, rpf, c') -> go_rpf rpf; go_crt c'
@@ -131,22 +131,22 @@ let walk_for_hole (prog : RProg.typed) ~line ~col : candidate option =
 
   and go_lpf l =
     let b = RefinedExpr.lpf_info l in
-    if not (covers b#loc ~line ~col) then ()
+    if not (covers b.loc ~line ~col) then ()
     else
       match RefinedExpr.lpf_shape l with
       | RefinedExpr.LHole h ->
-        consider (L_hole { name = h; loc = b#loc; info = b })
+        consider (L_hole { name = h; loc = b.loc; info = b })
       | RefinedExpr.LVar _ | RefinedExpr.LAuto -> ()
       | RefinedExpr.LUnfold (_, e) -> go_ce e
       | RefinedExpr.LAnnot (lpf', e) -> go_lpf lpf'; go_ce e
 
   and go_rpf r =
     let b = RefinedExpr.rpf_info r in
-    if not (covers b#loc ~line ~col) then ()
+    if not (covers b.loc ~line ~col) then ()
     else
       match RefinedExpr.rpf_shape r with
       | RefinedExpr.RHole h ->
-        consider (R_hole { name = h; loc = b#loc; info = b })
+        consider (R_hole { name = h; loc = b.loc; info = b })
       | RefinedExpr.RVar _ -> ()
       | RefinedExpr.RAnnot (rpf', e1, e2) -> go_rpf rpf'; go_ce e1; go_ce e2
       | RefinedExpr.RReturn lpf | RefinedExpr.RFail lpf -> go_lpf lpf
@@ -218,18 +218,18 @@ let mk_action ~loc ~title ~new_text : action =
   { title; edits = [{ range = loc; new_text }] }
 
 (** Core-hole tuple expansion.  [h]'s expected sort lives in
-    [info#answer] as [Ok sort] when the hole is in a checking
+    [info.answer] as [Ok sort] when the hole is in a checking
     position.  Synth-only holes carry [Error _] and get no action. *)
 let core_hole_action (c : candidate) : action option =
   match c with
   | Core_hole { name; loc; info } ->
-    (match info#answer with
+    (match info.answer with
      | Error _ -> None
      | Ok sort ->
        (match Sort.shape sort with
         | Sort.Record taus when List.length taus >= 2 ->
           let taken =
-            ref (names_in_scope info#ctx RCtx.empty) in
+            ref (names_in_scope info.ctx RCtx.empty) in
           let component_names =
             List.mapi (fun i _ ->
               fresh ~taken (name ^ string_of_int (i + 1))
@@ -260,9 +260,9 @@ let l_hole_action (c : candidate) : action option =
 let r_hole_action (c : candidate) : action option =
   match c with
   | R_hole { name; loc; info } ->
-    (match info#goal with
+    (match info.goal with
      | RProg.RpfGoal (pred, _value) ->
-       let taken = ref (names_in_scope info#ctx info#rctx) in
+       let taken = ref (names_in_scope info.ctx info.rctx) in
        let fresh_h suffix = "$" ^ fresh ~taken (name ^ suffix) in
        let mk title new_text = Some (mk_action ~loc ~title ~new_text) in
        let title_for new_text =
@@ -308,9 +308,9 @@ let r_hole_action (c : candidate) : action option =
 let c_hole_action (c : candidate) : action option =
   match c with
   | C_hole { name; loc; info } ->
-    (match info#goal with
+    (match info.goal with
      | RProg.CrtGoal pf ->
-       let taken = ref (names_in_scope info#ctx info#rctx) in
+       let taken = ref (names_in_scope info.ctx info.rctx) in
        let rec emit i = function
          | [] -> []
          | ProofSort.Comp _ :: rest ->

@@ -69,7 +69,7 @@ let compile_file source ~file =
       ) in
       (* Multi-error: prepend every error recorded on the typed
          tree so LSP shows them all.  [collect_errors] reads
-         [info#subterm_errors] which is populated live during
+         [info.subterm_errors] which is populated live during
          elaboration. *)
       List.rev_append (Typecheck.collect_errors typed_e) acc.diags_rev
     | Some (Error _) | None -> acc.diags_rev

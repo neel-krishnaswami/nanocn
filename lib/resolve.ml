@@ -30,13 +30,13 @@ let invariant_at pos ~rule msg =
 
 (* Best-effort location for a ProofSort.entry: any embedded expression
    or sort carries a [SourcePos.t] via its info object. *)
-let entry_loc (entry : (SurfExpr.parsed_se, _, string) ProofSort.entry) =
-  (ProofSort.entry_info entry)#loc
+let entry_loc (entry : (SurfExpr.parsed_se, SourcePos.info, string) ProofSort.entry) =
+  (ProofSort.entry_info entry).loc
 
 (* ===== Patterns ===== *)
 
 let rec resolve_pat env (p : Pat.parsed_pat) : (Pat.pat * env) ElabM.t =
-  let pos = (Pat.info p)#loc in
+  let pos = (Pat.info p).loc in
   match Pat.shape p with
   | Pat.Var name ->
     let* v = mk_var name pos in
@@ -59,7 +59,7 @@ and resolve_pat_list env = function
 (* ===== Expressions ===== *)
 
 let rec resolve_expr env (e : SurfExpr.parsed_se) : SurfExpr.se ElabM.t =
-  let pos = (SurfExpr.info e)#loc in
+  let pos = (SurfExpr.info e).loc in
   let mk s = return (SurfExpr.mk (SurfExpr.info e) s) in
   match SurfExpr.shape e with
   | SurfExpr.Var name ->
@@ -179,7 +179,7 @@ let resolve_pf_entry env (entry : (SurfExpr.parsed_se, _, string) ProofSort.entr
   : ((SurfExpr.se, _, Var.t) ProofSort.entry * env) ElabM.t =
   match entry with
   | ProofSort.Comp { info; var = name; sort; eff } ->
-    let* v = mk_var name (Sort.info sort)#loc in
+    let* v = mk_var name (Sort.info sort).loc in
     return (ProofSort.Comp { info; var = v; sort; eff }, (name, v) :: env)
   | ProofSort.Log { info; prop } ->
     let* prop' = resolve_expr env prop in
@@ -189,7 +189,7 @@ let resolve_pf_entry env (entry : (SurfExpr.parsed_se, _, string) ProofSort.entr
     let* value' = resolve_expr env value in
     return (ProofSort.Res { info; pred = pred'; value = value' }, env)
   | ProofSort.DepRes { info; bound_var = bname; pred } ->
-    let pos = (SurfExpr.info pred)#loc in
+    let pos = (SurfExpr.info pred).loc in
     let* bv = mk_var bname pos in
     let env_with_bound = (bname, bv) :: env in
     let* pred' = resolve_expr env_with_bound pred in
@@ -223,7 +223,7 @@ let rec resolve_pf_domain env
     ProofSort.Comp { info; var = name'; sort; eff } :: rest_pf ->
     (match RPat.cpat_shape cp with
      | RPat.CVar name when name = name' ->
-       let* v = mk_var name (Sort.info sort)#loc in
+       let* v = mk_var name (Sort.info sort).loc in
        let cp' = RPat.mk_cpat (RPat.cpat_info cp) (RPat.CVar v) in
        let entry' = ProofSort.Comp { info; var = v; sort; eff } in
        let env_with_v = (name, v) :: env in
@@ -242,7 +242,7 @@ let rec resolve_pf_domain env
     let* (lp', env_with_v) =
       match RPat.lpat_shape lp with
       | RPat.LVar name ->
-        let pos = (SurfExpr.info prop)#loc in
+        let pos = (SurfExpr.info prop).loc in
         let* v = mk_var name pos in
         return (RPat.mk_lpat (RPat.lpat_info lp) (RPat.LVar v),
                 (name, v) :: env)
@@ -261,7 +261,7 @@ let rec resolve_pf_domain env
      | RPat.RVar name ->
        let* pred' = resolve_expr env pred in
        let* value' = resolve_expr env value in
-       let pos = (SurfExpr.info pred)#loc in
+       let pos = (SurfExpr.info pred).loc in
        let* v = mk_var name pos in
        let rp' = RPat.mk_rpat (RPat.rpat_info rp) (RPat.RVar v) in
        let entry' = ProofSort.Res { info; pred = pred'; value = value' } in
@@ -279,7 +279,7 @@ let rec resolve_pf_domain env
     ProofSort.DepRes { info; bound_var = bname'; pred } :: rest_pf ->
     (match RPat.cpat_shape cp, RPat.rpat_shape rp with
      | RPat.CVar bname, RPat.RVar rname when bname = bname' ->
-       let pos = (SurfExpr.info pred)#loc in
+       let pos = (SurfExpr.info pred).loc in
        let* bv = mk_var bname pos in
        let env_with_bound = (bname, bv) :: env in
        let* pred' = resolve_expr env_with_bound pred in
@@ -401,8 +401,8 @@ let rec resolve_rpat env (pat : (_, string) RPat.t)
 
 (* ===== Refined expressions ===== *)
 
-let rec resolve_crt env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string) RefinedExpr.crt)
-  : (SurfExpr.se, < loc : SourcePos.t >, Var.t) RefinedExpr.crt ElabM.t =
+let rec resolve_crt env (t : (SurfExpr.parsed_se, SourcePos.info, string) RefinedExpr.crt)
+  : (SurfExpr.se, SourcePos.info, Var.t) RefinedExpr.crt ElabM.t =
   let b = RefinedExpr.crt_info t in
   match RefinedExpr.crt_shape t with
   | RefinedExpr.CLet (q, e1, e2) ->
@@ -451,14 +451,14 @@ let rec resolve_crt env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string)
     let* e2' = resolve_crt env' e2 in
     return (RefinedExpr.mk_crt b (RefinedExpr.CIter (ce', q', e1', e2')))
   | RefinedExpr.CIf (name, ce, e1, e2) ->
-    let* v = mk_var name b#loc in
+    let* v = mk_var name b.loc in
     let env' = (name, v) :: env in
     let* ce' = resolve_expr env' ce in
     let* e1' = resolve_crt env' e1 in
     let* e2' = resolve_crt env' e2 in
     return (RefinedExpr.mk_crt b (RefinedExpr.CIf (v, ce', e1', e2')))
   | RefinedExpr.CCase (name, ce, branches) ->
-    let* v = mk_var name b#loc in
+    let* v = mk_var name b.loc in
     let env' = (name, v) :: env in
     let* ce' = resolve_expr env' ce in
     let* branches' = resolve_crt_branches env' branches in
@@ -477,12 +477,12 @@ and resolve_crt_branches env = function
     let* rest' = resolve_crt_branches env rest in
     return ((l, b, v, body') :: rest')
 
-and resolve_lpf env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string) RefinedExpr.lpf)
-  : (SurfExpr.se, < loc : SourcePos.t >, Var.t) RefinedExpr.lpf ElabM.t =
+and resolve_lpf env (t : (SurfExpr.parsed_se, SourcePos.info, string) RefinedExpr.lpf)
+  : (SurfExpr.se, SourcePos.info, Var.t) RefinedExpr.lpf ElabM.t =
   let b = RefinedExpr.lpf_info t in
   match RefinedExpr.lpf_shape t with
   | RefinedExpr.LVar name ->
-    let* v = resolve_use b#loc env name in
+    let* v = resolve_use b.loc env name in
     return (RefinedExpr.mk_lpf b (RefinedExpr.LVar v))
   | RefinedExpr.LAuto ->
     return (RefinedExpr.mk_lpf b RefinedExpr.LAuto)
@@ -496,12 +496,12 @@ and resolve_lpf env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string) Ref
   | RefinedExpr.LHole h ->
     return (RefinedExpr.mk_lpf b (RefinedExpr.LHole h))
 
-and resolve_rpf env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string) RefinedExpr.rpf)
-  : (SurfExpr.se, < loc : SourcePos.t >, Var.t) RefinedExpr.rpf ElabM.t =
+and resolve_rpf env (t : (SurfExpr.parsed_se, SourcePos.info, string) RefinedExpr.rpf)
+  : (SurfExpr.se, SourcePos.info, Var.t) RefinedExpr.rpf ElabM.t =
   let b = RefinedExpr.rpf_info t in
   match RefinedExpr.rpf_shape t with
   | RefinedExpr.RVar name ->
-    let* v = resolve_use b#loc env name in
+    let* v = resolve_use b.loc env name in
     return (RefinedExpr.mk_rpf b (RefinedExpr.RVar v))
   | RefinedExpr.RAnnot (rpf, ce1, ce2) ->
     let* rpf' = resolve_rpf env rpf in
@@ -543,8 +543,8 @@ and resolve_rpf env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string) Ref
   | RefinedExpr.RHole h ->
     return (RefinedExpr.mk_rpf b (RefinedExpr.RHole h))
 
-and resolve_spine env (t : (SurfExpr.parsed_se, < loc : SourcePos.t >, string) RefinedExpr.spine)
-  : (SurfExpr.se, < loc : SourcePos.t >, Var.t) RefinedExpr.spine ElabM.t =
+and resolve_spine env (t : (SurfExpr.parsed_se, SourcePos.info, string) RefinedExpr.spine)
+  : (SurfExpr.se, SourcePos.info, Var.t) RefinedExpr.spine ElabM.t =
   let b = RefinedExpr.spine_info t in
   match RefinedExpr.spine_shape t with
   | RefinedExpr.SNil ->

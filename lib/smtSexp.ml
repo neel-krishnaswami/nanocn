@@ -19,7 +19,7 @@ let shape (In (_, sf)) = sf
 let rec map f (In (b, sf)) =
   In (f b, map_info f (map_shape (map f) sf))
 
-type sexp = < loc : SourcePos.t > t
+type sexp = SourcePos.info t
 
 (* Smart constructors *)
 
@@ -100,7 +100,7 @@ let rec json jb t =
 module Test = struct
   open QCheck.Gen
 
-  let dummy_info () = object method loc = SourcePos.dummy end
+  let dummy_info () = SourcePos.{ loc = SourcePos.dummy }
 
   let gen =
     let mk_t s = mk (dummy_info ()) s in

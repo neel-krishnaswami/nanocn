@@ -10,7 +10,7 @@
 
   let loc_obj startpos endpos =
     let loc = mk_loc startpos endpos in
-    object method loc = loc end
+    SourcePos.{ loc }
 
   let mk_surfexpr startpos endpos s =
     SurfExpr.mk (loc_obj startpos endpos) s

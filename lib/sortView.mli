@@ -22,25 +22,25 @@
 
 type 'a t = 'a option
 
-(** [project s] extracts a [Sort.sort] (info erased to bare [loc]) from
-    an arbitrary ['info Sort.t].  Used by consumers' wrapper helpers to
-    fill in a [K_construct_sort_mismatch.got] field with a sort the
-    error machinery can render. *)
-val project : (< loc : SourcePos.t; .. > as 'info) Sort.t -> Sort.sort
+(** [project loc_of s] extracts a [Sort.sort] (info erased to bare
+    [loc]) from an arbitrary ['info Sort.t].  Used by consumers'
+    wrapper helpers to fill in a [K_construct_sort_mismatch.got] field
+    with a sort the error machinery can render. *)
+val project : ('info -> SourcePos.t) -> 'info Sort.t -> Sort.sort
 
 module Get : sig
-  val int    : (< loc : SourcePos.t; .. >) Sort.t t -> unit t
-  val bool   : (< loc : SourcePos.t; .. >) Sort.t t -> unit t
-  val ptr    : (< loc : SourcePos.t; .. > as 'info) Sort.t t -> 'info Sort.t t
-  val pred   : (< loc : SourcePos.t; .. > as 'info) Sort.t t -> 'info Sort.t t
-  val record : int -> (< loc : SourcePos.t; .. > as 'info) Sort.t t -> 'info Sort.t t list
+  val int    : 'info Sort.t t -> unit t
+  val bool   : 'info Sort.t t -> unit t
+  val ptr    : 'info Sort.t t -> 'info Sort.t t
+  val pred   : 'info Sort.t t -> 'info Sort.t t
+  val record : int -> 'info Sort.t t -> 'info Sort.t t list
   (** [record n s] returns a list of *exactly* [n] sub-sort options.
       [Some ts] when [s = Some (Record ts)] with [List.length ts = n];
       [List.init n (fun _ -> None)] otherwise (wrong shape, wrong
       arity, or [s = None]).  Callers iterating by tuple shape don't
       need to check length. *)
-  val app    : (< loc : SourcePos.t; .. > as 'info) Sort.t t -> Dsort.t t * 'info Sort.t t list
-  val tvar   : (< loc : SourcePos.t; .. >) Sort.t t -> Tvar.t t
+  val app    : 'info Sort.t t -> Dsort.t t * 'info Sort.t t list
+  val tvar   : 'info Sort.t t -> Tvar.t t
 end
 
 module Build : sig

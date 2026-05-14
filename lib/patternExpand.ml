@@ -86,16 +86,16 @@ let walk_for_pattern (prog : RProg.typed) ~line ~col : candidate option =
   in
 
   let rec go_cpat ~scope cp =
-    let b = RPat.cpat_info cp in
-    if not (covers b#loc ~line ~col) then ()
+    let b : RProg.typed_rinfo = RPat.cpat_info cp in
+    if not (covers b.loc ~line ~col) then ()
     else
       match RPat.cpat_shape cp with
       | RPat.CVar v ->
         consider (Cand_core {
           var = v;
           info = b;
-          pat_loc = b#loc;
-          sort = b#sort;
+          pat_loc = b.loc;
+          sort = b.sort;
           scope;
         })
       | RPat.CTuple cps ->
@@ -104,17 +104,17 @@ let walk_for_pattern (prog : RProg.typed) ~line ~col : candidate option =
   and go_lpat ~scope:_ _lp = ()  (* No actions for logical patterns. *)
 
   and go_rpat ~scope rp =
-    let b = RPat.rpat_info rp in
-    if not (covers b#loc ~line ~col) then ()
+    let b : RProg.typed_rinfo = RPat.rpat_info rp in
+    if not (covers b.loc ~line ~col) then ()
     else
       match RPat.rpat_shape rp with
       | RPat.RVar v ->
-        (match b#goal with
+        (match b.goal with
          | RProg.RPatGoal (pred, value) ->
            consider (Cand_resource {
              var = v;
              info = b;
-             pat_loc = b#loc;
+             pat_loc = b.loc;
              pred;
              value;
              scope;
@@ -133,8 +133,8 @@ let walk_for_pattern (prog : RProg.typed) ~line ~col : candidate option =
         go_rpat ~scope rp'
 
   and go_q ~scope q =
-    let b = RPat.info q in
-    if not (covers b#loc ~line ~col) then ()
+    let b : RProg.typed_rinfo = RPat.info q in
+    if not (covers b.loc ~line ~col) then ()
     else
       match RPat.shape q with
       | RPat.QNil -> ()
@@ -234,10 +234,10 @@ let occurrences_in_ce (target : Var.t) (e : CoreExpr.typed_ce) : SourcePos.t lis
   let acc = ref [] in
   let same x = Int.equal (Var.compare x target) 0 in
   let rec go bound e =
-    let b = CoreExpr.info e in
+    let b : CoreExpr.typed_info = CoreExpr.info e in
     match CoreExpr.shape e with
     | CoreExpr.Var x ->
-      if same x && not bound then acc := b#loc :: !acc
+      if same x && not bound then acc := b.loc :: !acc
     | CoreExpr.IntLit _ | CoreExpr.BoolLit _
     | CoreExpr.Fail | CoreExpr.Hole _ -> ()
     | CoreExpr.Let ((x, _), e1, e2) ->
@@ -352,10 +352,10 @@ let occurrences_of_rvar_in_crt (target : Var.t) (crt : body_crt) : SourcePos.t l
       List.iter (fun (_, _, _, body) -> go_crt body) branches
     | RefinedExpr.CExfalso | RefinedExpr.CHole _ -> ()
   and go_rpf rpf =
-    let b = RefinedExpr.rpf_info rpf in
+    let b : RProg.typed_rinfo = RefinedExpr.rpf_info rpf in
     match RefinedExpr.rpf_shape rpf with
     | RefinedExpr.RVar v ->
-      if same v then acc := b#loc :: !acc
+      if same v then acc := b.loc :: !acc
     | RefinedExpr.RHole _ -> ()
     | RefinedExpr.RAnnot (rpf', _, _) -> go_rpf rpf'
     | RefinedExpr.RReturn _ | RefinedExpr.RFail _ -> ()
@@ -385,7 +385,7 @@ let core_tuple_action (cand : core_var_candidate) : action option =
   | Sort.Record taus when List.length taus >= 2 ->
     let base = Var.name cand.var in
     let taken =
-      ref (names_in_scope (cand.info)#ctx (cand.info)#rctx) in
+      ref (names_in_scope (cand.info).ctx (cand.info).rctx) in
     let component_names =
       List.mapi (fun i _ ->
         let n = base ^ string_of_int (i + 1) in
@@ -450,7 +450,7 @@ let display_binder_name (v : Var.t) ~default : string =
 let resource_var_action (cand : resource_var_candidate) : action option =
   let base = Var.name cand.var in
   let taken =
-    ref (names_in_scope (cand.info)#ctx (cand.info)#rctx) in
+    ref (names_in_scope (cand.info).ctx (cand.info).rctx) in
   let fresh_from suffix = fresh ~taken (base ^ suffix) in
   let pred = strip_annots cand.pred in
   match CoreExpr.shape pred with

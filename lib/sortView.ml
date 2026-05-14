@@ -1,7 +1,7 @@
 type 'a t = 'a option
 
-let project s =
-  Sort.map (fun i -> (object method loc = i#loc end)) s
+let project loc_of s =
+  Sort.map (fun i -> SourcePos.{ loc = loc_of i }) s
 
 module Get = struct
   let int = function
@@ -97,7 +97,7 @@ module Build = struct
 end
 
 module Test = struct
-  let dummy_info = object method loc = SourcePos.dummy end
+  let dummy_info = SourcePos.{ loc = SourcePos.dummy }
   let mk_sort s = Sort.mk dummy_info s
 
   let int_sort = mk_sort Sort.Int

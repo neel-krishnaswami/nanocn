@@ -91,26 +91,18 @@ module Build = struct
 end
 
 module Test = struct
-  let dummy_info =
-    object
-      method loc = SourcePos.dummy
-      method ctx = Context.empty
-      method answer = Ok (Sort.mk (object method loc = SourcePos.dummy end) Sort.Bool)
-      method eff = Effect.Pure
-      method subterm_errors = []
-    end
+  let dummy_info : CoreExpr.typed_info =
+    { loc = SourcePos.dummy; ctx = Context.empty;
+      answer = Ok (Sort.mk SourcePos.{ loc = SourcePos.dummy } Sort.Bool);
+      eff = Effect.Pure; subterm_errors = [] }
 
-  let int_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Int
+  let int_sort = Sort.mk SourcePos.{ loc = SourcePos.dummy } Sort.Int
 
   let mk_int_lit n =
-    let info =
-      object
-        method loc = SourcePos.dummy
-        method ctx = Context.empty
-        method answer = Ok int_sort
-        method eff = Effect.Pure
-        method subterm_errors = []
-      end
+    let info : CoreExpr.typed_info =
+      { loc = SourcePos.dummy; ctx = Context.empty;
+        answer = Ok int_sort; eff = Effect.Pure;
+        subterm_errors = [] }
     in
     CoreExpr.mk info (CoreExpr.IntLit n)
 

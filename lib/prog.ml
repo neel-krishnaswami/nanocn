@@ -4,7 +4,7 @@ type ('a, 'b, 'var) decl =
       arg_sort : Sort.sort;
       ret_sort : Sort.sort;
       eff : Effect.t;
-      branches : ((< loc : SourcePos.t >, 'var) Pat.t * 'a * 'b) list;
+      branches : ((SourcePos.info, 'var) Pat.t * 'a * 'b) list;
       loc : SourcePos.t;
     }
   | SortDecl of DsortDecl.t
@@ -35,8 +35,8 @@ let print pp fmt p =
   Format.fprintf fmt "@[<hov 2>main : %a [%a] =@ %a@]"
     Sort.print p.main_sort Effect.print p.main_eff pp p.main
 
-let json_sort_loc s = Sort.json (fun b -> SourcePos.json b#loc) s
-let json_pat_loc p = Pat.json (fun b -> SourcePos.json b#loc) p
+let json_sort_loc s = Sort.json (fun (b : SourcePos.info) -> SourcePos.json b.loc) s
+let json_pat_loc p = Pat.json (fun (b : SourcePos.info) -> SourcePos.json b.loc) p
 
 let json_decl ja jb = function
   | FunDecl d ->

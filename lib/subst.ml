@@ -107,13 +107,12 @@ let of_lists tvars sorts =
     Ok (List.fold_right2 (fun a s acc -> TV (a, s) :: acc) tvars sorts [])
 
 let id ctx =
-  let mk_ce_info sort =
-    (object method loc = SourcePos.dummy method ctx = Context.empty
-            method answer = Ok sort method eff = Effect.Spec
-            method subterm_errors = [] end
-     : CoreExpr.typed_info) in
+  let mk_ce_info sort : CoreExpr.typed_info =
+    { loc = SourcePos.dummy; ctx = Context.empty;
+      answer = Ok sort; eff = Effect.Spec;
+      subterm_errors = [] } in
   let mk_sort_info =
-    (object method loc = SourcePos.dummy end) in
+    (SourcePos.{ loc = SourcePos.dummy }) in
   let rec go = function
     | [] -> []
     | Context.Term (x, sort, _eff) :: rest ->
@@ -182,7 +181,7 @@ let print fmt sub =
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let mk_s s = Sort.mk (object method loc = SourcePos.dummy end) s in
+    let mk_s s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) s in
     let simple_sort = oneof [
       pure (mk_s Sort.Int);
       pure (mk_s Sort.Bool);
@@ -197,7 +196,7 @@ module Test = struct
     pure entries
 
   let test =
-    let mk_s s = Sort.mk (object method loc = SourcePos.dummy end) s in
+    let mk_s s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) s in
     [ QCheck.Test.make ~name:"subst compare is reflexive"
         ~count:100
         (QCheck.make gen)

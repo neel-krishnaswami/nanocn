@@ -171,16 +171,16 @@ let json_file filename =
     match Typecheck.check_prog supply prog with
     | Error err -> print_err err; exit 1
     | Ok (_sig, cprog) ->
-      let jb b = Json.Object [
-        "loc", SourcePos.json b#loc;
+      let jb (b : CoreExpr.typed_info) = Json.Object [
+        "loc", SourcePos.json b.loc;
         "ctx", Json.String "<ctx>";
         "answer",
-          (match b#answer with
-           | Ok s -> Sort.json (fun b' -> SourcePos.json b'#loc) s
+          (match b.answer with
+           | Ok s -> Sort.json (fun (b' : SourcePos.info) -> SourcePos.json b'.loc) s
            | Error k ->
-             let e = Error.locate ~loc:b#loc k in
+             let e = Error.locate ~loc:b.loc k in
              Json.Object ["error", Json.String (Error.to_string e)]);
-        "eff", Effect.json b#eff;
+        "eff", Effect.json b.eff;
       ] in
       let j = Prog.json_core_prog (CoreExpr.json jb) cprog in
       Format.printf "%a@." Json.print j

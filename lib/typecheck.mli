@@ -13,7 +13,7 @@ val synth : _ Sig.t -> Context.t -> Effect.t -> CoreExpr.ce -> typed_ce
 
     Always returns a typed core expression — the multi-error
     typechecker continues past errors and records them on the
-    offending nodes' [info#answer] field.  Use [collect_errors] to
+    offending nodes' [info.answer] field.  Use [collect_errors] to
     extract the error list from the resulting tree. *)
 
 val check : _ Sig.t -> Context.t -> CoreExpr.ce ->
@@ -22,16 +22,16 @@ val check : _ Sig.t -> Context.t -> CoreExpr.ce ->
     [eff0].  The expected sort is itself a result so the caller can
     pass [Error K_cannot_synthesize] (or any other [Error.t]) when
     no expected sort is available; the term still elaborates and any
-    failures land on [info#answer] of the offending nodes. *)
+    failures land on [info.answer] of the offending nodes. *)
 
 val collect_errors : typed_ce -> Error.located list
 (** [collect_errors ce] returns every [Error e] recorded on
-    [info#answer] anywhere in [ce]'s tree, in source-position order
+    [info.answer] anywhere in [ce]'s tree, in source-position order
     (left-to-right pre-order traversal).  An empty list means the
     expression typechecked without errors.
 
-    Reads [info#subterm_errors] at the root plus the root's own
-    [info#answer]; both fields are populated live during elaboration
+    Reads [info.subterm_errors] at the root plus the root's own
+    [info.answer]; both fields are populated live during elaboration
     by [Elaborate.collect_subtree_errors] inside the typed_ce
     constructors. *)
 

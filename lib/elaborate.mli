@@ -12,9 +12,9 @@ type typed_ce = typed_info CoreExpr.t
 
 val collect_subtree_errors :
   (typed_ce, typed_info) CoreExpr.ceF -> Error.located list
-(** [collect_subtree_errors shape] aggregates [info#answer]'s [Error]
-    case (if any) — paired with the originating child's [info#loc] —
-    and [info#subterm_errors] from every immediate sub-tree of [shape].
+(** [collect_subtree_errors shape] aggregates [info.answer]'s [Error]
+    case (if any) — paired with the originating child's [info.loc] —
+    and [info.subterm_errors] from every immediate sub-tree of [shape].
     Used at construction time so each typed_ce node's [subterm_errors]
     is correct as the tree is built — no post-pass needed. *)
 
@@ -58,7 +58,7 @@ val synth : _ Sig.t -> Context.t -> Effect.t -> SurfExpr.se ->
 (** [synth sig ctx eff0 se] synthesizes the sort of [se] and
     elaborates it to a typed core expression.  [eff0] is the ambient
     effect.  The synthesized sort lives on the result's
-    [info#answer] and can be read with [CoreExpr.sort_of_info]. *)
+    [info.answer] and can be read with [CoreExpr.sort_of_info]. *)
 
 val check : _ Sig.t -> Context.t -> SurfExpr.se ->
   (Sort.sort, Error.t) result -> Effect.t -> typed_ce ElabM.t
@@ -67,7 +67,7 @@ val check : _ Sig.t -> Context.t -> SurfExpr.se ->
     expected sort is itself a result so callers can pass
     [Error K_cannot_synthesize] (or any other reason) when no expected
     sort is available; the term still elaborates and any failures
-    land on [info#answer] of the offending nodes. *)
+    land on [info.answer] of the offending nodes. *)
 
 (** {1 Coverage} *)
 

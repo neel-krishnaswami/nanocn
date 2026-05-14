@@ -22,7 +22,7 @@ let rec concat_map_result f = function
 (* ---------- Sexp builder helpers ---------- *)
 
 let d = SourcePos.dummy
-let info loc = object method loc = loc end
+let info loc = SourcePos.{ loc = loc }
 let sym loc s = SmtSexp.symbol (info loc) s
 let num loc n = SmtSexp.numeral_s (info loc) (string_of_int n)
 let list_of loc xs = SmtSexp.list (info loc) xs

@@ -191,12 +191,12 @@ let print fmt ctx = print_gen Var.print fmt ctx
 let to_string ctx = Format.asprintf "%a" (print_gen Var.print_unique) ctx
 
 module Test = struct
-  let mk_info sort =
-    (object method loc = SourcePos.dummy method ctx = Context.empty
-            method answer = Ok sort method eff = Effect.Spec
-            method subterm_errors = [] end : CoreExpr.typed_info)
+  let mk_info sort : CoreExpr.typed_info =
+    { loc = SourcePos.dummy; ctx = Context.empty;
+      answer = Ok sort; eff = Effect.Spec;
+      subterm_errors = [] }
 
-  let bool_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Bool
+  let bool_sort = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) Sort.Bool
 
   let test =
     [ QCheck.Test.make ~name:"rctx erase drops log entries"
@@ -215,7 +215,7 @@ module Test = struct
         QCheck.unit
         (fun () ->
            let (x, _supply) = Var.mk "x" SourcePos.dummy Var.empty_supply in
-           let s = Sort.mk (object method loc = SourcePos.dummy end) Sort.Int in
+           let s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) Sort.Int in
            let ctx = extend_comp x s Effect.Pure empty in
            match Context.lookup x (erase ctx) with
            | Ok _ -> true

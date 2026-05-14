@@ -682,7 +682,7 @@ module Test = struct
       QCheck.unit
       (fun () ->
         let mk s =
-          Sort.mk (object method loc = SourcePos.dummy end) s in
+          Sort.mk (SourcePos.{ loc = SourcePos.dummy }) s in
         let int_s = mk Sort.Int in
         let bool_s = mk Sort.Bool in
         let e = locate ~loc:SourcePos.dummy

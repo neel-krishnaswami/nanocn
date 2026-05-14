@@ -47,7 +47,7 @@ let lookup_all_observed sig_ sort_result observed =
       Error.construct_sort_mismatch
         ~construct:"case scrutinee"
         ~expected_shape:"datasort/datatype application"
-        ~got:(SortView.project s) in
+        ~got:(SortView.project (fun (i : SourcePos.info) -> i.loc) s) in
     let (d_opt, args_opts) = SortView.Get.app (Some s) in
     let d_result = Option.to_result ~none:mismatch d_opt in
     let args_results =
@@ -86,7 +86,7 @@ module Test = struct
     | Ok d -> d | Error _ -> assert false
   let mk_label s = match Label.of_string s with
     | Ok l -> l | Error _ -> assert false
-  let mk_sort s = Sort.mk (object method loc = SourcePos.dummy end) s
+  let mk_sort s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) s
 
   let test =
     [ (* Regression: two datasorts share constructor [L]; lookup must

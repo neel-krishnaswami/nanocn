@@ -74,18 +74,18 @@ let shape (In (_, sf)) = sf
 let rec map f (In (b, sf)) =
   In (f b, map_info f (map_shape (map f) sf))
 
-type ce = < loc : SourcePos.t > t
+type ce = SourcePos.info t
 
-type typed_info = <
+type typed_info = {
   loc : SourcePos.t;
   ctx : Context.t;
   answer : (Sort.sort, Error.t) result;
   eff : Effect.t;
   subterm_errors : Error.located list;
->
+}
 type typed_ce = typed_info t
 
-let sort_of_info (i : typed_info) : Sort.sort = Result.get_ok i#answer
+let sort_of_info (i : typed_info) : Sort.sort = Result.get_ok i.answer
 
 let infix_op_string = function
   | Prim.Add -> "+" | Prim.Sub -> "-"
@@ -199,7 +199,7 @@ let rec json jb t =
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let mk_t s = mk (object method loc = SourcePos.dummy end) s in
+    let mk_t s = mk (SourcePos.{ loc = SourcePos.dummy }) s in
     sized @@ fix (fun self n ->
       if n <= 0 then
         oneof [

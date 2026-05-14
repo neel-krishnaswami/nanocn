@@ -26,7 +26,7 @@ val shape : 'b t -> ('b t, 'b) sortF
 val map : ('b -> 'c) -> 'b t -> 'c t
 
 (** Concrete located sort. *)
-type sort = < loc : SourcePos.t > t
+type sort = SourcePos.info t
 
 val compare : sort -> sort -> int
 val print : Format.formatter -> _ t -> unit

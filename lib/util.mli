@@ -19,7 +19,7 @@ val result_list : ('a, 'e) result list -> ('a list, 'e) result
     and exits with a distinct status.
 
     Distinct from regular type errors: those flow through the typed
-    tree's [info#answer] field and are reported as ordinary
+    tree's [info.answer] field and are reported as ordinary
     diagnostics.  An [Invariant_failure] always means the typechecker
     itself is broken. *)
 

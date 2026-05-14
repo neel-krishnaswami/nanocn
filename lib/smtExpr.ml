@@ -1,6 +1,6 @@
 (* Helpers for building SMT sexps with source-position info. *)
 
-let loc_info loc = object method loc = loc end
+let loc_info loc = SourcePos.{ loc = loc }
 
 let sym_at loc s = SmtSexp.symbol (loc_info loc) s
 let list_at loc xs = SmtSexp.list (loc_info loc) xs
@@ -8,8 +8,8 @@ let numeral_at loc n = SmtSexp.numeral_s (loc_info loc) (string_of_int n)
 let string_at loc s = SmtSexp.string_lit (loc_info loc) s
 let res_at loc r = SmtSexp.reserved (loc_info loc) r
 
-let sort_loc s = (Sort.info s)#loc
-let ce_loc ce = (CoreExpr.info ce)#loc
+let sort_loc (s : Sort.sort) = (Sort.info s).loc
+let ce_loc (ce : CoreExpr.typed_ce) = (CoreExpr.info ce).loc
 
 (* ---------- Sort translation ---------- *)
 
@@ -230,7 +230,7 @@ let rec of_ce ce =
        let* cases =
          map_result (fun (l, x, body, info) ->
            let label_sym = sym_at loc (SmtSym.ctor_name dsort l) in
-           (* The branch's [info#sort] is the constructor's payload
+           (* The branch's [info.sort] is the constructor's payload
               sort (set by [build_sort_con_branches] /
               [build_type_con_branches] in [lib/elaborate.ml]). When
               the payload is [Record []] the constructor is nullary,
@@ -261,7 +261,7 @@ let rec of_ce ce =
      | _ ->
        Error (Format.asprintf
                 "case at %a: scrutinee sort must be a datatype application, got `%a` (scrutinee: `%a`; outer case sort: `%a`)"
-                SourcePos.print (CoreExpr.info scrut)#loc
+                SourcePos.print (CoreExpr.info scrut).loc
                 Sort.print (CoreExpr.sort_of_info (CoreExpr.info scrut))
                 CoreExpr.print scrut
                 Sort.print (CoreExpr.sort_of_info (CoreExpr.info ce))))
@@ -318,7 +318,10 @@ let rec of_ce ce =
     let* e' = of_ce e in
     (match SmtSexp.shape e' with
      | SmtSexp.Atom (SmtAtom.Symbol _ | SmtAtom.Reserved _) ->
-       Ok (list_at loc [res_at loc SmtAtom.R_as; e'; of_sort s])
+       let s_loc : Sort.sort =
+         Sort.map (fun (i : CoreExpr.typed_info) ->
+           SourcePos.{ loc = i.loc }) s in
+       Ok (list_at loc [res_at loc SmtAtom.R_as; e'; of_sort s_loc])
      | _ -> Ok e')
 
   | CoreExpr.Eq (a, b) ->
@@ -374,16 +377,12 @@ module Test = struct
      comes from [SmtPrelude.Test] (structural re-parse) and the
      eventual solver-invocation integration. *)
 
-  let dummy_info sort =
-    object
-      method loc = SourcePos.dummy
-      method ctx = Context.empty
-      method answer = Ok sort
-      method eff = Effect.Pure
-      method subterm_errors = []
-    end
+  let dummy_info sort : CoreExpr.typed_info =
+    { loc = SourcePos.dummy; ctx = Context.empty;
+      answer = Ok sort; eff = Effect.Pure;
+      subterm_errors = [] }
 
-  let dummy_sort_info = object method loc = SourcePos.dummy end
+  let dummy_sort_info = SourcePos.{ loc = SourcePos.dummy }
 
   let mk_sort shape = Sort.mk dummy_sort_info shape
   let sort_int = mk_sort Sort.Int

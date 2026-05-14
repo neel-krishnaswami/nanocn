@@ -34,7 +34,7 @@ val parse_prog_resilient : string -> file:string -> parsed_file
 (** {1 Refined programs (.rcn)} *)
 
 type parsed_rfile = {
-  rdecls : (SurfExpr.parsed_se, < loc : SourcePos.t >, string) RProg.decl chunk_result list;
+  rdecls : (SurfExpr.parsed_se, SourcePos.info, string) RProg.decl chunk_result list;
   rmain  : (RProg.raw_parsed, Error.located) result option;
   errors : Error.located list;
 }

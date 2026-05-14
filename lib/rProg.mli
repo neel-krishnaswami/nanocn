@@ -3,7 +3,7 @@
     Parameterized by ['e], the type of embedded expressions,
     ['b], the auxiliary info on refined expression nodes,
     and ['var], the type of variable names.
-    At parse time, ['e = SurfExpr.se, 'b = < loc : SourcePos.t >, 'var = Var.t].
+    At parse time, ['e = SurfExpr.se, 'b = SourcePos.info, 'var = Var.t].
     After typechecking, ['e = CoreExpr.typed_ce, 'b = typed_rinfo, 'var = Var.t]. *)
 
 type ('e, 'b, 'var) decl =
@@ -37,16 +37,16 @@ type ('e, 'b, 'var) t = {
 }
 
 (** Raw parsed type (string names, before scope resolution). *)
-type raw_parsed = (SurfExpr.parsed_se, < loc : SourcePos.t >, string) t
+type raw_parsed = (SurfExpr.parsed_se, SourcePos.info, string) t
 
 (** Raw parsed declaration (for parser start symbol). *)
-type raw_parsed_decl = (SurfExpr.parsed_se, < loc : SourcePos.t >, string) decl
+type raw_parsed_decl = (SurfExpr.parsed_se, SourcePos.info, string) decl
 
 (** Resolved parse-time type (surface expressions, Var.t names). *)
-type parsed = (SurfExpr.se, < loc : SourcePos.t >, Var.t) t
+type parsed = (SurfExpr.se, SourcePos.info, Var.t) t
 
 (** Checked type (core expressions). *)
-type checked = (CoreExpr.ce, < loc : SourcePos.t >, Var.t) t
+type checked = (CoreExpr.ce, SourcePos.info, Var.t) t
 
 (** Goal: what a refined subterm is working towards. *)
 type goal =
@@ -71,7 +71,7 @@ type goal =
 
 (** Info annotation for typed refined expression nodes.
     Extends [CoreExpr.typed_info] with the refined context and goal. *)
-and typed_rinfo = <
+and typed_rinfo = {
   loc : SourcePos.t;
   ctx : Context.t;
   rctx : RCtx.t;
@@ -86,10 +86,10 @@ and typed_rinfo = <
         [answer] when [answer = Ok _], and a placeholder otherwise. *)
   subterm_errors : Error.located list;
     (** Errors paired with the source position of the term they came
-        from, recorded on [info#answer] anywhere in the subtree rooted
+        from, recorded on [info.answer] anywhere in the subtree rooted
         at this node, or injected as cross-cutting errors via
         [mk_rinfo_full] / [prepend_subterm_errors_crt]. *)
->
+}
 
 (** Fully annotated type (typed core expressions with refined context/sort/effect). *)
 type typed = (CoreExpr.typed_ce, typed_rinfo, Var.t) t

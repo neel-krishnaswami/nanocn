@@ -5,19 +5,19 @@ let ( let* ) = ElabM.( let* )
 type typed_info = CoreExpr.typed_info
 type typed_ce = typed_info CoreExpr.t
 
-(** [collect_subtree_errors shape] aggregates [info#answer]'s [Error]
-    case (if any) and [info#subterm_errors] from every immediate
+(** [collect_subtree_errors shape] aggregates [info.answer]'s [Error]
+    case (if any) and [info.subterm_errors] from every immediate
     sub-tree of [shape].  Used at construction time so each typed_ce
     node's [subterm_errors] is correct as the tree is built — no
     post-pass needed. *)
 let collect_subtree_errors (shape : (typed_ce, typed_info) CoreExpr.ceF)
     : Error.located list =
   let collect_one e =
-    let info = CoreExpr.info e in
-    let own = match info#answer with
+    let info : typed_info = CoreExpr.info e in
+    let own = match info.answer with
       | Ok _ -> []
-      | Error k -> [Error.locate ~loc:info#loc k] in
-    own @ info#subterm_errors in
+      | Error k -> [Error.locate ~loc:info.loc k] in
+    own @ info.subterm_errors in
   match shape with
   | CoreExpr.Var _ | CoreExpr.IntLit _ | CoreExpr.BoolLit _
   | CoreExpr.Fail | CoreExpr.Hole _ -> []
@@ -36,46 +36,38 @@ let collect_subtree_errors (shape : (typed_ce, typed_info) CoreExpr.ceF)
   | CoreExpr.Annot (e1, _) -> collect_one e1
   | CoreExpr.Case (scrut, branches) ->
     let collect_binfo (binfo : typed_info) =
-      let own = match binfo#answer with
+      let own = match binfo.answer with
         | Ok _ -> []
-        | Error k -> [Error.locate ~loc:binfo#loc k] in
-      own @ binfo#subterm_errors in
+        | Error k -> [Error.locate ~loc:binfo.loc k] in
+      own @ binfo.subterm_errors in
     collect_one scrut
     @ List.concat_map (fun (_, _, body, binfo) ->
         collect_binfo binfo @ collect_one body) branches
 
 let mk_typed ctx pos sort eff shape : typed_ce =
-  CoreExpr.mk (object
-    method loc = pos
-    method ctx = ctx
-    method answer = Ok sort
-    method eff = eff
-    method subterm_errors = collect_subtree_errors shape
-  end) shape
+  let info : typed_info =
+    { loc = pos; ctx; answer = Ok sort; eff;
+      subterm_errors = collect_subtree_errors shape } in
+  CoreExpr.mk info shape
 
 (** [mk ctx pos answer eff shape]: like [mk_typed] but takes the
     [answer] field directly so a clause can attach an [Error _] result
     when the typechecker chose to continue past an error. *)
 let mk ctx pos answer eff shape : typed_ce =
-  CoreExpr.mk (object
-    method loc = pos
-    method ctx = ctx
-    method answer = answer
-    method eff = eff
-    method subterm_errors = collect_subtree_errors shape
-  end) shape
+  let info : typed_info =
+    { loc = pos; ctx; answer; eff;
+      subterm_errors = collect_subtree_errors shape } in
+  CoreExpr.mk info shape
 
 let lift_sort (s : Sort.sort) : typed_info Sort.t =
-  Sort.map (fun loc_info ->
-    (object
-      method loc = loc_info#loc
-      method ctx = Context.empty
-      method answer = Ok s
-      method eff = Effect.Pure
-      method subterm_errors = []
-    end : typed_info)) s
+  Sort.map (fun (loc_info : SourcePos.info) ->
+    ({ loc = loc_info.loc;
+       ctx = Context.empty;
+       answer = Ok s;
+       eff = Effect.Pure;
+       subterm_errors = [] } : typed_info)) s
 
-let mk_sort pos s = Sort.mk (object method loc = pos end) s
+let mk_sort pos s = Sort.mk (SourcePos.{ loc = pos }) s
 
 (** {2 SortView wrappers — local option→result helpers}
 
@@ -86,7 +78,7 @@ let mk_sort pos s = Sort.mk (object method loc = pos end) s
     [SortView.Get.* ~construct:...]. *)
 let mismatch_kind ~construct ~expected_shape s =
   Error.construct_sort_mismatch
-    ~construct ~expected_shape ~got:(SortView.project s)
+    ~construct ~expected_shape ~got:(SortView.project (fun (i : SourcePos.info) -> i.loc) s)
 
 let view_get_pred ~construct (sr : (Sort.sort, Error.t) result)
     : (Sort.sort, Error.t) result =
@@ -159,16 +151,7 @@ let unsynth ~construct r =
     elaborated subterm. *)
 let replace_answer (ce : typed_ce) answer : typed_ce =
   let info = CoreExpr.info ce in
-  let new_info : typed_info =
-    object
-      method loc = info#loc
-      method ctx = info#ctx
-      method answer = answer
-      method eff = info#eff
-      method subterm_errors = info#subterm_errors
-    end
-  in
-  CoreExpr.mk new_info (CoreExpr.shape ce)
+  CoreExpr.mk { info with answer } (CoreExpr.shape ce)
 
 (** Take the first [n] elements and the remaining tail. If the list
     is shorter than [n], the second component is empty and the first
@@ -185,7 +168,7 @@ let rec split_at_n n xs =
 (** {1 Prim signature (sort-level)} *)
 
 let prim_signature (p : Prim.t) =
-  let dummy_info = object method loc = SourcePos.dummy end in
+  let dummy_info = SourcePos.{ loc = SourcePos.dummy } in
   let mk s = Sort.mk dummy_info s in
   let int_sort = mk Sort.Int in
   let bool_sort = mk Sort.Bool in
@@ -243,13 +226,8 @@ type branch = {
 (** {1 Coverage helpers} *)
 
 let mk_bind_info_r x sort_kind eff ctx : typed_info =
-  object
-    method loc = Var.binding_site x
-    method ctx = ctx
-    method answer = sort_kind
-    method eff = eff
-    method subterm_errors = []
-  end
+  { loc = Var.binding_site x; ctx;
+    answer = sort_kind; eff; subterm_errors = [] }
 
 let rec wrap_lets lets outer_ctx result_sort eff0 body =
   match lets with
@@ -314,9 +292,9 @@ let classify_column branches : column_kind =
         (match Pat.shape p with
          | Pat.Var _ -> None
          | Pat.Tuple ps ->
-           Some (Error.PS_Tuple (List.length ps), (Pat.info p)#loc)
+           Some (Error.PS_Tuple (List.length ps), (Pat.info p).loc)
          | Pat.Con (l, _) ->
-           Some (Error.PS_Ctor l, (Pat.info p)#loc))
+           Some (Error.PS_Ctor l, (Pat.info p).loc))
       | [] -> None
     ) branches
   in
@@ -377,7 +355,7 @@ let rec spec_con label ctor_sort y eff_b branches =
          spec_con label ctor_sort y eff_b rest
        | Pat.Var x ->
          let* z = ElabM.fresh (Var.binding_site x) in
-         let z_pat = Pat.mk (object method loc = Var.binding_site z end) (Pat.Var z) in
+         let z_pat = Pat.mk (SourcePos.{ loc = Var.binding_site z }) (Pat.Var z) in
          let* rest' = spec_con label ctor_sort y eff_b rest in
          ElabM.return ({ bindings = (z_pat, ctor_sort) :: binds;
                          let_bindings = br.let_bindings @ [{ var = x; rhs = y; sort; eff = eff_b;
@@ -409,7 +387,7 @@ let rec expand_tup sorts y eff_b branches =
        | Pat.Var x ->
          let* fresh_zs = fresh_vars_for_sorts sorts (Var.binding_site x) in
          let z_pats = List.map (fun (z, s) ->
-           (Pat.mk (object method loc = Var.binding_site z end) (Pat.Var z), s)
+           (Pat.mk (SourcePos.{ loc = Var.binding_site z }) (Pat.Var z), s)
          ) fresh_zs in
          let* rest' = expand_tup sorts y eff_b rest in
          ElabM.return ({ bindings = z_pats @ binds;
@@ -454,7 +432,7 @@ let find_con_subpat_pos label branches fallback =
       | (p, _) :: _ ->
         (match Pat.shape p with
          | Pat.Con (l, subpat) when Label.compare l label = 0 ->
-           (Pat.info subpat)#loc
+           (Pat.info subpat).loc
          | _ -> go rest)
       | _ -> go rest
   in
@@ -468,7 +446,7 @@ let find_tup_subpat_positions branches n fallback_pos =
       match br.bindings with
       | (p, _) :: _ ->
         (match Pat.shape p with
-         | Pat.Tuple pats -> List.map (fun p -> (Pat.info p)#loc) pats
+         | Pat.Tuple pats -> List.map (fun p -> ((Pat.info p) : SourcePos.info).loc) pats
          | _ -> go rest)
       | _ -> go rest
   in
@@ -476,8 +454,8 @@ let find_tup_subpat_positions branches n fallback_pos =
 
 (** {1 Elaboration} *)
 
-let rec synth sig_ ctx eff0 se =
-  let pos = (SurfExpr.info se)#loc in
+let rec synth sig_ ctx eff0 (se : SurfExpr.se) =
+  let pos = (SurfExpr.info se).loc in
   match SurfExpr.shape se with
   | SurfExpr.Var x ->
     let answer =
@@ -501,7 +479,7 @@ let rec synth sig_ ctx eff0 se =
   | SurfExpr.Eq (se1, se2) ->
     let eff0' = Effect.purify eff0 in
     let* ce1 = synth sig_ ctx eff0' se1 in
-    let ce1_answer = (CoreExpr.info ce1)#answer in
+    let ce1_answer = (CoreExpr.info ce1).answer in
     let ce2_expected = unsynth ~construct:"equality" ce1_answer in
     let* ce2 = check sig_ ctx se2 ce2_expected eff0' in
     let answer =
@@ -576,8 +554,8 @@ let rec synth sig_ ctx eff0 se =
     teaching coverage to emit Holes when the target sort is unknown.
     Other clauses thread the result through [SortView] and continue
     elaborating their subterms regardless. *)
-and check sig_ ctx se sort eff0 =
-  let pos = (SurfExpr.info se)#loc in
+and check sig_ ctx (se : SurfExpr.se) sort eff0 =
+  let pos = (SurfExpr.info se).loc in
   match SurfExpr.shape se with
   | SurfExpr.Return inner ->
     let eff_check = check_pred (Effect.sub Effect.Spec eff0)
@@ -599,14 +577,14 @@ and check sig_ ctx se sort eff0 =
       (Error.spec_context_required ~construct:"take") in
     let _target_check = view_get_pred ~construct:"take target" sort in
     let* ce1 = synth sig_ ctx eff0 se1 in
-    let ce1_answer = (CoreExpr.info ce1)#answer in
+    let ce1_answer = (CoreExpr.info ce1).answer in
     let bound_kind =
       ce1_answer
       |> unsynth ~construct:"take scrutinee"
       |> view_get_pred ~construct:"take scrutinee"
     in
     let eff_b = Effect.purify eff0 in
-    let* y = ElabM.fresh (Pat.info pat)#loc in
+    let* y = ElabM.fresh (Pat.info pat).loc in
     let ctx_y = Context.extend_or_unknown y bound_kind eff_b ctx in
     let branch = {
       bindings = [(pat, bound_kind)];
@@ -627,9 +605,9 @@ and check sig_ ctx se sort eff0 =
   | SurfExpr.Let (pat, se1, se2) ->
     let* ce1 = synth sig_ ctx eff0 se1 in
     let bound_kind =
-      unsynth ~construct:"let binding" (CoreExpr.info ce1)#answer in
+      unsynth ~construct:"let binding" (CoreExpr.info ce1).answer in
     let eff_b = Effect.purify eff0 in
-    let* y = ElabM.fresh (Pat.info pat)#loc in
+    let* y = ElabM.fresh (Pat.info pat).loc in
     let ctx_y = Context.extend_or_unknown y bound_kind eff_b ctx in
     let branch = {
       bindings = [(pat, bound_kind)];
@@ -676,8 +654,8 @@ and check sig_ ctx se sort eff0 =
     let eff0' = Effect.purify eff0 in
     let* ce_scrut = synth sig_ ctx eff0' scrut in
     let scrut_kind =
-      unsynth ~construct:"case scrutinee" (CoreExpr.info ce_scrut)#answer in
-    let* y = ElabM.fresh (SurfExpr.info scrut)#loc in
+      unsynth ~construct:"case scrutinee" (CoreExpr.info ce_scrut).answer in
+    let* y = ElabM.fresh (SurfExpr.info scrut).loc in
     let ctx_y = Context.extend_or_unknown y scrut_kind eff0' ctx in
     let branches = List.map (fun (pat, body, _) ->
       { bindings = [(pat, scrut_kind)];
@@ -700,7 +678,7 @@ and check sig_ ctx se sort eff0 =
       (Error.iter_requires_impure ~actual:eff0) in
     let* ce1 = synth sig_ ctx Effect.Pure se1 in
     let init_kind =
-      unsynth ~construct:"iter step source" (CoreExpr.info ce1)#answer in
+      unsynth ~construct:"iter step source" (CoreExpr.info ce1).answer in
     let* step_dsort = match Dsort.of_string "Step" with
       | Ok d -> ElabM.return d
       | Error _ ->
@@ -714,7 +692,7 @@ and check sig_ ctx se sort eff0 =
       let* result = sort in
       Ok (mk_sort pos (Sort.App (step_dsort, [a; result])))
     in
-    let* y = ElabM.fresh (Pat.info pat)#loc in
+    let* y = ElabM.fresh (Pat.info pat).loc in
     let bind_eff = Effect.purify Effect.Impure in
     let ctx_y = Context.extend_or_unknown y init_kind bind_eff ctx in
     let branch = {
@@ -747,7 +725,7 @@ and check sig_ ctx se sort eff0 =
 
   | _ ->
     let* ce = synth sig_ ctx eff0 se in
-    let syn_answer = (CoreExpr.info ce)#answer in
+    let syn_answer = (CoreExpr.info ce).answer in
     let answer =
       Result.bind (sort) (fun expected ->
       Result.bind syn_answer (fun syn_sort ->
@@ -785,7 +763,7 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
        let* ce' = check sig_ ctx' br.body sort eff0 in
        ElabM.return (wrap_lets br.let_bindings ctx sort eff0 ce')
      | (p, _) :: _ ->
-       invariant_at (Pat.info p)#loc ~rule:"coverage_check:Cov_done"
+       invariant_at (Pat.info p).loc ~rule:"coverage_check:Cov_done"
          "branch still has un-consumed pattern bindings after all \
           scrutinees have been dispatched")
 
@@ -795,13 +773,8 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
     let witness = rebuilder [] in
     let err = Error.non_exhaustive ~witness in
     let info : typed_info =
-      object
-        method loc = cov_loc
-        method ctx = ctx
-        method answer = Error err
-        method eff = eff0
-        method subterm_errors = []
-      end
+      { loc = cov_loc; ctx; answer = Error err; eff = eff0;
+        subterm_errors = [] }
     in
     ElabM.return
       (CoreExpr.mk info (CoreExpr.Hole "non-exhaustive-coverage"))
@@ -860,13 +833,9 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
 
      | Col_incompatible shapes ->
        let err = Error.incompatible_patterns ~shapes in
-       let info : typed_info = object
-         method loc = cov_loc
-         method ctx = ctx
-         method answer = Error err
-         method eff = eff0
-         method subterm_errors = []
-       end in
+       let info : typed_info =
+         { loc = cov_loc; ctx; answer = Error err; eff = eff0;
+           subterm_errors = [] } in
        ElabM.return
          (CoreExpr.mk info (CoreExpr.Hole "incompatible-patterns")))
 
@@ -921,24 +890,16 @@ and build_observed_branches sig_ ctx y scrs branches eff_b sort eff0
         coverage_check sig_ ctx_xi (xi :: scrs) filtered eff_b sort eff0
           ~cov_loc rebuilder_L in
       let branch_answer = ctor_sort_result in
-      let branch_info : typed_info = object
-        method loc = xi_pos
-        method ctx = ctx_xi
-        method answer = branch_answer
-        method eff = eff_b
-        method subterm_errors = []
-      end in
+      let branch_info : typed_info =
+        { loc = xi_pos; ctx = ctx_xi; answer = branch_answer;
+          eff = eff_b; subterm_errors = [] } in
       ElabM.return (label, xi, ce_i, branch_info)
     end else begin
       let label_str = Format.asprintf "%a" Label.print label in
       let hole_answer = ctor_sort_result in
-      let hole_info : typed_info = object
-        method loc = cov_loc
-        method ctx = ctx_xi
-        method answer = hole_answer
-        method eff = eff0
-        method subterm_errors = []
-      end in
+      let hole_info : typed_info =
+        { loc = cov_loc; ctx = ctx_xi; answer = hole_answer;
+          eff = eff0; subterm_errors = [] } in
       let body =
         CoreExpr.mk hole_info
           (CoreExpr.Hole ("missing-case-" ^ label_str)) in
@@ -953,13 +914,9 @@ and build_observed_branches sig_ ctx y scrs branches eff_b sort eff0
             ~rule:"build_observed_branches"
             "missing branch but no dsort"
       in
-      let branch_info : typed_info = object
-        method loc = cov_loc
-        method ctx = ctx_xi
-        method answer = missing_err
-        method eff = eff_b
-        method subterm_errors = []
-      end in
+      let branch_info : typed_info =
+        { loc = cov_loc; ctx = ctx_xi; answer = missing_err;
+          eff = eff_b; subterm_errors = [] } in
       ElabM.return (label, xi, body, branch_info)
     end
   in

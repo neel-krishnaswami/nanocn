@@ -28,10 +28,10 @@ type ('e, 'b, 'var) t = {
   loc : SourcePos.t;
 }
 
-type raw_parsed = (SurfExpr.parsed_se, < loc : SourcePos.t >, string) t
-type raw_parsed_decl = (SurfExpr.parsed_se, < loc : SourcePos.t >, string) decl
-type parsed = (SurfExpr.se, < loc : SourcePos.t >, Var.t) t
-type checked = (CoreExpr.ce, < loc : SourcePos.t >, Var.t) t
+type raw_parsed = (SurfExpr.parsed_se, SourcePos.info, string) t
+type raw_parsed_decl = (SurfExpr.parsed_se, SourcePos.info, string) decl
+type parsed = (SurfExpr.se, SourcePos.info, Var.t) t
+type checked = (CoreExpr.ce, SourcePos.info, Var.t) t
 type goal =
   | CrtGoal of (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t
   | LpfGoal of CoreExpr.typed_ce
@@ -46,7 +46,7 @@ type goal =
       position : int;
     }
   | NoGoal
-and typed_rinfo = <
+and typed_rinfo = {
   loc : SourcePos.t;
   ctx : Context.t;
   rctx : RCtx.t;
@@ -61,10 +61,10 @@ and typed_rinfo = <
        [Result.value answer ~default:<some-placeholder>]. *)
   subterm_errors : Error.located list;
     (* Errors paired with the source position of the term they came
-       from, recorded on [info#answer] anywhere in the subtree rooted
+       from, recorded on [info.answer] anywhere in the subtree rooted
        at this node, or injected as cross-cutting errors via
        [mk_rinfo_full] / [prepend_subterm_errors_crt]. *)
->
+}
 type typed = (CoreExpr.typed_ce, typed_rinfo, Var.t) t
 
 let print_gen pp_var pp_e fmt prog =

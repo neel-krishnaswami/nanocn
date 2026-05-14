@@ -26,10 +26,10 @@ val map_var : ('v -> 'w) -> ('b, 'v) t -> ('b, 'w) t
 (** [map_var f p] replaces every variable in [p] by applying [f]. *)
 
 (** Concrete located pattern (after scope resolution). *)
-type pat = (< loc : SourcePos.t >, Var.t) t
+type pat = (SourcePos.info, Var.t) t
 
 (** Parsed pattern (before scope resolution). *)
-type parsed_pat = (< loc : SourcePos.t >, string) t
+type parsed_pat = (SourcePos.info, string) t
 
 val compare : pat -> pat -> int
 val print_gen : (Format.formatter -> 'var -> unit) -> Format.formatter -> (_, 'var) t -> unit

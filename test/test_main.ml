@@ -90,8 +90,8 @@ let qcheck_tests =
 
 (** Helper to extract sort from a typed core expr *)
 let sort_of te = (CoreExpr.sort_of_info (CoreExpr.info te))
-let eff_of te = (CoreExpr.info te)#eff
-let ctx_of te = (CoreExpr.info te)#ctx
+let eff_of (te : CoreExpr.typed_ce) = (CoreExpr.info te).eff
+let ctx_of (te : CoreExpr.typed_ce) = (CoreExpr.info te).ctx
 
 (** Run an ElabM computation that returns a parse [result], surfacing
     the parse error to test sites that match [Ok value | Error msg]. *)
@@ -123,7 +123,7 @@ let parse_and_check src =
 (** Helper: elaborate a surface expr then synthesize (for pre-parsed exprs).
 
     With multi-error elaboration, [Elaborate.synth] returns a typed
-    expression whose [info#answer] carries any errors instead of
+    expression whose [info.answer] carries any errors instead of
     short-circuiting.  This wrapper preserves the legacy
     fail-fast contract: it surfaces the first collected error
     (in source-position order) as [Error]. *)
@@ -334,7 +334,7 @@ let () =
         match run_parse_m (Parse.parse_expr "(1, 2)" ~file:"test") with
         | Error msg -> Alcotest.fail (Error.to_string msg)
         | Ok e ->
-          let mk s = Sort.mk (object method loc = SourcePos.dummy end) s in
+          let mk s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) s in
           let int_sort = mk Sort.Int in
           let pair_sort = mk (Sort.Record [int_sort; int_sort]) in
           match elab_check Sig.empty Context.empty e pair_sort Effect.Pure with
@@ -347,7 +347,7 @@ let () =
         match run_parse_m (Parse.parse_expr "let x = 1; x + x" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
-          let int_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Int in
+          let int_sort = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) Sort.Int in
           match elab_check Sig.empty Context.empty e int_sort Effect.Pure with
           | Ok te ->
             (match Sort.shape (sort_of te) with
@@ -430,7 +430,7 @@ let () =
         match run_parse_m (Parse.parse_expr "let (a, b) = ((1, 2) : (Int * Int)); a + b" ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
-          let int_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Int in
+          let int_sort = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) Sort.Int in
           match elab_check Sig.empty Context.empty e int_sort Effect.Pure with
           | Ok _ -> ()
           | Error msg -> Alcotest.fail (Error.to_string msg));
@@ -456,7 +456,7 @@ let () =
         match run_parse_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
-          let int_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Int in
+          let int_sort = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) Sort.Int in
           match elab_check Sig.empty Context.empty e int_sort Effect.Impure with
           | Ok _ -> ()
           | Error msg -> Alcotest.fail (Error.to_string msg));
@@ -466,7 +466,7 @@ let () =
         match run_parse_m (Parse.parse_expr src ~file:"test") with
         | Error msg -> Alcotest.fail ("parse: " ^ Error.to_string msg)
         | Ok e ->
-          let unit_sort = Sort.mk (object method loc = SourcePos.dummy end) (Sort.Record []) in
+          let unit_sort = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) (Sort.Record []) in
           match elab_check Sig.empty Context.empty e unit_sort Effect.Impure with
           | Ok _ -> ()
           | Error msg -> Alcotest.fail (Error.to_string msg));
@@ -885,7 +885,7 @@ let () =
 
       Alcotest.test_case "sort decl duplicate ctors fails" `Quick (fun () ->
         let mk_label s = match Label.of_string s with Ok l -> l | _ -> failwith "impossible" in
-        let unit_sort = Sort.mk (object method loc = SourcePos.dummy end) (Sort.Record []) in
+        let unit_sort = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) (Sort.Record []) in
         let d = Prog.SortDecl DsortDecl.{
           name = (match Dsort.of_string "Bad" with Ok d -> d | _ -> failwith "impossible");
           params = [];
@@ -1027,12 +1027,12 @@ let () =
 
     ("spec-typecheck-core", [
       (* Helper: build a core expression at dummy pos *)
-      (let mk shape = CoreExpr.mk (object method loc = SourcePos.dummy end) shape in
-       let mk_sort s = Sort.mk (object method loc = SourcePos.dummy end) s in
+      (let mk shape = CoreExpr.mk (SourcePos.{ loc = SourcePos.dummy }) shape in
+       let mk_sort s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) s in
        let int_sort = mk_sort Sort.Int in
        let _bool_sort = mk_sort Sort.Bool in
        let sort_of_ tce = (CoreExpr.sort_of_info (CoreExpr.info tce)) in
-       let _ctx_of_ tce = (CoreExpr.info tce)#ctx in
+       let _ctx_of_ (tce : CoreExpr.typed_ce) = (CoreExpr.info tce).ctx in
        let sig_ = Typecheck.initial_sig in
 
        Alcotest.test_case "synth int literal carries int sort" `Quick (fun () ->
@@ -1044,8 +1044,8 @@ let () =
          if Sort.compare (sort_of_ tce) int_sort <> 0 then
            Alcotest.fail "expected int sort"));
 
-      (let mk shape = CoreExpr.mk (object method loc = SourcePos.dummy end) shape in
-       let mk_sort s = Sort.mk (object method loc = SourcePos.dummy end) s in
+      (let mk shape = CoreExpr.mk (SourcePos.{ loc = SourcePos.dummy }) shape in
+       let mk_sort s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) s in
        let bool_sort = mk_sort Sort.Bool in
        let sort_of_ tce = (CoreExpr.sort_of_info (CoreExpr.info tce)) in
        let sig_ = Typecheck.initial_sig in
@@ -1059,16 +1059,16 @@ let () =
          if Sort.compare (sort_of_ tce) bool_sort <> 0 then
            Alcotest.fail "expected bool sort"));
 
-      (let mk shape = CoreExpr.mk (object method loc = SourcePos.dummy end) shape in
-       let mk_sort s = Sort.mk (object method loc = SourcePos.dummy end) s in
+      (let mk shape = CoreExpr.mk (SourcePos.{ loc = SourcePos.dummy }) shape in
+       let mk_sort s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) s in
        let int_sort = mk_sort Sort.Int in
        let _sort_of_ tce = (CoreExpr.sort_of_info (CoreExpr.info tce)) in
-       let ctx_of_ tce = (CoreExpr.info tce)#ctx in
+       let ctx_of_ (tce : CoreExpr.typed_ce) = (CoreExpr.info tce).ctx in
        let sig_ = Typecheck.initial_sig in
 
        Alcotest.test_case "check let propagates context" `Quick (fun () ->
          let (x, _supply) = Var.mk "x" SourcePos.dummy Var.empty_supply in
-         let xb = (x, object method loc = SourcePos.dummy end) in
+         let xb = (x, SourcePos.{ loc = SourcePos.dummy }) in
          let ce = mk (CoreExpr.Let (xb, mk (CoreExpr.IntLit 1),
                                        mk (CoreExpr.Var x))) in
          let tce = Typecheck.check sig_ Context.empty ce (Ok int_sort) Effect.Spec in
@@ -1089,8 +1089,8 @@ let () =
             | Error _ -> Alcotest.fail "x should be in body context")
          | _ -> Alcotest.fail "expected Let shape"));
 
-      (let mk shape = CoreExpr.mk (object method loc = SourcePos.dummy end) shape in
-       let mk_sort s = Sort.mk (object method loc = SourcePos.dummy end) s in
+      (let mk shape = CoreExpr.mk (SourcePos.{ loc = SourcePos.dummy }) shape in
+       let mk_sort s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) s in
        let bool_sort = mk_sort Sort.Bool in
        let sort_of_ tce = (CoreExpr.sort_of_info (CoreExpr.info tce)) in
        let sig_ = Typecheck.initial_sig in
@@ -1104,7 +1104,7 @@ let () =
          if Sort.compare (sort_of_ tce) bool_sort <> 0 then
            Alcotest.fail "expected bool sort for equality"));
 
-      (let mk shape = CoreExpr.mk (object method loc = SourcePos.dummy end) shape in
+      (let mk shape = CoreExpr.mk (SourcePos.{ loc = SourcePos.dummy }) shape in
        let sig_ = Typecheck.initial_sig in
 
        (* Two unbound vars in a single Eq: multi-error reporting must
@@ -1124,8 +1124,8 @@ let () =
          let n = String.length s and m = String.length sub in
          let rec aux i = i + m <= n && (String.sub s i m = sub || aux (i+1)) in
          m = 0 || (n >= m && aux 0) in
-       let mk shape = CoreExpr.mk (object method loc = SourcePos.dummy end) shape in
-       let mk_sort s = Sort.mk (object method loc = SourcePos.dummy end) s in
+       let mk shape = CoreExpr.mk (SourcePos.{ loc = SourcePos.dummy }) shape in
+       let mk_sort s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) s in
        let mk_label name =
          match Label.of_string name with
          | Ok l -> l | _ -> failwith "label" in
@@ -1152,8 +1152,8 @@ let () =
          let ctx = Context.extend c color_sort Effect.Spec Context.empty in
          let ce = mk (CoreExpr.Case
            (mk (CoreExpr.Var c),
-            [ (red, rx, mk (CoreExpr.IntLit 1), object method loc = SourcePos.dummy end);
-              (green, gx, mk (CoreExpr.IntLit 2), object method loc = SourcePos.dummy end);
+            [ (red, rx, mk (CoreExpr.IntLit 1), SourcePos.{ loc = SourcePos.dummy });
+              (green, gx, mk (CoreExpr.IntLit 2), SourcePos.{ loc = SourcePos.dummy });
             ])) in
          let tce = Typecheck.check sig_ ctx ce (Ok int_sort) Effect.Spec in
          let errs = Typecheck.collect_errors tce in
@@ -1172,8 +1172,8 @@ let () =
          let n = String.length s and m = String.length sub in
          let rec aux i = i + m <= n && (String.sub s i m = sub || aux (i+1)) in
          m = 0 || (n >= m && aux 0) in
-       let mk shape = CoreExpr.mk (object method loc = SourcePos.dummy end) shape in
-       let mk_sort s = Sort.mk (object method loc = SourcePos.dummy end) s in
+       let mk shape = CoreExpr.mk (SourcePos.{ loc = SourcePos.dummy }) shape in
+       let mk_sort s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) s in
        let mk_label name =
          match Label.of_string name with
          | Ok l -> l | _ -> failwith "label" in
@@ -1202,10 +1202,10 @@ let () =
          let ctx = Context.extend c color_sort Effect.Spec Context.empty in
          let ce = mk (CoreExpr.Case
            (mk (CoreExpr.Var c),
-            [ (red,   rx1, mk (CoreExpr.IntLit 1), object method loc = SourcePos.dummy end);
-              (red,   rx2, mk (CoreExpr.IntLit 1), object method loc = SourcePos.dummy end);
-              (green, gx,  mk (CoreExpr.IntLit 2), object method loc = SourcePos.dummy end);
-              (blue,  bx,  mk (CoreExpr.IntLit 3), object method loc = SourcePos.dummy end);
+            [ (red,   rx1, mk (CoreExpr.IntLit 1), SourcePos.{ loc = SourcePos.dummy });
+              (red,   rx2, mk (CoreExpr.IntLit 1), SourcePos.{ loc = SourcePos.dummy });
+              (green, gx,  mk (CoreExpr.IntLit 2), SourcePos.{ loc = SourcePos.dummy });
+              (blue,  bx,  mk (CoreExpr.IntLit 3), SourcePos.{ loc = SourcePos.dummy });
             ])) in
          let tce = Typecheck.check sig_ ctx ce (Ok int_sort) Effect.Spec in
          let errs = Typecheck.collect_errors tce in
@@ -1427,7 +1427,7 @@ main : Int [pure] = useNested(1)
     ("rcheck", [
       (* Fix 1: pf_types excludes spec entries from computational erasure *)
       Alcotest.test_case "pf_types excludes spec entries" `Quick (fun () ->
-        let loc = object method loc = SourcePos.dummy end in
+        let loc = SourcePos.{ loc = SourcePos.dummy } in
         let int_sort = Sort.mk loc Sort.Int in
         let bool_sort = Sort.mk loc Sort.Bool in
         let (x, s0) = Var.mk "x" SourcePos.dummy Var.empty_supply in
@@ -1486,18 +1486,19 @@ main : Int [pure] = useNested(1)
 
       (* Fix 4: pf_eq rejects mismatched lengths *)
       Alcotest.test_case "pf_eq rejects extra entries" `Quick (fun () ->
-        let int_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Int in
-        let bool_sort = Sort.mk (object method loc = SourcePos.dummy end) Sort.Bool in
-        let mk_info sort =
-          (object method loc = SourcePos.dummy method ctx = Context.empty
-                  method answer = Ok sort method eff = Effect.Spec
-                  method subterm_errors = [] end : CoreExpr.typed_info) in
+        let int_sort = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) Sort.Int in
+        let bool_sort = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) Sort.Bool in
+        let mk_info sort : CoreExpr.typed_info =
+          { loc = SourcePos.dummy; ctx = Context.empty;
+            answer = Ok sort; eff = Effect.Spec;
+            subterm_errors = [] } in
         let (x, _s0) = Var.mk "x" SourcePos.dummy Var.empty_supply in
         let ce = CoreExpr.mk (mk_info bool_sort) (CoreExpr.IntLit 0) in
         let ri : RProg.typed_rinfo =
-          (object method loc = SourcePos.dummy method ctx = Context.empty
-                  method rctx = RCtx.empty method sort = int_sort method eff = Effect.Spec method goal = RProg.NoGoal
-                  method answer = Ok int_sort method subterm_errors = [] end) in
+          { loc = SourcePos.dummy; ctx = Context.empty;
+            rctx = RCtx.empty; sort = int_sort; eff = Effect.Spec;
+            goal = RProg.NoGoal; answer = Ok int_sort;
+            subterm_errors = [] } in
         let pf1 = [
           ProofSort.Comp { info = ri; var = x; sort = int_sort; eff = Effect.Pure };
           ProofSort.Log { info = ri; prop = ce };
