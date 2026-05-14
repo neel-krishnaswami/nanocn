@@ -42,7 +42,7 @@ let mismatch_sort_kind ~construct ~expected_shape s =
   Error.construct_sort_mismatch
     ~construct ~expected_shape ~got:(SortView.project s)
 
-let[@warning "-32"] view_get_pred_sort ~construct (sr : (Sort.sort, Error.t) result)
+let view_get_pred_sort ~construct (sr : (Sort.sort, Error.t) result)
     : (Sort.sort, Error.t) result =
   match sr with
   | Error _ as e -> e
@@ -51,7 +51,7 @@ let[@warning "-32"] view_get_pred_sort ~construct (sr : (Sort.sort, Error.t) res
       ~none:(mismatch_sort_kind ~construct ~expected_shape:"Pred _" s)
       (SortView.Get.pred (Some s))
 
-let[@warning "-32"] view_get_record_sorts ~construct (n : int)
+let view_get_record_sorts ~construct (n : int)
     (sr : (Sort.sort, Error.t) result)
     : (Sort.sort, Error.t) result list =
   let sub_options = SortView.Get.record n (Result.to_option sr) in
@@ -64,21 +64,6 @@ let[@warning "-32"] view_get_record_sorts ~construct (n : int)
     | Ok _, Some t -> Ok t)
     sub_options
 
-let[@warning "-32"] view_get_app_sort ~construct (sr : (Sort.sort, Error.t) result)
-    : (Dsort.t, Error.t) result * (Sort.sort, Error.t) result list =
-  match sr with
-  | Error e -> Error e, []
-  | Ok s ->
-    let (d_opt, ts_opt) = SortView.Get.app (Some s) in
-    let mismatch =
-      mismatch_sort_kind ~construct
-        ~expected_shape:"datasort/datatype application" s in
-    let d_result = Option.to_result ~none:mismatch d_opt in
-    let ts_result =
-      List.map (fun t_opt -> Option.to_result ~none:mismatch t_opt)
-        ts_opt in
-    (d_result, ts_result)
-
 let mismatch_ce_kind ~construct ~expected_shape ce =
   Error.wrong_pred_shape
     ~construct ~expected_shape
@@ -89,13 +74,13 @@ let mismatch_ce_kind ~construct ~expected_shape ce =
     [K_wrong_pred_shape] error if the shape doesn't match.  These
     are the result-domain analogues of the option-typed primitives
     in [CoreExprView]. *)
-let[@warning "-32"] view_get_return_ce ~construct (ce : CoreExpr.typed_ce)
+let view_get_return_ce ~construct (ce : CoreExpr.typed_ce)
     : (CoreExpr.typed_ce, Error.t) result =
   Option.to_result
     ~none:(mismatch_ce_kind ~construct ~expected_shape:"return _" ce)
     (CoreExprView.Get.return (Some ce))
 
-let[@warning "-32"] view_get_take_ce ~construct (ce : CoreExpr.typed_ce)
+let view_get_take_ce ~construct (ce : CoreExpr.typed_ce)
     : (Var.t, Error.t) result
     * (CoreExpr.typed_ce, Error.t) result
     * (CoreExpr.typed_ce, Error.t) result =
@@ -106,7 +91,7 @@ let[@warning "-32"] view_get_take_ce ~construct (ce : CoreExpr.typed_ce)
    Option.to_result ~none:mismatch e1,
    Option.to_result ~none:mismatch e2)
 
-let[@warning "-32"] view_get_let_ce ~construct (ce : CoreExpr.typed_ce)
+let view_get_let_ce ~construct (ce : CoreExpr.typed_ce)
     : (Var.t, Error.t) result
     * (CoreExpr.typed_ce, Error.t) result
     * (CoreExpr.typed_ce, Error.t) result =
@@ -117,7 +102,7 @@ let[@warning "-32"] view_get_let_ce ~construct (ce : CoreExpr.typed_ce)
    Option.to_result ~none:mismatch e1,
    Option.to_result ~none:mismatch e2)
 
-let[@warning "-32"] view_get_let_tuple_ce ~construct (ce : CoreExpr.typed_ce)
+let view_get_let_tuple_ce ~construct (ce : CoreExpr.typed_ce)
     : (Var.t list, Error.t) result
     * (CoreExpr.typed_ce, Error.t) result
     * (CoreExpr.typed_ce, Error.t) result =
@@ -129,7 +114,7 @@ let[@warning "-32"] view_get_let_tuple_ce ~construct (ce : CoreExpr.typed_ce)
    Option.to_result ~none:mismatch e1,
    Option.to_result ~none:mismatch e2)
 
-let[@warning "-32"] view_get_if_ce ~construct (ce : CoreExpr.typed_ce)
+let view_get_if_ce ~construct (ce : CoreExpr.typed_ce)
     : (CoreExpr.typed_ce, Error.t) result
     * (CoreExpr.typed_ce, Error.t) result
     * (CoreExpr.typed_ce, Error.t) result =
@@ -140,7 +125,7 @@ let[@warning "-32"] view_get_if_ce ~construct (ce : CoreExpr.typed_ce)
    Option.to_result ~none:mismatch t,
    Option.to_result ~none:mismatch e)
 
-let[@warning "-32"] view_get_call_ce ~construct (ce : CoreExpr.typed_ce)
+let view_get_call_ce ~construct (ce : CoreExpr.typed_ce)
     : (string, Error.t) result
     * (CoreExpr.typed_ce, Error.t) result =
   let mismatch =
@@ -149,13 +134,13 @@ let[@warning "-32"] view_get_call_ce ~construct (ce : CoreExpr.typed_ce)
   (Option.to_result ~none:mismatch f,
    Option.to_result ~none:mismatch arg)
 
-let[@warning "-32"] view_get_fail_ce ~construct (ce : CoreExpr.typed_ce)
+let view_get_fail_ce ~construct (ce : CoreExpr.typed_ce)
     : (unit, Error.t) result =
   Option.to_result
     ~none:(mismatch_ce_kind ~construct ~expected_shape:"fail" ce)
     (CoreExprView.Get.fail (Some ce))
 
-let[@warning "-32"] view_get_case_ce ~construct (ce : CoreExpr.typed_ce)
+let view_get_case_ce ~construct (ce : CoreExpr.typed_ce)
     : (CoreExpr.typed_ce, Error.t) result
     * ((Label.t * Var.t * CoreExpr.typed_ce * CoreExpr.typed_info) list,
        Error.t) result =
@@ -168,12 +153,12 @@ let[@warning "-32"] view_get_case_ce ~construct (ce : CoreExpr.typed_ce)
 (** Re-bundle per-component errkind tuples into a single errkind tuple,
     short-circuiting on the first [Error].  Adapter for callers that
     haven't yet been refactored to consume per-component output. *)
-let[@warning "-32"] zip2_kind (a, b) =
+let zip2_kind (a, b) =
   match a, b with
   | Ok a, Ok b -> Ok (a, b)
   | Error e, _ | _, Error e -> Error e
 
-let[@warning "-32"] zip3_kind (a, b, c) =
+let zip3_kind (a, b, c) =
   match a, b, c with
   | Ok a, Ok b, Ok c -> Ok (a, b, c)
   | Error e, _, _ | _, Error e, _ | _, _, Error e -> Error e
@@ -185,14 +170,14 @@ let[@warning "-32"] zip3_kind (a, b, c) =
     [Error] (same kind).  Used in typechecker rules that thread
     errkinds through; consumers stay match-free. *)
 
-let[@warning "-32"] view_get_return_ce' ~construct
+let view_get_return_ce' ~construct
     (ce_r : (CoreExpr.typed_ce, Error.t) result)
     : (CoreExpr.typed_ce, Error.t) result =
   match ce_r with
   | Error e -> Error e
   | Ok ce -> view_get_return_ce ~construct ce
 
-let[@warning "-32"] view_get_take_ce' ~construct
+let view_get_take_ce' ~construct
     (ce_r : (CoreExpr.typed_ce, Error.t) result)
     : (Var.t, Error.t) result
     * (CoreExpr.typed_ce, Error.t) result
@@ -201,7 +186,7 @@ let[@warning "-32"] view_get_take_ce' ~construct
   | Error e -> (Error e, Error e, Error e)
   | Ok ce -> view_get_take_ce ~construct ce
 
-let[@warning "-32"] view_get_let_ce' ~construct
+let view_get_let_ce' ~construct
     (ce_r : (CoreExpr.typed_ce, Error.t) result)
     : (Var.t, Error.t) result
     * (CoreExpr.typed_ce, Error.t) result
@@ -210,7 +195,7 @@ let[@warning "-32"] view_get_let_ce' ~construct
   | Error e -> (Error e, Error e, Error e)
   | Ok ce -> view_get_let_ce ~construct ce
 
-let[@warning "-32"] view_get_let_tuple_ce' ~construct
+let view_get_let_tuple_ce' ~construct
     (ce_r : (CoreExpr.typed_ce, Error.t) result)
     : (Var.t list, Error.t) result
     * (CoreExpr.typed_ce, Error.t) result
@@ -219,7 +204,7 @@ let[@warning "-32"] view_get_let_tuple_ce' ~construct
   | Error e -> (Error e, Error e, Error e)
   | Ok ce -> view_get_let_tuple_ce ~construct ce
 
-let[@warning "-32"] view_get_if_ce' ~construct
+let view_get_if_ce' ~construct
     (ce_r : (CoreExpr.typed_ce, Error.t) result)
     : (CoreExpr.typed_ce, Error.t) result
     * (CoreExpr.typed_ce, Error.t) result
@@ -228,7 +213,7 @@ let[@warning "-32"] view_get_if_ce' ~construct
   | Error e -> (Error e, Error e, Error e)
   | Ok ce -> view_get_if_ce ~construct ce
 
-let[@warning "-32"] view_get_call_ce' ~construct
+let view_get_call_ce' ~construct
     (ce_r : (CoreExpr.typed_ce, Error.t) result)
     : (string, Error.t) result
     * (CoreExpr.typed_ce, Error.t) result =
@@ -236,21 +221,12 @@ let[@warning "-32"] view_get_call_ce' ~construct
   | Error e -> (Error e, Error e)
   | Ok ce -> view_get_call_ce ~construct ce
 
-let[@warning "-32"] view_get_fail_ce' ~construct
+let view_get_fail_ce' ~construct
     (ce_r : (CoreExpr.typed_ce, Error.t) result)
     : (unit, Error.t) result =
   match ce_r with
   | Error e -> Error e
   | Ok ce -> view_get_fail_ce ~construct ce
-
-let[@warning "-32"] view_get_case_ce' ~construct
-    (ce_r : (CoreExpr.typed_ce, Error.t) result)
-    : (CoreExpr.typed_ce, Error.t) result
-    * ((Label.t * Var.t * CoreExpr.typed_ce * CoreExpr.typed_info) list,
-       Error.t) result =
-  match ce_r with
-  | Error e -> (Error e, Error e)
-  | Ok ce -> view_get_case_ce ~construct ce
 
 (** {2 Errkind-input wrappers for the bundled lookup helpers}
 
@@ -260,7 +236,7 @@ let[@warning "-32"] view_get_case_ce' ~construct
     bodies thread errkinds through lookups without ever pattern-
     matching on a [(_, Error.t) result]. *)
 
-let[@warning "-32"] sig_lookup_fundef_e
+let sig_lookup_fundef_e
     (cs : CoreExpr.typed_ce Sig.t)
     (f_r : (string, Error.t) result)
     : (Var.t, Error.t) result
@@ -276,17 +252,7 @@ let[@warning "-32"] sig_lookup_fundef_e
      | Ok (param, arg, ret, eff, body) ->
        (Ok param, Ok arg, Ok ret, Ok eff, Ok body))
 
-let[@warning "-32"] ctor_lookup_e
-    (cs : CoreExpr.typed_ce Sig.t)
-    (d_r : (Dsort.t, Error.t) result)
-    (label : Label.t)
-    (args_r : (Sort.sort list, Error.t) result)
-    : (Sort.sort, Error.t) result =
-  match d_r, args_r with
-  | Error e, _ | _, Error e -> Error e
-  | Ok d, Ok args -> CtorLookup.lookup cs d label args
-
-let[@warning "-32"] sig_lookup_dsort_or_type_e
+let sig_lookup_dsort_or_type_e
     (cs : CoreExpr.typed_ce Sig.t)
     (d_r : (Dsort.t, Error.t) result)
     : (Sig.sort_or_type, Error.t) result =
@@ -294,7 +260,7 @@ let[@warning "-32"] sig_lookup_dsort_or_type_e
   | Error e -> Error e
   | Ok d -> Sig.lookup_dsort_or_type d cs
 
-let[@warning "-32"] rctx_use_resource_e
+let rctx_use_resource_e
     (x_r : (Var.t, Error.t) result)
     (delta : RCtx.t)
     : (CoreExpr.typed_ce, Error.t) result
@@ -327,7 +293,7 @@ let pf_remaining_len = function
   | None -> 0
   | Some pf -> List.length pf
 
-let[@warning "-32"] view_get_pf_nil
+let view_get_pf_nil
     (pf_opt : (CoreExpr.typed_ce, _, Var.t) ProofSort.t option)
     : (unit, Error.t) result =
   match ProofSortView.Get.nil pf_opt with
@@ -336,7 +302,7 @@ let[@warning "-32"] view_get_pf_nil
     Error (Error.rpat_length_mismatch
              ~pat_len:0 ~pf_len:(pf_remaining_len pf_opt))
 
-let[@warning "-32"] view_get_pf_comp
+let view_get_pf_comp
     (pf_opt : (CoreExpr.typed_ce, _, Var.t) ProofSort.t option)
     : Var.t option
     * (Sort.sort, Error.t) result
@@ -351,7 +317,7 @@ let[@warning "-32"] view_get_pf_comp
     Option.to_result ~none:mismatch eff_o,
     tail_o )
 
-let[@warning "-32"] view_get_pf_log
+let view_get_pf_log
     (pf_opt : (CoreExpr.typed_ce, _, Var.t) ProofSort.t option)
     : (CoreExpr.typed_ce, Error.t) result
     * (CoreExpr.typed_ce, _, Var.t) ProofSort.t option =
@@ -361,7 +327,7 @@ let[@warning "-32"] view_get_pf_log
       ~pat_kind:"log" ~pf_kind:(pf_head_kind pf_opt) in
   ( Option.to_result ~none:mismatch prop_o, tail_o )
 
-let[@warning "-32"] view_get_pf_res
+let view_get_pf_res
     (pf_opt : (CoreExpr.typed_ce, _, Var.t) ProofSort.t option)
     : (CoreExpr.typed_ce, Error.t) result
     * (CoreExpr.typed_ce, Error.t) result
@@ -374,7 +340,7 @@ let[@warning "-32"] view_get_pf_res
     Option.to_result ~none:mismatch value_o,
     tail_o )
 
-let[@warning "-32"] view_get_pf_depres
+let view_get_pf_depres
     (pf_opt : (CoreExpr.typed_ce, _, Var.t) ProofSort.t option)
     : Var.t option
     * (CoreExpr.typed_ce, Error.t) result
@@ -398,7 +364,7 @@ let[@warning "-32"] view_get_pf_depres
       sort/predicate/etc.).
     - Otherwise extend with the matching [RCtx.extend_<kind>]. *)
 
-let[@warning "-32"] extend_comp_opt (var : Var.t option)
+let extend_comp_opt (var : Var.t option)
     (sort : (Sort.sort, Error.t) result)
     (eff : (Effect.t, Error.t) result)
     (delta : RCtx.t) : RCtx.t =
@@ -407,22 +373,13 @@ let[@warning "-32"] extend_comp_opt (var : Var.t option)
   | Some v, Ok s, Ok e -> RCtx.extend_comp v s e delta
   | Some v, _, _ -> RCtx.extend_unknown v delta
 
-let[@warning "-32"] extend_log_opt (var : Var.t option)
+let extend_log_opt (var : Var.t option)
     (prop : (CoreExpr.typed_ce, Error.t) result)
     (delta : RCtx.t) : RCtx.t =
   match var, prop with
   | None, _ -> delta
   | Some v, Ok p -> RCtx.extend_log v p delta
   | Some v, Error _ -> RCtx.extend_unknown v delta
-
-let[@warning "-32"] extend_res_opt (var : Var.t option)
-    (pred : (CoreExpr.typed_ce, Error.t) result)
-    (value : (CoreExpr.typed_ce, Error.t) result)
-    (usage : Usage.t) (delta : RCtx.t) : RCtx.t =
-  match var, pred, value with
-  | None, _, _ -> delta
-  | Some v, Ok p, Ok va -> RCtx.extend_res v p va usage delta
-  | Some v, _, _ -> RCtx.extend_unknown v delta
 
 (* Elaborate a surface expression to typed core, synthesizing its
    sort.  Defers to surface elaboration; if the elaborator recorded
@@ -525,35 +482,16 @@ let mk_eq ce1 ce2 = CoreExpr.mk (mk_info bool_sort) (CoreExpr.Eq (ce1, ce2))
 
 (** Errkind-propagating [mk_eq]: if either side is [Error], the result
     is [Error] of the same kind. *)
-let[@warning "-32"] mk_eq' ce1_r ce2_r =
+let mk_eq' ce1_r ce2_r =
   match ce1_r, ce2_r with
   | Error e, _ | _, Error e -> Error e
   | Ok ce1, Ok ce2 -> Ok (mk_eq ce1 ce2)
-
-(** Errkind-propagating [mk_info]: builds a [typed_info] whose
-    [answer] field carries the input sort's [Result] verdict.  When
-    [sort_r] is [Error _], a [bool_sort] placeholder is used for the
-    [#sort] method (consumers reading the structural sort still see
-    something well-typed); the truth-of-record lives on [#answer]. *)
-let[@warning "-32"] mk_info_r (sort_r : (Sort.sort, Error.t) result)
-    : CoreExpr.typed_info =
-  let placeholder = bool_sort in
-  let sort = Result.value sort_r ~default:placeholder in
-  let answer = sort_r in
-  let _ = sort in
-  (object
-    method loc = SourcePos.dummy
-    method ctx = Context.empty
-    method answer = answer
-    method eff = Effect.Spec
-    method subterm_errors = []
-  end : CoreExpr.typed_info)
 
 (** Errkind-propagating [CoreExpr.Annot] wrapping: builds
     [(ce : sort_t)] when both inputs are [Ok], propagates [Error]
     otherwise.  The wrapper's [info] is derived from [sort_r] so the
     annotated expression's [#answer] reflects the sort's verdict. *)
-let[@warning "-32"] mk_annot_e
+let mk_annot_e
     (ce_r : (CoreExpr.typed_ce, Error.t) result)
     (sort_r : (Sort.sort, Error.t) result)
     : (CoreExpr.typed_ce, Error.t) result =
@@ -564,35 +502,11 @@ let[@warning "-32"] mk_annot_e
     let sort_t = Elaborate.lift_sort sort in
     Ok (CoreExpr.mk info (CoreExpr.Annot (ce, sort_t)))
 
-(** Errkind-propagating [CoreExpr.Inject]: builds [Ctor payload]
-    when both inputs are [Ok]. *)
-let[@warning "-32"] mk_inject_e
-    (label : Label.t)
-    (payload_r : (CoreExpr.typed_ce, Error.t) result)
-    (info : CoreExpr.typed_info)
-    : (CoreExpr.typed_ce, Error.t) result =
-  match payload_r with
-  | Error e -> Error e
-  | Ok payload -> Ok (CoreExpr.mk info (CoreExpr.Inject (label, payload)))
-
-(** Replace a constraint with [Constraint.top pos] when an associated
-    errkind is [Error _].  Used by rules that build a constraint over
-    a placeholder when an upstream errkind tainted the inputs — the
-    placeholder constraint can't be sent to SMT (it would mention a
-    [Hole]), so drop it on the [Error] path. *)
-let[@warning "-32"] ct_unless_err
-    (r : (_, _) result)
-    (ct : Constraint.typed_ct)
-    (pos : SourcePos.t) : Constraint.typed_ct =
-  match r with
-  | Ok _ -> ct
-  | Error _ -> Constraint.top pos
-
 (** Combine a list of [(unit, 'e) result] values: returns [Ok ()] when
     every input is [Ok]; the first [Error] otherwise.  Used by rule
     bodies to taint a rinfo's answer with the first errkind that
     flowed through. *)
-let[@warning "-32"] errs_first : 'e. (unit, 'e) result list -> (unit, 'e) result =
+let errs_first : 'e. (unit, 'e) result list -> (unit, 'e) result =
   fun rs ->
   let rec go = function
     | [] -> Ok ()
@@ -603,13 +517,13 @@ let[@warning "-32"] errs_first : 'e. (unit, 'e) result list -> (unit, 'e) result
 
 (** Lift a [(_, 'e) result] to [(unit, 'e) result] by discarding the
     [Ok] payload — convenient input for [errs_first]. *)
-let[@warning "-32"] erase_ok r = Result.map (fun _ -> ()) r
+let erase_ok r = Result.map (fun _ -> ()) r
 
 (** Errkind-propagating effect subseteq check.  When [eff_r] is [Ok eff]
     and [Effect.sub eff ub], returns [Ok ()]; when [eff_r] is [Ok eff]
     but the subsumption fails, returns [Error err_k] using the
     caller-supplied error kind; otherwise propagates [eff_r]'s error. *)
-let[@warning "-32"] check_eff_subseteq_e
+let check_eff_subseteq_e
     (eff_r : (Effect.t, Error.t) result)
     (ub : Effect.t)
     ~(err_k : Error.t)
@@ -688,8 +602,8 @@ let rec strip_annots_shallow ce =
   | _ -> ce
 
 (** Errkind-propagating [strip_annots] / [strip_annots_shallow]. *)
-let[@warning "-32"] strip_annots' ce_r = Result.map strip_annots ce_r
-let[@warning "-32"] strip_annots_shallow' ce_r =
+let strip_annots' ce_r = Result.map strip_annots ce_r
+let strip_annots_shallow' ce_r =
   Result.map strip_annots_shallow ce_r
 
 (* ---------- refined primitive signatures ---------- *)
@@ -718,7 +632,7 @@ let mk_prim_app p args =
 let mk_not ce = CoreExpr.mk (mk_info bool_sort) (CoreExpr.Not ce)
 
 (** Errkind-propagating [mk_not]. *)
-let[@warning "-32"] mk_not' ce_r = Result.map mk_not ce_r
+let mk_not' ce_r = Result.map mk_not ce_r
 
 (* Lift a plain FunSig/FunDef to a (domain, codomain, eff) triple,
    creating fresh variables. *)
@@ -957,7 +871,7 @@ let mk_rinfo ?(goal=RProg.NoGoal) loc delta sort eff : RProg.typed_rinfo =
     user error and are continuing.  [sort] is kept as the
     "would-have-been" sort so hover / inspector consumers still see
     a placeholder; the truth-of-record lives on [answer]. *)
-let[@warning "-32"] mk_rinfo_err ?(goal=RProg.NoGoal) loc delta sort eff err : RProg.typed_rinfo =
+let mk_rinfo_err ?(goal=RProg.NoGoal) loc delta sort eff err : RProg.typed_rinfo =
   (object
     method loc = loc
     method ctx = RCtx.erase delta
@@ -973,7 +887,7 @@ let[@warning "-32"] mk_rinfo_err ?(goal=RProg.NoGoal) loc delta sort eff err : R
     explicit answer ([(Sort.sort, Error.t) result]) so callers can
     feed in errkind values from the View wrappers directly.  [sort] is
     the placeholder used when [answer = Error _]. *)
-let[@warning "-32"] mk_rinfo_with_answer
+let mk_rinfo_with_answer
     ?(goal=RProg.NoGoal) loc delta sort eff
     (answer : (Sort.sort, Error.t) result) : RProg.typed_rinfo =
   (object
@@ -991,7 +905,7 @@ let[@warning "-32"] mk_rinfo_with_answer
     be rewritten.  Pre-refactor this lifted a kind-result into a t-result
     via the call-site loc; with [info#answer : (Sort.sort, Error.t)
     result] both sides match, so the function passes through. *)
-let[@warning "-32"] answer_of_sort_kind_r ~loc:_
+let answer_of_sort_kind_r ~loc:_
     (sort_r : (Sort.sort, Error.t) result)
     : (Sort.sort, Error.t) result =
   sort_r
@@ -1001,7 +915,7 @@ let[@warning "-32"] answer_of_sort_kind_r ~loc:_
     well-formed); the rinfo's [#answer] carries the errkind verdict.
     [ProofSort.comp] on the placeholder empty pf returns the unit
     sort, which is the typical fallthrough for an unfinished [crt]. *)
-let[@warning "-32"] mk_crt_rinfo
+let mk_crt_rinfo
     ~(loc : SourcePos.t)
     (delta : RCtx.t)
     (pf_r : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
@@ -1066,7 +980,7 @@ let extend_delta_with_rp_unknowns rp delta =
     produce a typed AST and keep the user's pattern variables in scope
     so LSP context queries downstream of the rpat see [a1, x, xs,
     rest2 : ?] rather than dropping them entirely. *)
-let[@warning "-32"] error_rp_blanket
+let error_rp_blanket
     ?(goal = RProg.NoGoal)
     (rp : (_, Var.t) RPat.rpat)
     (delta : RCtx.t)
@@ -1090,7 +1004,7 @@ let[@warning "-32"] error_rp_blanket
     [info#subterm_errors = []].  Used at clauses with multiple
     cross-cutting checks (e.g. CIter's effect / sort / leak / pattern
     checks) where every error should surface, not just the first. *)
-let[@warning "-32"] mk_rinfo_full
+let mk_rinfo_full
     ?(goal=RProg.NoGoal) loc delta sort eff
     (errors : Error.located list) : RProg.typed_rinfo =
   let (answer, rest) = match errors with
@@ -1112,7 +1026,7 @@ let[@warning "-32"] mk_rinfo_full
     at decl-level boundaries where cross-cutting errors (resource
     leak, ProofSort.bind failure, pf_eq mismatches) need to attach
     to the body's typed AST without their own node. *)
-let[@warning "-32"] prepend_subterm_errors_crt
+let prepend_subterm_errors_crt
     (errs : Error.located list)
     (ce : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.crt)
     : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.crt =

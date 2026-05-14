@@ -150,7 +150,7 @@ let ( &&& ) (gate : (unit, Error.t) result) (x : ('a, Error.t) result)
     typed-info answer ([(Sort.sort, Error.located) result]) into the
     [Error.t] expected by [check]'s expected-sort argument when the
     typechecker can't synthesize a prior subterm. *)
-let[@warning "-32"] unsynth ~construct r =
+let unsynth ~construct r =
   Result.map_error (fun _ -> Error.cannot_synthesize ~construct) r
 
 (** [replace_answer ce a] re-wraps [ce]'s outer info with answer [a],

@@ -13,7 +13,7 @@ let ( let* ) = Result.bind
     Used with [( &&& )] to linearize predicate checks (effect
     subsumption, spec-context, arity) into the answer-builder
     pipeline so clauses don't branch on the test. *)
-let[@warning "-32"] check_pred (b : bool) (err : Error.t)
+let check_pred (b : bool) (err : Error.t)
     : (unit, Error.t) result =
   if b then Ok () else Error err
 
@@ -23,7 +23,7 @@ let[@warning "-32"] check_pred (b : bool) (err : Error.t)
     Equivalent to [Result.bind gate (fun () -> x)] but reads more
     naturally at builder sites where [x] is itself a [SortView.Build]
     expression. *)
-let[@warning "-32"] ( &&& )
+let ( &&& )
     (gate : (unit, Error.t) result) (x : ('a, Error.t) result)
     : ('a, Error.t) result =
   match gate with Ok () -> x | Error e -> Error e
