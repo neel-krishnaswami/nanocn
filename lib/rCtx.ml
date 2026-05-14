@@ -16,49 +16,49 @@ let concat ctx1 ctx2 = ctx1 @ ctx2
 
 let lookup_comp x ctx =
   let rec go = function
-    | [] -> Error (Error.K_unbound_var x)
+    | [] -> Error (Error.unbound_var x)
     | Comp { var; sort; eff } :: _ when Var.compare x var = 0 ->
       Ok (sort, eff)
     | Unknown { var } :: _ when Var.compare x var = 0 ->
-      Error (Error.K_unknown_var_type { var = x })
+      Error (Error.unknown_var_type ~var:x)
     | (Log { var; _ } | Res { var; _ }) :: _ when Var.compare x var = 0 ->
       (* The variable is bound at a different kind.  Treat as
          unbound at the comp kind — the caller asked for the wrong
          lookup, which is either a compiler bug or recovers cleanly
-         by reporting K_unbound_var. *)
-      Error (Error.K_unbound_var x)
+         by reporting an unbound-var error. *)
+      Error (Error.unbound_var x)
     | _ :: rest -> go rest
   in
   go ctx
 
 let lookup_log x ctx =
   let rec go = function
-    | [] -> Error (Error.K_unbound_var x)
+    | [] -> Error (Error.unbound_var x)
     | Log { var; prop } :: _ when Var.compare x var = 0 -> Ok prop
     | Unknown { var } :: _ when Var.compare x var = 0 ->
-      Error (Error.K_unknown_var_type { var = x })
+      Error (Error.unknown_var_type ~var:x)
     | (Comp { var; _ } | Res { var; _ }) :: _ when Var.compare x var = 0 ->
-      Error (Error.K_unbound_var x)
+      Error (Error.unbound_var x)
     | _ :: rest -> go rest
   in
   go ctx
 
 let use_resource x ctx =
   let rec go acc = function
-    | [] -> Error (Error.K_resource_not_found { name = x })
+    | [] -> Error (Error.resource_not_found ~name:x)
     | Res { var; pred; value; usage } :: rest when Var.compare x var = 0 ->
       if Usage.is_avail usage then
         Ok (pred, value, List.rev acc @ [Res { var; pred; value; usage = Usage.Used }] @ rest)
       else
-        Error (Error.K_resource_already_used { name = x })
+        Error (Error.resource_already_used ~name:x)
     | Unknown { var } :: _ when Var.compare x var = 0 ->
       (* Unknown entry: the upstream rCheck judgement that would
          have introduced this resource binding errored.  Report
-         K_unknown_var_type but DO NOT advance the usage flag (the
+         unknown_var_type but DO NOT advance the usage flag (the
          entry has no usage; trying to "use" it leaves the context
          unchanged so linearity is not corrupted by cascading
          from an earlier error). *)
-      Error (Error.K_unknown_var_type { var = x })
+      Error (Error.unknown_var_type ~var:x)
     | entry :: rest -> go (entry :: acc) rest
   in
   go [] ctx
@@ -88,8 +88,8 @@ let zero ctx =
 let merge ctx1 ctx2 =
   let n1 = List.length ctx1 and n2 = List.length ctx2 in
   if n1 <> n2 then
-    Error (Error.K_branch_merge_failure
-             { reason = Error.Mf_length_mismatch { lhs = n1; rhs = n2 } })
+    Error (Error.branch_merge_failure
+             ~reason:(Error.Mf_length_mismatch { lhs = n1; rhs = n2 }))
   else
     let rec go acc l1 l2 =
       match l1, l2 with
@@ -105,19 +105,19 @@ let merge ctx1 ctx2 =
          | Some u ->
            go (Res { r1 with usage = u } :: acc) rest1 rest2
          | None ->
-           Error (Error.K_branch_merge_failure
-                    { reason = Error.Mf_usage_incompatible r1.var }))
+           Error (Error.branch_merge_failure
+                    ~reason:(Error.Mf_usage_incompatible r1.var)))
       | _ ->
-        Error (Error.K_branch_merge_failure
-                 { reason = Error.Mf_entry_kind_mismatch })
+        Error (Error.branch_merge_failure
+                 ~reason:Error.Mf_entry_kind_mismatch)
     in
     go [] ctx1 ctx2
 
 let lattice_merge ctx1 ctx2 =
   let n1 = List.length ctx1 and n2 = List.length ctx2 in
   if n1 <> n2 then
-    Error (Error.K_branch_merge_failure
-             { reason = Error.Mf_length_mismatch { lhs = n1; rhs = n2 } })
+    Error (Error.branch_merge_failure
+             ~reason:(Error.Mf_length_mismatch { lhs = n1; rhs = n2 }))
   else
     let rec go acc l1 l2 =
       match l1, l2 with
@@ -132,8 +132,8 @@ let lattice_merge ctx1 ctx2 =
         let u = Usage.lattice_meet r1.usage r2.usage in
         go (Res { r1 with usage = u } :: acc) rest1 rest2
       | _ ->
-        Error (Error.K_branch_merge_failure
-                 { reason = Error.Mf_entry_kind_mismatch })
+        Error (Error.branch_merge_failure
+                 ~reason:Error.Mf_entry_kind_mismatch)
     in
     go [] ctx1 ctx2
 
@@ -149,7 +149,7 @@ let usage_equal ctx1 ctx2 =
     ctx1 ctx2
 
 let merge_n = function
-  | [] -> Error (Error.K_branch_merge_failure { reason = Error.Mf_empty_list })
+  | [] -> Error (Error.branch_merge_failure ~reason:Error.Mf_empty_list)
   | [ctx] -> Ok ctx
   | first :: rest ->
     List.fold_left (fun acc ctx ->

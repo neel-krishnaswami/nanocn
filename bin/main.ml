@@ -181,7 +181,9 @@ let json_file filename =
         "answer",
           (match b#answer with
            | Ok s -> Sort.json (fun b' -> SourcePos.json b'#loc) s
-           | Error e -> Json.Object ["error", Json.String (Error.to_string e)]);
+           | Error k ->
+             let e = Error.locate ~loc:b#loc k in
+             Json.Object ["error", Json.String (Error.to_string e)]);
         "eff", Effect.json b#eff;
       ] in
       let j = Prog.json_core_prog (CoreExpr.json jb) cprog in
@@ -261,16 +263,13 @@ let () =
     | _ -> usage ()
   with Util.Invariant_failure info ->
     (* Defensive outer catch: a compiler bug escaped the per-file
-       driver.  Render with the same machinery as user diagnostics
-       so the source excerpt and structured output still appear,
-       then exit with a distinct status so CI can flag it. *)
-    let err =
-      Error.internal_invariant
-        ~loc:info.Util.loc
-        ~rule:info.Util.rule
-        ~invariant:info.Util.invariant
-    in
-    Format.eprintf "%a@." (Error.print source_registry) err;
+       driver.  Compiler bugs are reported on stderr distinct from
+       user diagnostics, with a "please file a report" framing.
+       Exit with a distinct status so CI can flag it. *)
+    Format.eprintf
+      "@[<v>Internal error: invariant failed in rule %s@ \
+       at %a:@   %s@]@."
+      info.Util.rule SourcePos.print info.Util.loc info.Util.invariant;
     Format.eprintf
       "@.This is a compiler bug.  Please report it with the input \
        that triggered it.@.";

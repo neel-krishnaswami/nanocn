@@ -102,7 +102,7 @@ let of_lists tvars sorts =
   let n = List.length tvars in
   let m = List.length sorts in
   if n <> m then
-    Error (Error.K_subst_arity_mismatch { expected = n; actual = m })
+    Error (Error.subst_arity_mismatch ~expected:n ~actual:m)
   else
     Ok (List.fold_right2 (fun a s acc -> TV (a, s) :: acc) tvars sorts [])
 

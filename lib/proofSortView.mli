@@ -12,7 +12,7 @@
     The View carries no error vocabulary: it just reports whether a
     head shape matched.  Consumers (typechecker clauses) define
     small *local* wrappers that lift the option output to a
-    [(_, Error.kind) result] using the appropriate
+    [(_, Error.t) result] using the appropriate
     [K_pf_kind_mismatch] / [K_pf_expected_nil] error kind with the
     call-site's [construct] argument.
 

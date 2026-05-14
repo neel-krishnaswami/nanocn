@@ -16,7 +16,7 @@ let empty = []
 let extend name entry sig_ = Named (name, entry) :: sig_
 
 let rec lookup_fun name = function
-  | [] -> Error (Error.K_unknown_function { name })
+  | [] -> Error (Error.unknown_function ~name)
   | Named (n, FunSig { arg; ret; eff }) :: _ when String.equal name n ->
     Ok (arg, ret, eff)
   | Named (n, FunDef { arg; ret; eff; _ }) :: _ when String.equal name n ->
@@ -24,13 +24,13 @@ let rec lookup_fun name = function
   | _ :: rest -> lookup_fun name rest
 
 let rec lookup_fundef name = function
-  | [] -> Error (Error.K_unfold_not_fundef { name })
+  | [] -> Error (Error.unfold_not_fundef ~name)
   | Named (n, FunDef { param; arg; ret; eff; body }) :: _ when String.equal name n ->
     Ok (param, arg, ret, eff, body)
   | _ :: rest -> lookup_fundef name rest
 
 let rec lookup_sort dsort = function
-  | [] -> Error (Error.K_unbound_sort dsort)
+  | [] -> Error (Error.unbound_sort dsort)
   | Sort d :: _ when Dsort.compare dsort d.DsortDecl.name = 0 ->
     Ok d
   | Named (_, SortDecl d) :: _ when Dsort.compare dsort d.DsortDecl.name = 0 ->
@@ -43,12 +43,12 @@ let lookup_ctor dsort label sig_ =
   | Ok decl ->
     match DsortDecl.lookup_ctor label decl with
     | Some _ -> Ok decl
-    | None -> Error (Error.K_ctor_not_in_decl { label; decl = dsort })
+    | None -> Error (Error.ctor_not_in_decl ~label ~decl:dsort)
 
 let extend_sort sig_ (d : DsortDecl.t) = Sort d :: sig_
 
 let rec lookup_type dsort = function
-  | [] -> Error (Error.K_unbound_sort dsort)
+  | [] -> Error (Error.unbound_sort dsort)
   | Type d :: _ when Dsort.compare dsort d.DtypeDecl.name = 0 ->
     Ok d
   | Named (_, TypeDecl d) :: _ when Dsort.compare dsort d.DtypeDecl.name = 0 ->
@@ -61,7 +61,7 @@ let lookup_type_ctor dsort label sig_ =
   | Ok decl ->
     match DtypeDecl.lookup_ctor label decl with
     | Some _ -> Ok decl
-    | None -> Error (Error.K_ctor_not_in_decl { label; decl = dsort })
+    | None -> Error (Error.ctor_not_in_decl ~label ~decl:dsort)
 
 let extend_type sig_ (d : DtypeDecl.t) = Type d :: sig_
 
@@ -212,7 +212,7 @@ module Test = struct
              loc = SourcePos.dummy } in
            let s = extend_sort empty decl in
            match lookup_ctor d l_out s with
-           | Error (Error.K_ctor_not_in_decl _) -> true
+           | Error k -> Error.header k = "Type error: unknown constructor"
            | _ -> false);
 
       QCheck.Test.make ~name:"sig lookup_ctor: unbound sort"
@@ -224,7 +224,7 @@ module Test = struct
            let mk_label s = match Label.of_string s with
              | Ok l -> l | Error _ -> assert false in
            match lookup_ctor (mk_dsort "Nope") (mk_label "La") empty with
-           | Error (Error.K_unbound_sort _) -> true
+           | Error k -> Error.header k = "Type error: unknown sort/type"
            | _ -> false);
     ]
 end

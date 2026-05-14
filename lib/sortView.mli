@@ -9,7 +9,7 @@
     The View carries no error vocabulary: it just reports whether a
     shape matched or didn't.  Consumers (typechecker clauses) define
     small *local* wrappers that lift the option output to a
-    [(_, Error.kind) result] using the appropriate per-call-site error
+    [(_, Error.t) result] using the appropriate per-call-site error
     kind (typically [K_construct_sort_mismatch] with a [construct]
     argument).  This keeps the "no branching on result inside clauses"
     invariant — the [Option.to_result] conversion lives inside the

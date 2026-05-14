@@ -18,12 +18,12 @@ let extend_sort sig_ d = Sort d :: sig_
 let extend_type sig_ d = Type d :: sig_
 
 let rec lookup_rf name = function
-  | [] -> Error (Error.K_unknown_function { name })
+  | [] -> Error (Error.unknown_function ~name)
   | Named (n, RFunSig rf) :: _ when String.equal name n -> Ok rf
   | _ :: rest -> lookup_rf name rest
 
 let rec lookup_fun name = function
-  | [] -> Error (Error.K_unknown_function { name })
+  | [] -> Error (Error.unknown_function ~name)
   | Named (n, FunSig { arg; ret; eff }) :: _ when String.equal name n ->
     Ok (arg, ret, eff)
   | Named (n, FunDef { arg; ret; eff; _ }) :: _ when String.equal name n ->
@@ -33,25 +33,25 @@ let rec lookup_fun name = function
   | _ :: rest -> lookup_fun name rest
 
 let rec lookup_fundef name = function
-  | [] -> Error (Error.K_unfold_not_fundef { name })
+  | [] -> Error (Error.unfold_not_fundef ~name)
   | Named (n, FunDef { param; arg; ret; eff; body }) :: _ when String.equal name n ->
     Ok (param, arg, ret, eff, body)
   | _ :: rest -> lookup_fundef name rest
 
 let rec lookup_sort dsort = function
-  | [] -> Error (Error.K_unbound_sort dsort)
+  | [] -> Error (Error.unbound_sort dsort)
   | Sort d :: _ when Dsort.compare dsort d.DsortDecl.name = 0 -> Ok d
   | Named (_, SortDecl d) :: _ when Dsort.compare dsort d.DsortDecl.name = 0 -> Ok d
   | _ :: rest -> lookup_sort dsort rest
 
 let rec lookup_type dsort = function
-  | [] -> Error (Error.K_unbound_sort dsort)
+  | [] -> Error (Error.unbound_sort dsort)
   | Type d :: _ when Dsort.compare dsort d.DtypeDecl.name = 0 -> Ok d
   | Named (_, TypeDecl d) :: _ when Dsort.compare dsort d.DtypeDecl.name = 0 -> Ok d
   | _ :: rest -> lookup_type dsort rest
 
 let rec lookup_ctor label = function
-  | [] -> Error (Error.K_unbound_ctor label)
+  | [] -> Error (Error.unbound_ctor label)
   | Sort d :: rest ->
     (match DsortDecl.lookup_ctor label d with
      | Some _ -> Ok (d.DsortDecl.name, d)
@@ -63,7 +63,7 @@ let rec lookup_ctor label = function
   | _ :: rest -> lookup_ctor label rest
 
 let rec lookup_type_ctor label = function
-  | [] -> Error (Error.K_unbound_ctor label)
+  | [] -> Error (Error.unbound_ctor label)
   | Type d :: rest ->
     (match DtypeDecl.lookup_ctor label d with
      | Some _ -> Ok (d.DtypeDecl.name, d)

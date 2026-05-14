@@ -1,6 +1,6 @@
 let mismatch ~construct ~expected_shape s =
-  Error (Error.K_construct_sort_mismatch
-           { construct; expected_shape; got = s })
+  Error (Error.construct_sort_mismatch
+           ~construct ~expected_shape ~got:s)
 
 let get_pred ~construct s =
   match Sort.shape s with

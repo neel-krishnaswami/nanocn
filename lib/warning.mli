@@ -1,7 +1,7 @@
 (** Compile-time warnings — non-fatal diagnostics that the user
     should see but that don't fail compilation.
 
-    Distinct from [Error.t]: warnings are reported with a "Warning"
+    Distinct from [Error.located]: warnings are reported with a "Warning"
     header and severity=Hint at the LSP layer; they don't stop the
     build.  Each warning carries a source position and a structured
     [kind] so renderers can produce specific guidance.

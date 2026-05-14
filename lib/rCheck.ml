@@ -11,9 +11,8 @@ open ElabM
 
    - [invariant_at ~rule pos msg]: an "impossible-in-well-formed-code"
      check fired, typically because an earlier elaboration pass was
-     supposed to rule this shape out. Emits a
-     [Error.K_internal_invariant] carrying the rule identifier
-     and the specific failed check.
+     supposed to rule this shape out.  Raises [Util.Invariant_failure],
+     which the top-level driver catches and reports as a compiler bug.
    - [invariant ~rule msg]: same, but for sites with no source
      position in scope (uses [SourcePos.dummy]). *)
 let invariant_at pos ~rule msg =
@@ -35,16 +34,16 @@ let mk_info sort =
 (** {2 SortView / CoreExprView wrappers — local option→result helpers}
 
     Lift [SortView.Get.*] / [CoreExprView.Get.*] from option-typed to
-    [(_, Error.kind) result] using the call-site's [construct] string
+    [(_, Error.t) result] using the call-site's [construct] string
     plus the appropriate [K_construct_sort_mismatch] /
     [K_wrong_pred_shape] error kind.  Errors from the input result
     propagate unchanged. *)
 let mismatch_sort_kind ~construct ~expected_shape s =
-  Error.K_construct_sort_mismatch
-    { construct; expected_shape; got = SortView.project s }
+  Error.construct_sort_mismatch
+    ~construct ~expected_shape ~got:(SortView.project s)
 
-let[@warning "-32"] view_get_pred_sort ~construct (sr : (Sort.sort, Error.kind) result)
-    : (Sort.sort, Error.kind) result =
+let[@warning "-32"] view_get_pred_sort ~construct (sr : (Sort.sort, Error.t) result)
+    : (Sort.sort, Error.t) result =
   match sr with
   | Error _ as e -> e
   | Ok s ->
@@ -53,8 +52,8 @@ let[@warning "-32"] view_get_pred_sort ~construct (sr : (Sort.sort, Error.kind) 
       (SortView.Get.pred (Some s))
 
 let[@warning "-32"] view_get_record_sorts ~construct (n : int)
-    (sr : (Sort.sort, Error.kind) result)
-    : (Sort.sort, Error.kind) result list =
+    (sr : (Sort.sort, Error.t) result)
+    : (Sort.sort, Error.t) result list =
   let sub_options = SortView.Get.record n (Result.to_option sr) in
   let mismatch_for s =
     mismatch_sort_kind ~construct ~expected_shape:"Record _" s in
@@ -65,8 +64,8 @@ let[@warning "-32"] view_get_record_sorts ~construct (n : int)
     | Ok _, Some t -> Ok t)
     sub_options
 
-let[@warning "-32"] view_get_app_sort ~construct (sr : (Sort.sort, Error.kind) result)
-    : (Dsort.t, Error.kind) result * (Sort.sort, Error.kind) result list =
+let[@warning "-32"] view_get_app_sort ~construct (sr : (Sort.sort, Error.t) result)
+    : (Dsort.t, Error.t) result * (Sort.sort, Error.t) result list =
   match sr with
   | Error e -> Error e, []
   | Ok s ->
@@ -81,9 +80,9 @@ let[@warning "-32"] view_get_app_sort ~construct (sr : (Sort.sort, Error.kind) r
     (d_result, ts_result)
 
 let mismatch_ce_kind ~construct ~expected_shape ce =
-  Error.K_wrong_pred_shape
-    { construct; expected_shape;
-      got = Format.asprintf "%a" CoreExpr.print ce }
+  Error.wrong_pred_shape
+    ~construct ~expected_shape
+    ~got:(Format.asprintf "%a" CoreExpr.print ce)
 
 (** [view_get_X ~construct ce] lifts [CoreExprView.Get.X] over
     [Some ce] to a result-typed value, attaching a
@@ -91,15 +90,15 @@ let mismatch_ce_kind ~construct ~expected_shape ce =
     are the result-domain analogues of the option-typed primitives
     in [CoreExprView]. *)
 let[@warning "-32"] view_get_return_ce ~construct (ce : CoreExpr.typed_ce)
-    : (CoreExpr.typed_ce, Error.kind) result =
+    : (CoreExpr.typed_ce, Error.t) result =
   Option.to_result
     ~none:(mismatch_ce_kind ~construct ~expected_shape:"return _" ce)
     (CoreExprView.Get.return (Some ce))
 
 let[@warning "-32"] view_get_take_ce ~construct (ce : CoreExpr.typed_ce)
-    : (Var.t, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result =
+    : (Var.t, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result =
   let mismatch =
     mismatch_ce_kind ~construct ~expected_shape:"take _ = _; _" ce in
   let (x, e1, e2) = CoreExprView.Get.take (Some ce) in
@@ -108,9 +107,9 @@ let[@warning "-32"] view_get_take_ce ~construct (ce : CoreExpr.typed_ce)
    Option.to_result ~none:mismatch e2)
 
 let[@warning "-32"] view_get_let_ce ~construct (ce : CoreExpr.typed_ce)
-    : (Var.t, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result =
+    : (Var.t, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result =
   let mismatch =
     mismatch_ce_kind ~construct ~expected_shape:"let _ = _; _" ce in
   let (x, e1, e2) = CoreExprView.Get.let_ (Some ce) in
@@ -119,9 +118,9 @@ let[@warning "-32"] view_get_let_ce ~construct (ce : CoreExpr.typed_ce)
    Option.to_result ~none:mismatch e2)
 
 let[@warning "-32"] view_get_let_tuple_ce ~construct (ce : CoreExpr.typed_ce)
-    : (Var.t list, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result =
+    : (Var.t list, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result =
   let mismatch =
     mismatch_ce_kind ~construct
       ~expected_shape:"let (_, ..., _) = _; _" ce in
@@ -131,9 +130,9 @@ let[@warning "-32"] view_get_let_tuple_ce ~construct (ce : CoreExpr.typed_ce)
    Option.to_result ~none:mismatch e2)
 
 let[@warning "-32"] view_get_if_ce ~construct (ce : CoreExpr.typed_ce)
-    : (CoreExpr.typed_ce, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result =
+    : (CoreExpr.typed_ce, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result =
   let mismatch =
     mismatch_ce_kind ~construct ~expected_shape:"if _ then _ else _" ce in
   let (c, t, e) = CoreExprView.Get.if_ (Some ce) in
@@ -142,8 +141,8 @@ let[@warning "-32"] view_get_if_ce ~construct (ce : CoreExpr.typed_ce)
    Option.to_result ~none:mismatch e)
 
 let[@warning "-32"] view_get_call_ce ~construct (ce : CoreExpr.typed_ce)
-    : (string, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result =
+    : (string, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result =
   let mismatch =
     mismatch_ce_kind ~construct ~expected_shape:"f(_)" ce in
   let (f, arg) = CoreExprView.Get.call (Some ce) in
@@ -151,15 +150,15 @@ let[@warning "-32"] view_get_call_ce ~construct (ce : CoreExpr.typed_ce)
    Option.to_result ~none:mismatch arg)
 
 let[@warning "-32"] view_get_fail_ce ~construct (ce : CoreExpr.typed_ce)
-    : (unit, Error.kind) result =
+    : (unit, Error.t) result =
   Option.to_result
     ~none:(mismatch_ce_kind ~construct ~expected_shape:"fail" ce)
     (CoreExprView.Get.fail (Some ce))
 
 let[@warning "-32"] view_get_case_ce ~construct (ce : CoreExpr.typed_ce)
-    : (CoreExpr.typed_ce, Error.kind) result
+    : (CoreExpr.typed_ce, Error.t) result
     * ((Label.t * Var.t * CoreExpr.typed_ce * CoreExpr.typed_info) list,
-       Error.kind) result =
+       Error.t) result =
   let mismatch =
     mismatch_ce_kind ~construct ~expected_shape:"case _ of { ... }" ce in
   let (scrut, branches) = CoreExprView.Get.case (Some ce) in
@@ -187,68 +186,68 @@ let[@warning "-32"] zip3_kind (a, b, c) =
     errkinds through; consumers stay match-free. *)
 
 let[@warning "-32"] view_get_return_ce' ~construct
-    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
-    : (CoreExpr.typed_ce, Error.kind) result =
+    (ce_r : (CoreExpr.typed_ce, Error.t) result)
+    : (CoreExpr.typed_ce, Error.t) result =
   match ce_r with
   | Error e -> Error e
   | Ok ce -> view_get_return_ce ~construct ce
 
 let[@warning "-32"] view_get_take_ce' ~construct
-    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
-    : (Var.t, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result =
+    (ce_r : (CoreExpr.typed_ce, Error.t) result)
+    : (Var.t, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result =
   match ce_r with
   | Error e -> (Error e, Error e, Error e)
   | Ok ce -> view_get_take_ce ~construct ce
 
 let[@warning "-32"] view_get_let_ce' ~construct
-    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
-    : (Var.t, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result =
+    (ce_r : (CoreExpr.typed_ce, Error.t) result)
+    : (Var.t, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result =
   match ce_r with
   | Error e -> (Error e, Error e, Error e)
   | Ok ce -> view_get_let_ce ~construct ce
 
 let[@warning "-32"] view_get_let_tuple_ce' ~construct
-    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
-    : (Var.t list, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result =
+    (ce_r : (CoreExpr.typed_ce, Error.t) result)
+    : (Var.t list, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result =
   match ce_r with
   | Error e -> (Error e, Error e, Error e)
   | Ok ce -> view_get_let_tuple_ce ~construct ce
 
 let[@warning "-32"] view_get_if_ce' ~construct
-    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
-    : (CoreExpr.typed_ce, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result =
+    (ce_r : (CoreExpr.typed_ce, Error.t) result)
+    : (CoreExpr.typed_ce, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result =
   match ce_r with
   | Error e -> (Error e, Error e, Error e)
   | Ok ce -> view_get_if_ce ~construct ce
 
 let[@warning "-32"] view_get_call_ce' ~construct
-    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
-    : (string, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result =
+    (ce_r : (CoreExpr.typed_ce, Error.t) result)
+    : (string, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result =
   match ce_r with
   | Error e -> (Error e, Error e)
   | Ok ce -> view_get_call_ce ~construct ce
 
 let[@warning "-32"] view_get_fail_ce' ~construct
-    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
-    : (unit, Error.kind) result =
+    (ce_r : (CoreExpr.typed_ce, Error.t) result)
+    : (unit, Error.t) result =
   match ce_r with
   | Error e -> Error e
   | Ok ce -> view_get_fail_ce ~construct ce
 
 let[@warning "-32"] view_get_case_ce' ~construct
-    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
-    : (CoreExpr.typed_ce, Error.kind) result
+    (ce_r : (CoreExpr.typed_ce, Error.t) result)
+    : (CoreExpr.typed_ce, Error.t) result
     * ((Label.t * Var.t * CoreExpr.typed_ce * CoreExpr.typed_info) list,
-       Error.kind) result =
+       Error.t) result =
   match ce_r with
   | Error e -> (Error e, Error e)
   | Ok ce -> view_get_case_ce ~construct ce
@@ -259,16 +258,16 @@ let[@warning "-32"] view_get_case_ce' ~construct
     per output component).  When any input is [Error], every output
     component is [Error] of the same kind.  Lets typechecker rule
     bodies thread errkinds through lookups without ever pattern-
-    matching on a [(_, Error.kind) result]. *)
+    matching on a [(_, Error.t) result]. *)
 
 let[@warning "-32"] sig_lookup_fundef_e
     (cs : CoreExpr.typed_ce Sig.t)
-    (f_r : (string, Error.kind) result)
-    : (Var.t, Error.kind) result
-    * (Sort.sort, Error.kind) result
-    * (Sort.sort, Error.kind) result
-    * (Effect.t, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result =
+    (f_r : (string, Error.t) result)
+    : (Var.t, Error.t) result
+    * (Sort.sort, Error.t) result
+    * (Sort.sort, Error.t) result
+    * (Effect.t, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result =
   match f_r with
   | Error e -> (Error e, Error e, Error e, Error e, Error e)
   | Ok f ->
@@ -279,27 +278,27 @@ let[@warning "-32"] sig_lookup_fundef_e
 
 let[@warning "-32"] ctor_lookup_e
     (cs : CoreExpr.typed_ce Sig.t)
-    (d_r : (Dsort.t, Error.kind) result)
+    (d_r : (Dsort.t, Error.t) result)
     (label : Label.t)
-    (args_r : (Sort.sort list, Error.kind) result)
-    : (Sort.sort, Error.kind) result =
+    (args_r : (Sort.sort list, Error.t) result)
+    : (Sort.sort, Error.t) result =
   match d_r, args_r with
   | Error e, _ | _, Error e -> Error e
   | Ok d, Ok args -> CtorLookup.lookup cs d label args
 
 let[@warning "-32"] sig_lookup_dsort_or_type_e
     (cs : CoreExpr.typed_ce Sig.t)
-    (d_r : (Dsort.t, Error.kind) result)
-    : (Sig.sort_or_type, Error.kind) result =
+    (d_r : (Dsort.t, Error.t) result)
+    : (Sig.sort_or_type, Error.t) result =
   match d_r with
   | Error e -> Error e
   | Ok d -> Sig.lookup_dsort_or_type d cs
 
 let[@warning "-32"] rctx_use_resource_e
-    (x_r : (Var.t, Error.kind) result)
+    (x_r : (Var.t, Error.t) result)
     (delta : RCtx.t)
-    : (CoreExpr.typed_ce, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result
+    : (CoreExpr.typed_ce, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result
     * RCtx.t =
   match x_r with
   | Error e -> (Error e, Error e, RCtx.affinize delta)
@@ -330,23 +329,23 @@ let pf_remaining_len = function
 
 let[@warning "-32"] view_get_pf_nil
     (pf_opt : (CoreExpr.typed_ce, _, Var.t) ProofSort.t option)
-    : (unit, Error.kind) result =
+    : (unit, Error.t) result =
   match ProofSortView.Get.nil pf_opt with
   | Some () -> Ok ()
   | None ->
-    Error (Error.K_rpat_length_mismatch
-             { pat_len = 0; pf_len = pf_remaining_len pf_opt })
+    Error (Error.rpat_length_mismatch
+             ~pat_len:0 ~pf_len:(pf_remaining_len pf_opt))
 
 let[@warning "-32"] view_get_pf_comp
     (pf_opt : (CoreExpr.typed_ce, _, Var.t) ProofSort.t option)
     : Var.t option
-    * (Sort.sort, Error.kind) result
-    * (Effect.t, Error.kind) result
+    * (Sort.sort, Error.t) result
+    * (Effect.t, Error.t) result
     * (CoreExpr.typed_ce, _, Var.t) ProofSort.t option =
   let (var_o, sort_o, eff_o, tail_o) = ProofSortView.Get.comp pf_opt in
   let mismatch =
-    Error.K_rpat_kind_mismatch
-      { pat_kind = "core"; pf_kind = pf_head_kind pf_opt } in
+    Error.rpat_kind_mismatch
+      ~pat_kind:"core" ~pf_kind:(pf_head_kind pf_opt) in
   ( var_o,
     Option.to_result ~none:mismatch sort_o,
     Option.to_result ~none:mismatch eff_o,
@@ -354,23 +353,23 @@ let[@warning "-32"] view_get_pf_comp
 
 let[@warning "-32"] view_get_pf_log
     (pf_opt : (CoreExpr.typed_ce, _, Var.t) ProofSort.t option)
-    : (CoreExpr.typed_ce, Error.kind) result
+    : (CoreExpr.typed_ce, Error.t) result
     * (CoreExpr.typed_ce, _, Var.t) ProofSort.t option =
   let (prop_o, tail_o) = ProofSortView.Get.log pf_opt in
   let mismatch =
-    Error.K_rpat_kind_mismatch
-      { pat_kind = "log"; pf_kind = pf_head_kind pf_opt } in
+    Error.rpat_kind_mismatch
+      ~pat_kind:"log" ~pf_kind:(pf_head_kind pf_opt) in
   ( Option.to_result ~none:mismatch prop_o, tail_o )
 
 let[@warning "-32"] view_get_pf_res
     (pf_opt : (CoreExpr.typed_ce, _, Var.t) ProofSort.t option)
-    : (CoreExpr.typed_ce, Error.kind) result
-    * (CoreExpr.typed_ce, Error.kind) result
+    : (CoreExpr.typed_ce, Error.t) result
+    * (CoreExpr.typed_ce, Error.t) result
     * (CoreExpr.typed_ce, _, Var.t) ProofSort.t option =
   let (pred_o, value_o, tail_o) = ProofSortView.Get.res pf_opt in
   let mismatch =
-    Error.K_rpat_kind_mismatch
-      { pat_kind = "res"; pf_kind = pf_head_kind pf_opt } in
+    Error.rpat_kind_mismatch
+      ~pat_kind:"res" ~pf_kind:(pf_head_kind pf_opt) in
   ( Option.to_result ~none:mismatch pred_o,
     Option.to_result ~none:mismatch value_o,
     tail_o )
@@ -378,12 +377,12 @@ let[@warning "-32"] view_get_pf_res
 let[@warning "-32"] view_get_pf_depres
     (pf_opt : (CoreExpr.typed_ce, _, Var.t) ProofSort.t option)
     : Var.t option
-    * (CoreExpr.typed_ce, Error.kind) result
+    * (CoreExpr.typed_ce, Error.t) result
     * (CoreExpr.typed_ce, _, Var.t) ProofSort.t option =
   let (bvar_o, pred_o, tail_o) = ProofSortView.Get.depres pf_opt in
   let mismatch =
-    Error.K_rpat_kind_mismatch
-      { pat_kind = "depres"; pf_kind = pf_head_kind pf_opt } in
+    Error.rpat_kind_mismatch
+      ~pat_kind:"depres" ~pf_kind:(pf_head_kind pf_opt) in
   ( bvar_o,
     Option.to_result ~none:mismatch pred_o,
     tail_o )
@@ -400,8 +399,8 @@ let[@warning "-32"] view_get_pf_depres
     - Otherwise extend with the matching [RCtx.extend_<kind>]. *)
 
 let[@warning "-32"] extend_comp_opt (var : Var.t option)
-    (sort : (Sort.sort, Error.kind) result)
-    (eff : (Effect.t, Error.kind) result)
+    (sort : (Sort.sort, Error.t) result)
+    (eff : (Effect.t, Error.t) result)
     (delta : RCtx.t) : RCtx.t =
   match var, sort, eff with
   | None, _, _ -> delta
@@ -409,7 +408,7 @@ let[@warning "-32"] extend_comp_opt (var : Var.t option)
   | Some v, _, _ -> RCtx.extend_unknown v delta
 
 let[@warning "-32"] extend_log_opt (var : Var.t option)
-    (prop : (CoreExpr.typed_ce, Error.kind) result)
+    (prop : (CoreExpr.typed_ce, Error.t) result)
     (delta : RCtx.t) : RCtx.t =
   match var, prop with
   | None, _ -> delta
@@ -417,8 +416,8 @@ let[@warning "-32"] extend_log_opt (var : Var.t option)
   | Some v, Error _ -> RCtx.extend_unknown v delta
 
 let[@warning "-32"] extend_res_opt (var : Var.t option)
-    (pred : (CoreExpr.typed_ce, Error.kind) result)
-    (value : (CoreExpr.typed_ce, Error.kind) result)
+    (pred : (CoreExpr.typed_ce, Error.t) result)
+    (value : (CoreExpr.typed_ce, Error.t) result)
     (usage : Usage.t) (delta : RCtx.t) : RCtx.t =
   match var, pred, value with
   | None, _, _ -> delta
@@ -440,11 +439,10 @@ let[@warning "-32"] extend_res_opt (var : Var.t option)
    without needing to fail the monad. *)
 let elab_se (rs : RSig.t) (gamma : Context.t) (eff : Effect.t)
     (se : SurfExpr.se)
-    : (CoreExpr.typed_ce * (Sort.sort, Error.kind) result) ElabM.t =
+    : (CoreExpr.typed_ce * (Sort.sort, Error.t) result) ElabM.t =
   let cs = RSig.comp rs in
   let* ce = Elaborate.synth cs gamma eff se in
-  let sort_r =
-    Result.map_error Error.kind (CoreExpr.info ce)#answer in
+  let sort_r = (CoreExpr.info ce)#answer in
   return (ce, sort_r)
 
 (* Elaborate a surface expression to typed core, checking against a
@@ -494,7 +492,7 @@ let elab_pf_entry (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (entry : (S
     return (ProofSort.Res { info = ri; pred = ce_pred; value = ce_value })
   | ProofSort.DepRes { info = _; bound_var; pred } ->
     let* (ce_pred, pred_sort_r) = elab_se rs gamma Effect.Spec pred in
-    let _ : (Sort.sort, Error.kind) result =
+    let _ : (Sort.sort, Error.t) result =
       view_get_pred_sort ~construct:"dep-res predicate" pred_sort_r in
     return (ProofSort.DepRes { info = ri; bound_var; pred = ce_pred })
 
@@ -537,13 +535,11 @@ let[@warning "-32"] mk_eq' ce1_r ce2_r =
     [sort_r] is [Error _], a [bool_sort] placeholder is used for the
     [#sort] method (consumers reading the structural sort still see
     something well-typed); the truth-of-record lives on [#answer]. *)
-let[@warning "-32"] mk_info_r (sort_r : (Sort.sort, Error.kind) result)
+let[@warning "-32"] mk_info_r (sort_r : (Sort.sort, Error.t) result)
     : CoreExpr.typed_info =
   let placeholder = bool_sort in
   let sort = Result.value sort_r ~default:placeholder in
-  let answer = match sort_r with
-    | Ok s -> Ok s
-    | Error k -> Error (Error.structured ~loc:SourcePos.dummy k) in
+  let answer = sort_r in
   let _ = sort in
   (object
     method loc = SourcePos.dummy
@@ -558,9 +554,9 @@ let[@warning "-32"] mk_info_r (sort_r : (Sort.sort, Error.kind) result)
     otherwise.  The wrapper's [info] is derived from [sort_r] so the
     annotated expression's [#answer] reflects the sort's verdict. *)
 let[@warning "-32"] mk_annot_e
-    (ce_r : (CoreExpr.typed_ce, Error.kind) result)
-    (sort_r : (Sort.sort, Error.kind) result)
-    : (CoreExpr.typed_ce, Error.kind) result =
+    (ce_r : (CoreExpr.typed_ce, Error.t) result)
+    (sort_r : (Sort.sort, Error.t) result)
+    : (CoreExpr.typed_ce, Error.t) result =
   match ce_r, sort_r with
   | Error e, _ | _, Error e -> Error e
   | Ok ce, Ok sort ->
@@ -572,9 +568,9 @@ let[@warning "-32"] mk_annot_e
     when both inputs are [Ok]. *)
 let[@warning "-32"] mk_inject_e
     (label : Label.t)
-    (payload_r : (CoreExpr.typed_ce, Error.kind) result)
+    (payload_r : (CoreExpr.typed_ce, Error.t) result)
     (info : CoreExpr.typed_info)
-    : (CoreExpr.typed_ce, Error.kind) result =
+    : (CoreExpr.typed_ce, Error.t) result =
   match payload_r with
   | Error e -> Error e
   | Ok payload -> Ok (CoreExpr.mk info (CoreExpr.Inject (label, payload)))
@@ -614,10 +610,10 @@ let[@warning "-32"] erase_ok r = Result.map (fun _ -> ()) r
     but the subsumption fails, returns [Error err_k] using the
     caller-supplied error kind; otherwise propagates [eff_r]'s error. *)
 let[@warning "-32"] check_eff_subseteq_e
-    (eff_r : (Effect.t, Error.kind) result)
+    (eff_r : (Effect.t, Error.t) result)
     (ub : Effect.t)
-    ~(err_k : Error.kind)
-    : (unit, Error.kind) result =
+    ~(err_k : Error.t)
+    : (unit, Error.t) result =
   match eff_r with
   | Error e -> Error e
   | Ok eff ->
@@ -736,7 +732,7 @@ let lift_to_rf arg ret eff =
   return (domain, codomain, eff)
 
 (* Errkind triple lookup for refined function types: returns
-   (domain, codomain, eff) all wrapped in [(_, Error.kind) result].
+   (domain, codomain, eff) all wrapped in [(_, Error.t) result].
    Spec rule [:: call] (syntax.ott:1758-1761) demands that [f] have a
    refined function type; we try [RFunSig] first, fall back to
    lifting a plain [FunSig]/[FunDef], and propagate
@@ -744,10 +740,10 @@ let lift_to_rf arg ret eff =
    bound — letting the spine checker stay errkind-flow throughout. *)
 let lookup_rf_m (rs : RSig.t) (f : string)
     : (((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
-        Error.kind) result
+        Error.t) result
        * ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
-          Error.kind) result
-       * (Effect.t, Error.kind) result) ElabM.t =
+          Error.t) result
+       * (Effect.t, Error.t) result) ElabM.t =
   match RSig.lookup_rf f rs with
   | Ok rf -> return (Ok rf.domain, Ok rf.codomain, Ok rf.eff)
   | Error _ ->
@@ -974,10 +970,9 @@ let[@warning "-32"] mk_rinfo_err ?(goal=RProg.NoGoal) loc delta sort eff err : R
   end)
 
 (** [mk_rinfo_with_answer ?goal loc delta sort eff answer] takes an
-    explicit answer (already a [(Sort.sort, Error.t) result]) so
-    callers can lift [(_, Error.kind) result] inputs from the View
-    wrappers via [Error.structured ~loc].  [sort] is the placeholder
-    used when [answer = Error _]. *)
+    explicit answer ([(Sort.sort, Error.t) result]) so callers can
+    feed in errkind values from the View wrappers directly.  [sort] is
+    the placeholder used when [answer = Error _]. *)
 let[@warning "-32"] mk_rinfo_with_answer
     ?(goal=RProg.NoGoal) loc delta sort eff
     (answer : (Sort.sort, Error.t) result) : RProg.typed_rinfo =
@@ -992,14 +987,14 @@ let[@warning "-32"] mk_rinfo_with_answer
     method subterm_errors = []
   end)
 
-(** [answer_of_sort_kind_r ~loc sort_r] lifts a
-    [(Sort.sort, Error.kind) result] into a
-    [(Sort.sort, Error.t) result] suitable for the [answer] field, by
-    attaching [loc] to the error kind. *)
-let[@warning "-32"] answer_of_sort_kind_r ~loc
-    (sort_r : (Sort.sort, Error.kind) result)
+(** Identity — kept under its old name so the ~30 callers don't need to
+    be rewritten.  Pre-refactor this lifted a kind-result into a t-result
+    via the call-site loc; with [info#answer : (Sort.sort, Error.t)
+    result] both sides match, so the function passes through. *)
+let[@warning "-32"] answer_of_sort_kind_r ~loc:_
+    (sort_r : (Sort.sort, Error.t) result)
     : (Sort.sort, Error.t) result =
-  Result.map_error (Error.structured ~loc) sort_r
+  sort_r
 
 (** Build a [crt]-shaped rinfo from an errkind pf.  Goal-display falls
     back to an empty pf on [Error] (so hover sees something
@@ -1010,7 +1005,7 @@ let[@warning "-32"] mk_crt_rinfo
     ~(loc : SourcePos.t)
     (delta : RCtx.t)
     (pf_r : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
-             Error.kind) result)
+             Error.t) result)
     (eff : Effect.t) : RProg.typed_rinfo =
   let pf_p = Result.value pf_r ~default:[] in
   let sort = ProofSort.comp pf_p in
@@ -1076,14 +1071,14 @@ let[@warning "-32"] error_rp_blanket
     (rp : (_, Var.t) RPat.rpat)
     (delta : RCtx.t)
     (eff : Effect.t)
-    (k : Error.kind)
+    (k : Error.t)
     : (RProg.typed_rinfo, Var.t) RPat.rpat * RCtx.t =
   let delta' = extend_delta_with_rp_unknowns rp delta in
   let typed_rp =
     RPat.map_info_rpat
       (fun b ->
         mk_rinfo_with_answer ~goal b#loc delta bool_sort eff
-          (Error (Error.structured ~loc:b#loc k)))
+          (Error k))
       rp in
   (typed_rp, delta')
 
@@ -1097,10 +1092,10 @@ let[@warning "-32"] error_rp_blanket
     checks) where every error should surface, not just the first. *)
 let[@warning "-32"] mk_rinfo_full
     ?(goal=RProg.NoGoal) loc delta sort eff
-    (errors : Error.t list) : RProg.typed_rinfo =
+    (errors : Error.located list) : RProg.typed_rinfo =
   let (answer, rest) = match errors with
     | [] -> (Ok sort, [])
-    | e :: rest -> (Error e, rest) in
+    | e :: rest -> (Error (Error.payload e), rest) in
   (object
     method loc = loc
     method ctx = RCtx.erase delta
@@ -1118,7 +1113,7 @@ let[@warning "-32"] mk_rinfo_full
     leak, ProofSort.bind failure, pf_eq mismatches) need to attach
     to the body's typed AST without their own node. *)
 let[@warning "-32"] prepend_subterm_errors_crt
-    (errs : Error.t list)
+    (errs : Error.located list)
     (ce : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.crt)
     : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.crt =
   if errs = [] then ce
@@ -1155,7 +1150,7 @@ let pf_entry_to_string entry =
   Format.asprintf "%a" ProofSort.print_ce [entry]
 
 (* Logical fact synthesis: RS; Delta |- lpf => ce -| Delta' ~> Ct *)
-let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) : (checked_lpf * (CoreExpr.typed_ce, Error.kind) result * RCtx.t * Constraint.typed_ct) ElabM.t =
+let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) : (checked_lpf * (CoreExpr.typed_ce, Error.t) result * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.lpf_info lpf in
   let pos = binfo#loc in
   let placeholder_hole tag =
@@ -1173,24 +1168,22 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
     return (checked, prop_r, delta, Constraint.top pos)
 
   | RefinedExpr.LAuto ->
-    let err_t = Error.cannot_synthesize ~loc:pos ~construct:"auto" in
-    let err_k = Error.kind err_t in
+    let err = Error.cannot_synthesize ~construct:"auto" in
     let placeholder_ce = placeholder_hole "lpf-auto-unsynth" in
     let rinfo =
       mk_rinfo_err ~goal:(RProg.LpfGoal placeholder_ce)
-        pos delta bool_sort Effect.Spec err_t in
+        pos delta bool_sort Effect.Spec err in
     let checked = RefinedExpr.mk_lpf rinfo RefinedExpr.LAuto in
-    return (checked, Error err_k, delta, Constraint.top pos)
+    return (checked, Error err, delta, Constraint.top pos)
 
   | RefinedExpr.LHole h ->
-    let err_t = Error.cannot_synthesize ~loc:pos ~construct:"hole" in
-    let err_k = Error.kind err_t in
+    let err = Error.cannot_synthesize ~construct:"hole" in
     let placeholder_ce = placeholder_hole "lpf-hole-unsynth" in
     let rinfo =
       mk_rinfo_err ~goal:(RProg.LpfGoal placeholder_ce)
-        pos delta bool_sort Effect.Spec err_t in
+        pos delta bool_sort Effect.Spec err in
     let checked = RefinedExpr.mk_lpf rinfo (RefinedExpr.LHole h) in
-    return (checked, Error err_k, delta, Constraint.top pos)
+    return (checked, Error err, delta, Constraint.top pos)
 
   | RefinedExpr.LUnfold (f, se_arg) ->
     (* :: unfold (lpf side) — synthesize [f arg == body[arg/param]]
@@ -1203,12 +1196,12 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
       sig_lookup_fundef_e cs (Ok f) in
     let arg_expected =
       Result.map_error
-        (fun _ -> Error.K_cannot_synthesize { construct = "unfold" })
+        (fun _ -> Error.cannot_synthesize ~construct:"unfold")
         arg_sort_r in
     let gamma = RCtx.erase delta in
     let* ce_arg = Elaborate.check cs gamma se_arg arg_expected Effect.Spec in
     let eff_check_r =
-      let err_k = Error.K_unfold_not_spec { name = f } in
+      let err_k = Error.unfold_not_spec ~name:f in
       check_eff_subseteq_e eff_r Effect.Spec ~err_k in
     let call_result_r =
       Result.map
@@ -1238,7 +1231,7 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
     return (checked, Ok ce, delta', ct)
 
 (* Logical fact checking: RS; Delta |- lpf <= ce -| Delta' ~> Ct *)
-and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce : (CoreExpr.typed_ce, Error.kind) result) : (checked_lpf * RCtx.t * Constraint.typed_ct) ElabM.t =
+and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce : (CoreExpr.typed_ce, Error.t) result) : (checked_lpf * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.lpf_info lpf in
   let pos = binfo#loc in
   let placeholder_hole =
@@ -1266,7 +1259,7 @@ and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce 
               (Constraint.impl' pos ce_synth (Constraint.atom' pos ce)))
 
 (* Resource fact synthesis: RS; Delta |- rpf => ce @ ce' -| Delta' ~> Ct *)
-and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (checked_rpf * (CoreExpr.typed_ce, Error.kind) result * (CoreExpr.typed_ce, Error.kind) result * RCtx.t * Constraint.typed_ct) ElabM.t =
+and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (checked_rpf * (CoreExpr.typed_ce, Error.t) result * (CoreExpr.typed_ce, Error.t) result * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.rpf_info rpf in
   let pos = binfo#loc in
   let placeholder_hole tag =
@@ -1324,35 +1317,33 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (c
       | RefinedExpr.RAnnotStrip _ -> "annot;"
       | _ -> "rpf"
     in
-    let err_t = Error.cannot_synthesize ~loc:pos
-                  ~construct:(construct ^ " (add a : pred @ value annotation)") in
-    let err_k = Error.kind err_t in
+    let err = Error.cannot_synthesize
+                ~construct:(construct ^ " (add a : pred @ value annotation)") in
     let placeholder_pred = placeholder_hole ("rpf-" ^ construct ^ "-unsynth-pred") in
     let placeholder_value = placeholder_hole ("rpf-" ^ construct ^ "-unsynth-value") in
     let rinfo = mk_rinfo_err
       ~goal:(RProg.RpfGoal (placeholder_pred, placeholder_value))
-      pos delta bool_sort Effect.Spec err_t in
+      pos delta bool_sort Effect.Spec err in
     let placeholder =
       RefinedExpr.mk_rpf rinfo
         (RefinedExpr.RHole (construct ^ "-unsynth")) in
-    return (placeholder, Error err_k, Error err_k, delta,
+    return (placeholder, Error err, Error err, delta,
             Constraint.top pos)
   | RefinedExpr.RHole h ->
-    let err_t = Error.cannot_synthesize ~loc:pos
-                  ~construct:"hole (add a : pred @ value annotation)" in
-    let err_k = Error.kind err_t in
+    let err = Error.cannot_synthesize
+                ~construct:"hole (add a : pred @ value annotation)" in
     let placeholder_pred = placeholder_hole "rpf-hole-unsynth-pred" in
     let placeholder_value = placeholder_hole "rpf-hole-unsynth-value" in
     let rinfo = mk_rinfo_err
       ~goal:(RProg.RpfGoal (placeholder_pred, placeholder_value))
-      pos delta bool_sort Effect.Spec err_t in
+      pos delta bool_sort Effect.Spec err in
     let checked =
       RefinedExpr.mk_rpf rinfo (RefinedExpr.RHole h) in
-    return (checked, Error err_k, Error err_k, delta,
+    return (checked, Error err, Error err, delta,
             Constraint.top pos)
 
 (* Resource fact checking: RS; Delta |- rpf <= ce @ ce' -| Delta' ~> Ct *)
-and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1 : (CoreExpr.typed_ce, Error.kind) result) (ce2 : (CoreExpr.typed_ce, Error.kind) result) : (checked_rpf * RCtx.t * Constraint.typed_ct) ElabM.t =
+and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1 : (CoreExpr.typed_ce, Error.t) result) (ce2 : (CoreExpr.typed_ce, Error.t) result) : (checked_rpf * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.rpf_info rpf in
   let pos = binfo#loc in
   (* Goal-display placeholders: when ce1/ce2 are [Error _], the rinfo's
@@ -1384,8 +1375,8 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
       sig_lookup_fundef_e cs f_r in
     let eff_check_r =
       let err_k =
-        Error.K_unfold_not_spec
-          { name = Result.value f_r ~default:"<unknown>" } in
+        Error.unfold_not_spec
+          ~name:(Result.value f_r ~default:"<unknown>") in
       check_eff_subseteq_e eff_r Effect.Spec ~err_k in
     let ce_arg_annot_r = mk_annot_e ce_arg_r arg_sort_r in
     let sub_r = Subst.extend_var' param_r ce_arg_annot_r Subst.empty' in
@@ -1502,7 +1493,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
                          Var.print var CoreExpr.print pred
                          CoreExpr.print value Usage.print usage)
                | _ -> None) (RCtx.entries delta_pop) in
-           let err = Error.let_pattern_resource_leak ~loc:pos ~leftovers in
+           let err = Error.let_pattern_resource_leak ~leftovers in
            mk_rinfo_err ~goal pos delta bool_sort Effect.Spec err
          else
            let answer = answer_of_sort_kind_r ~loc:pos
@@ -1572,7 +1563,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
                          Var.print var CoreExpr.print pred
                          CoreExpr.print value Usage.print usage)
                | _ -> None) (RCtx.entries delta_pop) in
-           let err = Error.let_pattern_resource_leak ~loc:pos ~leftovers in
+           let err = Error.let_pattern_resource_leak ~leftovers in
            mk_rinfo_err ~goal pos delta bool_sort Effect.Spec err
          else
            let answer = answer_of_sort_kind_r ~loc:pos
@@ -1587,7 +1578,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
        let k = mismatch_ce_kind ~construct:"let rpf"
                  ~expected_shape:"let _ = _; _ or let (_, ..., _) = _; _"
                  ce1_stripped in
-       let err = Error.structured ~loc:pos k in
+       let err = k in
        let rinfo = mk_rinfo_err ~goal pos delta bool_sort Effect.Spec err in
        let checked = RefinedExpr.mk_rpf rinfo
          (RefinedExpr.RHole "let-rpf-wrong-shape") in
@@ -1605,8 +1596,8 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
        (match List.find_opt (fun (l, _, _, _) -> Label.compare l label = 0) branches with
         | None ->
           let case_labels = List.map (fun (l, _, _, _) -> l) branches in
-          let err = Error.rcase_label_not_in_branches
-                      ~loc:pos ~label ~case_labels in
+          let err =
+            Error.rcase_label_not_in_branches ~label ~case_labels in
           let rinfo = mk_rinfo_err ~goal pos delta bool_sort Effect.Spec err in
           let checked = RefinedExpr.mk_rpf rinfo
             (RefinedExpr.RHole "case-label-not-in-branches") in
@@ -1657,7 +1648,7 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
                             Var.print var CoreExpr.print pred
                             CoreExpr.print value Usage.print usage)
                   | _ -> None) (RCtx.entries delta_pop) in
-              let err = Error.let_pattern_resource_leak ~loc:pos ~leftovers in
+              let err = Error.let_pattern_resource_leak ~leftovers in
               mk_rinfo_err ~goal pos delta bool_sort Effect.Spec err
             else
               let answer = answer_of_sort_kind_r ~loc:pos
@@ -1668,11 +1659,11 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
             (RefinedExpr.RCase (typed_lp, label, typed_cp, checked_rpf')) in
           return (checked, delta3, ct_with_disc))
      | _ ->
-       let err = Error.structured ~loc:pos
-         (Error.K_wrong_pred_shape
-            { construct = "case rpf";
-              expected_shape = "case _ of { ... }";
-              got = CoreExpr.to_string ce1_stripped }) in
+       let err =
+         Error.wrong_pred_shape
+           ~construct:"case rpf"
+           ~expected_shape:"case _ of { ... }"
+           ~got:(CoreExpr.to_string ce1_stripped) in
        let rinfo = mk_rinfo_err ~goal pos delta bool_sort Effect.Spec err in
        let checked = RefinedExpr.mk_rpf rinfo
          (RefinedExpr.RHole "case-pred-shape") in
@@ -1732,12 +1723,12 @@ and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1
     return (checked_rpf, delta', Constraint.conj pos ct eq_ct)
 
 (* Core refined term synthesis: RS; Delta |-[eff] crt => Pf -| Delta' ~> Ct *)
-and synth_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : (checked_crt * ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t, Error.kind) result * RCtx.t * Constraint.typed_ct) ElabM.t =
+and synth_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : (checked_crt * ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t, Error.t) result * RCtx.t * Constraint.typed_ct) ElabM.t =
   let* (checked, pf, delta', ct) = synth_crt_impl rs delta eff crt in
   let* () = assert_delta_below delta delta' in
   return (checked, pf, delta', ct)
 
-and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : (checked_crt * ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t, Error.kind) result * RCtx.t * Constraint.typed_ct) ElabM.t =
+and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : (checked_crt * ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t, Error.t) result * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.crt_info crt in
   let pos = binfo#loc in
   match RefinedExpr.crt_shape crt with
@@ -1755,14 +1746,14 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let* (checked_spine, pf_r, delta', ct) =
       check_spine rs delta eff'' spine domain_r codomain_r in
     let eff_check_r =
-      let err_k = Error.K_unknown_function { name = f } in
+      let err_k = Error.unknown_function ~name:f in
       let _ = err_k in
       let err_k =
         match eff_r with
         | Ok e ->
           if Effect.sub e eff then Ok ()
-          else Error (Error.K_fun_effect_mismatch
-                        { name = f; declared = e; required = eff })
+          else Error (Error.fun_effect_mismatch
+                        ~name:f ~declared:e ~required:eff)
         | Error e -> Error e
       in
       err_k
@@ -1771,10 +1762,9 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       match eff_check_r with
       | Ok () -> mk_crt_rinfo ~loc:pos delta pf_r eff
       | Error k ->
-        let err_t = Error.structured ~loc:pos k in
         let pf_p = Result.value pf_r ~default:[] in
         mk_rinfo_err ~goal:(RProg.CrtGoal pf_p) pos delta
-          (ProofSort.comp pf_p) eff err_t
+          (ProofSort.comp pf_p) eff k
     in
     let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CCall (f, checked_spine)) in
     let final_ct = match eff_check_r with
@@ -1788,7 +1778,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       check_spine rs delta eff'' spine (Ok rf.domain) (Ok rf.codomain) in
     if not (Effect.sub rf.eff eff) then begin
       let err = Error.prim_effect_mismatch
-                  ~loc:pos ~prim ~declared:rf.eff ~required:eff in
+                   ~prim ~declared:rf.eff ~required:eff in
       let pf_p = Result.value pf_r ~default:[] in
       let rinfo = mk_rinfo_err ~goal:(RProg.CrtGoal pf_p) pos delta
                     (ProofSort.comp pf_p) eff err in
@@ -1806,7 +1796,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
        answer/subterm_errors via mk_rinfo_full. *)
     let eff_check =
       if Effect.sub Effect.Impure eff then Ok ()
-      else Error (Error.iter_requires_impure ~loc:iter_pos ~actual:eff) in
+      else Error (Error.iter_requires_impure ~actual:eff) in
     (* Elaborate predicate at spec effect *)
     let* (ce_pred, pred_sort_r) = elab_and_synth rs delta Effect.Spec se_pred in
     let inner_sort_r =
@@ -1869,7 +1859,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let (_delta_base, delta_pat_out) = RCtx.split n delta_out in
     let leak_check =
       if RCtx.zero delta_pat_out then Ok ()
-      else Error (Error.resource_leak ~loc:iter_pos ~name:None) in
+      else Error (Error.resource_leak ~name:None) in
     (* Build result proof sort: z:B [pure], y:ce @ Done(z) [res], pfnil *)
     let* zr_var = fresh SourcePos.dummy in
     let ce_zr = ce_of_var zr_var b_sort in
@@ -1887,14 +1877,14 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       | RPat.QCore (cp, _rest) ->
         (match RPatGet.get_cvar ~construct:"iter" cp with
          | Ok x -> (Some x, None)
-         | Error k -> (None, Some (Error.structured ~loc:iter_pos k)))
+         | Error k -> (None, Some (k)))
       | RPat.QLog _ | RPat.QRes _ | RPat.QDepRes _ ->
         (None,
-         Some (Error.iter_pattern_shape ~loc:iter_pos
+         Some (Error.iter_pattern_shape
                  ~got:"a non-core pattern"))
       | RPat.QNil ->
         (None,
-         Some (Error.iter_pattern_shape ~loc:iter_pos
+         Some (Error.iter_pattern_shape
                  ~got:"an empty pattern"))
     in
     let result_ct = match x_pat_o with
@@ -1906,7 +1896,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let acc_t errs r = match r with Ok _ -> errs | Error e -> e :: errs in
     let acc_k errs r = match r with
       | Ok _ -> errs
-      | Error k -> Error.structured ~loc:iter_pos k :: errs in
+      | Error k -> k :: errs in
     let errors_rev =
       let errs = [] in
       let errs = acc_t errs eff_check in
@@ -1919,7 +1909,8 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
         | None -> errs
         | Some e -> e :: errs in
       errs in
-    let errors = List.rev errors_rev in
+    let errors =
+      List.map (Error.locate ~loc:pos) (List.rev errors_rev) in
     let rinfo =
       mk_rinfo_full ~goal:(RProg.CrtGoal result_pf)
         pos delta (ProofSort.comp result_pf) eff errors in
@@ -1938,25 +1929,24 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     return (checked, Ok [], delta', ct)
 
   | _ ->
-    let err = Error.cannot_synthesize ~loc:binfo#loc
+    let err = Error.cannot_synthesize
                 ~construct:"proof sort" in
     let placeholder_pf = [] in
     let placeholder_sort =
       Sort.mk (object method loc = binfo#loc end) Sort.Bool in
-    let err_k = Error.kind err in
     let rinfo = mk_rinfo_err ~goal:(RProg.CrtGoal placeholder_pf)
                   pos delta placeholder_sort eff err in
     let checked = RefinedExpr.mk_crt rinfo
       (RefinedExpr.CHole "crt-cannot-synthesize") in
-    return (checked, Error err_k, delta, Constraint.top pos)
+    return (checked, Error err, delta, Constraint.top pos)
 
 (* Core refined term checking: RS; Delta |-[eff] crt <= Pf -| Delta' ~> Ct *)
-and check_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t, Error.kind) result) : (checked_crt * RCtx.t * Constraint.typed_ct) ElabM.t =
+and check_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t, Error.t) result) : (checked_crt * RCtx.t * Constraint.typed_ct) ElabM.t =
   let* (checked, delta', ct) = check_crt_impl rs delta eff crt pf in
   let* () = assert_delta_below delta delta' in
   return (checked, delta', ct)
 
-and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t, Error.kind) result) : (checked_crt * RCtx.t * Constraint.typed_ct) ElabM.t =
+and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t, Error.t) result) : (checked_crt * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.crt_info crt in
   let pos = binfo#loc in
   match RefinedExpr.crt_shape crt with
@@ -1986,7 +1976,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
             | _ -> None)
             (RCtx.entries delta_pat_out)
         in
-        Some (Error.let_pattern_resource_leak ~loc:pos ~leftovers)
+        Some (Error.let_pattern_resource_leak ~leftovers)
       else None
     in
     let ct_closed = close_ctx pos delta_pat_out (Constraint.conj pos ct_pat ct2) in
@@ -2059,7 +2049,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
                       CoreExpr.print value Usage.print usage)
             | _ -> None) (RCtx.entries delta_close)
         in
-        Some (Error.let_pattern_resource_leak ~loc:pos ~leftovers)
+        Some (Error.let_pattern_resource_leak ~leftovers)
       else None
     in
     let ct_closed = close_ctx pos delta_close (Constraint.conj pos ct_pat ct_body) in
@@ -2101,7 +2091,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
     let merge_r = RCtx.merge delta1 delta2 in
     let (delta_merged, merge_errs) = match merge_r with
       | Ok d -> (d, [])
-      | Error k -> (RCtx.affinize delta, [Error.structured ~loc:pos k]) in
+      | Error k -> (RCtx.affinize delta, [Error.locate ~loc:pos k]) in
     let ct = Constraint.conj pos
       (Constraint.impl pos (mk_eq ce mk_true) ct1)
       (Constraint.impl pos (mk_eq ce mk_false) ct2) in
@@ -2146,7 +2136,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
        let checked = prepend_subterm_errors_crt merge_errs checked in
        return (checked, delta', ct)
      | _ ->
-       let err = Error.scrutinee_not_data ~loc:pos ~got:ce_sort in
+       let err = Error.scrutinee_not_data ~got:ce_sort in
        let pf_p = Result.value pf ~default:[] in
        let rinfo = mk_rinfo_err ~goal:(RProg.CrtGoal pf_p) pos delta
                      (ProofSort.comp pf_p) eff err in
@@ -2237,12 +2227,12 @@ and check_spine
     (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
     (spine : RefinedExpr.parsed_spine)
     (domain : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
-               Error.kind) result)
+               Error.t) result)
     (codomain : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
-                 Error.kind) result)
+                 Error.t) result)
   : (checked_spine
      * ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
-        Error.kind) result
+        Error.t) result
      * RCtx.t
      * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.spine_info spine in
@@ -2281,7 +2271,7 @@ and check_spine
     return (checked, result_pf, delta', ct)
 
   | RefinedExpr.SCore (_, _), (ProofSort.Comp { info = _; sort; eff = Effect.Impure; _ } :: _) ->
-    let err = Error.construct_sort_mismatch ~loc:pos
+    let err = Error.construct_sort_mismatch
                 ~construct:"function argument"
                 ~expected_shape:"pure or spec effect"
                 ~got:sort in
@@ -2317,7 +2307,7 @@ and check_spine
     return (checked, result_pf, delta'', Constraint.conj pos (Constraint.conj pos ct eq_ct) ct')
 
   | _, entry :: _ ->
-    let err = Error.spine_tag_mismatch ~loc:pos
+    let err = Error.spine_tag_mismatch
                 ~expected_tag:(pf_entry_tag_name entry)
                 ~expected_entry:(pf_entry_to_string entry)
                 ~actual_tag:(spine_tag_name (RefinedExpr.spine_shape spine)) in
@@ -2325,7 +2315,7 @@ and check_spine
     let checked = RefinedExpr.mk_spine rinfo RefinedExpr.SNil in
     return (checked, codomain, delta, Constraint.top pos)
   | _, [] ->
-    let err = Error.spine_tag_mismatch ~loc:pos
+    let err = Error.spine_tag_mismatch
                 ~expected_tag:"end of arguments"
                 ~expected_entry:"(no more parameters expected)"
                 ~actual_tag:(spine_tag_name (RefinedExpr.spine_shape spine)) in
@@ -2376,7 +2366,7 @@ and _check_tuple rs delta eff spine pf =
     return (checked, delta'', Constraint.conj pos (Constraint.conj pos ct eq_ct) ct')
 
   | _, entry :: _ ->
-    let err = Error.spine_tag_mismatch ~loc:pos
+    let err = Error.spine_tag_mismatch
                 ~expected_tag:(pf_entry_tag_name entry)
                 ~expected_entry:(pf_entry_to_string entry)
                 ~actual_tag:(spine_tag_name (RefinedExpr.spine_shape spine)) in
@@ -2384,7 +2374,7 @@ and _check_tuple rs delta eff spine pf =
     let checked = RefinedExpr.mk_spine rinfo RefinedExpr.SNil in
     return (checked, delta, Constraint.top pos)
   | _, [] ->
-    let err = Error.spine_tag_mismatch ~loc:pos
+    let err = Error.spine_tag_mismatch
                 ~expected_tag:"end of entries"
                 ~expected_entry:"(no more entries expected)"
                 ~actual_tag:(spine_tag_name (RefinedExpr.spine_shape spine)) in
@@ -2407,7 +2397,7 @@ and check_case_branches pos rs delta eff eq_var ce ce_sort ctors branches pf =
   let merge_r = RCtx.merge_n deltas in
   let (delta_merged, merge_errs) = match merge_r with
     | Ok d -> (d, [])
-    | Error k -> (RCtx.affinize delta, [Error.structured ~loc:pos k]) in
+    | Error k -> (RCtx.affinize delta, [Error.locate ~loc:pos k]) in
   let ct = List.fold_left (Constraint.conj pos) (Constraint.top pos) cts in
   return (checked_branches, delta_merged, ct, merge_errs)
 
@@ -2427,7 +2417,7 @@ and check_branches_list pos rs delta eff eq_var ce _ce_sort ctors branches pf =
             attached to its rinfo.  The constraint contribution is
             Top so SMT skips this branch's constraint contribution. *)
          let witness = PatWitness.Ctor (label, PatWitness.Wild) in
-         let err = Error.non_exhaustive ~loc:pos ~witness in
+         let err = Error.non_exhaustive ~witness in
          let (x, _) = Var.mk "<missing>" pos Var.empty_supply in
          let eff_binder = Effect.purify eff in
          let delta_ext = RCtx.extend_comp x ctor_sort eff_binder delta in
@@ -2468,10 +2458,10 @@ and check_branches_list pos rs delta eff eq_var ce _ce_sort ctors branches pf =
    prepend_subterm_errors_crt. *)
 and pf_eq_e (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t)
     (pf1_r : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
-              Error.kind) result)
+              Error.t) result)
     (pf2_r : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
-              Error.kind) result)
-  : (Constraint.typed_ct * Error.t list) ElabM.t =
+              Error.t) result)
+  : (Constraint.typed_ct * Error.located list) ElabM.t =
   match pf1_r, pf2_r with
   | Ok pf1, Ok pf2 -> pf_eq pos rs delta pf1 pf2
   | _ -> return (Constraint.top pos, [])
@@ -2479,9 +2469,10 @@ and pf_eq_e (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t)
 and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t)
     (pf1 : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t)
     (pf2 : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t)
-  : (Constraint.typed_ct * Error.t list) ElabM.t =
+  : (Constraint.typed_ct * Error.located list) ElabM.t =
   let _cs = RSig.comp rs in
   let _gamma = RCtx.erase delta in
+  let at k = Error.locate ~loc:pos k in
   let rec go pf1 pf2 =
     match pf1, pf2 with
     | [], [] -> return (Constraint.top pos, [])
@@ -2490,11 +2481,11 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t)
       ProofSort.Comp { info = _; var = y; sort = sort2; eff = eff2 } :: rest2 ->
       let sort_check =
         if Sort.compare sort sort2 = 0 then []
-        else [Error.sort_mismatch ~loc:pos ~expected:sort ~actual:sort2] in
+        else [at (Error.sort_mismatch ~expected:sort ~actual:sort2)] in
       let eff_check =
         if Effect.compare eff eff2 = 0 then []
-        else [Error.pf_effect_mismatch ~loc:pos ~sort
-                ~synthesized_eff:eff ~expected_eff:eff2] in
+        else [at (Error.pf_effect_mismatch ~sort
+                    ~synthesized_eff:eff ~expected_eff:eff2)] in
       let rest2' = ProofSort.subst y (ce_of_var x sort) rest2 in
       let* (ct, errs_rest) = go rest1 rest2' in
       let here_errs = sort_check @ eff_check in
@@ -2533,30 +2524,30 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t)
          (* Inner sort unknown: skip the substitution chain but still
             walk both tails so trailing mismatches surface. *)
          let* (ct, errs_rest) = go rest1 rest2 in
-         return (ct, Error.structured ~loc:pos k :: errs_rest))
+         return (ct, at k :: errs_rest))
 
     | e1 :: rest1, e2 :: rest2 ->
       let err =
-        Error.pf_structure_mismatch ~loc:pos
-          ~synthesized_entry:(pf_entry_to_string e1)
-          ~expected_entry:(pf_entry_to_string e2) in
+        at (Error.pf_structure_mismatch
+              ~synthesized_entry:(pf_entry_to_string e1)
+              ~expected_entry:(pf_entry_to_string e2)) in
       let* (ct, errs_rest) = go rest1 rest2 in
       return (ct, err :: errs_rest)
 
     | [], (e :: _ as rest2) ->
       let err =
-        Error.pf_structure_mismatch ~loc:pos
-          ~synthesized_entry:"(end)"
-          ~expected_entry:(pf_entry_to_string e) in
+        at (Error.pf_structure_mismatch
+              ~synthesized_entry:"(end)"
+              ~expected_entry:(pf_entry_to_string e)) in
       (* Trailing pf2 entries: no useful constraint contribution. *)
       let _ = rest2 in
       return (Constraint.top pos, [err])
 
     | (e :: _ as rest1), [] ->
       let err =
-        Error.pf_structure_mismatch ~loc:pos
-          ~synthesized_entry:(pf_entry_to_string e)
-          ~expected_entry:"(end)" in
+        at (Error.pf_structure_mismatch
+              ~synthesized_entry:(pf_entry_to_string e)
+              ~expected_entry:"(end)") in
       let _ = rest1 in
       return (Constraint.top pos, [err])
   in
@@ -2580,9 +2571,9 @@ and pf_eq (pos : SourcePos.t) (rs : RSig.t) (delta : RCtx.t)
    [info#answer] via attach-and-continue.  *)
 
 and cpat_match (rs : RSig.t) (delta : RCtx.t)
-    (eff : (Effect.t, Error.kind) result)
+    (eff : (Effect.t, Error.t) result)
     (cp : (_, Var.t) RPat.cpat)
-    (sort : (Sort.sort, Error.kind) result)
+    (sort : (Sort.sort, Error.t) result)
   : ((RProg.typed_rinfo, Var.t) RPat.cpat * RCtx.t * CoreExpr.typed_ce) ElabM.t =
   let binfo = RPat.cpat_info cp in
   let pos = binfo#loc in
@@ -2624,7 +2615,7 @@ and cpat_match (rs : RSig.t) (delta : RCtx.t)
 
 and lpat_match (rs : RSig.t) (delta : RCtx.t)
     (lp : (_, Var.t) RPat.lpat)
-    (prop : (CoreExpr.typed_ce, Error.kind) result)
+    (prop : (CoreExpr.typed_ce, Error.t) result)
   : ((RProg.typed_rinfo, Var.t) RPat.lpat * RCtx.t * Constraint.typed_ct) ElabM.t =
   let _ = rs in
   let binfo = RPat.lpat_info lp in
@@ -2648,8 +2639,8 @@ and lpat_match (rs : RSig.t) (delta : RCtx.t)
 
 and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
     (rp : (_, Var.t) RPat.rpat)
-    (pred : (CoreExpr.typed_ce, Error.kind) result)
-    (value : (CoreExpr.typed_ce, Error.kind) result)
+    (pred : (CoreExpr.typed_ce, Error.t) result)
+    (value : (CoreExpr.typed_ce, Error.t) result)
   : ((RProg.typed_rinfo, Var.t) RPat.rpat * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RPat.rpat_info rp in
   let pos = binfo#loc in
@@ -2866,13 +2857,12 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
                 (fun (l, _, _, _) -> Label.compare l label = 0) branches with
         | None ->
           let case_labels = List.map (fun (l, _, _, _) -> l) branches in
-          let err_t =
-            Error.rcase_label_not_in_branches
-              ~loc:pos ~label ~case_labels in
+          let err_k =
+            Error.rcase_label_not_in_branches ~label ~case_labels in
           let typed_rp =
             RPat.map_info_rpat
               (fun b -> mk_rinfo_with_answer ~goal b#loc delta bool_sort eff
-                          (Error err_t))
+                          (Error err_k))
               rp in
           return (typed_rp, delta, Constraint.top pos)
         | Some (_l, x_br, ce_br, _bi) ->
@@ -2926,7 +2916,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
           return (typed_rp, delta', Constraint.top pos)
         | Ok (param, arg_sort, _ret_sort, eff', body) ->
           if not (Effect.sub eff' Effect.Spec) then
-            let err = Error.unfold_not_spec ~loc:pos ~name:f in
+            let err = Error.unfold_not_spec ~name:f in
             let info = mk_rinfo_err ~goal pos delta bool_sort eff err in
             let typed_inner =
               RPat.map_info_rpat (fun b ->
@@ -2963,14 +2953,14 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
 and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
     (pat : (_, Var.t) RPat.t)
     (pf_r : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
-             Error.kind) result)
+             Error.t) result)
   : ((RProg.typed_rinfo, Var.t) RPat.t * RCtx.t * Constraint.typed_ct) ElabM.t =
   let pos = (RPat.info pat)#loc in
   let cs = RSig.comp rs in
   let _ = cs in
   let answer_ok = Ok bool_sort in
-  let answer_of_kind ~loc kind_r : (Sort.sort, Error.t) result =
-    Result.map_error (Error.structured ~loc) kind_r in
+  let answer_of_kind ~loc:_ kind_r : (Sort.sort, Error.t) result =
+    kind_r in
   (* The existing [view_get_pf_*] family takes a [pf option] (where
      [None] indicates "no expected pf available").  Map errkind to
      option at the boundary; per-component view extraction handles
@@ -3090,9 +3080,8 @@ let check_rdecl rs ct_acc = function
   | RProg.RFunDecl { name; pat; domain = se_domain; codomain = se_codomain; eff; body; loc } ->
     let gamma = Context.empty in
     let* domain = elab_pf rs gamma eff se_domain in
-    let bind_r =
-      Result.map_error (Error.structured ~loc)
-        (ProofSort.bind gamma domain) in
+    let bind_r = ProofSort.bind gamma domain in
+    let _ = loc in
     let gamma' = Result.value bind_r ~default:gamma in
     let* codomain = elab_pf rs gamma' eff se_codomain in
     let rf = RFunType.{ domain; codomain; eff } in
@@ -3113,9 +3102,9 @@ let check_rdecl rs ct_acc = function
                       Var.print var CoreExpr.print pred
                       CoreExpr.print value Usage.print usage)
             | _ -> None) (RCtx.entries delta') in
-        Error (Error.let_pattern_resource_leak ~loc ~leftovers) in
+        Error (Error.let_pattern_resource_leak ~leftovers) in
     let decl_errors =
-      let collect = function Ok _ -> [] | Error e -> [e] in
+      let collect = function Ok _ -> [] | Error e -> [Error.locate ~loc e] in
       collect bind_r @ collect leak_check in
     let checked = prepend_subterm_errors_crt decl_errors checked in
     let ct_closed = close_ctx loc delta' (Constraint.conj loc ct_pat ct_body) in
@@ -3155,10 +3144,10 @@ let check_rprog (prog : RProg.parsed) : (RProg.typed * RSig.t * Constraint.typed
     judgements still fail-fast through ElabM and the walker
     returns an empty list on successful runs. *)
 
-let rinfo_error (info : RProg.typed_rinfo) : Error.t list =
+let rinfo_error (info : RProg.typed_rinfo) : Error.located list =
   let own = match info#answer with
     | Ok _ -> []
-    | Error e -> [e] in
+    | Error k -> [Error.locate ~loc:info#loc k] in
   (* [info#subterm_errors] holds cross-cutting errors prepended at
      this node (e.g. RFunDecl resource leak, pf_eq structural
      mismatches, CIter check accumulation).  Sub-tree errors are
@@ -3168,7 +3157,7 @@ let rinfo_error (info : RProg.typed_rinfo) : Error.t list =
   own @ info#subterm_errors
 
 let collect_errors_pf (pf : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t)
-    : Error.t list =
+    : Error.located list =
   List.concat_map (fun entry ->
     let here = rinfo_error (ProofSort.entry_info entry) in
     let inner =
@@ -3183,7 +3172,7 @@ let collect_errors_pf (pf : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofS
   ) pf
 
 let rec collect_errors_cpat (cpat : (RProg.typed_rinfo, Var.t) RPat.cpat)
-    : Error.t list =
+    : Error.located list =
   let here = rinfo_error (RPat.cpat_info cpat) in
   let inner =
     match RPat.cpat_shape cpat with
@@ -3193,11 +3182,11 @@ let rec collect_errors_cpat (cpat : (RProg.typed_rinfo, Var.t) RPat.cpat)
   here @ inner
 
 and collect_errors_lpat (lpat : (RProg.typed_rinfo, Var.t) RPat.lpat)
-    : Error.t list =
+    : Error.located list =
   rinfo_error (RPat.lpat_info lpat)
 
 and collect_errors_rpat_inner (rpat : (RProg.typed_rinfo, Var.t) RPat.rpat)
-    : Error.t list =
+    : Error.located list =
   let here = rinfo_error (RPat.rpat_info rpat) in
   let inner =
     match RPat.rpat_shape rpat with
@@ -3223,7 +3212,7 @@ and collect_errors_rpat_inner (rpat : (RProg.typed_rinfo, Var.t) RPat.rpat)
   here @ inner
 
 let rec collect_errors_rpat (pat : (RProg.typed_rinfo, Var.t) RPat.t)
-    : Error.t list =
+    : Error.located list =
   let here = rinfo_error (RPat.info pat) in
   let rest = match RPat.shape pat with
     | RPat.QNil -> []
@@ -3241,7 +3230,7 @@ let rec collect_errors_rpat (pat : (RProg.typed_rinfo, Var.t) RPat.t)
   here @ rest
 
 let rec collect_errors_lpf (lpf : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.lpf)
-    : Error.t list =
+    : Error.located list =
   let here = rinfo_error (RefinedExpr.lpf_info lpf) in
   let inner =
     match RefinedExpr.lpf_shape lpf with
@@ -3255,7 +3244,7 @@ let rec collect_errors_lpf (lpf : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) 
   here @ inner
 
 and collect_errors_rpf (rpf : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.rpf)
-    : Error.t list =
+    : Error.located list =
   let here = rinfo_error (RefinedExpr.rpf_info rpf) in
   let inner =
     match RefinedExpr.rpf_shape rpf with
@@ -3285,7 +3274,7 @@ and collect_errors_rpf (rpf : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) Refi
   here @ inner
 
 and collect_errors_spine (spine : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.spine)
-    : Error.t list =
+    : Error.located list =
   let here = rinfo_error (RefinedExpr.spine_info spine) in
   let inner =
     match RefinedExpr.spine_shape spine with
@@ -3300,7 +3289,7 @@ and collect_errors_spine (spine : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) 
   here @ inner
 
 and collect_errors_crt (crt : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RefinedExpr.crt)
-    : Error.t list =
+    : Error.located list =
   let here = rinfo_error (RefinedExpr.crt_info crt) in
   let inner =
     match RefinedExpr.crt_shape crt with
@@ -3347,7 +3336,7 @@ and collect_errors_crt (crt : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) Refi
 
 let collect_errors_rdecl
     (decl : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) RProg.decl)
-    : Error.t list =
+    : Error.located list =
   match decl with
   | RProg.SortDecl _ | RProg.TypeDecl _ -> []
   | RProg.FunDecl { body; _ } -> Typecheck.collect_errors body
@@ -3357,7 +3346,7 @@ let collect_errors_rdecl
     @ collect_errors_pf codomain
     @ collect_errors_crt body
 
-let collect_errors_rprog (prog : RProg.typed) : Error.t list =
+let collect_errors_rprog (prog : RProg.typed) : Error.located list =
   List.concat_map collect_errors_rdecl prog.decls
   @ collect_errors_pf prog.main_pf
   @ collect_errors_crt prog.main_body

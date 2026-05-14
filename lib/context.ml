@@ -19,12 +19,12 @@ let extend_or_unknown x sort_result eff ctx =
 let extend_tvar a kind ctx = TVar (a, kind) :: ctx
 
 let rec lookup x = function
-  | [] -> Error (Error.K_unbound_var x)
+  | [] -> Error (Error.unbound_var x)
   | Term (y, s, eff) :: rest ->
     if Var.compare x y = 0 then Ok (s, eff)
     else lookup x rest
   | Unknown y :: rest ->
-    if Var.compare x y = 0 then Error (Error.K_unknown_var_type { var = y })
+    if Var.compare x y = 0 then Error (Error.unknown_var_type ~var:y)
     else lookup x rest
   | TVar _ :: rest -> lookup x rest
 
@@ -89,22 +89,36 @@ module Test = struct
            | Some k' -> Kind.compare k k' = 0
            | None -> false);
 
-      QCheck.Test.make ~name:"lookup of Unknown returns K_unknown_var_type"
+      QCheck.Test.make ~name:"lookup of Unknown returns kind mentioning the var"
         ~count:100
         (QCheck.make Var.Test.gen)
         (fun x ->
            let ctx = extend_unknown x empty in
            match lookup x ctx with
-           | Error (Error.K_unknown_var_type { var }) -> Var.compare var x = 0
-           | _ -> false);
+           | Error k ->
+             let s = Error.to_string (Error.locate_opt ~loc:None k) in
+             let xname = Format.asprintf "%a" Var.print x in
+             let n = String.length s and m = String.length xname in
+             let rec aux i =
+               i + m <= n
+               && (String.sub s i m = xname || aux (i + 1)) in
+             m = 0 || (n >= m && aux 0)
+           | Ok _ -> false);
 
-      QCheck.Test.make ~name:"lookup absent returns K_unbound_var"
+      QCheck.Test.make ~name:"lookup absent returns unbound variable error"
         ~count:100
         (QCheck.make Var.Test.gen)
         (fun x ->
            match lookup x empty with
-           | Error (Error.K_unbound_var y) -> Var.compare x y = 0
-           | _ -> false);
+           | Error k ->
+             let s = Error.to_string (Error.locate_opt ~loc:None k) in
+             let xname = Format.asprintf "%a" Var.print x in
+             let n = String.length s and m = String.length xname in
+             let rec aux i =
+               i + m <= n
+               && (String.sub s i m = xname || aux (i + 1)) in
+             m = 0 || (n >= m && aux 0)
+           | Ok _ -> false);
 
       QCheck.Test.make ~name:"extend_or_unknown Ok extends with sort"
         ~count:100
@@ -119,10 +133,21 @@ module Test = struct
         ~count:100
         QCheck.(pair (make Var.Test.gen) (make Effect.Test.gen))
         (fun (x, eff) ->
-           let dummy_kind = Error.K_unbound_var x in
+           let dummy_kind = Error.unbound_var x in
            let ctx = extend_or_unknown x (Error dummy_kind) eff empty in
            match lookup x ctx with
-           | Error (Error.K_unknown_var_type _) -> true
-           | _ -> false);
+           | Error k ->
+             let s = Error.to_string (Error.locate_opt ~loc:None k) in
+             let n = String.length s
+             and target = "sort is unknown"
+             and target2 = "unknown variable sort" in
+             let m = String.length target and m2 = String.length target2 in
+             let rec has sub k =
+               let l = String.length sub in
+               k + l <= n
+               && (String.sub s k l = sub || has sub (k + 1)) in
+             (m > 0 && n >= m && has target 0)
+             || (m2 > 0 && n >= m2 && has target2 0)
+           | Ok _ -> false);
     ]
 end

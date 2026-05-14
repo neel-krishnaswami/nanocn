@@ -10,12 +10,13 @@
 type typed_info = CoreExpr.typed_info
 type typed_ce = typed_info CoreExpr.t
 
-val collect_subtree_errors : (typed_ce, typed_info) CoreExpr.ceF -> Error.t list
+val collect_subtree_errors :
+  (typed_ce, typed_info) CoreExpr.ceF -> Error.located list
 (** [collect_subtree_errors shape] aggregates [info#answer]'s [Error]
-    case (if any) and [info#subterm_errors] from every immediate
-    sub-tree of [shape].  Used at construction time so each typed_ce
-    node's [subterm_errors] is correct as the tree is built — no
-    post-pass needed. *)
+    case (if any) — paired with the originating child's [info#loc] —
+    and [info#subterm_errors] from every immediate sub-tree of [shape].
+    Used at construction time so each typed_ce node's [subterm_errors]
+    is correct as the tree is built — no post-pass needed. *)
 
 val lift_sort : Sort.sort -> typed_info Sort.t
 (** Upgrade a plain [Sort.sort] to a [typed_info Sort.t] suitable for use in
@@ -30,13 +31,13 @@ val lift_sort : Sort.sort -> typed_info Sort.t
     halt. *)
 
 (** A single binding: pattern with its result-typed sort. *)
-type binding = Pat.pat * (Sort.sort, Error.kind) result
+type binding = Pat.pat * (Sort.sort, Error.t) result
 
 (** A let-binding accumulated during coverage checking. *)
 type let_binding = {
   var : Var.t;
   rhs : Var.t;
-  sort : (Sort.sort, Error.kind) result;
+  sort : (Sort.sort, Error.t) result;
   eff : Effect.t;
   loc : SourcePos.t;
 }
@@ -60,7 +61,7 @@ val synth : _ Sig.t -> Context.t -> Effect.t -> SurfExpr.se ->
     [info#answer] and can be read with [CoreExpr.sort_of_info]. *)
 
 val check : _ Sig.t -> Context.t -> SurfExpr.se ->
-  (Sort.sort, Error.kind) result -> Effect.t -> typed_ce ElabM.t
+  (Sort.sort, Error.t) result -> Effect.t -> typed_ce ElabM.t
 (** [check sig ctx se sort eff0] checks [se] against [sort] at ambient
     effect [eff0] and elaborates it to a typed core expression.  The
     expected sort is itself a result so callers can pass
@@ -71,7 +72,7 @@ val check : _ Sig.t -> Context.t -> SurfExpr.se ->
 (** {1 Coverage} *)
 
 val coverage_check : _ Sig.t -> Context.t -> Var.t list -> branch list ->
-  Effect.t -> (Sort.sort, Error.kind) result -> Effect.t ->
+  Effect.t -> (Sort.sort, Error.t) result -> Effect.t ->
   cov_loc:SourcePos.t ->
   (PatWitness.t list -> PatWitness.t) ->
   typed_ce ElabM.t

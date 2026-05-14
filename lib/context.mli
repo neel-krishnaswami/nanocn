@@ -25,7 +25,7 @@ val extend_or_unknown :
     The single helper hides the case-analysis from typechecker clauses
     so they can stay branch-free on result values (View pattern). *)
 
-val lookup : Var.t -> t -> (Sort.sort * Effect.t, Error.kind) result
+val lookup : Var.t -> t -> (Sort.sort * Effect.t, Error.t) result
 (** [lookup x ctx] returns [Ok (sort, eff)] when [x] is a [Term]
     binding, [Error (K_unknown_var_type {var=x})] when it is an
     [Unknown] binding, and [Error (K_unbound_var x)] when [x] is not

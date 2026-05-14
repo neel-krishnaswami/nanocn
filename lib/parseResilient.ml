@@ -2,7 +2,7 @@
 
 type 'a chunk_result =
   | Parsed of 'a
-  | Failed of Error.t
+  | Failed of Error.located
 
 (* ================================================================== *)
 (* Tokenization                                                        *)
@@ -115,7 +115,7 @@ let pos_of_last = function
 let parse_from_tokens
     (start : Lexing.position -> 'a Parser.MenhirInterpreter.checkpoint)
     (tokens : located_token list)
-  : ('a, Error.t) result =
+  : ('a, Error.located) result =
   let tokens = append_eof tokens in
   let module I = Parser.MenhirInterpreter in
   let first_pos = match tokens with
@@ -133,22 +133,24 @@ let parse_from_tokens
       | (_, sp, _) as triple :: rest ->
         loop rest (Some sp) (I.offer checkpoint triple)
       | [] ->
-        Error (Error.parse_error ~loc:(Some (pos_of_last last_pos))
-                 ~msg:"unexpected end of input")
+        Error (Error.locate ~loc:(pos_of_last last_pos)
+                 (Error.parse_error ~msg:"unexpected end of input"))
       end
     | I.Shifting _ | I.AboutToReduce _ ->
       loop remaining last_pos (I.resume checkpoint)
     | I.HandlingError env ->
       let state = I.current_state_number env in
       let msg = String.trim (lookup_message state) in
-      Error (Error.parse_error ~loc:(Some (pos_of_last last_pos)) ~msg)
+      Error (Error.locate ~loc:(pos_of_last last_pos)
+               (Error.parse_error ~msg))
     | I.Accepted v -> Ok v
     | I.Rejected ->
-      Error (Error.parse_error ~loc:(Some (pos_of_last last_pos))
-               ~msg:"parser rejected input")
+      Error (Error.locate ~loc:(pos_of_last last_pos)
+               (Error.parse_error ~msg:"parser rejected input"))
   in
   try loop tokens init_last (start first_pos)
-  with Failure msg -> Error (Error.parse_error ~loc:None ~msg)
+  with Failure msg ->
+    Error (Error.locate_opt ~loc:None (Error.parse_error ~msg))
 
 (* ================================================================== *)
 (* Surface programs (.cn)                                              *)
@@ -156,8 +158,8 @@ let parse_from_tokens
 
 type parsed_file = {
   decls  : (SurfExpr.parsed_se, SourcePos.t, string) Prog.decl chunk_result list;
-  main   : ((SurfExpr.parsed_se, SourcePos.t, string) Prog.t, Error.t) result option;
-  errors : Error.t list;
+  main   : ((SurfExpr.parsed_se, SourcePos.t, string) Prog.t, Error.located) result option;
+  errors : Error.located list;
 }
 
 let parse_prog_resilient s ~file =
@@ -180,7 +182,8 @@ let parse_prog_resilient s ~file =
   in
   let errors_rev = match main with
     | None ->
-      Error.parse_error ~loc:None ~msg:"missing `main` declaration" :: errors_rev
+      Error.locate_opt ~loc:None
+        (Error.parse_error ~msg:"missing `main` declaration") :: errors_rev
     | Some _ -> errors_rev
   in
   { decls = List.rev decls_rev;
@@ -193,8 +196,8 @@ let parse_prog_resilient s ~file =
 
 type parsed_rfile = {
   rdecls : (SurfExpr.parsed_se, < loc : SourcePos.t >, string) RProg.decl chunk_result list;
-  rmain  : (RProg.raw_parsed, Error.t) result option;
-  errors : Error.t list;
+  rmain  : (RProg.raw_parsed, Error.located) result option;
+  errors : Error.located list;
 }
 
 let parse_rprog_resilient s ~file =
@@ -217,7 +220,8 @@ let parse_rprog_resilient s ~file =
   in
   let errors_rev = match rmain with
     | None ->
-      Error.parse_error ~loc:None ~msg:"missing `main` declaration" :: errors_rev
+      Error.locate_opt ~loc:None
+        (Error.parse_error ~msg:"missing `main` declaration") :: errors_rev
     | Some _ -> errors_rev
   in
   { rdecls = List.rev rdecls_rev;

@@ -1,8 +1,8 @@
 let mismatch ~construct ~expected_shape ce =
-  Error (Error.K_wrong_pred_shape
-           { construct
-           ; expected_shape
-           ; got = Format.asprintf "%a" CoreExpr.print ce })
+  Error (Error.wrong_pred_shape
+           ~construct
+           ~expected_shape
+           ~got:(Format.asprintf "%a" CoreExpr.print ce))
 
 let get_return ~construct ce =
   match CoreExpr.shape ce with

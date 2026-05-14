@@ -10,7 +10,7 @@
 
     The View carries no error vocabulary.  Consumers (typechecker
     clauses) define small *local* wrappers that lift the option
-    output to a [(_, Error.kind) result] using the appropriate
+    output to a [(_, Error.t) result] using the appropriate
     [K_wrong_pred_shape] error kind with the call-site's
     [construct] string.  This keeps the "no branching on result
     inside clauses" invariant — the [Option.to_result] conversion

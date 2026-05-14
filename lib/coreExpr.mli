@@ -53,13 +53,14 @@ type typed_info = <
   ctx : Context.t;
   answer : (Sort.sort, Error.t) result;
   eff : Effect.t;
-  subterm_errors : Error.t list;
+  subterm_errors : Error.located list;
     (** Errors recorded on [info#answer] anywhere in the immediate
         sub-trees of this node (i.e. NOT including this node's own
-        answer).  Populated live during construction by
+        answer), paired with the source position of the term they came
+        from.  Populated live during construction by
         [Elaborate.collect_subtree_errors] / [Typecheck.mk] —
-        every constructor walks one level of the shape and
-        aggregates from each immediate child's [own_error_if_any
+        every constructor walks one level of the shape and pairs each
+        child's [info#loc] with each error in [own_error_if_any
         ++ subterm_errors]. *)
 >
 type typed_ce = typed_info t

@@ -20,34 +20,34 @@ val extend : string -> 'a entry -> 'a t -> 'a t
 
 (** {1 Lookups}
 
-    All lookups return [(_, Error.kind) result].  Failure produces
+    All lookups return [(_, Error.t) result].  Failure produces
     the canonical "not found" error for that kind of name; callers
     thread the result through the typechecker's errkind plumbing
     rather than failing the elaboration monad. *)
 
 val lookup_fun :
-  string -> 'a t -> (Sort.sort * Sort.sort * Effect.t, Error.kind) result
+  string -> 'a t -> (Sort.sort * Sort.sort * Effect.t, Error.t) result
 (** Returns [Error (K_unknown_function { name })] if [name] is not
     bound. *)
 
 val lookup_fundef :
   string -> 'a t ->
-  (Var.t * Sort.sort * Sort.sort * Effect.t * 'a, Error.kind) result
+  (Var.t * Sort.sort * Sort.sort * Effect.t * 'a, Error.t) result
 (** Returns [Error (K_unfold_not_fundef { name })] if [name] is not
     a [FunDef] entry. *)
 
 val lookup_sort :
-  Dsort.t -> 'a t -> (DsortDecl.t, Error.kind) result
+  Dsort.t -> 'a t -> (DsortDecl.t, Error.t) result
 (** Returns [Error (K_unbound_sort dsort)] if [dsort] is not declared
     as a datasort. *)
 
 val lookup_type :
-  Dsort.t -> 'a t -> (DtypeDecl.t, Error.kind) result
+  Dsort.t -> 'a t -> (DtypeDecl.t, Error.t) result
 (** Returns [Error (K_unbound_sort dsort)] if [dsort] is not declared
     as a datatype. *)
 
 val lookup_ctor :
-  Dsort.t -> Label.t -> 'a t -> (DsortDecl.t, Error.kind) result
+  Dsort.t -> Label.t -> 'a t -> (DsortDecl.t, Error.t) result
 (** [lookup_ctor d l sig] resolves [l] as a constructor of datasort
     [d] in [sig]. Returns:
     - [Error (K_unbound_sort d)] if [d] is not declared as a datasort;
@@ -55,7 +55,7 @@ val lookup_ctor :
       declared but [l] is not one of its constructors. *)
 
 val lookup_type_ctor :
-  Dsort.t -> Label.t -> 'a t -> (DtypeDecl.t, Error.kind) result
+  Dsort.t -> Label.t -> 'a t -> (DtypeDecl.t, Error.t) result
 (** [lookup_type_ctor d l sig] resolves [l] as a constructor of
     datatype [d] in [sig]. Returns:
     - [Error (K_unbound_sort d)] if [d] is not declared as a datatype;
@@ -69,7 +69,7 @@ type sort_or_type =
   | LTypeDecl of DtypeDecl.t
 
 val lookup_dsort_or_type :
-  Dsort.t -> 'a t -> (sort_or_type, Error.kind) result
+  Dsort.t -> 'a t -> (sort_or_type, Error.t) result
 (** Combined lookup: returns [Ok (LSortDecl _)] if [dsort] is declared
     as a datasort, [Ok (LTypeDecl _)] if as a datatype, and
     [Error (K_unbound_sort dsort)] otherwise. *)

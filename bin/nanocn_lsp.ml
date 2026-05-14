@@ -169,7 +169,7 @@ let holes_of_typed_decls decls =
     | Prog.CoreSortDecl _ | Prog.CoreTypeDecl _ -> acc
   ) [] decls
 
-let error_to_lsp_diagnostic (e : Error.t) : Lsp.Types.Diagnostic.t =
+let error_to_lsp_diagnostic (e : Error.located) : Lsp.Types.Diagnostic.t =
   let range = match Error.loc e with
     | Some loc ->
       let start_line = max 0 (SourcePos.start_line loc - 1) in

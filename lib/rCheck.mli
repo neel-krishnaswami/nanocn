@@ -6,7 +6,7 @@
     preserve sort/ctx/eff info from elaboration.
 
     Every typing judgement consumes / produces its [ce]/[sort]/[pf]
-    carriers as [(_, Error.kind) result].  Inputs that are [Error _]
+    carriers as [(_, Error.t) result].  Inputs that are [Error _]
     flow through to placeholders without aborting; outputs that are
     [Error _] mean "this position couldn't be synthesized" and the
     caller's typed AST records the same error on its rinfo's [#answer]
@@ -35,7 +35,7 @@ val check_rdecl :
     Returns the typed declaration, updated signature, and constraint
     tree. *)
 
-val collect_errors_rprog : RProg.typed -> Error.t list
+val collect_errors_rprog : RProg.typed -> Error.located list
 (** [collect_errors_rprog prog] returns every error recorded on
     [info#answer] anywhere in the typed refined program — across
     typed_rinfo nodes (RPat, ProofSort, RefinedExpr.{lpf,rpf,crt,
@@ -59,7 +59,7 @@ val synth_lpf :
   RSig.t -> RCtx.t ->
   RefinedExpr.parsed_lpf ->
   (checked_lpf
-   * (CoreExpr.typed_ce, Error.kind) result
+   * (CoreExpr.typed_ce, Error.t) result
    * RCtx.t
    * Constraint.typed_ct) ElabM.t
 (** [synth_lpf rs delta lpf] synthesises an lpf, returning the typed
@@ -73,7 +73,7 @@ val synth_lpf :
 val check_lpf :
   RSig.t -> RCtx.t ->
   RefinedExpr.parsed_lpf ->
-  (CoreExpr.typed_ce, Error.kind) result ->
+  (CoreExpr.typed_ce, Error.t) result ->
   (checked_lpf * RCtx.t * Constraint.typed_ct) ElabM.t
 (** [check_lpf rs delta lpf ce] checks that [lpf] proves [ce].  When
     [ce] is [Error _] (e.g. propagated from an upstream view extract
@@ -85,7 +85,7 @@ val check_lpf :
 val lpat_match :
   RSig.t -> RCtx.t ->
   (< loc : SourcePos.t >, Var.t) RPat.lpat ->
-  (CoreExpr.typed_ce, Error.kind) result ->
+  (CoreExpr.typed_ce, Error.t) result ->
   ((RProg.typed_rinfo, Var.t) RPat.lpat * RCtx.t * Constraint.typed_ct)
     ElabM.t
 (** [lpat_match rs delta lp prop] matches a logical pattern [lp]
@@ -100,8 +100,8 @@ val synth_rpf :
   RSig.t -> RCtx.t ->
   RefinedExpr.parsed_rpf ->
   (checked_rpf
-   * (CoreExpr.typed_ce, Error.kind) result   (* synthesised pred *)
-   * (CoreExpr.typed_ce, Error.kind) result   (* synthesised value *)
+   * (CoreExpr.typed_ce, Error.t) result   (* synthesised pred *)
+   * (CoreExpr.typed_ce, Error.t) result   (* synthesised value *)
    * RCtx.t
    * Constraint.typed_ct) ElabM.t
 (** [synth_rpf rs delta rpf] synthesises an rpf, returning the typed
@@ -115,8 +115,8 @@ val synth_rpf :
 val check_rpf :
   RSig.t -> RCtx.t ->
   RefinedExpr.parsed_rpf ->
-  (CoreExpr.typed_ce, Error.kind) result ->   (* expected pred *)
-  (CoreExpr.typed_ce, Error.kind) result ->   (* expected value *)
+  (CoreExpr.typed_ce, Error.t) result ->   (* expected pred *)
+  (CoreExpr.typed_ce, Error.t) result ->   (* expected value *)
   (checked_rpf * RCtx.t * Constraint.typed_ct) ElabM.t
 (** [check_rpf rs delta rpf ce_pred ce_value] checks that [rpf]
     inhabits the resource type [ce_pred @ ce_value].  Errkind inputs
@@ -130,8 +130,8 @@ val check_rpf :
 val rpat_match :
   RSig.t -> RCtx.t -> Effect.t ->
   (< loc : SourcePos.t >, Var.t) RPat.rpat ->
-  (CoreExpr.typed_ce, Error.kind) result ->   (* pred *)
-  (CoreExpr.typed_ce, Error.kind) result ->   (* value *)
+  (CoreExpr.typed_ce, Error.t) result ->   (* pred *)
+  (CoreExpr.typed_ce, Error.t) result ->   (* value *)
   ((RProg.typed_rinfo, Var.t) RPat.rpat * RCtx.t * Constraint.typed_ct)
     ElabM.t
 (** [rpat_match rs delta eff rp pred value] matches a resource
@@ -147,7 +147,7 @@ val synth_crt :
   RefinedExpr.parsed_crt ->
   (checked_crt
    * ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
-      Error.kind) result
+      Error.t) result
    * RCtx.t
    * Constraint.typed_ct) ElabM.t
 (** [synth_crt rs delta eff crt] synthesises the proof sort [Pf] for
@@ -161,7 +161,7 @@ val check_crt :
   RSig.t -> RCtx.t -> Effect.t ->
   RefinedExpr.parsed_crt ->
   ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
-   Error.kind) result ->                       (* expected pf *)
+   Error.t) result ->                       (* expected pf *)
   (checked_crt * RCtx.t * Constraint.typed_ct) ElabM.t
 (** [check_crt rs delta eff crt pf] checks that [crt] inhabits the
     proof sort [pf].  When [pf] is [Error _], the rule's [#answer]
@@ -174,7 +174,7 @@ val q_match :
   RSig.t -> RCtx.t -> Effect.t ->
   (< loc : SourcePos.t >, Var.t) RPat.t ->
   ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
-   Error.kind) result ->
+   Error.t) result ->
   ((RProg.typed_rinfo, Var.t) RPat.t * RCtx.t * Constraint.typed_ct)
     ElabM.t
 (** [q_match rs delta eff pat pf] matches the refined-term pattern
@@ -194,12 +194,12 @@ val check_spine :
   RSig.t -> RCtx.t -> Effect.t ->
   RefinedExpr.parsed_spine ->
   ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
-   Error.kind) result ->
+   Error.t) result ->
   ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
-   Error.kind) result ->
+   Error.t) result ->
   (checked_spine
    * ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
-      Error.kind) result
+      Error.t) result
    * RCtx.t
    * Constraint.typed_ct) ElabM.t
 (** [check_spine rs delta eff spine domain codomain] checks [spine]
@@ -221,9 +221,9 @@ val check_spine :
 
 val cpat_match :
   RSig.t -> RCtx.t ->
-  (Effect.t, Error.kind) result ->
+  (Effect.t, Error.t) result ->
   (< loc : SourcePos.t >, Var.t) RPat.cpat ->
-  (Sort.sort, Error.kind) result ->
+  (Sort.sort, Error.t) result ->
   ((RProg.typed_rinfo, Var.t) RPat.cpat * RCtx.t * CoreExpr.typed_ce)
     ElabM.t
 (** [cpat_match rs delta eff cp sort] matches a core pattern [cp]
@@ -240,7 +240,7 @@ module Test : sig
     SourcePos.t -> RSig.t -> RCtx.t ->
     (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t ->
     (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t ->
-    (Constraint.typed_ct * Error.t list) ElabM.t
+    (Constraint.typed_ct * Error.located list) ElabM.t
   val with_delta_check : (unit -> 'a) -> 'a
   (** [with_delta_check f] runs [f] with the Δ ⊓ Δ' = Δ' monotonicity
       assertion enabled in [check_crt] / [synth_crt]. *)

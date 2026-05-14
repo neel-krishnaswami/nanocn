@@ -9,19 +9,19 @@
 
 val lookup :
   'a Sig.t -> Dsort.t -> Label.t -> Sort.sort list ->
-  (Sort.sort, Error.kind) result
+  (Sort.sort, Error.t) result
 (** [lookup sig d l args] finds the constructor [l] of [d] in the
     signature, then substitutes [args] for the declaration's type
     parameters in the constructor's raw sort. Fails with:
-    - [Error.K_unbound_sort d] if [d] is not declared in [sig];
-    - [Error.K_ctor_not_in_decl] if [d] is declared but [l] is not
+    - [[Error.unbound_sort] d] if [d] is not declared in [sig];
+    - [[Error.ctor_not_in_decl]] if [d] is declared but [l] is not
       one of its constructors;
-    - [Error.K_subst_arity_mismatch] if [args] has a different
+    - [[Error.subst_arity_mismatch]] if [args] has a different
       arity than the decl's type parameters. *)
 
 val lookup_all :
   'a Sig.t -> Dsort.t -> Sort.sort list ->
-  ((Label.t * Sort.sort) list, Error.kind) result
+  ((Label.t * Sort.sort) list, Error.t) result
 (** [lookup_all sig d args] returns every [(label, payload_sort)]
     pair declared at head [d], with [args] substituted into each
     payload sort.  Used by case completeness checking to compare the
@@ -34,9 +34,9 @@ val lookup_all :
 
 val lookup_all_observed :
   'a Sig.t ->
-  (Sort.sort, Error.kind) result ->
+  (Sort.sort, Error.t) result ->
   Label.t list ->
-  (Label.t * (Sort.sort, Error.kind) result) list
+  (Label.t * (Sort.sort, Error.t) result) list
 (** [lookup_all_observed sig sort observed] unifies the case-dispatch
     decisions made by surface case checking and pattern-matrix
     elaboration.  [observed] is the list of constructor labels seen

@@ -38,10 +38,10 @@ val comp : ('e, 'b, 'var) t -> Sort.sort
 
 val bind :
   Context.t -> (CoreExpr.typed_ce, 'b, Var.t) t ->
-  (Context.t, Error.kind) result
+  (Context.t, Error.t) result
 (** [bind Γ pf] extends Γ with comp/spec variable bindings from [pf].
     For [DepRes] entries, reads the sort directly from the typed info.
-    Fails with [Error.K_dep_res_not_pred] if a [DepRes] predicate
+    Fails with [[Error.dep_res_not_pred]] if a [DepRes] predicate
     doesn't have [Pred _] sort. *)
 
 val apply_subst : Subst.t -> (CoreExpr.typed_ce, 'b, Var.t) t -> (CoreExpr.typed_ce, 'b, Var.t) t

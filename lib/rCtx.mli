@@ -33,26 +33,26 @@ val extend_unknown : Var.t -> t -> t
 val concat : t -> t -> t
 
 val lookup_comp :
-  Var.t -> t -> (Sort.sort * Effect.t, Error.kind) result
+  Var.t -> t -> (Sort.sort * Effect.t, Error.t) result
 (** [lookup_comp x ctx] returns sort and effect for computational
     binding [x].  Errors:
     - [K_unbound_var x] when [x] is not bound at all.
     - [K_unknown_var_type {var=x}] when [x] is bound as [Unknown].
-    - [K_internal_invariant] when [x] is bound as [Log] or [Res]
+    - [K_unbound_var x] when [x] is bound as [Log] or [Res]
       (caller should have used the appropriate lookup variant). *)
 
 val lookup_log :
-  Var.t -> t -> (CoreExpr.typed_ce, Error.kind) result
+  Var.t -> t -> (CoreExpr.typed_ce, Error.t) result
 (** [lookup_log x ctx] returns the proposition for logical binding
     [x].  Errors as for [lookup_comp]. *)
 
 val use_resource :
   Var.t -> t ->
-  (CoreExpr.typed_ce * CoreExpr.typed_ce * t, Error.kind) result
+  (CoreExpr.typed_ce * CoreExpr.typed_ce * t, Error.t) result
 (** [use_resource x ctx] checks [x] is available, sets it to used,
     and returns [(pred, value, ctx')]. Fails with
-    [Error.K_resource_not_found] if [x] has no binding, or
-    [Error.K_resource_already_used] if it does but is non-[Avail]. *)
+    [[Error.resource_not_found]] if [x] has no binding, or
+    [[Error.resource_already_used]] if it does but is non-[Avail]. *)
 
 val erase : t -> Context.t
 (** [erase Δ] drops log/res entries, keeping only comp entries. *)
@@ -63,17 +63,17 @@ val affinize : t -> t
 val zero : t -> bool
 (** [zero Δ] is true when all resources are consumed or optional. *)
 
-val merge : t -> t -> (t, Error.kind) result
+val merge : t -> t -> (t, Error.t) result
 (** [merge Δ₁ Δ₂] pointwise merges usage flags. Fails with a
-    [Error.K_branch_merge_failure] whose [reason] describes the
+    [[Error.branch_merge_failure]] whose [reason] describes the
     specific obstruction (length mismatch, entry-kind mismatch,
     or incompatible usage). *)
 
-val merge_n : t list -> (t, Error.kind) result
+val merge_n : t list -> (t, Error.t) result
 (** [merge_n [Δ₁; ...; Δₙ]] folds [merge] left-to-right. Fails on
     an empty input or on the first [merge] failure. *)
 
-val lattice_merge : t -> t -> (t, Error.kind) result
+val lattice_merge : t -> t -> (t, Error.t) result
 (** [lattice_merge Δ₁ Δ₂] merges using [Usage.lattice_meet] (total order
     [Used ≤ Opt ≤ Avail]). Cannot fail due to usage; only on length
     or entry-kind mismatches. *)

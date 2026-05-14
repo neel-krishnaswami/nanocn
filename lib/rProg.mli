@@ -79,16 +79,16 @@ and typed_rinfo = <
   eff : Effect.t;
   goal : goal;
   answer : (Sort.sort, Error.t) result;
-    (** [Ok sort] for successful nodes, [Error e] when the rCheck
+    (** [Ok sort] for successful nodes, [Error k] when the rCheck
         judgement chose to attach an error and continue.  The
         legacy [sort] field is kept in lockstep for hover /
         inspector consumers; it equals the [Ok] payload of
         [answer] when [answer = Ok _], and a placeholder otherwise. *)
-  subterm_errors : Error.t list;
-    (** Errors recorded on [info#answer] anywhere in the subtree
-        rooted at this node, populated by an annotation pass run
-        once rCheck completes.  Before that pass, the field is the
-        empty list at every node. *)
+  subterm_errors : Error.located list;
+    (** Errors paired with the source position of the term they came
+        from, recorded on [info#answer] anywhere in the subtree rooted
+        at this node, or injected as cross-cutting errors via
+        [mk_rinfo_full] / [prepend_subterm_errors_crt]. *)
 >
 
 (** Fully annotated type (typed core expressions with refined context/sort/effect). *)

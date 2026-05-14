@@ -3,14 +3,14 @@ let lookup sig_ dsort label args =
   | Error e -> Error e
   | Ok (Sig.LSortDecl decl) ->
     (match DsortDecl.lookup_ctor label decl with
-     | None -> Error (Error.K_ctor_not_in_decl { label; decl = dsort })
+     | None -> Error (Error.ctor_not_in_decl ~label ~decl:dsort)
      | Some raw_sort ->
        match Subst.of_lists decl.DsortDecl.params args with
        | Error k -> Error k
        | Ok sub -> Ok (Subst.apply sub raw_sort))
   | Ok (Sig.LTypeDecl decl) ->
     match DtypeDecl.lookup_ctor label decl with
-    | None -> Error (Error.K_ctor_not_in_decl { label; decl = dsort })
+    | None -> Error (Error.ctor_not_in_decl ~label ~decl:dsort)
     | Some raw_sort ->
       match Subst.of_lists decl.DtypeDecl.params args with
       | Error k -> Error k
@@ -44,15 +44,15 @@ let lookup_all_observed sig_ sort_result observed =
     List.map (fun l -> (l, Error e)) observed_unique
   | Ok s ->
     let mismatch =
-      Error.K_construct_sort_mismatch
-        { construct = "case scrutinee";
-          expected_shape = "datasort/datatype application";
-          got = SortView.project s } in
+      Error.construct_sort_mismatch
+        ~construct:"case scrutinee"
+        ~expected_shape:"datasort/datatype application"
+        ~got:(SortView.project s) in
     let (d_opt, args_opts) = SortView.Get.app (Some s) in
     let d_result = Option.to_result ~none:mismatch d_opt in
     let args_results =
       List.map (fun a -> Option.to_result ~none:mismatch a) args_opts in
-    let declared : ((Label.t * Sort.sort) list, Error.kind) result =
+    let declared : ((Label.t * Sort.sort) list, Error.t) result =
       Result.bind d_result (fun d ->
         Result.bind (Util.result_list args_results) (fun args ->
           lookup_all sig_ d args))
@@ -69,7 +69,7 @@ let lookup_all_observed sig_ sort_result observed =
           | None ->
             (match d_result with
              | Ok d ->
-               (l, Error (Error.K_ctor_not_in_decl { label = l; decl = d }))
+               (l, Error (Error.ctor_not_in_decl ~label:l ~decl:d))
              | Error k -> (l, Error k))
         ) observed_unique
       in
@@ -141,7 +141,7 @@ module Test = struct
         QCheck.unit
         (fun () ->
            match lookup Sig.empty (mk_dsort "Nope") (mk_label "La") [] with
-           | Error (Error.K_unbound_sort _) -> true
+           | Error k -> Error.header k = "Type error: unknown sort/type"
            | _ -> false);
 
       QCheck.Test.make ~name:"ctor lookup: ctor not in decl"
@@ -155,7 +155,7 @@ module Test = struct
              loc = SourcePos.dummy } in
            let s = Sig.extend_sort Sig.empty decl in
            match lookup s d (mk_label "Mout") [] with
-           | Error (Error.K_ctor_not_in_decl _) -> true
+           | Error k -> Error.header k = "Type error: unknown constructor"
            | _ -> false);
     ]
 end

@@ -81,7 +81,7 @@ type typed_info = <
   ctx : Context.t;
   answer : (Sort.sort, Error.t) result;
   eff : Effect.t;
-  subterm_errors : Error.t list;
+  subterm_errors : Error.located list;
 >
 type typed_ce = typed_info t
 

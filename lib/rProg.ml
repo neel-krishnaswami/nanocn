@@ -55,15 +55,15 @@ and typed_rinfo = <
   goal : goal;
   answer : (Sort.sort, Error.t) result;
     (* Mirrors CoreExpr.typed_info: [Ok sort] for successful nodes,
-       [Error e] when the rCheck judgement chose to attach an error
+       [Error k] when the rCheck judgement chose to attach an error
        and continue.  The legacy [sort] field is kept in lockstep
        with [answer] for hover/inspector consumers; [sort] equals
        [Result.value answer ~default:<some-placeholder>]. *)
-  subterm_errors : Error.t list;
-    (* Errors recorded on [info#answer] anywhere in the subtree
-       rooted at this node.  Populated by an annotation pass after
-       rCheck completes; before that pass, the field is the empty
-       list at every node. *)
+  subterm_errors : Error.located list;
+    (* Errors paired with the source position of the term they came
+       from, recorded on [info#answer] anywhere in the subtree rooted
+       at this node, or injected as cross-cutting errors via
+       [mk_rinfo_full] / [prepend_subterm_errors_crt]. *)
 >
 type typed = (CoreExpr.typed_ce, typed_rinfo, Var.t) t
 

@@ -14,7 +14,7 @@
 type file_outcome = {
   final_sig  : Typecheck.typed_ce Sig.t;
   typed_decls : Typecheck.typed_ce Prog.core_decl list;
-  diagnostics : Error.t list;
+  diagnostics : Error.located list;
   warnings    : Warning.t list;
 }
 
@@ -30,7 +30,7 @@ val compile_file :
 type rfile_outcome = {
   final_rsig  : RSig.t;
   constraints : Constraint.typed_ct;
-  diagnostics : Error.t list;
+  diagnostics : Error.located list;
   hover       : HoverIndex.t;
   decls       : RProg.raw_parsed_decl list;
     (** Successfully-parsed top-level declarations, in source order.

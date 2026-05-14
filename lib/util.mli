@@ -15,8 +15,8 @@ val result_list : ('a, 'e) result list -> ('a list, 'e) result
     ruled out, no matter how ill-typed the user program.  Every such
     failure is a compiler bug and must be treated specially: the
     top-level driver (CLI or LSP) catches the exception, reports it
-    with a "compiler bug, please file a report" framing, and exits or
-    returns a synthesized [K_internal_invariant] diagnostic.
+    on stderr with a "compiler bug, please file a report" framing,
+    and exits with a distinct status.
 
     Distinct from regular type errors: those flow through the typed
     tree's [info#answer] field and are reported as ordinary

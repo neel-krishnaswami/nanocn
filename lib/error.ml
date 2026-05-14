@@ -9,7 +9,7 @@ type pattern_shape_descriptor =
   | PS_Ctor of Label.t
   | PS_Var
 
-type kind =
+type t =
   | K_parse_error of { msg : string }
   | K_duplicate_pat_var of { name : string }
   | K_sort_mismatch of
@@ -99,180 +99,133 @@ type kind =
   | K_rcase_label_not_in_branches of
       { label : Label.t
       ; case_labels : Label.t list }
-  | K_internal_invariant of { rule : string; invariant : string }
 
-type t =
-  | Structured of { loc : SourcePos.t option; kind : kind }
-  (* [loc] is optional only for [K_parse_error] from the lexer's
-     catch-all [Failure] handler; every other kind builder supplies
-     a real position. *)
+type located = { loc : SourcePos.t option; payload : t }
 
-let structured ~loc kind = Structured { loc = Some loc; kind }
+let locate ~loc payload = { loc = Some loc; payload }
+let locate_opt ~loc payload = { loc; payload }
 
-let structured_nopos kind = Structured { loc = None; kind }
+let parse_error ~msg = K_parse_error { msg }
 
-let parse_error ~loc ~msg =
-  match loc with
-  | Some loc -> structured ~loc (K_parse_error { msg })
-  | None -> structured_nopos (K_parse_error { msg })
+let duplicate_pat_var ~name = K_duplicate_pat_var { name }
 
-let duplicate_pat_var ~loc ~name =
-  structured ~loc (K_duplicate_pat_var { name })
-
-let sort_mismatch ~loc ~expected ~actual =
+let sort_mismatch ~expected ~actual =
   let diff = SortDiff.diff expected actual in
-  structured ~loc (K_sort_mismatch { expected; actual; diff })
+  K_sort_mismatch { expected; actual; diff }
 
-let annotation_disagrees ~loc ~inner ~annot =
+let annotation_disagrees ~inner ~annot =
   let diff = SortDiff.diff inner annot in
-  structured ~loc
-    (K_annotation_disagrees { inner_sort = inner; annot; diff })
+  K_annotation_disagrees { inner_sort = inner; annot; diff }
 
-let unbound_var ~loc v = structured ~loc (K_unbound_var v)
-let unbound_name ~loc n = structured ~loc (K_unbound_name n)
-let unknown_var_type ~loc ~var = structured ~loc (K_unknown_var_type { var })
-let unbound_ctor ~loc l = structured ~loc (K_unbound_ctor l)
-let unbound_sort ~loc d = structured ~loc (K_unbound_sort d)
-let unbound_tvar ~loc t = structured ~loc (K_unbound_tvar t)
+let unbound_var v = K_unbound_var v
+let unbound_name n = K_unbound_name n
+let unknown_var_type ~var = K_unknown_var_type { var }
+let unbound_ctor l = K_unbound_ctor l
+let unbound_sort d = K_unbound_sort d
+let unbound_tvar tv = K_unbound_tvar tv
 
-let unknown_function ~loc ~name =
-  structured ~loc (K_unknown_function { name })
+let unknown_function ~name = K_unknown_function { name }
 
-let log_var_not_found ~loc ~name =
-  structured ~loc (K_log_var_not_found { name })
+let log_var_not_found ~name = K_log_var_not_found { name }
 
-let var_effect_mismatch ~loc ~var ~declared ~required =
-  structured ~loc
-    (K_var_effect_mismatch { var; declared; required })
+let var_effect_mismatch ~var ~declared ~required =
+  K_var_effect_mismatch { var; declared; required }
 
-let prim_effect_mismatch ~loc ~prim ~declared ~required =
-  structured ~loc
-    (K_prim_effect_mismatch { prim; declared; required })
+let prim_effect_mismatch ~prim ~declared ~required =
+  K_prim_effect_mismatch { prim; declared; required }
 
-let fun_effect_mismatch ~loc ~name ~declared ~required =
-  structured ~loc
-    (K_fun_effect_mismatch { name; declared; required })
+let fun_effect_mismatch ~name ~declared ~required =
+  K_fun_effect_mismatch { name; declared; required }
 
-let scrutinee_not_data ~loc ~got =
-  structured ~loc (K_scrutinee_not_data { got })
+let scrutinee_not_data ~got = K_scrutinee_not_data { got }
 
-let not_spec_type ~loc ~construct ~got =
-  structured ~loc (K_not_spec_type { construct; got })
+let not_spec_type ~construct ~got = K_not_spec_type { construct; got }
 
-let spec_context_required ~loc ~construct =
-  structured ~loc (K_spec_context_required { construct })
+let spec_context_required ~construct = K_spec_context_required { construct }
 
-let cannot_synthesize ~loc ~construct =
-  structured ~loc (K_cannot_synthesize { construct })
+let cannot_synthesize ~construct = K_cannot_synthesize { construct }
 
-let eq_not_equality_type ~loc ~got =
-  structured ~loc (K_eq_not_equality_type { got })
+let eq_not_equality_type ~got = K_eq_not_equality_type { got }
 
-let construct_sort_mismatch ~loc ~construct ~expected_shape ~got =
-  structured ~loc
-    (K_construct_sort_mismatch { construct; expected_shape; got })
+let construct_sort_mismatch ~construct ~expected_shape ~got =
+  K_construct_sort_mismatch { construct; expected_shape; got }
 
-let tuple_arity_mismatch ~loc ~construct ~expected ~actual =
-  structured ~loc
-    (K_tuple_arity_mismatch { construct; expected; actual })
+let tuple_arity_mismatch ~construct ~expected ~actual =
+  K_tuple_arity_mismatch { construct; expected; actual }
 
-let subst_arity_mismatch ~loc ~expected ~actual =
-  structured ~loc (K_subst_arity_mismatch { expected; actual })
+let subst_arity_mismatch ~expected ~actual =
+  K_subst_arity_mismatch { expected; actual }
 
-let resource_not_found ~loc ~name =
-  structured ~loc (K_resource_not_found { name })
+let resource_not_found ~name = K_resource_not_found { name }
 
-let resource_already_used ~loc ~name =
-  structured ~loc (K_resource_already_used { name })
+let resource_already_used ~name = K_resource_already_used { name }
 
-let branch_merge_failure ~loc ~reason =
-  structured ~loc (K_branch_merge_failure { reason })
+let branch_merge_failure ~reason = K_branch_merge_failure { reason }
 
-let dep_res_not_pred ~loc ~got =
-  structured ~loc (K_dep_res_not_pred { got })
+let dep_res_not_pred ~got = K_dep_res_not_pred { got }
 
-let ctor_not_in_decl ~loc ~label ~decl =
-  structured ~loc (K_ctor_not_in_decl { label; decl })
+let ctor_not_in_decl ~label ~decl = K_ctor_not_in_decl { label; decl }
 
-let missing_ctor ~loc ~label ~decl =
-  structured ~loc (K_missing_ctor { label; decl })
+let missing_ctor ~label ~decl = K_missing_ctor { label; decl }
 
-let redundant_ctor ~loc ~label =
-  structured ~loc (K_redundant_ctor { label })
+let redundant_ctor ~label = K_redundant_ctor { label }
 
-let incompatible_patterns ~loc ~shapes =
-  structured ~loc (K_incompatible_patterns { shapes })
+let incompatible_patterns ~shapes = K_incompatible_patterns { shapes }
 
-let at ~loc r =
-  Result.map_error (structured ~loc) r
+let tvar_kind_mismatch ~tvar ~got ~expected =
+  K_tvar_kind_mismatch { tvar; got; expected }
 
-let tvar_kind_mismatch ~loc ~tvar ~got ~expected =
-  structured ~loc (K_tvar_kind_mismatch { tvar; got; expected })
+let dsort_arity_mismatch ~dsort ~expected ~actual =
+  K_dsort_arity_mismatch { dsort; expected; actual }
 
-let dsort_arity_mismatch ~loc ~dsort ~expected ~actual =
-  structured ~loc (K_dsort_arity_mismatch { dsort; expected; actual })
+let pred_misuse ~context = K_pred_misuse { context }
 
-let pred_misuse ~loc ~context =
-  structured ~loc (K_pred_misuse { context })
+let unguarded_recursion ~dsort = K_unguarded_recursion { dsort }
 
-let unguarded_recursion ~loc ~dsort =
-  structured ~loc (K_unguarded_recursion { dsort })
+let empty_decl ~name ~is_type = K_empty_decl { name; is_type }
 
-let empty_decl ~loc ~name ~is_type =
-  structured ~loc (K_empty_decl { name; is_type })
+let duplicate_ctor_in_decl ~label ~decl_name ~is_type =
+  K_duplicate_ctor_in_decl { label; decl_name; is_type }
 
-let duplicate_ctor_in_decl ~loc ~label ~decl_name ~is_type =
-  structured ~loc
-    (K_duplicate_ctor_in_decl { label; decl_name; is_type })
+let non_exhaustive ~witness = K_non_exhaustive { witness }
 
-let non_exhaustive ~loc ~witness =
-  structured ~loc (K_non_exhaustive { witness })
+let wrong_pred_shape ~construct ~expected_shape ~got =
+  K_wrong_pred_shape { construct; expected_shape; got }
 
-let wrong_pred_shape ~loc ~construct ~expected_shape ~got =
-  structured ~loc
-    (K_wrong_pred_shape { construct; expected_shape; got })
+let unfold_not_spec ~name = K_unfold_not_spec { name }
 
-let unfold_not_spec ~loc ~name =
-  structured ~loc (K_unfold_not_spec { name })
+let unfold_not_fundef ~name = K_unfold_not_fundef { name }
 
-let unfold_not_fundef ~loc ~name =
-  structured ~loc (K_unfold_not_fundef { name })
+let resource_leak ~name = K_resource_leak { name }
 
-let resource_leak ~loc ~name =
-  structured ~loc (K_resource_leak { name })
+let let_pattern_resource_leak ~leftovers =
+  K_let_pattern_resource_leak { leftovers }
 
-let let_pattern_resource_leak ~loc ~leftovers =
-  structured ~loc (K_let_pattern_resource_leak { leftovers })
+let rpat_length_mismatch ~pat_len ~pf_len =
+  K_rpat_length_mismatch { pat_len; pf_len }
 
-let iter_requires_impure ~loc ~actual =
-  structured ~loc (K_iter_requires_impure { actual })
+let rpat_kind_mismatch ~pat_kind ~pf_kind =
+  K_rpat_kind_mismatch { pat_kind; pf_kind }
 
-let spine_tag_mismatch ~loc ~expected_tag ~expected_entry ~actual_tag =
-  structured ~loc
-    (K_spine_tag_mismatch { expected_tag; expected_entry; actual_tag })
+let iter_requires_impure ~actual = K_iter_requires_impure { actual }
 
-let pf_structure_mismatch ~loc ~synthesized_entry ~expected_entry =
-  structured ~loc
-    (K_pf_structure_mismatch { synthesized_entry; expected_entry })
+let spine_tag_mismatch ~expected_tag ~expected_entry ~actual_tag =
+  K_spine_tag_mismatch { expected_tag; expected_entry; actual_tag }
 
-let pf_effect_mismatch ~loc ~sort ~synthesized_eff ~expected_eff =
-  structured ~loc
-    (K_pf_effect_mismatch { sort; synthesized_eff; expected_eff })
+let pf_structure_mismatch ~synthesized_entry ~expected_entry =
+  K_pf_structure_mismatch { synthesized_entry; expected_entry }
 
-let iter_pattern_shape ~loc ~got =
-  structured ~loc (K_iter_pattern_shape { got })
+let pf_effect_mismatch ~sort ~synthesized_eff ~expected_eff =
+  K_pf_effect_mismatch { sort; synthesized_eff; expected_eff }
 
-let rcase_label_not_in_branches ~loc ~label ~case_labels =
-  structured ~loc (K_rcase_label_not_in_branches { label; case_labels })
+let iter_pattern_shape ~got = K_iter_pattern_shape { got }
 
-let internal_invariant ~loc ~rule ~invariant =
-  structured ~loc (K_internal_invariant { rule; invariant })
+let rcase_label_not_in_branches ~label ~case_labels =
+  K_rcase_label_not_in_branches { label; case_labels }
 
-let loc = function
-  | Structured { loc; _ } -> loc
+let loc { loc; _ } = loc
 
-let kind = function
-  | Structured { kind; _ } -> kind
+let payload { payload; _ } = payload
 
 (* Tag names are ocolor tag names (see Ocolor_format.mli): once the
    formatter has been prettified via [ErrorRender.configure_formatter],
@@ -433,7 +386,7 @@ let print_kind reg fmt = function
          "  branch contexts have different lengths (%d vs %d)." lhs rhs
      | Mf_entry_kind_mismatch ->
        Format.fprintf fmt
-         "  branches disagree on the kind of entry at some position \
+         "  branches disagree on the t of entry at some position \
           (comp/log/res mismatch)."
      | Mf_usage_incompatible name ->
        Format.fprintf fmt
@@ -495,11 +448,11 @@ let print_kind reg fmt = function
     Format.fprintf fmt "@]"
   | K_tvar_kind_mismatch { tvar; got; expected } ->
     Format.fprintf fmt "@[<v>";
-    Format.fprintf fmt "  type variable %a has kind %a,"
+    Format.fprintf fmt "  type variable %a has t %a,"
       (print_emph Tvar.print) tvar
       (print_emph Kind.print) got;
     Format.pp_print_cut fmt ();
-    Format.fprintf fmt "  but the context requires kind %a."
+    Format.fprintf fmt "  but the context requires t %a."
       (print_emph Kind.print) expected;
     Format.fprintf fmt "@]"
   | K_dsort_arity_mismatch { dsort; expected; actual } ->
@@ -641,15 +594,8 @@ let print_kind reg fmt = function
             (print_emph Label.print))
          case_labels);
     Format.fprintf fmt "@]"
-  | K_internal_invariant { rule; invariant } ->
-    Format.fprintf fmt "@[<v>";
-    Format.fprintf fmt "  internal invariant failed in rule %a:"
-      (print_emph Format.pp_print_string) rule;
-    Format.pp_print_cut fmt ();
-    Format.fprintf fmt "  %s" invariant;
-    Format.fprintf fmt "@]"
 
-let kind_header = function
+let header = function
   | K_parse_error _ -> "Parse error"
   | K_duplicate_pat_var _ -> "Type error: duplicate pattern variable"
   | K_sort_mismatch _ -> "Type error: sort mismatch"
@@ -682,7 +628,7 @@ let kind_header = function
   | K_redundant_ctor _ -> "Type error: redundant case branch"
   | K_incompatible_patterns _ ->
     "Type error: incompatible pattern shapes"
-  | K_tvar_kind_mismatch _ -> "Type error: kind mismatch"
+  | K_tvar_kind_mismatch _ -> "Type error: t mismatch"
   | K_dsort_arity_mismatch _ -> "Type error: sort arity mismatch"
   | K_pred_misuse _ -> "Type error: pred in wrong context"
   | K_unguarded_recursion _ -> "Type error: unguarded recursion"
@@ -702,20 +648,18 @@ let kind_header = function
   | K_iter_pattern_shape _ -> "Type error: iter pattern shape"
   | K_rcase_label_not_in_branches _ ->
     "Type error: case-pattern label not in case expression"
-  | K_internal_invariant _ -> "Internal error: invariant failed"
 
 let rec to_string e =
   print_to_buffer (fun fmt -> print (SourceExcerpt.create ()) fmt e)
 
-and print reg fmt = function
-  | Structured { loc; kind } ->
-    Format.fprintf fmt "@[<v>";
-    print_header fmt (kind_header kind);
-    (match loc with
-     | Some pos -> print_location reg fmt pos
-     | None -> Format.pp_print_cut fmt ());
-    print_kind reg fmt kind;
-    Format.fprintf fmt "@]"
+and print reg fmt { loc; payload } =
+  Format.fprintf fmt "@[<v>";
+  print_header fmt (header payload);
+  (match loc with
+   | Some pos -> print_location reg fmt pos
+   | None -> Format.pp_print_cut fmt ());
+  print_kind reg fmt payload;
+  Format.fprintf fmt "@]"
 
 module Test = struct
   let contains_substring s sub =
@@ -728,7 +672,7 @@ module Test = struct
       ~count:1
       QCheck.unit
       (fun () ->
-        let e = parse_error ~loc:None ~msg:"hello" in
+        let e = locate_opt ~loc:None (parse_error ~msg:"hello") in
         contains_substring (to_string e) "hello")
 
   let test_sort_mismatch_mentions_both =
@@ -741,8 +685,8 @@ module Test = struct
           Sort.mk (object method loc = SourcePos.dummy end) s in
         let int_s = mk Sort.Int in
         let bool_s = mk Sort.Bool in
-        let e = sort_mismatch ~loc:SourcePos.dummy
-                  ~expected:int_s ~actual:bool_s in
+        let e = locate ~loc:SourcePos.dummy
+                  (sort_mismatch ~expected:int_s ~actual:bool_s) in
         let s = to_string e in
         contains_substring s "sort mismatch"
         && contains_substring s "expected"
@@ -755,7 +699,7 @@ module Test = struct
       QCheck.unit
       (fun () ->
         let (v, _) = Var.mk "xyzzy" SourcePos.dummy Var.empty_supply in
-        let e = unbound_var ~loc:SourcePos.dummy v in
+        let e = locate ~loc:SourcePos.dummy (unbound_var v) in
         let s = to_string e in
         contains_substring s "unbound variable"
         && contains_substring s "xyzzy")
@@ -767,7 +711,7 @@ module Test = struct
       QCheck.unit
       (fun () ->
         let (v, _) = Var.mk "yzzyx" SourcePos.dummy Var.empty_supply in
-        let e = unknown_var_type ~loc:SourcePos.dummy ~var:v in
+        let e = locate ~loc:SourcePos.dummy (unknown_var_type ~var:v) in
         let s = to_string e in
         contains_substring s "yzzyx"
         && (contains_substring s "sort is unknown"

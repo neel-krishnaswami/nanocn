@@ -23,8 +23,8 @@ val apply_ce : t -> CoreExpr.typed_ce -> CoreExpr.typed_ce
     [(_, 'e) result] monad: every argument and result is a [result],
     and an [Error] in any input propagates to the output unchanged.
     Polymorphic in the error type so callers can use either
-    [Error.kind] (typical at helper-call boundaries) or [Error.t]
-    (after [Error.structured]). *)
+    [Error.t] (typical at helper-call boundaries) or [Error.located]
+    (lifted with [Error.locate ~loc]). *)
 
 val empty' : (t, 'e) result
 val extend_tvar' :
@@ -40,9 +40,9 @@ val apply_ce' :
   (CoreExpr.typed_ce, 'e) result
 
 val of_lists :
-  Tvar.t list -> Sort.sort list -> (t, Error.kind) result
+  Tvar.t list -> Sort.sort list -> (t, Error.t) result
 (** [of_lists tvars sorts] builds a type-variable substitution.
-    Fails with [Error.K_subst_arity_mismatch] if the two lists
+    Fails with [[Error.subst_arity_mismatch]] if the two lists
     differ in length. *)
 
 val id : Context.t -> t
