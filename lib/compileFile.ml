@@ -13,7 +13,6 @@ type file_outcome = {
   final_sig   : Typecheck.typed_ce Sig.t;
   typed_decls : Typecheck.typed_ce Prog.core_decl list;
   diagnostics : Error.located list;
-  warnings    : Warning.t list;
 }
 
 (** Per-decl accumulator threaded through the fold. *)
@@ -22,17 +21,15 @@ type decl_acc = {
   sig_   : Typecheck.typed_ce Sig.t;
   decls_rev : Typecheck.typed_ce Prog.core_decl list;
   diags_rev : Error.located list;
-  warns_rev : Warning.t list;
 }
 
 let resolve_and_check_decl acc raw_decl =
-  let ((resolved, _env), supply, ws) =
-    ElabM.run_full acc.supply (Resolve.resolve_decl [] raw_decl) in
-  let warns_rev = List.rev_append ws acc.warns_rev in
+  let ((resolved, _env), supply) =
+    ElabM.run acc.supply (Resolve.resolve_decl [] raw_decl) in
   (* Header: extend sig before checking body *)
   match Typecheck.extend_sig_with_header acc.sig_ resolved with
   | Error e ->
-    { acc with supply; warns_rev; diags_rev = e :: acc.diags_rev }
+    { acc with supply; diags_rev = e :: acc.diags_rev }
   | Ok sig1 ->
     (* Body — use the multi-error variant so every diagnostic
        recorded on the typed body's tree reaches LSP, not just
@@ -40,13 +37,12 @@ let resolve_and_check_decl acc raw_decl =
     match Typecheck.check_decl_multi supply sig1 resolved with
     | Error e ->
       (* sig1 keeps the header extension *)
-      { acc with supply; sig_ = sig1; warns_rev;
+      { acc with supply; sig_ = sig1;
         diags_rev = e :: acc.diags_rev }
     | Ok (supply', core_decl, body_errs) ->
       { supply = supply'; sig_ = sig1;
         decls_rev = core_decl :: acc.decls_rev;
-        diags_rev = List.rev_append body_errs acc.diags_rev;
-        warns_rev }
+        diags_rev = List.rev_append body_errs acc.diags_rev }
 
 let compile_file source ~file =
   let parsed = ParseResilient.parse_prog_resilient source ~file in
@@ -55,7 +51,6 @@ let compile_file source ~file =
     sig_ = Typecheck.initial_sig;
     decls_rev = [];
     diags_rev = parsed.errors;
-    warns_rev = [];
   } in
   let acc = List.fold_left (fun acc chunk ->
     match chunk with
@@ -63,10 +58,10 @@ let compile_file source ~file =
     | ParseResilient.Parsed raw_decl -> resolve_and_check_decl acc raw_decl
   ) init parsed.decls in
   (* Main *)
-  let (diags_rev, warns_rev) =
+  let diags_rev =
     match parsed.main with
     | Some (Ok prog) ->
-      let (typed_e, _supply, ws) = ElabM.run_full acc.supply (
+      let (typed_e, _supply) = ElabM.run acc.supply (
         let open ElabM in
         let* resolved = Resolve.resolve_prog [] prog in
         Elaborate.check acc.sig_ Context.empty resolved.Prog.main
@@ -76,14 +71,12 @@ let compile_file source ~file =
          tree so LSP shows them all.  [collect_errors] reads
          [info#subterm_errors] which is populated live during
          elaboration. *)
-      (List.rev_append (Typecheck.collect_errors typed_e) acc.diags_rev,
-       List.rev_append ws acc.warns_rev)
-    | Some (Error _) | None -> (acc.diags_rev, acc.warns_rev)
+      List.rev_append (Typecheck.collect_errors typed_e) acc.diags_rev
+    | Some (Error _) | None -> acc.diags_rev
   in
   { final_sig = acc.sig_;
     typed_decls = List.rev acc.decls_rev;
-    diagnostics = List.rev diags_rev;
-    warnings = List.rev warns_rev }
+    diagnostics = List.rev diags_rev }
 
 (* ================================================================== *)
 (* Refined programs (.rcn)                                             *)

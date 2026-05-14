@@ -15,7 +15,6 @@ type file_outcome = {
   final_sig  : Typecheck.typed_ce Sig.t;
   typed_decls : Typecheck.typed_ce Prog.core_decl list;
   diagnostics : Error.located list;
-  warnings    : Warning.t list;
 }
 
 val compile_file :

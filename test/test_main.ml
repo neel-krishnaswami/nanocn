@@ -1422,44 +1422,6 @@ main : Int [pure] = useNested(1)
                "expected an 'unknown function' diagnostic in: %s"
                (String.concat "; "
                   (List.map Error.to_string outcome.diagnostics))));
-
-      (let contains_substring s sub =
-         let n = String.length s and m = String.length sub in
-         let rec aux i =
-           i + m <= n && (String.sub s i m = sub || aux (i+1)) in
-         m = 0 || (n >= m && aux 0)
-       in
-       let any_warn_contains warns sub =
-         List.exists (fun w ->
-           contains_substring (Warning.to_string w) sub) warns
-       in
-       let src = {|
-type Pair = { Both : (Int * Int) }
-fun example : Pair -> Int [pure] = {
-    Both (x, x) -> x
-}
-main : Int [pure] = example(Both (1, 2) : Pair)
-|} in
-       Alcotest.test_case
-         "duplicate pattern var becomes a shadowed-var warning, not an error"
-         `Quick (fun () ->
-           let outcome =
-             CompileFile.compile_file src
-               ~file:"shadow_warn.cn" in
-           if outcome.diagnostics <> [] then
-             Alcotest.failf
-               "expected no diagnostics, got: %s"
-               (String.concat "; "
-                  (List.map Error.to_string outcome.diagnostics));
-           if List.length outcome.warnings < 1 then
-             Alcotest.failf
-               "expected >= 1 warning for shadowed pattern var, got %d"
-               (List.length outcome.warnings);
-           if not (any_warn_contains outcome.warnings "shadowed") then
-             Alcotest.failf
-               "expected a 'shadowed' warning, got: %s"
-               (String.concat "; "
-                  (List.map Warning.to_string outcome.warnings))));
     ]);
 
     ("rcheck", [
