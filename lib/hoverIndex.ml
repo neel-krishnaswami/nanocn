@@ -26,7 +26,7 @@ let empty = []
 let safe_sort_of_info (b : Typecheck.typed_info) : Sort.sort =
   match b.answer with
   | Ok s -> s
-  | Error _ -> Sort.mk (SourcePos.{ loc = b.loc }) Sort.Bool
+  | Error _ -> Sort.mk (b.loc) Sort.Bool
 
 (** Extract a node from a typed_ce info object (core — no refined context). *)
 let node_of_info (b : Typecheck.typed_info) : node =

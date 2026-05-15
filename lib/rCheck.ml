@@ -20,7 +20,7 @@ let invariant_at pos ~rule msg =
 let invariant ~rule msg =
   Util.raise_invariant ~loc:SourcePos.dummy ~rule msg
 
-let loc_dummy = SourcePos.{ loc = SourcePos.dummy }
+let loc_dummy = SourcePos.dummy
 
 let int_sort = Sort.mk loc_dummy Sort.Int
 let bool_sort = Sort.mk loc_dummy Sort.Bool
@@ -40,7 +40,7 @@ let mk_info sort : CoreExpr.typed_info =
     propagate unchanged. *)
 let mismatch_sort_kind ~construct ~expected_shape s =
   Error.construct_sort_mismatch
-    ~construct ~expected_shape ~got:(SortView.project (fun (i : SourcePos.info) -> i.loc) s)
+    ~construct ~expected_shape ~got:(SortView.project Fun.id s)
 
 let view_get_pred_sort ~construct (sr : (Sort.sort, Error.t) result)
     : (Sort.sort, Error.t) result =
@@ -418,8 +418,8 @@ let elab_and_synth rs delta eff se =
   elab_se rs gamma eff se
 
 (* Elaborate a ProofSort from parsed (SurfExpr.se) to checked (CoreExpr.typed_ce) *)
-let elab_pf_entry (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (entry : (SurfExpr.se, SourcePos.info, Var.t) ProofSort.entry) : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.entry ElabM.t =
-  let loc = (ProofSort.entry_info entry).loc in
+let elab_pf_entry (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (entry : (SurfExpr.se, SourcePos.t, Var.t) ProofSort.entry) : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.entry ElabM.t =
+  let loc = ProofSort.entry_info entry in
   let mk_ri sort eff : RProg.typed_rinfo =
     { loc; ctx = gamma; rctx = RCtx.empty; sort; eff;
       goal = RProg.NoGoal; answer = Ok sort;
@@ -446,7 +446,7 @@ let elab_pf_entry (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (entry : (S
       view_get_pred_sort ~construct:"dep-res predicate" pred_sort_r in
     return (ProofSort.DepRes { info = ri; bound_var; pred = ce_pred })
 
-let elab_pf (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (pf : (SurfExpr.se, SourcePos.info, Var.t) ProofSort.t) : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t ElabM.t =
+let elab_pf (rs : RSig.t) (gamma : Context.t) (eff : Effect.t) (pf : (SurfExpr.se, SourcePos.t, Var.t) ProofSort.t) : (CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t ElabM.t =
   let rec go gamma = function
     | [] -> return []
     | entry :: rest ->
@@ -605,7 +605,7 @@ let strip_annots_shallow' ce_r =
    where no meaningful context exists. *)
 let rinfo_dummy : RProg.typed_rinfo =
   let bool_dummy =
-    Sort.mk SourcePos.{ loc = SourcePos.dummy } Sort.Bool in
+    Sort.mk SourcePos.dummy Sort.Bool in
   { loc = SourcePos.dummy; ctx = Context.empty;
     rctx = RCtx.empty; sort = bool_dummy;
     eff = Effect.Spec; goal = RProg.NoGoal;
@@ -945,7 +945,7 @@ let extend_delta_with_rp_unknowns rp delta =
     rest2 : ?] rather than dropping them entirely. *)
 let error_rp_blanket
     ?(goal = RProg.NoGoal)
-    (rp : (SourcePos.info, Var.t) RPat.rpat)
+    (rp : (SourcePos.t, Var.t) RPat.rpat)
     (delta : RCtx.t)
     (eff : Effect.t)
     (k : Error.t)
@@ -953,8 +953,8 @@ let error_rp_blanket
   let delta' = extend_delta_with_rp_unknowns rp delta in
   let typed_rp =
     RPat.map_info_rpat
-      (fun (b : SourcePos.info) ->
-        mk_rinfo_with_answer ~goal b.loc delta bool_sort eff
+      (fun (b : SourcePos.t) ->
+        mk_rinfo_with_answer ~goal b delta bool_sort eff
           (Error k))
       rp in
   (typed_rp, delta')
@@ -1012,8 +1012,7 @@ let pf_entry_to_string entry =
 
 (* Logical fact synthesis: RS; Delta |- lpf => ce -| Delta' ~> Ct *)
 let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) : (checked_lpf * (CoreExpr.typed_ce, Error.t) result * RCtx.t * Constraint.typed_ct) ElabM.t =
-  let binfo = RefinedExpr.lpf_info lpf in
-  let pos = binfo.loc in
+  let pos = RefinedExpr.lpf_info lpf in
   let placeholder_hole tag =
     CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole tag) in
   match RefinedExpr.lpf_shape lpf with
@@ -1093,8 +1092,7 @@ let rec synth_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) 
 
 (* Logical fact checking: RS; Delta |- lpf <= ce -| Delta' ~> Ct *)
 and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce : (CoreExpr.typed_ce, Error.t) result) : (checked_lpf * RCtx.t * Constraint.typed_ct) ElabM.t =
-  let binfo = RefinedExpr.lpf_info lpf in
-  let pos = binfo.loc in
+  let pos = RefinedExpr.lpf_info lpf in
   let placeholder_hole =
     CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole "lpf-arg-hole") in
   let ce_p = Result.value ce ~default:placeholder_hole in
@@ -1121,8 +1119,7 @@ and check_lpf (rs : RSig.t) (delta : RCtx.t) (lpf : RefinedExpr.parsed_lpf) (ce 
 
 (* Resource fact synthesis: RS; Delta |- rpf => ce @ ce' -| Delta' ~> Ct *)
 and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (checked_rpf * (CoreExpr.typed_ce, Error.t) result * (CoreExpr.typed_ce, Error.t) result * RCtx.t * Constraint.typed_ct) ElabM.t =
-  let binfo = RefinedExpr.rpf_info rpf in
-  let pos = binfo.loc in
+  let pos = RefinedExpr.rpf_info rpf in
   let placeholder_hole tag =
     CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole tag) in
   match RefinedExpr.rpf_shape rpf with
@@ -1148,7 +1145,7 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (c
     let* (ce2, sort2_r) = elab_se rs gamma Effect.Spec se2 in
     let sort2 = Result.value sort2_r ~default:bool_sort in
     let pred_sort =
-      Sort.mk (SourcePos.{ loc = SourcePos.dummy }) (Sort.Pred sort2)
+      Sort.mk (SourcePos.dummy) (Sort.Pred sort2)
     in
     let* ce1 = elab_se_check rs gamma se1 pred_sort Effect.Spec in
     let* (checked_rpf', delta', ct) = check_rpf rs delta rpf' (Ok ce1) (Ok ce2) in
@@ -1205,8 +1202,7 @@ and synth_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) : (c
 
 (* Resource fact checking: RS; Delta |- rpf <= ce @ ce' -| Delta' ~> Ct *)
 and check_rpf (rs : RSig.t) (delta : RCtx.t) (rpf : RefinedExpr.parsed_rpf) (ce1 : (CoreExpr.typed_ce, Error.t) result) (ce2 : (CoreExpr.typed_ce, Error.t) result) : (checked_rpf * RCtx.t * Constraint.typed_ct) ElabM.t =
-  let binfo = RefinedExpr.rpf_info rpf in
-  let pos = binfo.loc in
+  let pos = RefinedExpr.rpf_info rpf in
   (* Goal-display placeholders: when ce1/ce2 are [Error _], the rinfo's
      [goal] field still gets a syntactically-formed pair so hover and
      LSP queries don't crash; the error itself rides on the rinfo's
@@ -1590,8 +1586,7 @@ and synth_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr
   return (checked, pf, delta', ct)
 
 and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) : (checked_crt * ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t, Error.t) result * RCtx.t * Constraint.typed_ct) ElabM.t =
-  let binfo = RefinedExpr.crt_info crt in
-  let pos = binfo.loc in
+  let pos = RefinedExpr.crt_info crt in
   match RefinedExpr.crt_shape crt with
   | RefinedExpr.CAnnot (crt', se_pf) ->
     let gamma = RCtx.erase delta in
@@ -1651,7 +1646,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       return (checked, pf_r, delta', ct)
 
   | RefinedExpr.CIter (se_pred, pat, crt1, crt2) ->
-    let iter_pos = binfo.loc in
+    let iter_pos = pos in
     (* Each cross-cutting check produces a result; we accumulate
        errors and surface them on the outer rinfo's
        answer/subterm_errors via mk_rinfo_full. *)
@@ -1794,7 +1789,7 @@ and synth_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
                 ~construct:"proof sort" in
     let placeholder_pf = [] in
     let placeholder_sort =
-      Sort.mk (SourcePos.{ loc = binfo.loc }) Sort.Bool in
+      Sort.mk pos Sort.Bool in
     let rinfo = mk_rinfo_err ~goal:(RProg.CrtGoal placeholder_pf)
                   pos delta placeholder_sort eff err in
     let checked = RefinedExpr.mk_crt rinfo
@@ -1809,7 +1804,7 @@ and check_crt (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr
 
 and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : RefinedExpr.parsed_crt) (pf : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t, Error.t) result) : (checked_crt * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.crt_info crt in
-  let pos = binfo.loc in
+  let pos = binfo in
   match RefinedExpr.crt_shape crt with
   | RefinedExpr.CLet (pat, crt1, crt2) ->
     (* Per the [let] rule in [doc/syntax.ott] / [doc/refinement-types.md]:
@@ -1877,7 +1872,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       | RPat.QLog (typed_lp, _) -> typed_lp
       | _ ->
         RPat.map_info_lpat
-          (fun (b : SourcePos.info) -> mk_rinfo b.loc RCtx.empty bool_sort eff) lp in
+          (fun (b : SourcePos.t) -> mk_rinfo b RCtx.empty bool_sort eff) lp in
     let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLetLog (typed_lp, checked_lpf, checked_body)) in
     return (checked, delta_out, Constraint.conj pos ct ct_closed)
 
@@ -1926,7 +1921,7 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
       | RPat.QRes (typed_rp, _) -> typed_rp
       | _ ->
         RPat.map_info_rpat
-          (fun (b : SourcePos.info) -> mk_rinfo b.loc RCtx.empty bool_sort eff) rp in
+          (fun (b : SourcePos.t) -> mk_rinfo b RCtx.empty bool_sort eff) rp in
     let checked = RefinedExpr.mk_crt rinfo (RefinedExpr.CLetRes (typed_rp, checked_rpf, checked_body)) in
     let final_ct = match leak with
       | None -> Constraint.conj pos ct ct_closed
@@ -2061,13 +2056,13 @@ and check_crt_impl (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t) (crt : Refine
          | _ ->
            (typed_cp,
             RPat.map_info_lpat
-              (fun (b : SourcePos.info) -> mk_rinfo b.loc RCtx.empty bool_sort eff) lp))
+              (fun (b : SourcePos.t) -> mk_rinfo b RCtx.empty bool_sort eff) lp))
       | _ ->
         let sort = Result.value sort_r ~default:bool_sort in
         (RPat.map_info_cpat
-           (fun (b : SourcePos.info) -> mk_rinfo b.loc RCtx.empty sort eff) cp,
+           (fun (b : SourcePos.t) -> mk_rinfo b RCtx.empty sort eff) cp,
          RPat.map_info_lpat
-           (fun (b : SourcePos.info) -> mk_rinfo b.loc RCtx.empty bool_sort eff) lp) in
+           (fun (b : SourcePos.t) -> mk_rinfo b RCtx.empty bool_sort eff) lp) in
     let checked =
       RefinedExpr.mk_crt rinfo
         (RefinedExpr.CLetCore (
@@ -2097,7 +2092,7 @@ and check_spine
      * RCtx.t
      * Constraint.typed_ct) ElabM.t =
   let binfo = RefinedExpr.spine_info spine in
-  let pos = binfo.loc in
+  let pos = binfo in
   (* Goal-display + sort placeholders fall back to an empty pf when
      [codomain] is [Error _]; the rinfo's answer captures the
      errkind verdict. *)
@@ -2187,7 +2182,7 @@ and check_spine
 (* Tuple checking: RS; Delta |-[eff] rsp : Pf -| Delta' ~> Ct *)
 and _check_tuple rs delta eff spine pf =
   let binfo = RefinedExpr.spine_info spine in
-  let pos = binfo.loc in
+  let pos = binfo in
   let tuple_rinfo = mk_rinfo ~goal:(RProg.CrtGoal pf) pos delta (ProofSort.comp pf) eff in
   match RefinedExpr.spine_shape spine, pf with
   | RefinedExpr.SNil, [] ->
@@ -2437,7 +2432,7 @@ and cpat_match (rs : RSig.t) (delta : RCtx.t)
     (sort : (Sort.sort, Error.t) result)
   : ((RProg.typed_rinfo, Var.t) RPat.cpat * RCtx.t * CoreExpr.typed_ce) ElabM.t =
   let binfo = RPat.cpat_info cp in
-  let pos = binfo.loc in
+  let pos = binfo in
   let _ = rs in
   let eff' = Result.map Effect.purify eff in
   let placeholder_sort = Result.value sort ~default:bool_sort in
@@ -2480,7 +2475,7 @@ and lpat_match (rs : RSig.t) (delta : RCtx.t)
   : ((RProg.typed_rinfo, Var.t) RPat.lpat * RCtx.t * Constraint.typed_ct) ElabM.t =
   let _ = rs in
   let binfo = RPat.lpat_info lp in
-  let pos = binfo.loc in
+  let pos = binfo in
   let placeholder_prop = Result.value prop
     ~default:(CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole "lpat-no-prop")) in
   let goal = RProg.LPatGoal placeholder_prop in
@@ -2499,12 +2494,12 @@ and lpat_match (rs : RSig.t) (delta : RCtx.t)
     return (typed_lp, delta, ct)
 
 and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
-    (rp : (SourcePos.info, Var.t) RPat.rpat)
+    (rp : (SourcePos.t, Var.t) RPat.rpat)
     (pred : (CoreExpr.typed_ce, Error.t) result)
     (value : (CoreExpr.typed_ce, Error.t) result)
   : ((RProg.typed_rinfo, Var.t) RPat.rpat * RCtx.t * Constraint.typed_ct) ElabM.t =
   let binfo = RPat.rpat_info rp in
-  let pos = binfo.loc in
+  let pos = binfo in
   let placeholder_pred = Result.value pred
     ~default:(CoreExpr.mk (mk_info bool_sort) (CoreExpr.Hole "rpat-no-pred")) in
   let placeholder_value = Result.value value
@@ -2722,7 +2717,7 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
             Error.rcase_label_not_in_branches ~label ~case_labels in
           let typed_rp =
             RPat.map_info_rpat
-              (fun (b : SourcePos.info) -> mk_rinfo_with_answer ~goal b.loc delta bool_sort eff
+              (fun (b : SourcePos.t) -> mk_rinfo_with_answer ~goal b delta bool_sort eff
                           (Error err_k))
               rp in
           return (typed_rp, delta, Constraint.top pos)
@@ -2780,8 +2775,8 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
             let err = Error.unfold_not_spec ~name:f in
             let info = mk_rinfo_err ~goal pos delta bool_sort eff err in
             let typed_inner =
-              RPat.map_info_rpat (fun (b : SourcePos.info) ->
-                mk_rinfo ~goal b.loc delta bool_sort eff) rp_inner in
+              RPat.map_info_rpat (fun (b : SourcePos.t) ->
+                mk_rinfo ~goal b delta bool_sort eff) rp_inner in
             let typed_rp = RPat.mk_rpat info (RPat.RUnfold typed_inner) in
             return (typed_rp, delta, Constraint.top pos)
           else
@@ -2812,11 +2807,11 @@ and rpat_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
    wrappers), which propagate through cpat_match / lpat_match /
    rpat_match into the typed AST without halting. *)
 and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
-    (pat : (_, Var.t) RPat.t)
+    (pat : (SourcePos.t, Var.t) RPat.t)
     (pf_r : ((CoreExpr.typed_ce, RProg.typed_rinfo, Var.t) ProofSort.t,
              Error.t) result)
   : ((RProg.typed_rinfo, Var.t) RPat.t * RCtx.t * Constraint.typed_ct) ElabM.t =
-  let pos = (RPat.info pat).loc in
+  let pos = RPat.info pat in
   let cs = RSig.comp rs in
   let _ = cs in
   let answer_ok = Ok bool_sort in
@@ -2832,16 +2827,16 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
     | None -> RProg.NoGoal
   in
   let rec go pat_t pf_opt delta ct_acc =
-    let b : SourcePos.info = RPat.info pat_t in
+    let b : SourcePos.t = RPat.info pat_t in
     let goal = goal_of_pf_opt pf_opt in
     match RPat.shape pat_t with
     | RPat.QNil ->
       let nil_check = view_get_pf_nil pf_opt in
       let answer = match nil_check with
         | Ok () -> answer_ok
-        | Error k -> answer_of_kind ~loc:b.loc (Error k) in
+        | Error k -> answer_of_kind ~loc:b (Error k) in
       let info =
-        mk_rinfo_with_answer ~goal b.loc delta bool_sort eff answer in
+        mk_rinfo_with_answer ~goal b delta bool_sort eff answer in
       return (RPat.mk info RPat.QNil, delta, ct_acc)
 
     | RPat.QCore (cp, rest_pat) ->
@@ -2853,7 +2848,7 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
         | None -> tail_o in
       let* (typed_rest, delta'', ct) =
         go rest_pat tail_o' delta' ct_acc in
-      let info = mk_rinfo ~goal b.loc delta bool_sort eff in
+      let info = mk_rinfo ~goal b delta bool_sort eff in
       return (RPat.mk info (RPat.QCore (typed_cp, typed_rest)), delta'', ct)
 
     | RPat.QLog (lp, rest_pat) ->
@@ -2862,7 +2857,7 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
       let ct_acc' = Constraint.conj pos ct_acc ct1 in
       let* (typed_rest, delta'', ct) =
         go rest_pat tail_o delta' ct_acc' in
-      let info = mk_rinfo ~goal b.loc delta bool_sort eff in
+      let info = mk_rinfo ~goal b delta bool_sort eff in
       return (RPat.mk info (RPat.QLog (typed_lp, typed_rest)), delta'', ct)
 
     | RPat.QRes (rp, rest_pat) ->
@@ -2872,7 +2867,7 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
       let ct_acc' = Constraint.conj pos ct_acc ct1 in
       let* (typed_rest, delta'', ct) =
         go rest_pat tail_o delta' ct_acc' in
-      let info = mk_rinfo ~goal b.loc delta bool_sort eff in
+      let info = mk_rinfo ~goal b delta bool_sort eff in
       return (RPat.mk info (RPat.QRes (typed_rp, typed_rest)), delta'', ct)
 
     | RPat.QDepRes (cp, rp, rest_pat) ->
@@ -2902,7 +2897,7 @@ and q_match (rs : RSig.t) (delta : RCtx.t) (eff : Effect.t)
       let ct_acc' = Constraint.conj pos ct_acc ct1 in
       let* (typed_rest, delta3, ct) =
         go rest_pat tail_o' delta2 ct_acc' in
-      let info = mk_rinfo ~goal b.loc delta bool_sort eff in
+      let info = mk_rinfo ~goal b delta bool_sort eff in
       return (RPat.mk info (RPat.QDepRes (typed_cp, typed_rp, typed_rest)),
               delta3, ct)
   in

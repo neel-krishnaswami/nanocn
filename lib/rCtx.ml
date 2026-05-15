@@ -196,7 +196,7 @@ module Test = struct
       answer = Ok sort; eff = Effect.Spec;
       subterm_errors = [] }
 
-  let bool_sort = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) Sort.Bool
+  let bool_sort = Sort.mk (SourcePos.dummy) Sort.Bool
 
   let test =
     [ QCheck.Test.make ~name:"rctx erase drops log entries"
@@ -215,7 +215,7 @@ module Test = struct
         QCheck.unit
         (fun () ->
            let (x, _supply) = Var.mk "x" SourcePos.dummy Var.empty_supply in
-           let s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) Sort.Int in
+           let s = Sort.mk (SourcePos.dummy) Sort.Int in
            let ctx = extend_comp x s Effect.Pure empty in
            match Context.lookup x (erase ctx) with
            | Ok _ -> true

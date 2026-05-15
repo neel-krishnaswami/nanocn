@@ -42,10 +42,10 @@ val shape : ('b, 'var) t -> (('b, 'var) t, 'b, 'var) seF
 val map : ('b -> 'c) -> ('b, 'var) t -> ('c, 'var) t
 
 (** Concrete located surface expression (after scope resolution). *)
-type se = (SourcePos.info, Var.t) t
+type se = (SourcePos.t, Var.t) t
 
 (** Parsed surface expression (before scope resolution). *)
-type parsed_se = (SourcePos.info, string) t
+type parsed_se = (SourcePos.t, string) t
 
 val print : Format.formatter -> (_, Var.t) t -> unit
 val to_string : (_, Var.t) t -> string

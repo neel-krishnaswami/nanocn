@@ -8,7 +8,7 @@
 
 type shape_compare =
   | Diff of Sort.sort * Sort.sort
-  | Same of (shape_compare, SourcePos.info) Sort.sortF
+  | Same of (shape_compare, SourcePos.t) Sort.sortF
 
 val diff : Sort.sort -> Sort.sort -> shape_compare
 (** [diff s1 s2] walks the two sorts in lockstep:

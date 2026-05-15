@@ -25,10 +25,10 @@ let shape (In (_, s)) = s
 let rec map f (In (b, s)) =
   In (f b, map_shape (map f) s)
 
-type ct = (CoreExpr.ce, SourcePos.info) t
-type typed_ct = (CoreExpr.typed_ce, SourcePos.info) t
+type ct = (CoreExpr.ce, SourcePos.t) t
+type typed_ct = (CoreExpr.typed_ce, SourcePos.t) t
 
-let loc pos = SourcePos.{ loc = pos }
+let loc pos = pos
 
 let top pos = In (loc pos, Top)
 let bot pos = In (loc pos, Bot)
@@ -92,7 +92,7 @@ module Test = struct
         QCheck.unit
         (fun () ->
            let d = SourcePos.dummy in
-           match shape (conj d (top d) (atom d (CoreExpr.mk (SourcePos.{ loc = d }) (CoreExpr.BoolLit true)))) with
+           match shape (conj d (top d) (atom d (CoreExpr.mk (d) (CoreExpr.BoolLit true)))) with
            | Atom _ -> true
            | _ -> false);
     ]

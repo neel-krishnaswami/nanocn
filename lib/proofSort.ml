@@ -48,7 +48,7 @@ let pf_types pf =
     pf
 
 let comp pf =
-  let loc = SourcePos.{ loc = SourcePos.dummy } in
+  let loc = SourcePos.dummy in
   match pf_types pf with
   | [] -> Sort.mk loc (Sort.Record [])
   | [s] -> s
@@ -124,7 +124,7 @@ module Test = struct
         ~count:1
         QCheck.unit
         (fun () ->
-           let loc = SourcePos.{ loc = SourcePos.dummy } in
+           let loc = SourcePos.dummy in
            let s = Sort.mk loc Sort.Int in
            let (x, _supply) = Var.mk "x" SourcePos.dummy Var.empty_supply in
            let ce = CoreExpr.mk loc (CoreExpr.BoolLit true) in

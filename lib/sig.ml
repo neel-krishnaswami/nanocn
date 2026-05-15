@@ -169,7 +169,7 @@ module Test = struct
              | Ok l -> l | Error _ -> assert false in
            let mk_sort s =
              Sort.mk
-               (SourcePos.{ loc = SourcePos.dummy })
+               (SourcePos.dummy)
                s in
            let l = mk_label "La" in
            let d1 = mk_dsort "D1" in
@@ -201,7 +201,7 @@ module Test = struct
              | Ok l -> l | Error _ -> assert false in
            let mk_sort s =
              Sort.mk
-               (SourcePos.{ loc = SourcePos.dummy })
+               (SourcePos.dummy)
                s in
            let d = mk_dsort "D" in
            let l_in = mk_label "Lin" in

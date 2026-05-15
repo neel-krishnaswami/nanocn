@@ -6,7 +6,7 @@
 
     Each follows the doubly-parameterized shape functor pattern.
     ['e] = embedded expression type (SurfExpr.se or CoreExpr.ce).
-    ['b] = auxiliary info (typically [SourcePos.info]).
+    ['b] = auxiliary info (typically [SourcePos.t]).
     ['var] = variable type (string at parse time, Var.t after resolution). *)
 
 (** {1 Shape functors}
@@ -120,15 +120,15 @@ val map_spine_expr : ('e1 -> 'e2) -> ('e1, 'b, 'var) spine -> ('e2, 'b, 'var) sp
 
 (** {1 Concrete types} *)
 
-type parsed_crt = (SurfExpr.se, SourcePos.info, Var.t) crt
-type parsed_lpf = (SurfExpr.se, SourcePos.info, Var.t) lpf
-type parsed_rpf = (SurfExpr.se, SourcePos.info, Var.t) rpf
-type parsed_spine = (SurfExpr.se, SourcePos.info, Var.t) spine
+type parsed_crt = (SurfExpr.se, SourcePos.t, Var.t) crt
+type parsed_lpf = (SurfExpr.se, SourcePos.t, Var.t) lpf
+type parsed_rpf = (SurfExpr.se, SourcePos.t, Var.t) rpf
+type parsed_spine = (SurfExpr.se, SourcePos.t, Var.t) spine
 
-type located_crt = (CoreExpr.ce, SourcePos.info, Var.t) crt
-type located_lpf = (CoreExpr.ce, SourcePos.info, Var.t) lpf
-type located_rpf = (CoreExpr.ce, SourcePos.info, Var.t) rpf
-type located_spine = (CoreExpr.ce, SourcePos.info, Var.t) spine
+type located_crt = (CoreExpr.ce, SourcePos.t, Var.t) crt
+type located_lpf = (CoreExpr.ce, SourcePos.t, Var.t) lpf
+type located_rpf = (CoreExpr.ce, SourcePos.t, Var.t) rpf
+type located_spine = (CoreExpr.ce, SourcePos.t, Var.t) spine
 
 (** {1 Printing} *)
 

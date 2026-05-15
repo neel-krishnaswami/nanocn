@@ -2,12 +2,6 @@
 
 type t
 
-(** Minimal AST-node info: just a source location.  Used as the
-    [<loc>]-stage info type for parsed and resolved ASTs.  Typed
-    phases use richer records ([CoreExpr.typed_info],
-    [RProg.typed_rinfo]). *)
-type info = { loc : t }
-
 val create : file:string -> start_line:int -> start_col:int -> end_line:int -> end_col:int -> t
 val file : t -> string
 val start_line : t -> int

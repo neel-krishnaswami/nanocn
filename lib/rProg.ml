@@ -28,10 +28,10 @@ type ('e, 'b, 'var) t = {
   loc : SourcePos.t;
 }
 
-type raw_parsed = (SurfExpr.parsed_se, SourcePos.info, string) t
-type raw_parsed_decl = (SurfExpr.parsed_se, SourcePos.info, string) decl
-type parsed = (SurfExpr.se, SourcePos.info, Var.t) t
-type checked = (CoreExpr.ce, SourcePos.info, Var.t) t
+type raw_parsed = (SurfExpr.parsed_se, SourcePos.t, string) t
+type raw_parsed_decl = (SurfExpr.parsed_se, SourcePos.t, string) decl
+type parsed = (SurfExpr.se, SourcePos.t, Var.t) t
+type checked = (CoreExpr.ce, SourcePos.t, Var.t) t
 type goal =
   | CrtGoal of (CoreExpr.typed_ce, typed_rinfo, Var.t) ProofSort.t
   | LpfGoal of CoreExpr.typed_ce

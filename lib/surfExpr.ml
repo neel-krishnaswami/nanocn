@@ -72,8 +72,8 @@ let shape (In (_, sf)) = sf
 let rec map f (In (b, sf)) =
   In (f b, map_info f (map_shape (map f) sf))
 
-type se = (SourcePos.info, Var.t) t
-type parsed_se = (SourcePos.info, string) t
+type se = (SourcePos.t, Var.t) t
+type parsed_se = (SourcePos.t, string) t
 
 let infix_op_string = function
   | Prim.Add -> "+" | Prim.Sub -> "-"
@@ -175,7 +175,7 @@ let rec json jb t =
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let mk_t s = mk (SourcePos.{ loc = SourcePos.dummy }) s in
+    let mk_t s = mk (SourcePos.dummy) s in
     sized @@ fix (fun self n ->
       if n <= 0 then
         oneof [

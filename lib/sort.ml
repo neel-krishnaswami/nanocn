@@ -34,7 +34,7 @@ let shape (In (_, sf)) = sf
 let rec map f (In (b, sf)) =
   In (f b, map_shape (map f) sf)
 
-type sort = SourcePos.info t
+type sort = SourcePos.t t
 
 let rec compare_sort s1 s2 =
   compare_sortF (shape s1) (shape s2)
@@ -123,7 +123,7 @@ let is_eqtype s =
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let mk_t s = mk (SourcePos.{ loc = SourcePos.dummy }) s in
+    let mk_t s = mk (SourcePos.dummy) s in
     sized @@ fix (fun self n ->
       if n <= 0 then
         oneof [

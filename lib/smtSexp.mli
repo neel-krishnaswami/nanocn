@@ -25,12 +25,12 @@ val shape : 'b t -> ('b t, 'b) sexpF
 val map   : ('b -> 'c) -> 'b t -> 'c t
 
 (** Concrete located s-expression, parallel to [CoreExpr.ce]. *)
-type sexp = SourcePos.info t
+type sexp = SourcePos.t t
 
 (** {1 Smart constructors}
 
     Info is an explicit parameter so callers pick their own
-    annotation type. The parser supplies a [SourcePos.info]
+    annotation type. The parser supplies a [SourcePos.t]
     object; programmatic construction from nanoCN may thread the
     originating source position or use [unit]. *)
 

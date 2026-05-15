@@ -8,7 +8,7 @@ let ( let* ) r f = match r with Ok x -> f x | Error _ as e -> e
 
 (* ---------- Sexp builder helpers ---------- *)
 
-let loc_info loc = SourcePos.{ loc = loc }
+let loc_info loc = loc
 
 let sym loc s = SmtSexp.symbol (loc_info loc) s
 let num loc n = SmtSexp.numeral_s (loc_info loc) (string_of_int n)
@@ -86,7 +86,7 @@ let is_check_sat (c : located_cmd) =
    at the top), [next] is the next fresh index to allocate. *)
 let rec walk config (ct : Constraint.typed_ct) parent next
   : (located_cmd list * int, string) result =
-  let pos = (Constraint.info ct).loc in
+  let pos = Constraint.info ct in
   let located cmd = { pos; cmd } in
   let scope_cmds n =
     if config.position_trace
@@ -261,7 +261,7 @@ let free_var_decls root_pos ct =
   ) fv []
 
 let of_ct ?(config = default_config) (ct : Constraint.typed_ct) =
-  let root_pos = (Constraint.info ct).loc in
+  let root_pos = Constraint.info ct in
   let root_init =
     if config.position_trace then
       [ { pos = root_pos; cmd = decl_pos root_pos 0 };

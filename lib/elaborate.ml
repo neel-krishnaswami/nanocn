@@ -60,14 +60,14 @@ let mk ctx pos answer eff shape : typed_ce =
   CoreExpr.mk info shape
 
 let lift_sort (s : Sort.sort) : typed_info Sort.t =
-  Sort.map (fun (loc_info : SourcePos.info) ->
-    ({ loc = loc_info.loc;
+  Sort.map (fun (loc : SourcePos.t) ->
+    ({ loc;
        ctx = Context.empty;
        answer = Ok s;
        eff = Effect.Pure;
        subterm_errors = [] } : typed_info)) s
 
-let mk_sort pos s = Sort.mk (SourcePos.{ loc = pos }) s
+let mk_sort pos s = Sort.mk pos s
 
 (** {2 SortView wrappers — local option→result helpers}
 
@@ -78,7 +78,7 @@ let mk_sort pos s = Sort.mk (SourcePos.{ loc = pos }) s
     [SortView.Get.* ~construct:...]. *)
 let mismatch_kind ~construct ~expected_shape s =
   Error.construct_sort_mismatch
-    ~construct ~expected_shape ~got:(SortView.project (fun (i : SourcePos.info) -> i.loc) s)
+    ~construct ~expected_shape ~got:(SortView.project Fun.id s)
 
 let view_get_pred ~construct (sr : (Sort.sort, Error.t) result)
     : (Sort.sort, Error.t) result =
@@ -168,7 +168,7 @@ let rec split_at_n n xs =
 (** {1 Prim signature (sort-level)} *)
 
 let prim_signature (p : Prim.t) =
-  let dummy_info = SourcePos.{ loc = SourcePos.dummy } in
+  let dummy_info = SourcePos.dummy in
   let mk s = Sort.mk dummy_info s in
   let int_sort = mk Sort.Int in
   let bool_sort = mk Sort.Bool in
@@ -292,9 +292,9 @@ let classify_column branches : column_kind =
         (match Pat.shape p with
          | Pat.Var _ -> None
          | Pat.Tuple ps ->
-           Some (Error.PS_Tuple (List.length ps), (Pat.info p).loc)
+           Some (Error.PS_Tuple (List.length ps), Pat.info p)
          | Pat.Con (l, _) ->
-           Some (Error.PS_Ctor l, (Pat.info p).loc))
+           Some (Error.PS_Ctor l, Pat.info p))
       | [] -> None
     ) branches
   in
@@ -355,7 +355,7 @@ let rec spec_con label ctor_sort y eff_b branches =
          spec_con label ctor_sort y eff_b rest
        | Pat.Var x ->
          let* z = ElabM.fresh (Var.binding_site x) in
-         let z_pat = Pat.mk (SourcePos.{ loc = Var.binding_site z }) (Pat.Var z) in
+         let z_pat = Pat.mk (Var.binding_site z) (Pat.Var z) in
          let* rest' = spec_con label ctor_sort y eff_b rest in
          ElabM.return ({ bindings = (z_pat, ctor_sort) :: binds;
                          let_bindings = br.let_bindings @ [{ var = x; rhs = y; sort; eff = eff_b;
@@ -387,7 +387,7 @@ let rec expand_tup sorts y eff_b branches =
        | Pat.Var x ->
          let* fresh_zs = fresh_vars_for_sorts sorts (Var.binding_site x) in
          let z_pats = List.map (fun (z, s) ->
-           (Pat.mk (SourcePos.{ loc = Var.binding_site z }) (Pat.Var z), s)
+           (Pat.mk (Var.binding_site z) (Pat.Var z), s)
          ) fresh_zs in
          let* rest' = expand_tup sorts y eff_b rest in
          ElabM.return ({ bindings = z_pats @ binds;
@@ -432,7 +432,7 @@ let find_con_subpat_pos label branches fallback =
       | (p, _) :: _ ->
         (match Pat.shape p with
          | Pat.Con (l, subpat) when Label.compare l label = 0 ->
-           (Pat.info subpat).loc
+           Pat.info subpat
          | _ -> go rest)
       | _ -> go rest
   in
@@ -446,7 +446,7 @@ let find_tup_subpat_positions branches n fallback_pos =
       match br.bindings with
       | (p, _) :: _ ->
         (match Pat.shape p with
-         | Pat.Tuple pats -> List.map (fun p -> ((Pat.info p) : SourcePos.info).loc) pats
+         | Pat.Tuple pats -> List.map (fun p -> (Pat.info p : SourcePos.t)) pats
          | _ -> go rest)
       | _ -> go rest
   in
@@ -455,7 +455,7 @@ let find_tup_subpat_positions branches n fallback_pos =
 (** {1 Elaboration} *)
 
 let rec synth sig_ ctx eff0 (se : SurfExpr.se) =
-  let pos = (SurfExpr.info se).loc in
+  let pos = SurfExpr.info se in
   match SurfExpr.shape se with
   | SurfExpr.Var x ->
     let answer =
@@ -555,7 +555,7 @@ let rec synth sig_ ctx eff0 (se : SurfExpr.se) =
     Other clauses thread the result through [SortView] and continue
     elaborating their subterms regardless. *)
 and check sig_ ctx (se : SurfExpr.se) sort eff0 =
-  let pos = (SurfExpr.info se).loc in
+  let pos = SurfExpr.info se in
   match SurfExpr.shape se with
   | SurfExpr.Return inner ->
     let eff_check = check_pred (Effect.sub Effect.Spec eff0)
@@ -584,7 +584,7 @@ and check sig_ ctx (se : SurfExpr.se) sort eff0 =
       |> view_get_pred ~construct:"take scrutinee"
     in
     let eff_b = Effect.purify eff0 in
-    let* y = ElabM.fresh (Pat.info pat).loc in
+    let* y = ElabM.fresh (Pat.info pat) in
     let ctx_y = Context.extend_or_unknown y bound_kind eff_b ctx in
     let branch = {
       bindings = [(pat, bound_kind)];
@@ -607,7 +607,7 @@ and check sig_ ctx (se : SurfExpr.se) sort eff0 =
     let bound_kind =
       unsynth ~construct:"let binding" (CoreExpr.info ce1).answer in
     let eff_b = Effect.purify eff0 in
-    let* y = ElabM.fresh (Pat.info pat).loc in
+    let* y = ElabM.fresh (Pat.info pat) in
     let ctx_y = Context.extend_or_unknown y bound_kind eff_b ctx in
     let branch = {
       bindings = [(pat, bound_kind)];
@@ -655,7 +655,7 @@ and check sig_ ctx (se : SurfExpr.se) sort eff0 =
     let* ce_scrut = synth sig_ ctx eff0' scrut in
     let scrut_kind =
       unsynth ~construct:"case scrutinee" (CoreExpr.info ce_scrut).answer in
-    let* y = ElabM.fresh (SurfExpr.info scrut).loc in
+    let* y = ElabM.fresh (SurfExpr.info scrut) in
     let ctx_y = Context.extend_or_unknown y scrut_kind eff0' ctx in
     let branches = List.map (fun (pat, body, _) ->
       { bindings = [(pat, scrut_kind)];
@@ -692,7 +692,7 @@ and check sig_ ctx (se : SurfExpr.se) sort eff0 =
       let* result = sort in
       Ok (mk_sort pos (Sort.App (step_dsort, [a; result])))
     in
-    let* y = ElabM.fresh (Pat.info pat).loc in
+    let* y = ElabM.fresh (Pat.info pat) in
     let bind_eff = Effect.purify Effect.Impure in
     let ctx_y = Context.extend_or_unknown y init_kind bind_eff ctx in
     let branch = {
@@ -763,7 +763,7 @@ and coverage_check sig_ ctx scrutinees branches eff_b sort eff0 ~cov_loc rebuild
        let* ce' = check sig_ ctx' br.body sort eff0 in
        ElabM.return (wrap_lets br.let_bindings ctx sort eff0 ce')
      | (p, _) :: _ ->
-       invariant_at (Pat.info p).loc ~rule:"coverage_check:Cov_done"
+       invariant_at (Pat.info p) ~rule:"coverage_check:Cov_done"
          "branch still has un-consumed pattern bindings after all \
           scrutinees have been dispatched")
 

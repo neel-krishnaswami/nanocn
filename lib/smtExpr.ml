@@ -1,6 +1,6 @@
 (* Helpers for building SMT sexps with source-position info. *)
 
-let loc_info loc = SourcePos.{ loc = loc }
+let loc_info loc = loc
 
 let sym_at loc s = SmtSexp.symbol (loc_info loc) s
 let list_at loc xs = SmtSexp.list (loc_info loc) xs
@@ -8,7 +8,7 @@ let numeral_at loc n = SmtSexp.numeral_s (loc_info loc) (string_of_int n)
 let string_at loc s = SmtSexp.string_lit (loc_info loc) s
 let res_at loc r = SmtSexp.reserved (loc_info loc) r
 
-let sort_loc (s : Sort.sort) = (Sort.info s).loc
+let sort_loc (s : Sort.sort) = Sort.info s
 let ce_loc (ce : CoreExpr.typed_ce) = (CoreExpr.info ce).loc
 
 (* ---------- Sort translation ---------- *)
@@ -320,7 +320,7 @@ let rec of_ce ce =
      | SmtSexp.Atom (SmtAtom.Symbol _ | SmtAtom.Reserved _) ->
        let s_loc : Sort.sort =
          Sort.map (fun (i : CoreExpr.typed_info) ->
-           SourcePos.{ loc = i.loc }) s in
+           i.loc) s in
        Ok (list_at loc [res_at loc SmtAtom.R_as; e'; of_sort s_loc])
      | _ -> Ok e')
 
@@ -382,7 +382,7 @@ module Test = struct
       answer = Ok sort; eff = Effect.Pure;
       subterm_errors = [] }
 
-  let dummy_sort_info = SourcePos.{ loc = SourcePos.dummy }
+  let dummy_sort_info = SourcePos.dummy
 
   let mk_sort shape = Sort.mk dummy_sort_info shape
   let sort_int = mk_sort Sort.Int

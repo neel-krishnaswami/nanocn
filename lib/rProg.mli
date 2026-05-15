@@ -3,7 +3,7 @@
     Parameterized by ['e], the type of embedded expressions,
     ['b], the auxiliary info on refined expression nodes,
     and ['var], the type of variable names.
-    At parse time, ['e = SurfExpr.se, 'b = SourcePos.info, 'var = Var.t].
+    At parse time, ['e = SurfExpr.se, 'b = SourcePos.t, 'var = Var.t].
     After typechecking, ['e = CoreExpr.typed_ce, 'b = typed_rinfo, 'var = Var.t]. *)
 
 type ('e, 'b, 'var) decl =
@@ -37,16 +37,16 @@ type ('e, 'b, 'var) t = {
 }
 
 (** Raw parsed type (string names, before scope resolution). *)
-type raw_parsed = (SurfExpr.parsed_se, SourcePos.info, string) t
+type raw_parsed = (SurfExpr.parsed_se, SourcePos.t, string) t
 
 (** Raw parsed declaration (for parser start symbol). *)
-type raw_parsed_decl = (SurfExpr.parsed_se, SourcePos.info, string) decl
+type raw_parsed_decl = (SurfExpr.parsed_se, SourcePos.t, string) decl
 
 (** Resolved parse-time type (surface expressions, Var.t names). *)
-type parsed = (SurfExpr.se, SourcePos.info, Var.t) t
+type parsed = (SurfExpr.se, SourcePos.t, Var.t) t
 
 (** Checked type (core expressions). *)
-type checked = (CoreExpr.ce, SourcePos.info, Var.t) t
+type checked = (CoreExpr.ce, SourcePos.t, Var.t) t
 
 (** Goal: what a refined subterm is working towards. *)
 type goal =

@@ -8,9 +8,7 @@
       ~end_line:endpos.pos_lnum
       ~end_col:(endpos.pos_cnum - endpos.pos_bol)
 
-  let loc_info startpos endpos =
-    let loc = mk_loc startpos endpos in
-    SourcePos.{ loc }
+  let loc_info startpos endpos = mk_loc startpos endpos
 %}
 
 %token LPAREN RPAREN EOF

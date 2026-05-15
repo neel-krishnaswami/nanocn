@@ -195,7 +195,7 @@ let parse_prog_resilient s ~file =
 (* ================================================================== *)
 
 type parsed_rfile = {
-  rdecls : (SurfExpr.parsed_se, SourcePos.info, string) RProg.decl chunk_result list;
+  rdecls : (SurfExpr.parsed_se, SourcePos.t, string) RProg.decl chunk_result list;
   rmain  : (RProg.raw_parsed, Error.located) result option;
   errors : Error.located list;
 }

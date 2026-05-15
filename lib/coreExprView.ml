@@ -93,10 +93,10 @@ end
 module Test = struct
   let dummy_info : CoreExpr.typed_info =
     { loc = SourcePos.dummy; ctx = Context.empty;
-      answer = Ok (Sort.mk SourcePos.{ loc = SourcePos.dummy } Sort.Bool);
+      answer = Ok (Sort.mk SourcePos.dummy Sort.Bool);
       eff = Effect.Pure; subterm_errors = [] }
 
-  let int_sort = Sort.mk SourcePos.{ loc = SourcePos.dummy } Sort.Int
+  let int_sort = Sort.mk SourcePos.dummy Sort.Int
 
   let mk_int_lit n =
     let info : CoreExpr.typed_info =

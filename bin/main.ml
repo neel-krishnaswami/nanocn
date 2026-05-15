@@ -176,7 +176,7 @@ let json_file filename =
         "ctx", Json.String "<ctx>";
         "answer",
           (match b.answer with
-           | Ok s -> Sort.json (fun (b' : SourcePos.info) -> SourcePos.json b'.loc) s
+           | Ok s -> Sort.json SourcePos.json s
            | Error k ->
              let e = Error.locate ~loc:b.loc k in
              Json.Object ["error", Json.String (Error.to_string e)]);

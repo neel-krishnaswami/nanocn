@@ -50,7 +50,7 @@ let json d =
     "name", Dsort.json d.name;
     "params", Json.Array (List.map Tvar.json d.params);
     "ctors", Json.Array (List.map (fun (l, s) ->
-      Json.Object ["label", Label.json l; "type", Sort.json (fun (b : SourcePos.info) -> SourcePos.json b.loc) s]) d.ctors);
+      Json.Object ["label", Label.json l; "type", Sort.json SourcePos.json s]) d.ctors);
     "loc", SourcePos.json d.loc;
   ]
 
@@ -76,7 +76,7 @@ let print fmt d =
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let mk_sort s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) s in
+    let mk_sort s = Sort.mk (SourcePos.dummy) s in
     let simple_sort = oneof [
       pure (mk_sort Sort.Int);
       pure (mk_sort Sort.Bool);

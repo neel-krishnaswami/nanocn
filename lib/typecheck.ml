@@ -30,7 +30,7 @@ let ( &&& )
 
 let sort_equal (a : Sort.sort) (b : Sort.sort) = Sort.compare a b = 0
 
-let dummy_info = SourcePos.{ loc = SourcePos.dummy }
+let dummy_info = SourcePos.dummy
 
 let mk_sort s = Sort.mk dummy_info s
 
@@ -51,8 +51,8 @@ let mk_bind_info x answer eff ctx : typed_info =
     in a typed core-expression shape.  The extra fields (ctx, answer, eff)
     on each sort node are fillers — no client inspects them. *)
 let lift_sort (s : Sort.sort) : typed_info Sort.t =
-  Sort.map (fun (loc_info : SourcePos.info) ->
-    ({ loc = loc_info.loc;
+  Sort.map (fun (loc : SourcePos.t) ->
+    ({ loc;
        ctx = Context.empty;
        answer = Ok s;
        eff = Effect.Pure;
@@ -107,7 +107,7 @@ let unsynth ~construct r =
     [SortView.Get.* ~construct:...]. *)
 let mismatch_kind ~construct ~expected_shape s =
   Error.construct_sort_mismatch
-    ~construct ~expected_shape ~got:(SortView.project (fun (i : SourcePos.info) -> i.loc) s)
+    ~construct ~expected_shape ~got:(SortView.project Fun.id s)
 
 let view_get_pred ~construct (sr : (Sort.sort, Error.t) result)
     : (Sort.sort, Error.t) result =
@@ -277,7 +277,7 @@ let replace_answer (ce : typed_ce) answer : typed_ce =
     on success and [Error e] on failure.  Errors are recorded on the
     offending node so siblings can still be elaborated. *)
 let rec synth sig_ ctx eff0 (ce : CoreExpr.ce) : typed_ce =
-  let pos = (CoreExpr.info ce).loc in
+  let pos = CoreExpr.info ce in
   match CoreExpr.shape ce with
   | CoreExpr.Var x ->
     let answer =
@@ -379,7 +379,7 @@ let rec synth sig_ ctx eff0 (ce : CoreExpr.ce) : typed_ce =
     unconditional) — the term's own [answer] inherits the failure
     reason from the View calls that consume [sort]. *)
 and check sig_ ctx ce sort eff0 : typed_ce =
-  let pos = (CoreExpr.info ce).loc in
+  let pos = CoreExpr.info ce in
   match CoreExpr.shape ce with
   | CoreExpr.Return inner ->
     let eff_check = check_pred (Effect.sub Effect.Spec eff0)
@@ -636,7 +636,7 @@ let initial_sig : typed_ce Sig.t =
 
 (** Check kind well-formedness: CS ; G |- tau : kind *)
 let rec kind_wf sig_ ctx (s : Sort.sort) kind =
-  let pos = (Sort.info s).loc in
+  let pos = Sort.info s in
   match Sort.shape s with
   | Sort.Int | Sort.Bool -> Ok ()
   | Sort.TVar a ->
@@ -716,7 +716,7 @@ let validate_sort_decl sig_ (d : DsortDecl.t) =
 (** Check guarded well-formedness for datatype declarations:
     CS ; G ; D'(a1,...,an) |- tau guarded *)
 let rec type_guarded sig_ ctx (guard_name, guard_params) (s : Sort.sort) =
-  let pos = (Sort.info s).loc in
+  let pos = Sort.info s in
   match Sort.shape s with
   | Sort.Int | Sort.Bool -> Ok ()
   | Sort.TVar a ->
@@ -792,7 +792,7 @@ let elaborate_fun supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
     let ((y, typed_body), supply') = ElabM.run supply (
       let open ElabM in
       let param_pos = match d.branches with
-        | (pat, _, _) :: _ -> (Pat.info pat).loc
+        | (pat, _, _) :: _ -> Pat.info pat
         | [] -> d.loc
       in
       let* y = fresh param_pos in
@@ -862,7 +862,7 @@ let check_decl_multi supply sig_ (d : (SurfExpr.se, _, Var.t) Prog.decl) =
     let ((y, typed_body), supply') = ElabM.run supply (
       let open ElabM in
       let param_pos = match d.branches with
-        | (pat, _, _) :: _ -> (Pat.info pat).loc
+        | (pat, _, _) :: _ -> Pat.info pat
         | [] -> d.loc
       in
       let* y = fresh param_pos in

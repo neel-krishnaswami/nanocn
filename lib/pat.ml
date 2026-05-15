@@ -30,8 +30,8 @@ let rec map_var f (In (b, sf)) =
   in
   In (b, sf')
 
-type pat = (SourcePos.info, Var.t) t
-type parsed_pat = (SourcePos.info, string) t
+type pat = (SourcePos.t, Var.t) t
+type parsed_pat = (SourcePos.t, string) t
 
 let rec compare_pat p1 p2 =
   compare_patF (shape p1) (shape p2)
@@ -109,7 +109,7 @@ let linear_check p =
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let mk_t s = mk (SourcePos.{ loc = SourcePos.dummy }) s in
+    let mk_t s = mk (SourcePos.dummy) s in
     sized @@ fix (fun self n ->
       if n <= 0 then
         map (fun v -> mk_t (Var v)) Var.Test.gen

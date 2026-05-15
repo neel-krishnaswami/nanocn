@@ -40,7 +40,7 @@ val shape : 'b t -> ('b t, 'b) ceF
 val map : ('b -> 'c) -> 'b t -> 'c t
 
 (** Concrete located core expression. *)
-type ce = SourcePos.info t
+type ce = SourcePos.t t
 
 (** Typed core expression, carrying context, sort-or-error answer,
     and effect at every node.  The [answer] field is [Ok sort] for

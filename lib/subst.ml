@@ -112,7 +112,7 @@ let id ctx =
       answer = Ok sort; eff = Effect.Spec;
       subterm_errors = [] } in
   let mk_sort_info =
-    (SourcePos.{ loc = SourcePos.dummy }) in
+    (SourcePos.dummy) in
   let rec go = function
     | [] -> []
     | Context.Term (x, sort, _eff) :: rest ->
@@ -181,7 +181,7 @@ let print fmt sub =
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let mk_s s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) s in
+    let mk_s s = Sort.mk (SourcePos.dummy) s in
     let simple_sort = oneof [
       pure (mk_s Sort.Int);
       pure (mk_s Sort.Bool);
@@ -196,7 +196,7 @@ module Test = struct
     pure entries
 
   let test =
-    let mk_s s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) s in
+    let mk_s s = Sort.mk (SourcePos.dummy) s in
     [ QCheck.Test.make ~name:"subst compare is reflexive"
         ~count:100
         (QCheck.make gen)

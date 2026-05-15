@@ -8,9 +8,7 @@
       ~end_line:endpos.pos_lnum
       ~end_col:(endpos.pos_cnum - endpos.pos_bol)
 
-  let loc_obj startpos endpos =
-    let loc = mk_loc startpos endpos in
-    SourcePos.{ loc }
+  let loc_obj startpos endpos = mk_loc startpos endpos
 
   let mk_surfexpr startpos endpos s =
     SurfExpr.mk (loc_obj startpos endpos) s

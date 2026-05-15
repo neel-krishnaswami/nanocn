@@ -6,8 +6,6 @@ type t = {
   end_col : int;
 }
 
-type info = { loc : t }
-
 let create ~file ~start_line ~start_col ~end_line ~end_col =
   { file; start_line; start_col; end_line; end_col }
 

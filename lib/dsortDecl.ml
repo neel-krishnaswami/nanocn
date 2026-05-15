@@ -45,7 +45,7 @@ let compare d1 d2 =
       in
       compare_ctors d1.ctors d2.ctors
 
-let json_sort_loc s = Sort.json (fun (b : SourcePos.info) -> SourcePos.json b.loc) s
+let json_sort_loc s = Sort.json SourcePos.json s
 
 let json d =
   Json.Object [
@@ -78,7 +78,7 @@ let print fmt d =
 module Test = struct
   let gen =
     let open QCheck.Gen in
-    let mk_sort s = Sort.mk (SourcePos.{ loc = SourcePos.dummy }) s in
+    let mk_sort s = Sort.mk (SourcePos.dummy) s in
     let simple_sort = oneof [
       pure (mk_sort Sort.Int);
       pure (mk_sort Sort.Bool);

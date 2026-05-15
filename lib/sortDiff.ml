@@ -1,6 +1,6 @@
 type shape_compare =
   | Diff of Sort.sort * Sort.sort
-  | Same of (shape_compare, SourcePos.info) Sort.sortF
+  | Same of (shape_compare, SourcePos.t) Sort.sortF
 
 (* Walk two sorts in lockstep. At each step we compare head
    constructors; when they agree we recurse, when they disagree we
@@ -25,8 +25,8 @@ let rec diff s1 s2 =
     Same (Sort.TVar a1)
   | _, _ -> Diff (s1, s2)
 
-let dummy_info = (SourcePos.{ loc = SourcePos.dummy } :
-                    SourcePos.info)
+let dummy_info = (SourcePos.dummy :
+                    SourcePos.t)
 
 let rec left = function
   | Diff (s1, _) -> s1
